@@ -153,7 +153,7 @@ function Block({
 function EventCard({ e }: { e: HomeEvent }) {
   return (
     <Link
-      href="/whats-on"
+      href={`/whats-on/${e.id}`}
       className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
       <div className="relative h-40 overflow-hidden bg-events/15">
