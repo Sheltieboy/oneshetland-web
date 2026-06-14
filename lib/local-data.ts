@@ -38,6 +38,7 @@ export type Business = {
   accepts_bookings: boolean;
   subscription_tier: string;
   slug: string | null;
+  is_claimed: boolean;
 };
 
 export type Offer = {
@@ -70,7 +71,7 @@ export type Service = {
 };
 
 const LIST_COLS =
-  "id, name, category, description, address, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug";
+  "id, name, category, description, address, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

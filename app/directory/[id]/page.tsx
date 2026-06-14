@@ -111,6 +111,27 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
+      {/* Claim banner — unclaimed listings only */}
+      {!b.is_claimed && (
+        <div id="claim" className="scroll-mt-20 border-b border-local/20 bg-local/8">
+          <div className="mx-auto flex max-w-5xl flex-col items-start gap-4 px-5 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-display text-xl font-bold text-local">Is this your business?</p>
+              <p className="mt-1 text-ink-soft">
+                Claim this free listing to manage your details and add offers, loyalty and online bookings.
+              </p>
+            </div>
+            <Link
+              href="/sign-in"
+              className="shrink-0 rounded-pill px-6 py-3 font-semibold text-paper shadow-soft transition hover:brightness-95"
+              style={{ background: LOCAL }}
+            >
+              Claim this listing
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Body */}
       <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 lg:grid-cols-[1.6fr_1fr] lg:py-16">
         <div className="space-y-12">

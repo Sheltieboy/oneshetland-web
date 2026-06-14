@@ -35,41 +35,50 @@ export function BusinessCard({ b }: { b: Business }) {
     ? (b.brand_color.startsWith("#") ? b.brand_color : `#${b.brand_color}`)
     : LOCAL;
   return (
-    <Link
-      href={href}
-      className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
-    >
-      <div className="relative h-32 overflow-hidden" style={{ background: `${accent}1a` }}>
-        {b.cover_url ? (
-          <img src={b.cover_url} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
-        ) : (
-          <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}99)` }} />
-        )}
-        {b.subscription_tier === "premium" && (
-          <span className="absolute right-3 top-3 rounded-pill bg-paper/95 px-2.5 py-1 text-xs font-bold text-local shadow-sm">
-            ★ Featured
-          </span>
-        )}
-      </div>
-      <div className="relative flex flex-1 flex-col p-4">
-        {(b.logo_url) && (
-          <img
-            src={b.logo_url}
-            alt=""
-            className="absolute -top-7 left-4 h-12 w-12 rounded-xl border-2 border-paper bg-paper object-cover shadow-sm"
-          />
-        )}
-        <div className={b.logo_url ? "mt-6" : ""}>
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate font-display text-lg font-bold">{b.name}</h3>
-            {b.is_verified && <VerifiedTick />}
-          </div>
-          {b.category && <p className="text-sm text-ink-muted">{CATEGORY_LABEL[b.category] ?? b.category}</p>}
-          {b.description && <p className="mt-1.5 line-clamp-2 text-sm text-ink-soft">{b.description}</p>}
-          <AddonChips b={b} className="mt-3" />
+    <div className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift">
+      <Link href={href} className="flex flex-1 flex-col">
+        <div className="relative h-32 overflow-hidden" style={{ background: `${accent}1a` }}>
+          {b.cover_url ? (
+            <img src={b.cover_url} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
+          ) : (
+            <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}99)` }} />
+          )}
+          {b.subscription_tier === "premium" && (
+            <span className="absolute right-3 top-3 rounded-pill bg-paper/95 px-2.5 py-1 text-xs font-bold text-local shadow-sm">
+              ★ Featured
+            </span>
+          )}
         </div>
-      </div>
-    </Link>
+        <div className="relative flex flex-1 flex-col p-4">
+          {b.logo_url && (
+            <img
+              src={b.logo_url}
+              alt=""
+              className="absolute -top-7 left-4 h-12 w-12 rounded-xl border-2 border-paper bg-paper object-cover shadow-sm"
+            />
+          )}
+          <div className={b.logo_url ? "mt-6" : ""}>
+            <div className="flex items-center gap-1.5">
+              <h3 className="truncate font-display text-lg font-bold">{b.name}</h3>
+              {b.is_verified && <VerifiedTick />}
+            </div>
+            {b.category && <p className="text-sm text-ink-muted">{CATEGORY_LABEL[b.category] ?? b.category}</p>}
+            {b.description && <p className="mt-1.5 line-clamp-2 text-sm text-ink-soft">{b.description}</p>}
+            <AddonChips b={b} className="mt-3" />
+          </div>
+        </div>
+      </Link>
+
+      {/* Unclaimed listings invite a claim; hidden once claimed + verified. */}
+      {!b.is_claimed && (
+        <Link
+          href={`${href}#claim`}
+          className="flex items-center justify-center gap-1.5 border-t border-dashed border-local/40 bg-local/5 px-4 py-2.5 text-xs font-bold text-local transition hover:bg-local/12"
+        >
+          Own this business? Claim this listing →
+        </Link>
+      )}
+    </div>
   );
 }
 
