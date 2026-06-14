@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { SECTIONS } from "@/lib/sections";
 
 export function SiteFooter() {
@@ -8,10 +9,10 @@ export function SiteFooter() {
         <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr]">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-paper text-navy">
-                <span className="font-display text-lg font-black leading-none">O</span>
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-paper p-1.5">
+                <Image src="/logo.png" alt="" width={32} height={32} unoptimized className="h-8 w-8" />
               </span>
-              <span className="font-display text-xl font-black tracking-tight">OneShetland</span>
+              <span className="font-display text-xl font-semibold tracking-tight">OneShetland</span>
             </div>
             <p className="mt-4 max-w-xs text-paper/70">
               Everything Shetland, in one place — built for the islands, by the islands.

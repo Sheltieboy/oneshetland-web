@@ -7,7 +7,7 @@ export default function SignInPage() {
     <section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-20">
       <div className="rounded-xl border border-line bg-paper p-8 shadow-soft sm:p-10">
         <p className="eyebrow text-teal">Welcome back</p>
-        <h1 className="mt-2 font-display text-4xl font-black text-navy">Sign in</h1>
+        <h1 className="mt-2 font-display text-4xl font-bold text-navy">Sign in</h1>
         <p className="mt-3 text-ink-soft">
           Your OneShetland account works across the app and the website — same
           login, same wallet, same memberships.

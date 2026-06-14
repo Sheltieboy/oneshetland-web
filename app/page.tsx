@@ -12,12 +12,12 @@ export default function Home() {
           alt=""
           fill
           priority
-          className="object-cover object-center opacity-45"
+          className="object-cover object-center opacity-55"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/75 to-navy/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-navy via-navy/65 to-navy/25" />
         <div className="relative mx-auto max-w-6xl px-5 py-28 sm:py-36">
           <p className="eyebrow text-teal">For aa the isles</p>
-          <h1 className="mt-4 max-w-3xl font-display text-[2.75rem] font-black leading-[1.02] sm:text-6xl md:text-7xl">
+          <h1 className="mt-4 max-w-3xl font-display text-[2.75rem] font-bold leading-[1.02] sm:text-6xl md:text-7xl">
             Everything Shetland,
             <br />
             in one place.
@@ -47,7 +47,7 @@ export default function Home() {
       {/* ── Sections grid ────────────────────────────────────────────────── */}
       <section id="sections" className="mx-auto max-w-6xl px-5 py-20 sm:py-24">
         <p className="eyebrow text-ink-muted">Browse</p>
-        <h2 className="mt-2 max-w-2xl font-display text-4xl font-black leading-tight sm:text-5xl">
+        <h2 className="mt-2 max-w-2xl font-display text-4xl font-bold leading-tight sm:text-5xl">
           Find your corner of Shetland
         </h2>
         <p className="mt-4 max-w-2xl text-lg text-ink-soft">
@@ -84,10 +84,10 @@ function SectionCard({ s, img }: { s: Section; img?: string }) {
         <div
           className="absolute inset-0"
           style={{
-            background: `linear-gradient(to top, ${s.color}e6, ${s.color}33 60%, ${s.color}11)`,
+            background: `linear-gradient(to top, ${s.color}d9, ${s.color}26 55%, transparent)`,
           }}
         />
-        <h3 className="absolute inset-x-0 bottom-0 p-4 font-display text-2xl font-black text-paper drop-shadow-sm">
+        <h3 className="absolute inset-x-0 bottom-0 p-4 font-display text-2xl font-bold text-paper drop-shadow-sm">
           {s.label}
         </h3>
       </div>

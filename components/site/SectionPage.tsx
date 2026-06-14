@@ -20,17 +20,17 @@ export function SectionPage({ sectionKey }: { sectionKey: string }) {
         style={{ background: s.color }}
       >
         {img ? (
-          <Image src={img} alt="" fill priority className="object-cover opacity-55" />
+          <Image src={img} alt="" fill priority className="object-cover opacity-60" />
         ) : null}
         <div
           className="absolute inset-0"
           style={{
-            background: `linear-gradient(to top, ${s.color}f2, ${s.color}99 55%, ${s.color}66)`,
+            background: `linear-gradient(to top, ${s.color}e6, ${s.color}73 55%, ${s.color}33)`,
           }}
         />
         <div className="relative mx-auto max-w-6xl px-5 py-20 sm:py-24">
           <p className="eyebrow text-paper/80">OneShetland</p>
-          <h1 className="mt-3 font-display text-5xl font-black leading-[1.02] sm:text-6xl">
+          <h1 className="mt-3 font-display text-5xl font-bold leading-[1.02] sm:text-6xl">
             {s.label}
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper/90">
@@ -50,7 +50,7 @@ export function SectionPage({ sectionKey }: { sectionKey: string }) {
               <path d="M12 2v4M12 18v4M2 12h4M18 12h4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M19.1 4.9l-2.8 2.8M7.7 16.3l-2.8 2.8" />
             </svg>
           </span>
-          <h2 className="mt-5 font-display text-3xl font-black">
+          <h2 className="mt-5 font-display text-3xl font-bold">
             {s.label} is coming to the web
           </h2>
           <p className="mx-auto mt-3 max-w-md text-lg text-ink-soft">

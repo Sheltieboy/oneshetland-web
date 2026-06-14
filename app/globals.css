@@ -44,9 +44,9 @@
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
   --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  /* Radius */
-  --radius-card: 18px;
-  --radius-xl: 22px;
+  /* Radius — a touch rounder = friendlier */
+  --radius-card: 22px;
+  --radius-xl: 28px;
   --radius-pill: 999px;
 
   /* Shadows */
@@ -70,8 +70,9 @@
   h1, h2, h3, h4 {
     font-family: var(--font-display);
     color: var(--color-ink);
-    letter-spacing: -0.01em;
-    line-height: 1.08;
+    font-weight: 600; /* softer than black — Fraunces stays warm + elegant */
+    letter-spacing: -0.005em;
+    line-height: 1.12;
   }
   ::selection {
     background: color-mix(in srgb, var(--color-teal) 28%, transparent);
@@ -81,7 +82,7 @@
 /* The eyebrow kicker used above section titles */
 .eyebrow {
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-weight: 700;
+  letter-spacing: 0.13em;
+  font-weight: 600;
   font-size: 0.72rem;
 }

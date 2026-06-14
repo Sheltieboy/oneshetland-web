@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { PRIMARY_NAV } from "@/lib/sections";
 
@@ -12,10 +13,8 @@ export function SiteHeader() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-navy text-paper shadow-soft">
-            <span className="font-display text-lg font-black leading-none">O</span>
-          </span>
-          <span className="font-display text-xl font-black tracking-tight text-navy">
+          <Image src="/logo.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
+          <span className="font-display text-xl font-semibold tracking-tight text-navy">
             OneShetland
           </span>
         </Link>
