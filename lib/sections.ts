@@ -98,3 +98,19 @@ export const SECTIONS: Section[] = [
 export const PRIMARY_NAV = SECTIONS.filter((s) =>
   ["whats-on", "local", "directory", "boats", "spik", "hubs"].includes(s.key),
 );
+
+/** Hero photo per section (in /public/heroes). Sections without one use the
+ *  section colour as a tinted fallback. */
+export const SECTION_IMAGE: Record<string, string> = {
+  "whats-on": "/heroes/events.jpg",
+  local: "/heroes/local.jpeg",
+  directory: "/heroes/directory.jpg",
+  boats: "/heroes/da-boats.jpg",
+  jobs: "/heroes/jobs.webp",
+  fetch: "/heroes/fetch.jpeg",
+  memories: "/heroes/memories.jpg",
+};
+
+export function getSection(key: string): Section | undefined {
+  return SECTIONS.find((s) => s.key === key);
+}

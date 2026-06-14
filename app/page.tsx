@@ -1,16 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SECTIONS, type Section } from "@/lib/sections";
-
-const HERO_IMG: Record<string, string> = {
-  "whats-on": "/heroes/events.jpg",
-  local: "/heroes/local.jpeg",
-  directory: "/heroes/directory.jpg",
-  boats: "/heroes/da-boats.jpg",
-  jobs: "/heroes/jobs.webp",
-  fetch: "/heroes/fetch.jpeg",
-  memories: "/heroes/memories.jpg",
-};
+import { SECTIONS, SECTION_IMAGE, type Section } from "@/lib/sections";
 
 export default function Home() {
   return (
@@ -67,7 +57,7 @@ export default function Home() {
 
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {SECTIONS.map((s) => (
-            <SectionCard key={s.key} s={s} img={HERO_IMG[s.key]} />
+            <SectionCard key={s.key} s={s} img={SECTION_IMAGE[s.key]} />
           ))}
         </div>
       </section>
