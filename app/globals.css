@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   OneShetland web design tokens (Tailwind v4 @theme).
+   Brand anchors carried over from the app — navy, teal, the section palette,
+   Fraunces display type — on a WARM, editorial surface (not the app's cool
+   grey) so the website reads as a designed publication, not a SaaS dashboard.
+--------------------------------------------------------------------------- */
+@theme {
+  /* Core brand */
+  --color-navy: #032f4c;
+  --color-navy-dark: #02243a;
+  --color-navy-light: #0a4a70;
+  --color-teal: #12b3d6;
+  --color-teal-dark: #0e9ab8;
+
+  /* Warm editorial surfaces */
+  --color-cream: #fbf8f2;
+  --color-sand: #f3ece0;
+  --color-paper: #ffffff;
+  --color-line: #e8e1d4;
+  --color-line-strong: #d8cfbd;
+
+  /* Ink */
+  --color-ink: #14222c;
+  --color-ink-soft: #3a4754;
+  --color-ink-muted: #6b7280;
+  --color-ink-faint: #9aa3ad;
+
+  /* Section accents (canonical, from the app) */
+  --color-events: #d4921a;
+  --color-local: #7c3aed;
+  --color-spik: #12b3d6;
+  --color-fetch: #e0722a;
+  --color-jobs: #2a8b5c;
+  --color-shifts: #e8a020;
+  --color-directory: #6b47bf;
+  --color-hubs: #6b47bf;
+  --color-memories: #9f1239;
+  --color-boats: #1e3a8a;
+  --color-games: #10b981;
+
+  /* Type */
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-body: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  /* Radius */
+  --radius-card: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-soft: 0 1px 2px rgba(15, 28, 38, 0.04), 0 8px 24px rgba(15, 28, 38, 0.06);
+  --shadow-lift: 0 2px 6px rgba(15, 28, 38, 0.06), 0 18px 40px rgba(15, 28, 38, 0.1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 1.0625rem; /* 17px base — comfortable for all ages */
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    color: var(--color-ink);
+    letter-spacing: -0.01em;
+    line-height: 1.08;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--color-teal) 28%, transparent);
+  }
+}
+
+/* The eyebrow kicker used above section titles */
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  font-size: 0.72rem;
+}
