@@ -75,6 +75,28 @@ export async function getUpcomingEvents(opts: { category?: string } = {}): Promi
   }
 }
 
+/** The distinct categories actually present in upcoming published events. */
+export async function getEventCategories(): Promise<string[]> {
+  const sb = publicClient();
+  const now = new Date().toISOString();
+  try {
+    const { data } = await sb
+      .from("events")
+      .select("category")
+      .eq("status", "published")
+      .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+      .gte("starts_at", now)
+      .not("category", "is", null);
+    const set = new Set<string>();
+    for (const r of (data ?? []) as { category: string | null }[]) {
+      if (r.category) set.add(r.category);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  } catch {
+    return [];
+  }
+}
+
 /** A single published event with its organiser + ticket types. */
 export async function getEvent(id: string): Promise<EventDetail | null> {
   const sb = publicClient();

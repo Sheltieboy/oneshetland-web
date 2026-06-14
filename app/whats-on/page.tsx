@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getUpcomingEvents } from "@/lib/events-data";
+import { getUpcomingEvents, getEventCategories } from "@/lib/events-data";
 import { CategoryChips, FeaturedEvent, EventListings } from "@/components/events/EventsListing";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +14,10 @@ export default async function WhatsOnPage({
   searchParams: Promise<{ category?: string }>;
 }) {
   const { category } = await searchParams;
-  const events = await getUpcomingEvents({ category });
+  const [events, categories] = await Promise.all([
+    getUpcomingEvents({ category }),
+    getEventCategories(),
+  ]);
   const featured = events.find((e) => e.is_featured) ?? events[0];
   const rest = featured ? events.filter((e) => e.id !== featured.id) : events;
 
@@ -40,7 +43,7 @@ export default async function WhatsOnPage({
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <CategoryChips active={category} />
+            <CategoryChips categories={categories} active={category} />
           </div>
         </div>
       </div>

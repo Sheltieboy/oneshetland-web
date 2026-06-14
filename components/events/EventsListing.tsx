@@ -1,7 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import {
-  EVENT_CATEGORIES,
   type EventListItem,
   groupByDate,
   fmtTime,
@@ -11,13 +10,13 @@ import {
 const EVENTS = "#d4921a";
 
 /* ── Category filter ──────────────────────────────────────────────────────── */
-export function CategoryChips({ active }: { active?: string }) {
+export function CategoryChips({ categories, active }: { categories: string[]; active?: string }) {
   const chip = (label: string, href: string, on: boolean) => (
     <Link
       key={label}
       href={href}
       className={
-        "rounded-pill px-4 py-2 text-sm font-semibold transition " +
+        "shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " +
         (on
           ? "text-paper shadow-soft"
           : "border border-line-strong text-ink-soft hover:bg-sand")
@@ -30,7 +29,7 @@ export function CategoryChips({ active }: { active?: string }) {
   return (
     <div className="flex flex-wrap gap-2">
       {chip("All", "/whats-on", !active)}
-      {EVENT_CATEGORIES.map((c) =>
+      {categories.map((c) =>
         chip(c, `/whats-on?category=${encodeURIComponent(c)}`, active === c),
       )}
     </div>
