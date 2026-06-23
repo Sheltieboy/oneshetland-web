@@ -1,9 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getBusiness,
   getBusinessExtras,
+  getBusinessEventsAndJobs,
   CATEGORY_LABEL,
   offerBadge,
   money,
@@ -34,7 +36,10 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const b = await getBusiness(id);
   if (!b) notFound();
 
-  const { offers, loyalty, services } = await getBusinessExtras(b.id);
+  const [{ offers, loyalty, services }, { events, jobs, owner }] = await Promise.all([
+    getBusinessExtras(b.id),
+    getBusinessEventsAndJobs(b.id),
+  ]);
   const accent = accentOf(b.brand_color);
   const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
 
@@ -208,6 +213,70 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
               <p className="mt-3 text-sm text-ink-muted">Online booking is coming to the website — book in the app for now.</p>
             </section>
           )}
+
+          {/* Upcoming events */}
+          {events.length > 0 && (
+            <section>
+              <h2 className="font-display text-2xl font-bold">Upcoming events</h2>
+              <div className="mt-5 space-y-3">
+                {events.map(ev => (
+                  <Link key={ev.id} href={`/whats-on/${ev.id}`}
+                    className="flex items-center gap-4 rounded-xl border border-line bg-paper p-4 shadow-soft transition hover:border-current"
+                    style={{ color: accent }}
+                  >
+                    <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg text-center text-paper text-xs font-bold" style={{ background: accent }}>
+                      {new Date(ev.starts_at).toLocaleDateString("en-GB", { day: "numeric" })}
+                      <br />
+                      {new Date(ev.starts_at).toLocaleDateString("en-GB", { month: "short" })}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-display font-bold text-ink">{ev.title}</p>
+                      <p className="text-sm text-ink-muted">
+                        {new Date(ev.starts_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                        {ev.venue ? ` · ${ev.venue}` : ""}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Jobs */}
+          {jobs.length > 0 && (
+            <section>
+              <h2 className="font-display text-2xl font-bold">We&apos;re hiring</h2>
+              <div className="mt-5 divide-y divide-line rounded-xl border border-line bg-paper shadow-soft">
+                {jobs.map(j => (
+                  <Link key={j.id} href={`/jobs/${j.id}`}
+                    className="flex items-center justify-between gap-4 p-4 transition hover:bg-sand/30"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">{j.title}</p>
+                      {j.location && <p className="text-sm text-ink-muted">{j.location}</p>}
+                    </div>
+                    {j.pay_text && (
+                      <span className="shrink-0 rounded-pill bg-sand px-2.5 py-0.5 text-xs font-semibold text-ink-muted">{j.pay_text}</span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Photo gallery */}
+          {(b as { gallery_urls?: string[] | null }).gallery_urls?.length ? (
+            <section>
+              <h2 className="font-display text-2xl font-bold">Photos</h2>
+              <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {((b as { gallery_urls?: string[] }).gallery_urls ?? []).map((url, i) => (
+                  <div key={i} className="aspect-square overflow-hidden rounded-xl">
+                    <img src={url} alt="" className="h-full w-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
         </div>
 
         {/* Sidebar */}
@@ -266,6 +335,15 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                 Pay through the app and get <strong>{cashback}% back</strong> into your wallet.
               </p>
             </div>
+          )}
+
+          {/* Managed by — quiet attribution */}
+          {owner?.full_name && (
+            <p className="px-1 text-xs text-ink-faint">
+              Managed by {owner.full_name.split(" ").map((part, i, arr) =>
+                i === arr.length - 1 && i > 0 ? part.slice(0, 1) + "." : part
+              ).join(" ")}
+            </p>
           )}
         </aside>
       </div>

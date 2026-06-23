@@ -92,12 +92,28 @@ export const SECTIONS: Section[] = [
     token: "games",
     blurb: "Learn the dialect through play — daily puzzles, head-to-heads and leaderboards.",
   },
+  {
+    key: "cruise",
+    label: "Cruise",
+    href: "/cruise",
+    color: "#0e6e8c",
+    token: "cruise",
+    blurb: "Every cruise ship in Lerwick — times, passengers, how busy town will be, and what to do ashore.",
+  },
 ];
 
-/** The handful shown directly in the top navigation bar. */
-export const PRIMARY_NAV = SECTIONS.filter((s) =>
-  ["whats-on", "local", "directory", "boats", "spik", "hubs"].includes(s.key),
-);
+/** The handful shown directly in the top navigation bar, in display order.
+ *  (Home is the wordmark; Profile lives in the header user menu.) */
+const PRIMARY_NAV_ORDER = ["whats-on", "local", "jobs", "directory", "hubs", "games"];
+export const PRIMARY_NAV = PRIMARY_NAV_ORDER
+  .map((k) => SECTIONS.find((s) => s.key === k))
+  .filter((s): s is Section => Boolean(s));
+
+/** Secondary sections tucked behind the "More" menu in the header. */
+const MORE_NAV_ORDER = ["cruise", "spik", "boats", "memories", "fetch"];
+export const MORE_NAV = MORE_NAV_ORDER
+  .map((k) => SECTIONS.find((s) => s.key === k))
+  .filter((s): s is Section => Boolean(s));
 
 /** Hero photo per section (in /public/heroes). Sections without one use the
  *  section colour as a tinted fallback. */

@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getEvent, fmtLongDateTime, fmtTime } from "@/lib/events-data";
+import { SafeImage } from "@/components/ui/SafeImage";
+import { getAccount } from "@/lib/auth";
+import { TicketButton } from "@/components/events/TicketModal";
 
 export const dynamic = "force-dynamic";
 
@@ -19,7 +22,7 @@ function price(pence: number) {
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const e = await getEvent(id);
+  const [e, account] = await Promise.all([getEvent(id), getAccount()]);
   if (!e) notFound();
 
   const organiser = e.hub ?? e.business ?? null;
@@ -29,7 +32,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[44vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[52vh]" style={{ background: EVENTS }}>
         {e.cover_url ? (
-          <img src={e.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <SafeImage src={e.cover_url} className="absolute inset-0 h-full w-full object-cover" />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15" />
 
@@ -110,21 +113,32 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                 <p className="mt-3 text-ink-soft">{e.price_text}</p>
               ) : null}
 
-              {e.ticket_url ? (
-                <a
-                  href={e.ticket_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-5 block rounded-pill px-5 py-3 text-center font-semibold text-paper transition hover:brightness-95"
-                  style={{ background: EVENTS }}
-                >
-                  Get tickets
-                </a>
-              ) : (
-                <p className="mt-5 rounded-xl bg-sand/70 px-4 py-3 text-center text-sm text-ink-soft">
-                  Buy tickets in the OneShetland app — checkout is coming to the website soon.
-                </p>
-              )}
+              <div className="mt-5">
+                {e.ticket_url ? (
+                  <a
+                    href={e.ticket_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-pill px-5 py-3 text-center font-semibold text-paper transition hover:brightness-95"
+                    style={{ background: EVENTS }}
+                  >
+                    Get tickets ↗
+                  </a>
+                ) : e.ticket_types.length > 0 ? (
+                  <TicketButton
+                    eventId={e.id}
+                    eventTitle={e.title}
+                    ticketTypes={e.ticket_types}
+                    priceText={e.price_text}
+                    isLoggedIn={!!account}
+                    signInHref={`/sign-in?next=/whats-on/${e.id}`}
+                  />
+                ) : (
+                  <p className="rounded-xl bg-sand/70 px-4 py-3 text-center text-sm text-ink-soft">
+                    Tickets available at the door.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

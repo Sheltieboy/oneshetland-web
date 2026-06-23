@@ -1,5 +1,21 @@
 import { publicClient } from "./supabase/public";
 
+export const SHETLAND_AREAS = [
+  { key: "lerwick",        label: "Lerwick" },
+  { key: "scalloway",      label: "Scalloway" },
+  { key: "brae",           label: "Brae" },
+  { key: "northmavine",    label: "Northmavine" },
+  { key: "south mainland", label: "South Mainland" },
+  { key: "west mainland",  label: "West Mainland" },
+  { key: "yell",           label: "Yell" },
+  { key: "unst",           label: "Unst" },
+  { key: "fetlar",         label: "Fetlar" },
+  { key: "whalsay",        label: "Whalsay" },
+  { key: "skerries",       label: "Skerries" },
+] as const;
+
+export type ShetlandArea = (typeof SHETLAND_AREAS)[number]["key"];
+
 export const CATEGORIES = [
   { key: "food_drink", label: "Food & Drink" },
   { key: "retail", label: "Retail" },
@@ -138,6 +154,29 @@ export async function getActiveOffers(limit = 6): Promise<Offer[]> {
   }
 }
 
+/**
+ * Genuinely featured businesses (active pro/premium subscribers) — no backfill,
+ * so the Directory "Featured" row only ever shows businesses that pay for it.
+ */
+export async function getDirectoryFeatured(limit = 6): Promise<Business[]> {
+  const sb = publicClient();
+  const now = new Date().toISOString();
+  try {
+    const { data } = await sb
+      .from("local_businesses")
+      .select(LIST_COLS)
+      .eq("is_active", true)
+      .in("subscription_tier", ["pro", "premium"])
+      .or(`subscription_until.is.null,subscription_until.gt.${now}`)
+      .order("subscription_tier", { ascending: false })
+      .order("is_verified", { ascending: false })
+      .limit(limit);
+    return (data ?? []) as unknown as Business[];
+  } catch {
+    return [];
+  }
+}
+
 export async function getCategoryCounts(): Promise<Record<string, number>> {
   const sb = publicClient();
   try {
@@ -240,11 +279,246 @@ export async function getBusinessExtras(
   return { offers, loyalty, services };
 }
 
+/* ── Local feed ───────────────────────────────────────────────────────────── */
+
+export type FeedEvent = {
+  id: string; title: string; starts_at: string; venue: string | null;
+  locality: string | null; cover_url: string | null; category: string | null;
+  price_text: string | null; has_tickets: boolean;
+};
+export type FeedJob = {
+  id: string; title: string; location: string | null; pay_text: string | null; posted_at: string;
+};
+export type FeedNotice = {
+  id: string; title: string; body: string | null; published_at: string;
+  hub: { id: string; name: string; logo_url: string | null; slug: string | null } | null;
+};
+
+export async function getLocalFeed(area?: string): Promise<{
+  events: FeedEvent[];
+  jobs: FeedJob[];
+  businesses: Business[];
+  notices: FeedNotice[];
+  offers: Offer[];
+}> {
+  const sb = publicClient();
+  const now = new Date().toISOString();
+  const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => { try { return await p; } catch { return f; } };
+
+  const areaFilter = (field: string) => area ? `${field}.ilike.%${area}%` : undefined;
+
+  const [events, jobs, businesses, notices, offers] = await Promise.all([
+    safe(
+      (async () => {
+        let q = sb.from("events")
+          .select("id, title, starts_at, venue, locality, cover_url, category, price_text, has_tickets")
+          .eq("status", "published")
+          .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+          .gte("starts_at", now)
+          .order("starts_at", { ascending: true })
+          .limit(6);
+        if (area) q = q.ilike("locality", `%${area}%`);
+        const { data } = await q;
+        return (data ?? []) as FeedEvent[];
+      })(),
+      [] as FeedEvent[],
+    ),
+    safe(
+      (async () => {
+        let q = sb.from("jobs")
+          .select("id, title, location, pay_text, posted_at")
+          .eq("is_hidden", false)
+          .or(`expires_at.is.null,expires_at.gt.${now}`)
+          .order("posted_at", { ascending: false })
+          .limit(6);
+        if (area) q = q.ilike("location", `%${area}%`);
+        const { data } = await q;
+        return (data ?? []) as FeedJob[];
+      })(),
+      [] as FeedJob[],
+    ),
+    safe(
+      (async () => {
+        let q = sb.from("local_businesses")
+          .select(LIST_COLS)
+          .eq("is_active", true)
+          .order("subscription_tier", { ascending: false })
+          .order("is_verified", { ascending: false })
+          .limit(6);
+        if (area) q = q.ilike("address", `%${area}%`);
+        const { data } = await q;
+        return (data ?? []) as unknown as Business[];
+      })(),
+      [] as Business[],
+    ),
+    safe(
+      (async () => {
+        let q = sb.from("notices")
+          .select("id, title, body, published_at, hub:hubs(id, name, logo_url, slug)")
+          .eq("visibility", "public")
+          .order("published_at", { ascending: false })
+          .limit(4);
+        const { data } = await q;
+        const rows = (data ?? []) as unknown as FeedNotice[];
+        if (!area) return rows;
+        // Filter by hub area after fetch (hubs have an `area` field)
+        const hubIds = rows.map(r => r.hub?.id).filter(Boolean) as string[];
+        if (!hubIds.length) return rows;
+        const { data: hubAreas } = await sb.from("hubs").select("id, area").in("id", hubIds);
+        const areaMap = Object.fromEntries((hubAreas ?? []).map((h: { id: string; area: string | null }) => [h.id, h.area]));
+        return rows.filter(r => {
+          if (!r.hub?.id) return true;
+          const ha = areaMap[r.hub.id] ?? "";
+          return ha.toLowerCase().includes(area.toLowerCase());
+        });
+      })(),
+      [] as FeedNotice[],
+    ),
+    safe(
+      (async () => {
+        const { data: offerRows } = await sb.from("local_offers")
+          .select("id, business_id, title, description, image_url, discount_type, discount_value, valid_until")
+          .eq("is_active", true)
+          .lte("valid_from", now)
+          .gte("valid_until", now)
+          .order("created_at", { ascending: false })
+          .limit(24);
+        const rows = (offerRows ?? []) as Offer[];
+        if (rows.length === 0) return [];
+        const ids = [...new Set(rows.map(o => o.business_id))];
+        const { data: biz } = await sb.from("local_businesses")
+          .select("id, name, logo_url, category, slug, address")
+          .in("id", ids);
+        const map = Object.fromEntries((biz ?? []).map((b) => [b.id, b]));
+        let withBiz: Offer[] = rows.map(o => ({ ...o, business: map[o.business_id] ?? null }));
+        // Area filter via the business address (offers have no address of their own)
+        if (area) {
+          withBiz = withBiz.filter(o => {
+            const addr = (map[o.business_id] as { address?: string } | undefined)?.address ?? "";
+            return addr.toLowerCase().includes(area.toLowerCase());
+          });
+        }
+        // One offer per business (freshest first), capped at 6
+        const seen = new Set<string>();
+        return withBiz.filter(o => {
+          if (seen.has(o.business_id)) return false;
+          seen.add(o.business_id);
+          return true;
+        }).slice(0, 6);
+      })(),
+      [] as Offer[],
+    ),
+  ]);
+
+  return { events, jobs, businesses, notices, offers };
+}
+
+/* ── Business creation ────────────────────────────────────────────────────── */
+
+export type BusinessCreateInput = {
+  name: string;
+  category: string;
+  description?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  address?: string | null;
+  locality?: string | null;
+};
+
+/* ── Hub search fallback ──────────────────────────────────────────────────── */
+
+export type HubResult = {
+  id: string; name: string; slug: string | null; type: string;
+  description: string | null; logo_url: string | null; area: string | null;
+  member_count: number | null;
+};
+
+export async function searchHubs(q: string): Promise<HubResult[]> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("hubs")
+      .select("id, name, slug, type, description, logo_url, area, member_count")
+      .eq("is_active", true)
+      .ilike("name", `%${q}%`)
+      .limit(6);
+    return (data ?? []) as HubResult[];
+  } catch {
+    return [];
+  }
+}
+
+/* ── Business extras: events + jobs ──────────────────────────────────────── */
+
+export type BusinessEvent = {
+  id: string; title: string; starts_at: string; venue: string | null; cover_url: string | null;
+};
+export type BusinessJob = {
+  id: string; title: string; location: string | null; pay_text: string | null; posted_at: string;
+};
+export type BusinessOwner = { full_name: string | null } | null;
+
+export async function getBusinessEventsAndJobs(businessId: string): Promise<{
+  events: BusinessEvent[]; jobs: BusinessJob[]; owner: BusinessOwner;
+}> {
+  const sb = publicClient();
+  const now = new Date().toISOString();
+  const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => { try { return await p; } catch { return f; } };
+
+  // Get owner_id from the business row
+  const { data: biz } = await sb.from("local_businesses").select("owner_id").eq("id", businessId).maybeSingle();
+  const ownerId = (biz as { owner_id?: string | null } | null)?.owner_id;
+
+  const [events, jobs, ownerProfile] = await Promise.all([
+    safe(
+      sb.from("events")
+        .select("id, title, starts_at, venue, cover_url")
+        .eq("organiser_business_id", businessId)
+        .eq("status", "published")
+        .gte("starts_at", now)
+        .order("starts_at", { ascending: true })
+        .limit(3)
+        .then(r => (r.data ?? []) as BusinessEvent[]),
+      [] as BusinessEvent[],
+    ),
+    safe(
+      sb.from("jobs")
+        .select("id, title, location, pay_text, posted_at")
+        .eq("business_id", businessId)
+        .eq("is_hidden", false)
+        .or(`expires_at.is.null,expires_at.gt.${now}`)
+        .order("posted_at", { ascending: false })
+        .limit(4)
+        .then(r => (r.data ?? []) as BusinessJob[]),
+      [] as BusinessJob[],
+    ),
+    ownerId
+      ? safe(
+          sb.from("profiles")
+            .select("full_name")
+            .eq("id", ownerId)
+            .maybeSingle()
+            .then(r => (r.data ?? null) as BusinessOwner),
+          null,
+        )
+      : Promise.resolve(null as BusinessOwner),
+  ]);
+
+  return { events, jobs, owner: ownerProfile };
+}
+
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 export function offerBadge(o: Pick<Offer, "discount_type" | "discount_value">): string {
-  if (o.discount_type === "percent" && o.discount_value) return `${o.discount_value}% off`;
-  if (o.discount_type === "amount" && o.discount_value) return `£${(o.discount_value / 100).toFixed(0)} off`;
-  return "Offer";
+  const v = o.discount_value;
+  switch (o.discount_type) {
+    case "percent": return v ? `${v}% off` : "% off";
+    case "fixed":   return v != null ? `£${v.toFixed(2)} off` : "£ off"; // stored in pounds (app convention)
+    case "amount":  return v != null ? `£${(v / 100).toFixed(0)} off` : "£ off"; // stored in pence
+    case "freebie": return "Freebie";
+    case "bogo":    return "2 for 1";
+    default:        return "Offer";
+  }
 }
 export function money(pence: number): string {
   return pence <= 0 ? "On request" : `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;

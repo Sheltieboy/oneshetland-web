@@ -1,5 +1,5 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { SafeImage } from "@/components/ui/SafeImage";
 import {
   type HomeData,
   type HomeEvent,
@@ -150,6 +150,25 @@ function Block({
 }
 
 /* ── Cards ─────────────────────────────────────────────────────────────────── */
+function EventCoverFallback() {
+  return (
+    <div className="flex h-full items-center justify-center bg-events/15 text-events">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+      </svg>
+    </div>
+  );
+}
+
+function BizInitial({ name }: { name: string }) {
+  return (
+    <div className="flex h-full items-center justify-center font-display text-2xl font-bold text-local">
+      {name.charAt(0)}
+    </div>
+  );
+}
+
 function EventCard({ e }: { e: HomeEvent }) {
   return (
     <Link
@@ -158,18 +177,13 @@ function EventCard({ e }: { e: HomeEvent }) {
     >
       <div className="relative h-40 overflow-hidden bg-events/15">
         {e.cover_url ? (
-          <img
+          <SafeImage
             src={e.cover_url}
-            alt=""
             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+            fallback={<EventCoverFallback />}
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-events/15 text-events">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-          </div>
+          <EventCoverFallback />
         )}
         <span className="absolute left-3 top-3 rounded-pill bg-paper/95 px-3 py-1 text-xs font-bold text-events shadow-sm">
           {formatEventDate(e.starts_at)}
@@ -200,11 +214,13 @@ function BusinessCard({ b }: { b: HomeBusiness }) {
     >
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-local/10">
         {b.logo_url || b.cover_url ? (
-          <img src={(b.logo_url || b.cover_url)!} alt="" className="h-full w-full object-cover" />
+          <SafeImage
+            src={(b.logo_url || b.cover_url)!}
+            className="h-full w-full object-cover"
+            fallback={<BizInitial name={b.name} />}
+          />
         ) : (
-          <div className="flex h-full items-center justify-center font-display text-2xl font-bold text-local">
-            {b.name.charAt(0)}
-          </div>
+          <BizInitial name={b.name} />
         )}
       </div>
       <div className="min-w-0 flex-1">

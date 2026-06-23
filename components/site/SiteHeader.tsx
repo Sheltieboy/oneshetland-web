@@ -3,17 +3,23 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { PRIMARY_NAV } from "@/lib/sections";
+import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 
-export function SiteHeader() {
+type HeaderUser = { name: string; avatarUrl: string | null } | null;
+type FetchStatus = { userId: string; status: string | null; count: number } | null;
+
+export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderUser; fetchStatus?: FetchStatus }) {
   const [open, setOpen] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [more, setMore] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <Image src="/logo.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
+          <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
           <span className="font-display text-xl font-semibold tracking-tight text-navy">
             OneShetland
           </span>
@@ -30,16 +36,88 @@ export function SiteHeader() {
               {s.label}
             </Link>
           ))}
+          {MORE_NAV.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setMore((m) => !m)}
+                aria-expanded={more}
+                className="flex items-center gap-1 rounded-pill px-3.5 py-2 text-[0.95rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
+              >
+                More
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={"transition-transform " + (more ? "rotate-180" : "")}>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {more && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMore(false)} />
+                  <div className="absolute left-0 z-50 mt-2 w-52 overflow-hidden rounded-xl border border-line bg-paper py-1 shadow-lift">
+                    {MORE_NAV.map((s) => (
+                      <Link
+                        key={s.key}
+                        href={s.href}
+                        onClick={() => setMore(false)}
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-ink hover:bg-sand"
+                      >
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: s.color }} />
+                        {s.label}
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </nav>
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
-          <Link
-            href="/sign-in"
-            className="hidden rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sand sm:inline-flex"
-          >
-            Sign in
-          </Link>
+          {fetchStatus && (
+            <FetchStatusIndicator userId={fetchStatus.userId} initialStatus={fetchStatus.status} initialCount={fetchStatus.count} />
+          )}
+          {user ? (
+            <div className="relative hidden sm:block">
+              <button
+                type="button"
+                onClick={() => setMenu((m) => !m)}
+                aria-expanded={menu}
+                className="flex items-center gap-2 rounded-pill border border-line-strong py-1.5 pl-1.5 pr-3 text-sm font-semibold text-ink transition-colors hover:bg-sand"
+              >
+                <span className="grid h-7 w-7 place-items-center overflow-hidden rounded-full bg-navy text-xs font-bold text-paper">
+                  {user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    user.name.slice(0, 1).toUpperCase()
+                  )}
+                </span>
+                <span className="max-w-[8rem] truncate">{user.name}</span>
+              </button>
+              {menu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />
+                  <div className="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-xl border border-line bg-paper py-1 shadow-lift">
+                    <Link href="/account" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-sand">
+                      My account
+                    </Link>
+                    <form action="/auth/sign-out" method="post">
+                      <button type="submit" className="block w-full px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-sand">
+                        Sign out
+                      </button>
+                    </form>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <Link
+              href="/sign-in"
+              className="hidden rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sand sm:inline-flex"
+            >
+              Sign in
+            </Link>
+          )}
           <button
             type="button"
             aria-label="Menu"
@@ -69,7 +147,7 @@ export function SiteHeader() {
       {open && (
         <nav className="border-t border-line/70 bg-cream px-5 py-3 md:hidden">
           <div className="flex flex-col">
-            {PRIMARY_NAV.map((s) => (
+            {[...PRIMARY_NAV, ...MORE_NAV].map((s) => (
               <Link
                 key={s.key}
                 href={s.href}
@@ -80,13 +158,30 @@ export function SiteHeader() {
                 {s.label}
               </Link>
             ))}
-            <Link
-              href="/sign-in"
-              onClick={() => setOpen(false)}
-              className="mt-2 rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper"
-            >
-              Sign in
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/account"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 rounded-pill border border-line-strong px-4 py-3 text-center text-base font-semibold text-ink"
+                >
+                  My account
+                </Link>
+                <form action="/auth/sign-out" method="post" className="mt-2">
+                  <button type="submit" className="w-full rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper">
+                    Sign out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <Link
+                href="/sign-in"
+                onClick={() => setOpen(false)}
+                className="mt-2 rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper"
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         </nav>
       )}

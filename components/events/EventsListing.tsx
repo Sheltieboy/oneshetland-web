@@ -1,5 +1,5 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { SafeImage } from "@/components/ui/SafeImage";
 import {
   type EventListItem,
   groupByDate,
@@ -37,19 +37,25 @@ export function CategoryChips({ categories, active }: { categories: string[]; ac
 }
 
 /* ── Featured event ───────────────────────────────────────────────────────── */
+function CalFallback({ size }: { size: number }) {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-events/10 text-events/60">
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <rect x="3" y="4" width="18" height="18" rx="2" />
+        <path d="M16 2v4M8 2v4M3 10h18" />
+      </svg>
+    </div>
+  );
+}
+
 export function FeaturedEvent({ e }: { e: EventListItem }) {
   return (
     <div className="grid overflow-hidden rounded-xl border border-line bg-paper shadow-soft md:grid-cols-2">
       <Link href={`/whats-on/${e.id}`} className="relative block min-h-[260px] bg-events/10 md:min-h-[380px]">
         {e.cover_url ? (
-          <img src={e.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <SafeImage src={e.cover_url} className="absolute inset-0 h-full w-full object-cover" fallback={<CalFallback size={64} />} />
         ) : (
-          <div className="flex h-full items-center justify-center text-events/60">
-            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-          </div>
+          <CalFallback size={64} />
         )}
       </Link>
       <div className="flex flex-col justify-center p-7 sm:p-10">
@@ -72,9 +78,13 @@ export function FeaturedEvent({ e }: { e: EventListItem }) {
             View event
           </Link>
           {e.has_tickets && (
-            <span className="text-sm font-semibold text-ink-soft">
-              Tickets{e.price_text ? ` · ${e.price_text}` : ""}
-            </span>
+            <Link
+              href={`/whats-on/${e.id}`}
+              className="rounded-pill border-2 px-5 py-2.5 text-sm font-semibold transition hover:brightness-95"
+              style={{ borderColor: EVENTS, color: EVENTS }}
+            >
+              Get tickets{e.price_text ? ` · ${e.price_text}` : ""}
+            </Link>
           )}
         </div>
       </div>
@@ -121,14 +131,9 @@ function EventRow({ e }: { e: EventListItem }) {
     >
       <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-events/10 sm:w-32">
         {e.cover_url ? (
-          <img src={e.cover_url} alt="" className="h-full w-full object-cover" />
+          <SafeImage src={e.cover_url} className="h-full w-full object-cover" fallback={<CalFallback size={28} />} />
         ) : (
-          <div className="flex h-full items-center justify-center text-events/50">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg>
-          </div>
+          <CalFallback size={28} />
         )}
       </div>
       <div className="min-w-0 flex-1">
@@ -146,7 +151,7 @@ function EventRow({ e }: { e: EventListItem }) {
           )}
           {e.has_tickets && (
             <span className="rounded-pill bg-events/15 px-2.5 py-0.5 text-xs font-semibold" style={{ color: EVENTS }}>
-              Tickets{e.price_text ? ` · ${e.price_text}` : ""}
+              Get tickets{e.price_text ? ` · ${e.price_text}` : ""}
             </span>
           )}
         </div>
