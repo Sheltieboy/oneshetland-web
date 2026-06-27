@@ -93,8 +93,10 @@ export async function confirmDonation(
 
 export async function approveMember(memberId: string): Promise<void> {
   const sb = createClient();
-  const { error } = await sb.from("hub_members").update({ status: "active" }).eq("id", memberId);
+  const { data, error } = await sb.from("hub_members").update({ status: "active" }).eq("id", memberId).select("hub_id, user_id").single();
   if (error) throw error;
+  // Tell the member they're in (same edge fn the app uses).
+  if (data) sb.functions.invoke("notify-hub", { body: { event: "approved", hub_id: data.hub_id, user_id: data.user_id } }).catch(() => {});
 }
 export async function rejectMember(memberId: string): Promise<void> {
   const sb = createClient();
@@ -111,7 +113,7 @@ export async function setMemberRole(memberId: string, role: "member" | "committe
 
 export async function createNotice(hubId: string, input: { title: string; body?: string; visibility?: NoticeVisibility; image_url?: string | null; expires_at?: string | null }): Promise<void> {
   const sb = createClient();
-  const { error } = await sb.from("notices").insert({
+  const { data, error } = await sb.from("notices").insert({
     publisher_hub_id: hubId,
     severity: "community",
     visibility: input.visibility ?? "public",
@@ -119,8 +121,10 @@ export async function createNotice(hubId: string, input: { title: string; body?:
     body: input.body ?? null,
     image_url: input.image_url ?? null,
     expires_at: input.expires_at ?? null,
-  });
+  }).select("id").single();
   if (error) throw error;
+  // Notify active members (same edge fn the app uses).
+  if (data?.id) sb.functions.invoke("notify-hub-content", { body: { event: "notice", hub_id: hubId, ref_id: data.id, title: input.title } }).catch(() => {});
 }
 export async function deleteNotice(id: string): Promise<void> {
   const sb = createClient();
@@ -247,6 +251,8 @@ export async function createHubEvent(hubId: string, input: {
         })),
     );
   }
+  // Tell the hub's members about the new (published) event.
+  sb.functions.invoke("notify-hub-content", { body: { event: "event", hub_id: hubId, ref_id: ev.id, title: input.title } }).catch(() => {});
   return ev.id;
 }
 

@@ -127,7 +127,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
               </p>
             </div>
             <Link
-              href="/sign-in"
+              href={`/sign-in?next=/directory/${id}`}
               className="shrink-0 rounded-pill px-6 py-3 font-semibold text-paper shadow-soft transition hover:brightness-95"
               style={{ background: LOCAL }}
             >

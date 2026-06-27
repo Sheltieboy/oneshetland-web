@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/account";
+  const next = safeNext(searchParams.get("next"));
 
   if (code) {
     const sb = await createClient();

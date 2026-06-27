@@ -16,7 +16,10 @@ export function ApplicantPipeline({ applicants }: { applicants: JobApplication[]
   async function move(appId: string, status: JobAppStatus) {
     setBusyId(appId);
     try {
-      await createClient().from("job_applications").update({ status }).eq("id", appId);
+      const sb = createClient();
+      await sb.from("job_applications").update({ status }).eq("id", appId);
+      // Notify the applicant (origin-agnostic with the app — same edge fn).
+      sb.functions.invoke("notify-job", { body: { event: "status", application_id: appId, status } }).catch(() => {});
       setApps((prev) => prev.map((a) => (a.id === appId ? { ...a, status } : a)));
     } finally { setBusyId(null); }
   }

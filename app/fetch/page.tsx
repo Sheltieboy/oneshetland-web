@@ -65,7 +65,7 @@ function SignedOut({ isDriver }: { isDriver: boolean }) {
           ? "Approved drivers create runs and pick up deliveries along the way. Sign in to apply."
           : "Tell us what you need brought, and a local driver heading your way will bring it. Your card is only charged on delivery."}
       </p>
-      <Link href={`/sign-in?next=${isDriver ? "/fetch?tab=driver" : "/fetch"}`} className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-white shadow-soft" style={{ background: FETCH }}>Sign in →</Link>
+      <Link href={`/sign-in?next=${encodeURIComponent(isDriver ? "/fetch?tab=driver" : "/fetch")}`} className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-white shadow-soft" style={{ background: FETCH }}>Sign in →</Link>
     </div>
   );
 }

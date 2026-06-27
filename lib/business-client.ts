@@ -98,12 +98,14 @@ export const createAlertAddonIntent = (businessId: string) =>
 export async function sendAlert(p: { businessId: string; businessName: string; message: string; type: AlertType; expiresAt?: Date | null; scheduledFor?: Date | null }): Promise<void> {
   const sb = createClient();
   const { data: { user } } = await sb.auth.getUser();
-  const { error } = await sb.from("partner_alerts").insert({
+  const { data, error } = await sb.from("partner_alerts").insert({
     business_id: p.businessId, business_name: p.businessName, message: p.message, type: p.type,
     is_active: !p.scheduledFor, starts_at: (p.scheduledFor ?? new Date()).toISOString(),
     expires_at: p.expiresAt ? p.expiresAt.toISOString() : null, created_by: user?.id ?? null,
-  });
+  }).select("id").single();
   if (error) throw error;
+  // Push immediately-active alerts to the business's customers (same edge fn the app uses).
+  if (!p.scheduledFor && data?.id) sb.functions.invoke("notify-business-alert", { body: { alert_id: data.id } }).catch(() => {});
 }
 
 export async function cancelAlert(alertId: string): Promise<void> {

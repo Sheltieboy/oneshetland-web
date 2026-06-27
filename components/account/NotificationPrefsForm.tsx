@@ -4,14 +4,37 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { NotificationPrefs } from "@/lib/account-data.server";
 
-const FEATURES: { key: keyof NotificationPrefs; label: string; desc: string }[] = [
-  { key: "bookings_enabled", label: "Bookings", desc: "Confirmations and reminders for local bookings" },
-  { key: "shifts_enabled", label: "Shifts", desc: "Shift offers, acceptances and check-in reminders" },
-  { key: "fetch_enabled", label: "Fetch", desc: "Delivery status updates" },
-  { key: "loyalty_enabled", label: "Loyalty", desc: "Stamps, rewards and card updates" },
-  { key: "offers_enabled", label: "Offers", desc: "New deals from businesses you follow" },
-  { key: "spik_enabled", label: "Spik", desc: "Word of the day and dictionary news" },
-  { key: "games_enabled", label: "Games", desc: "Streak reminders and leaderboard changes" },
+// Mirrors the app's lib/notification-prefs.ts (NOTIFICATION_GROUPS + NOTIFICATION_MODULES).
+// Keep in sync when modules change.
+type GroupKey = "work" | "local" | "money" | "community" | "play" | "business";
+
+const GROUPS: { key: GroupKey; label: string }[] = [
+  { key: "work", label: "Getting things done" },
+  { key: "local", label: "Local life" },
+  { key: "money", label: "Money & payments" },
+  { key: "community", label: "Community" },
+  { key: "play", label: "Games & language" },
+  { key: "business", label: "For businesses" },
+];
+
+type ModuleKey = Exclude<keyof NotificationPrefs, "enabled" | "quiet_hours_start" | "quiet_hours_end">;
+
+const MODULES: { key: ModuleKey; group: GroupKey; label: string; desc: string }[] = [
+  { key: "fetch_enabled", group: "work", label: "Fetch deliveries", desc: "Your delivery progress and driver updates" },
+  { key: "shifts_enabled", group: "work", label: "Shifts", desc: "Matching shifts, applications, check-ins" },
+  { key: "jobs_enabled", group: "work", label: "Jobs", desc: "Applications and updates on jobs you applied for" },
+  { key: "bookings_enabled", group: "local", label: "Bookings", desc: "Confirmations, reminders and changes" },
+  { key: "loyalty_enabled", group: "local", label: "Loyalty & rewards", desc: "Stamps collected and rewards ready" },
+  { key: "offers_enabled", group: "local", label: "Offers & deals", desc: "New time-limited deals near you" },
+  { key: "events_enabled", group: "local", label: "What's On", desc: "Tickets, reminders, cancellations" },
+  { key: "cruise_enabled", group: "local", label: "Cruise ships", desc: "Ships arriving in Shetland (off by default)" },
+  { key: "wallet_enabled", group: "money", label: "Wallet & payments", desc: "Top-ups, payments, cashback and gifts" },
+  { key: "hubs_enabled", group: "community", label: "Hubs", desc: "Announcements from hubs you belong to" },
+  { key: "community_enabled", group: "community", label: "Community & stories", desc: "Replies and reactions on your stories and boats" },
+  { key: "notices_enabled", group: "community", label: "Notices & safety", desc: "Community notices, including urgent alerts" },
+  { key: "spik_enabled", group: "play", label: "Spik", desc: "Wird o' da day and streak reminders" },
+  { key: "games_enabled", group: "play", label: "Games", desc: "Daily games and leaderboard nudges" },
+  { key: "business_enabled", group: "business", label: "My business", desc: "New bookings, sales, payments and approvals" },
 ];
 
 function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
@@ -26,6 +49,7 @@ function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void;
 export function NotificationPrefsForm({ userId, initial }: { userId: string; initial: NotificationPrefs }) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(initial);
   const [savedAt, setSavedAt] = useState<number>(0);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
 
   async function persist(next: NotificationPrefs) {
     setPrefs(next);
@@ -35,6 +59,11 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
     } catch { /* non-fatal */ }
   }
   const set = (k: keyof NotificationPrefs, v: NotificationPrefs[keyof NotificationPrefs]) => persist({ ...prefs, [k]: v });
+  const setGroup = (keys: ModuleKey[], on: boolean) => {
+    const patch: Partial<NotificationPrefs> = {};
+    keys.forEach((k) => { (patch as Record<string, boolean>)[k] = on; });
+    persist({ ...prefs, ...patch });
+  };
 
   const quietOn = !!(prefs.quiet_hours_start || prefs.quiet_hours_end);
 
@@ -49,18 +78,42 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
         <Toggle on={prefs.enabled} onChange={() => set("enabled", !prefs.enabled)} />
       </div>
 
-      {/* By feature */}
-      <div className="rounded-card border border-line bg-paper shadow-soft">
-        <p className="border-b border-line px-5 py-3 text-xs font-bold uppercase tracking-widest text-ink-faint">By feature</p>
-        {FEATURES.map((f) => (
-          <div key={f.key} className="flex items-center justify-between gap-4 border-b border-line px-5 py-3.5 last:border-0">
-            <div>
-              <p className="font-semibold text-ink">{f.label}</p>
-              <p className="text-sm text-ink-muted">{f.desc}</p>
-            </div>
-            <Toggle on={prefs.enabled && (prefs[f.key] as boolean)} disabled={!prefs.enabled} onChange={() => set(f.key, !(prefs[f.key] as boolean))} />
-          </div>
-        ))}
+      {/* By feature — broad category, expand to fine-tune */}
+      <div>
+        <p className="mb-2 px-1 text-xs font-bold uppercase tracking-widest text-ink-faint">By feature</p>
+        <div className="space-y-3">
+          {GROUPS.map((g) => {
+            const mods = MODULES.filter((m) => m.group === g.key);
+            const anyOn = mods.some((m) => prefs[m.key] as boolean);
+            const allOn = mods.every((m) => prefs[m.key] as boolean);
+            const isOpen = !!open[g.key];
+            return (
+              <div key={g.key} className={"rounded-card border border-line bg-paper shadow-soft " + (prefs.enabled ? "" : "opacity-50")}>
+                <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+                  <button type="button" onClick={() => setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))} disabled={!prefs.enabled} className="flex flex-1 items-center gap-3 text-left">
+                    <span className="font-semibold text-ink">{g.label}</span>
+                    <span className="text-xs text-ink-muted">{allOn ? "All on" : anyOn ? "Some on" : "All off"}</span>
+                    <span className={"ml-auto text-ink-faint transition-transform " + (isOpen ? "rotate-180" : "")} aria-hidden>▾</span>
+                  </button>
+                  <Toggle on={prefs.enabled && anyOn} disabled={!prefs.enabled} onChange={() => setGroup(mods.map((m) => m.key), !anyOn)} />
+                </div>
+                {isOpen && (
+                  <div className="border-t border-line">
+                    {mods.map((m) => (
+                      <div key={m.key} className="flex items-center justify-between gap-4 border-b border-line bg-cream/40 px-5 py-3 pl-8 last:border-0">
+                        <div>
+                          <p className="font-medium text-ink">{m.label}</p>
+                          <p className="text-sm text-ink-muted">{m.desc}</p>
+                        </div>
+                        <Toggle on={prefs.enabled && (prefs[m.key] as boolean)} disabled={!prefs.enabled} onChange={() => set(m.key, !(prefs[m.key] as boolean))} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Quiet hours */}

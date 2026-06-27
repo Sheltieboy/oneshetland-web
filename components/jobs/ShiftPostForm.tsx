@@ -81,6 +81,8 @@ export function ShiftPostForm({ isLoggedIn, businesses, defaultName }: { isLogge
         status: "open",
       }).select("id").single();
       if (dbErr) throw dbErr;
+      // Alert workers whose saved alert matches (same edge fn the app uses).
+      if (data?.id) sb.functions.invoke("notify-matching-workers", { body: { shift_id: data.id } }).catch(() => {});
       router.push(`/shifts/${data.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not post the shift.");

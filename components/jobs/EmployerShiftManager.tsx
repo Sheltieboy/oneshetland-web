@@ -32,6 +32,8 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
     try {
       const c = sb();
       await c.from("shift_applications").update({ status, updated_at: new Date().toISOString() }).eq("id", app.id);
+      // Notify the worker (accepted/rejected) — same edge fn the app uses.
+      c.functions.invoke("notify-application-update", { body: { application_id: app.id, status } }).catch(() => {});
       if (status === "accepted") {
         const { data: shift } = await c.from("shifts").select("positions_filled, positions_total").eq("id", app.shift_id).single();
         if (shift) {
@@ -50,7 +52,10 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
   async function cancelShift(id: string) {
     setBusy(id);
     try {
-      await sb().from("shifts").update({ status: "cancelled" }).eq("id", id);
+      const c = sb();
+      await c.from("shifts").update({ status: "cancelled" }).eq("id", id);
+      // Tell still-in-play workers the shift is off.
+      c.functions.invoke("notify-shift-status", { body: { event: "cancelled", shift_id: id } }).catch(() => {});
       setShiftList((prev) => prev.map((s) => (s.id === id ? { ...s, status: "cancelled" } : s)));
       router.refresh();
     } finally { setBusy(null); }

@@ -37,11 +37,12 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
         if (upErr) throw upErr;
         image_url = sb.storage.from("boat-comment-media").getPublicUrl(image_path).data.publicUrl;
       }
-      const { error: dbErr } = await sb.from("vessel_comments").insert({
+      const { data: cRow, error: dbErr } = await sb.from("vessel_comments").insert({
         vessel_id: vesselId, author_id: user.id, subject_type: replyTo ? "general" : subject,
         parent_comment_id: replyTo?.id ?? null, body: body.trim(), image_url, image_path,
-      });
+      }).select("id").single();
       if (dbErr) throw dbErr;
+      if (cRow?.id) sb.functions.invoke("notify-engagement", { body: { event: "vessel_comment", comment_id: cRow.id } }).catch(() => {});
       setBody(""); setFile(null); setReplyTo(null); setSubject("general");
       router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not post."); }

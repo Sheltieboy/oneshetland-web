@@ -58,7 +58,9 @@ export function ShiftApplyPanel({
     if (!app) return;
     setBusy(true);
     try {
-      await sb().from("shift_applications").update({ status: "withdrawn" }).eq("id", app.id);
+      const c = sb();
+      await c.from("shift_applications").update({ status: "withdrawn" }).eq("id", app.id);
+      c.functions.invoke("notify-shift-status", { body: { event: "withdrawn", application_id: app.id } }).catch(() => {});
       setApp({ ...app, status: "withdrawn" });
       router.refresh();
     } finally { setBusy(false); }

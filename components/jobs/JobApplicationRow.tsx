@@ -21,7 +21,10 @@ export function JobApplicationRow({ app }: { app: JobApplication }) {
   async function withdraw() {
     setBusy(true);
     try {
-      await createClient().from("job_applications").update({ status: "withdrawn" }).eq("id", app.id);
+      const sb = createClient();
+      await sb.from("job_applications").update({ status: "withdrawn" }).eq("id", app.id);
+      // Notify the employer the candidate withdrew.
+      sb.functions.invoke("notify-job", { body: { event: "withdrawn", application_id: app.id } }).catch(() => {});
       setStatus("withdrawn");
       router.refresh();
     } finally { setBusy(false); }

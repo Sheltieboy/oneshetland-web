@@ -3,8 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
+import { NotificationBell } from "@/components/site/NotificationBell";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
@@ -13,6 +15,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
@@ -77,7 +80,9 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             <FetchStatusIndicator userId={fetchStatus.userId} initialStatus={fetchStatus.status} initialCount={fetchStatus.count} />
           )}
           {user ? (
-            <div className="relative hidden sm:block">
+            <div className="hidden items-center gap-2 sm:flex">
+            <NotificationBell />
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setMenu((m) => !m)}
@@ -110,9 +115,10 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
                 </>
               )}
             </div>
+            </div>
           ) : (
             <Link
-              href="/sign-in"
+              href={`/sign-in?next=${encodeURIComponent(pathname)}`}
               className="hidden rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sand sm:inline-flex"
             >
               Sign in
@@ -175,7 +181,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
               </>
             ) : (
               <Link
-                href="/sign-in"
+                href={`/sign-in?next=${encodeURIComponent(pathname)}`}
                 onClick={() => setOpen(false)}
                 className="mt-2 rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper"
               >

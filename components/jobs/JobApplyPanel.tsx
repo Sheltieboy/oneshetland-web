@@ -58,13 +58,15 @@ export function JobApplyPanel({
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) throw new Error("Please sign in.");
-      const { error: dbErr } = await sb.from("job_applications").insert({
+      const { data: appRow, error: dbErr } = await sb.from("job_applications").insert({
         job_id: jobId,
         applicant_id: user.id,
         cover_letter: cover.trim() || null,
         profile_snapshot: snapshot ?? {},
-      });
+      }).select("id").single();
       if (dbErr) throw dbErr;
+      // Notify the employer (same edge fn the app uses).
+      if (appRow?.id) sb.functions.invoke("notify-job", { body: { event: "application", application_id: appRow.id } }).catch(() => {});
       setApplied(true);
       setOpen(false);
       router.refresh();

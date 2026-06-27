@@ -65,7 +65,7 @@ export function SpikSnap({ userId }: { userId: string | null }) {
         <p className="text-sm font-bold uppercase tracking-widest" style={{ color: ACCENT }}>{score >= 10 ? "🎉 Sharp work!" : "Time's up"}</p>
         <p className="mt-2 font-display text-5xl font-bold text-ink">{score}</p>
         <p className="text-ink-muted">correct{bestStreak >= 3 ? ` · best streak ${bestStreak}` : ""}</p>
-        {userId ? <p className="mt-2 text-sm font-semibold" style={{ color: ACCENT }}>+{score} XP</p> : <p className="mt-2 text-xs text-ink-muted"><a href="/sign-in" className="underline">Sign in</a> to save your score</p>}
+        {userId ? <p className="mt-2 text-sm font-semibold" style={{ color: ACCENT }}>+{score} XP</p> : <p className="mt-2 text-xs text-ink-muted"><a href="/sign-in?next=/games/spik-snap" className="underline">Sign in</a> to save your score</p>}
         <div className="mt-6 flex justify-center gap-3">
           <button onClick={start} className="rounded-pill px-6 py-2.5 font-semibold text-paper hover:brightness-95" style={{ background: ACCENT }}>Play again</button>
           <Link href="/games" className="rounded-pill border border-line-strong px-6 py-2.5 font-semibold text-ink hover:bg-sand">Back to games</Link>

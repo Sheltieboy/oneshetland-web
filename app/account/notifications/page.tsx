@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { getNotificationPrefs } from "@/lib/account-data.server";
 import { NotificationPrefsForm } from "@/components/account/NotificationPrefsForm";
@@ -6,7 +7,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Notifications · OneShetland" };
 
 export default async function Page() {
-  const account = (await getAccount())!;
+  const account = await getAccount();
+  if (!account) redirect("/sign-in?next=/account/notifications");
   const prefs = await getNotificationPrefs(account.id);
   return (
     <div className="max-w-2xl">

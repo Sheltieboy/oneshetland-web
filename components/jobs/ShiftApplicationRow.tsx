@@ -23,7 +23,12 @@ export function ShiftApplicationRow({ app }: { app: ShiftApplication }) {
 
   async function withdraw() {
     setBusy(true);
-    try { await sb().from("shift_applications").update({ status: "withdrawn" }).eq("id", app.id); setStatus("withdrawn"); router.refresh(); }
+    try {
+      const c = sb();
+      await c.from("shift_applications").update({ status: "withdrawn" }).eq("id", app.id);
+      c.functions.invoke("notify-shift-status", { body: { event: "withdrawn", application_id: app.id } }).catch(() => {});
+      setStatus("withdrawn"); router.refresh();
+    }
     finally { setBusy(false); }
   }
   async function setCheckStatus(next: "checked_in" | "checked_out") {

@@ -29,7 +29,10 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
     setReact((r) => ({ ...r, [kind]: Math.max(0, (r[kind] ?? 0) + (has ? -1 : 1)) }));
     const sb = createClient(); const { data: { user } } = await sb.auth.getUser(); if (!user) return;
     if (has) await sb.from("memory_reactions").delete().eq("memory_id", memoryId).eq("user_id", user.id).eq("kind", kind);
-    else await sb.from("memory_reactions").insert({ memory_id: memoryId, user_id: user.id, kind });
+    else {
+      await sb.from("memory_reactions").insert({ memory_id: memoryId, user_id: user.id, kind });
+      sb.functions.invoke("notify-engagement", { body: { event: "memory_reaction", memory_id: memoryId, actor_id: user.id } }).catch(() => {});
+    }
   }
 
   async function post() {
@@ -38,7 +41,10 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
     try {
       const sb = createClient(); const { data: { user } } = await sb.auth.getUser(); if (!user) throw new Error("Sign in");
       const { data } = await sb.from("memory_comments").insert({ memory_id: memoryId, author_id: user.id, body: body.trim() }).select("*, author:profiles(id, full_name, display_name, avatar_url)").single();
-      if (data) setList((l) => [...l, data as MemoryComment]);
+      if (data) {
+        setList((l) => [...l, data as MemoryComment]);
+        sb.functions.invoke("notify-engagement", { body: { event: "memory_comment", comment_id: (data as MemoryComment).id } }).catch(() => {});
+      }
       setBody(""); router.refresh();
     } finally { setBusy(false); }
   }

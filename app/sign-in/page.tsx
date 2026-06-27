@@ -4,11 +4,12 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/redirect";
 
 function SignInInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = params.get("next") || "/account";
+  const next = safeNext(params.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(

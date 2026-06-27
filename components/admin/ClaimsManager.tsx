@@ -25,12 +25,18 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
       const sb = createClient();
       const { error } = await sb.rpc("approve_business_claim", { p_claim_id: r.id });
       if (error) throw error;
+      sb.functions.invoke("notify-claim", { body: { claim_id: r.id, outcome: "approved" } }).catch(() => {});
       patch(r.id, "approved");
     } catch (e) { alert(e instanceof Error ? e.message : "Could not approve."); } finally { setBusy(null); }
   }
   async function reject(r: Row) {
     setBusy(r.id);
-    try { await createClient().from("business_claims").update({ status: "rejected" }).eq("id", r.id); patch(r.id, "rejected"); }
+    try {
+      const sb = createClient();
+      await sb.from("business_claims").update({ status: "rejected" }).eq("id", r.id);
+      sb.functions.invoke("notify-claim", { body: { claim_id: r.id, outcome: "rejected" } }).catch(() => {});
+      patch(r.id, "rejected");
+    }
     finally { setBusy(null); }
   }
 

@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logCompliance, TERMS_VERSION, PRIVACY_VERSION } from "@/lib/compliance";
+import { safeNext } from "@/lib/redirect";
 
-export default function SignUpPage() {
+function SignUpInner() {
   const router = useRouter();
+  const params = useSearchParams();
+  const next = safeNext(params.get("next"));
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -41,7 +44,7 @@ export default function SignUpPage() {
           privacy_version: PRIVACY_VERSION,
           age_confirmed: true,
         },
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 
@@ -60,7 +63,7 @@ export default function SignUpPage() {
       await logCompliance({ eventType: "privacy.accepted", documentVersion: PRIVACY_VERSION, metadata: { screen: "sign-up" } });
       await logCompliance({ eventType: "age.confirmed", metadata: { screen: "sign-up" } });
       await logCompliance({ eventType: marketing ? "marketing.opted_in" : "marketing.opted_out", metadata: { screen: "sign-up" } });
-      router.replace("/account");
+      router.replace(next);
       router.refresh();
       return;
     }
@@ -80,7 +83,7 @@ export default function SignUpPage() {
             We&apos;ve sent a confirmation link to <span className="font-semibold">{email.trim().toLowerCase()}</span>.
             Tap it to finish setting up your account.
           </p>
-          <Link href="/sign-in" className="mt-6 inline-block rounded-pill bg-navy px-6 py-3 font-semibold text-paper hover:bg-navy-dark">
+          <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="mt-6 inline-block rounded-pill bg-navy px-6 py-3 font-semibold text-paper hover:bg-navy-dark">
             Go to sign in
           </Link>
         </div>
@@ -142,10 +145,18 @@ export default function SignUpPage() {
 
         <p className="mt-6 border-t border-line pt-5 text-center text-sm text-ink-soft">
           Already have an account?{" "}
-          <Link href="/sign-in" className="font-semibold text-teal-dark hover:underline">Sign in</Link>
+          <Link href={`/sign-in?next=${encodeURIComponent(next)}`} className="font-semibold text-teal-dark hover:underline">Sign in</Link>
         </p>
       </div>
     </section>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignUpInner />
+    </Suspense>
   );
 }
 
