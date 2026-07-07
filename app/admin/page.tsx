@@ -8,11 +8,13 @@ const QUEUES = [
   { href: "/admin/drivers", label: "Driver approvals", key: "pendingDrivers", desc: "Review pending driver applications" },
   { href: "/admin/events", label: "Event approvals", key: "pendingEvents", desc: "Approve hub events for the islands calendar" },
   { href: "/admin/claims", label: "Business claims", key: "pendingClaims", desc: "Verify directory ownership claims" },
+  { href: "/admin/vessel-photos", label: "Vessel photos", key: "pendingVesselPhotos", desc: "Approve community photos for boat galleries" },
   { href: "/admin/alerts", label: "Alert access", key: "pendingAlerts", desc: "Approve urgent-alert add-on requests" },
   { href: "/admin/spik", label: "Spik suggestions", key: "pendingSpik", desc: "Review community dictionary suggestions" },
 ] as const;
 
 const TOOLS = [
+  { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
   { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, payments, disputes" },
   { href: "/admin/compliance", label: "Compliance log", desc: "Search a user's consent & verification record" },
   { href: "/admin/email", label: "Email centre", desc: "Templates, footer and the delivery log" },

@@ -23,6 +23,17 @@ export interface MemoryMedia {
   caption: string | null; display_order: number | null; duration_seconds: number | null; created_at: string;
 }
 export interface MemoryComment { id: string; memory_id: string; author_id: string; body: string; created_at: string; author?: MemoryAuthor | null; }
+export interface MemoryImagePinSuggestion {
+  id: string; pin_id: string; suggester_id: string; answer: string;
+  is_accepted: boolean; accepted_at: string | null; created_at: string;
+  suggester?: MemoryAuthor | null;
+}
+export interface MemoryImagePin {
+  id: string; media_id: string; author_id: string; x: number; y: number; prompt: string;
+  resolved: boolean; resolved_answer: string | null; resolved_by: string | null; resolved_at: string | null;
+  accepted_suggestion_id: string | null; created_at: string;
+  suggestions?: MemoryImagePinSuggestion[];
+}
 export interface MemoryPin {
   id: string; lat: number | null; lng: number | null; place_name: string | null; title: string | null;
   era: string | null; tags: string[] | null; media_count: number | null; comment_count: number | null;
@@ -33,7 +44,7 @@ export interface Memory {
   era: string | null; tags: string[] | null; title: string | null; body: string | null; visibility: Visibility;
   media_count: number | null; comment_count: number | null; reaction_count: number | null; child_count: number | null; created_at: string;
   author?: MemoryAuthor | null; media?: MemoryMedia[]; comments?: MemoryComment[]; children?: MemoryPin[];
-  reactions_by_kind?: Partial<Record<ReactionKind, number>>;
+  reactions_by_kind?: Partial<Record<ReactionKind, number>>; pins?: MemoryImagePin[];
 }
 
 /* ── Categories / eras ───────────────────────────────────────────────────── */
@@ -139,6 +150,34 @@ export async function getMemoryDetail(id: string): Promise<Memory | null> {
     const byKind: Partial<Record<ReactionKind, number>> = {};
     for (const r of reactions as { kind: ReactionKind }[]) byKind[r.kind] = (byKind[r.kind] ?? 0) + 1;
     const childHeroes = await attachHeroes(children as MemoryPin[]);
+
+    // Image pins (annotations) on photos + their community suggestions.
+    let pins: MemoryImagePin[] = [];
+    const photoIds = (media as MemoryMedia[]).filter((m) => m.kind === "photo").map((m) => m.id);
+    if (photoIds.length) {
+      const { data: pinData } = await sb.from("memory_image_pins").select("*").in("media_id", photoIds);
+      pins = (pinData ?? []) as MemoryImagePin[];
+      if (pins.length) {
+        const pinIds = pins.map((p) => p.id);
+        const { data: sugData } = await sb
+          .from("memory_image_pin_suggestions")
+          .select("*")
+          .in("pin_id", pinIds)
+          .order("created_at", { ascending: true });
+        const sugRows = (sugData ?? []) as MemoryImagePinSuggestion[];
+        // Hydrate suggester profiles (no embed — robust under RLS, mirrors comments).
+        const sugIds = [...new Set(sugRows.map((s) => s.suggester_id).filter(Boolean))];
+        let smap: Record<string, MemoryAuthor> = {};
+        if (sugIds.length) {
+          const { data: sp } = await sb.from("profiles").select("id, full_name, display_name, avatar_url").in("id", sugIds);
+          smap = Object.fromEntries((sp ?? []).map((p: MemoryAuthor) => [p.id, p]));
+        }
+        const byPin: Record<string, MemoryImagePinSuggestion[]> = {};
+        for (const s of sugRows) (byPin[s.pin_id] ||= []).push({ ...s, suggester: smap[s.suggester_id] ?? null });
+        pins = pins.map((p) => ({ ...p, suggestions: byPin[p.id] ?? [] }));
+      }
+    }
+
     return {
       ...(memory as Memory),
       author: pmap[(memory as Memory).author_id] ?? null,
@@ -146,6 +185,7 @@ export async function getMemoryDetail(id: string): Promise<Memory | null> {
       comments: commentRows.map((c) => ({ ...c, author: pmap[c.author_id] ?? null })),
       children: childHeroes,
       reactions_by_kind: byKind,
+      pins,
     };
   })(), null);
 }

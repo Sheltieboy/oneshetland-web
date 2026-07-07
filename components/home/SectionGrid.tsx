@@ -27,7 +27,11 @@ function SectionCard({ s, img }: { s: Section; img?: string }) {
   return (
     <Link
       href={s.href}
-      className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
+      // The card lights up in its OWN section colour on hover: a coloured ring
+      // (via a box-shadow ring using the section colour) + the existing lift.
+      // Ring colour is set as a CSS var so the Tailwind ring picks it up.
+      style={{ "--ring": s.color } as React.CSSProperties}
+      className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft ring-2 ring-transparent transition duration-300 hover:-translate-y-1 hover:shadow-lift hover:ring-[var(--ring)]"
     >
       <div className="relative h-40 overflow-hidden" style={{ background: s.color }}>
         {img ? (

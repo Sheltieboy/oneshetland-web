@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getAnalyticsConsent, setAnalyticsConsent } from "@/lib/analytics";
 import type { NotificationPrefs } from "@/lib/account-data.server";
 
 // Mirrors the app's lib/notification-prefs.ts (NOTIFICATION_GROUPS + NOTIFICATION_MODULES).
@@ -37,9 +38,9 @@ const MODULES: { key: ModuleKey; group: GroupKey; label: string; desc: string }[
   { key: "business_enabled", group: "business", label: "My business", desc: "New bookings, sales, payments and approvals" },
 ];
 
-function Toggle({ on, onChange, disabled }: { on: boolean; onChange: () => void; disabled?: boolean }) {
+function Toggle({ on, onChange, disabled, label }: { on: boolean; onChange: () => void; disabled?: boolean; label?: string }) {
   return (
-    <button type="button" onClick={onChange} disabled={disabled} aria-pressed={on}
+    <button type="button" onClick={onChange} disabled={disabled} aria-pressed={on} aria-label={label}
       className={"relative h-6 w-11 shrink-0 rounded-pill transition disabled:opacity-40 " + (on ? "bg-navy" : "bg-line-strong")}>
       <span className={"absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all " + (on ? "left-[22px]" : "left-0.5")} />
     </button>
@@ -50,6 +51,15 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
   const [prefs, setPrefs] = useState<NotificationPrefs>(initial);
   const [savedAt, setSavedAt] = useState<number>(0);
   const [open, setOpen] = useState<Record<string, boolean>>({});
+
+  // Analytics consent is stored client-side (localStorage), mirroring the app.
+  const [analyticsOn, setAnalyticsOn] = useState(false);
+  useEffect(() => { setAnalyticsOn(getAnalyticsConsent()); }, []);
+  const toggleAnalytics = () => {
+    const next = !analyticsOn;
+    setAnalyticsConsent(next);
+    setAnalyticsOn(next);
+  };
 
   async function persist(next: NotificationPrefs) {
     setPrefs(next);
@@ -75,7 +85,7 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
           <p className="font-display font-bold text-ink">All notifications</p>
           <p className="text-sm text-ink-muted">{prefs.enabled ? "On — managed by the toggles below" : "Everything muted"}</p>
         </div>
-        <Toggle on={prefs.enabled} onChange={() => set("enabled", !prefs.enabled)} />
+        <Toggle on={prefs.enabled} onChange={() => set("enabled", !prefs.enabled)} label="All notifications" />
       </div>
 
       {/* By feature — broad category, expand to fine-tune */}
@@ -95,7 +105,7 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
                     <span className="text-xs text-ink-muted">{allOn ? "All on" : anyOn ? "Some on" : "All off"}</span>
                     <span className={"ml-auto text-ink-faint transition-transform " + (isOpen ? "rotate-180" : "")} aria-hidden>▾</span>
                   </button>
-                  <Toggle on={prefs.enabled && anyOn} disabled={!prefs.enabled} onChange={() => setGroup(mods.map((m) => m.key), !anyOn)} />
+                  <Toggle on={prefs.enabled && anyOn} disabled={!prefs.enabled} onChange={() => setGroup(mods.map((m) => m.key), !anyOn)} label={g.label} />
                 </div>
                 {isOpen && (
                   <div className="border-t border-line">
@@ -105,7 +115,7 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
                           <p className="font-medium text-ink">{m.label}</p>
                           <p className="text-sm text-ink-muted">{m.desc}</p>
                         </div>
-                        <Toggle on={prefs.enabled && (prefs[m.key] as boolean)} disabled={!prefs.enabled} onChange={() => set(m.key, !(prefs[m.key] as boolean))} />
+                        <Toggle on={prefs.enabled && (prefs[m.key] as boolean)} disabled={!prefs.enabled} onChange={() => set(m.key, !(prefs[m.key] as boolean))} label={m.label} />
                       </div>
                     ))}
                   </div>
@@ -123,7 +133,7 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
             <p className="font-display font-bold text-ink">Quiet hours</p>
             <p className="text-sm text-ink-muted">Mute non-urgent pushes overnight</p>
           </div>
-          <Toggle on={quietOn} disabled={!prefs.enabled} onChange={() => persist({ ...prefs, quiet_hours_start: quietOn ? null : "22:00", quiet_hours_end: quietOn ? null : "07:00" })} />
+          <Toggle on={quietOn} disabled={!prefs.enabled} onChange={() => persist({ ...prefs, quiet_hours_start: quietOn ? null : "22:00", quiet_hours_end: quietOn ? null : "07:00" })} label="Quiet hours" />
         </div>
         {quietOn && (
           <div className="mt-4 flex items-center gap-3">
@@ -131,6 +141,18 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
             <label className="text-sm text-ink-soft">to <input type="time" value={prefs.quiet_hours_end ?? "07:00"} onChange={(e) => set("quiet_hours_end", e.target.value)} className="auth-input ml-1 inline-block w-32" /></label>
           </div>
         )}
+      </div>
+
+      {/* Privacy — analytics consent */}
+      <div>
+        <p className="mb-2 px-1 text-xs font-bold uppercase tracking-widest text-ink-faint">Privacy</p>
+        <div className="flex items-center justify-between rounded-card border border-line bg-paper p-5 shadow-soft">
+          <div>
+            <p className="font-display font-bold text-ink">Share anonymous usage data</p>
+            <p className="text-sm text-ink-muted">Helps us improve OneShetland. No ads, never sold.</p>
+          </div>
+          <Toggle on={analyticsOn} onChange={toggleAnalytics} label="Share anonymous usage data" />
+        </div>
       </div>
 
       {savedAt > 0 && <p className="text-sm font-semibold text-emerald-600">Saved ✓</p>}

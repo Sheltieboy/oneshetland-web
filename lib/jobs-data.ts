@@ -83,6 +83,12 @@ export type WorkerProfile = {
   willing_to_relocate: boolean;
   is_diaspora: boolean;
   is_public: boolean;
+  // Shift-side fields — the unified profile is a superset used by Jobs + Shifts.
+  experience_summary: string | null;
+  hourly_rate_min: number | null;
+  hourly_rate_max: number | null;
+  is_open_to_work: boolean;
+  open_to_categories: string[];
 };
 
 export const CONTRACT_LABELS: Record<ContractType, string> = {

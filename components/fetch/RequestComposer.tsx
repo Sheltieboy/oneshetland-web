@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  FETCH, DELIVERY_CATEGORIES, estimateFee, extractPostcode, penceToGBP,
+  FETCH, DELIVERY_CATEGORIES, estimateFee, extractPostcode, penceToGBP, SERVICE_FEE_PENCE,
+  type SavedAddress,
 } from "@/lib/fetch-data";
 import { PlaceAutocomplete, type PickedPlace } from "@/components/fetch/PlaceAutocomplete";
 
@@ -35,7 +36,41 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Saved addresses (mirrors the app's request step-3 picker).
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [showSavedPicker, setShowSavedPicker] = useState(false);
+  const [saveThisAddress, setSaveThisAddress] = useState(false);
+  const [saveLabel, setSaveLabel] = useState("");
+
   const needsLiability = categorySlug === "pharmacy" || categorySlug === "takeaway";
+
+  // Load the customer's saved addresses once, if signed in.
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let alive = true;
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) return;
+        const { data } = await sb
+          .from("saved_addresses")
+          .select("id, label, address, postcode, delivery_instructions")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        if (alive) setSavedAddresses((data as SavedAddress[] | null) ?? []);
+      } catch { /* non-fatal — picker simply won't show */ }
+    })();
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+
+  function applySavedAddress(addr: SavedAddress) {
+    const full = addr.postcode ? `${addr.address} ${addr.postcode}` : addr.address;
+    setDest({ name: addr.address, address: full, lat: null, lng: null, postcode: addr.postcode });
+    setDestText(full);
+    if (addr.delivery_instructions) setDeliveryNotes(addr.delivery_instructions);
+    setShowSavedPicker(false);
+  }
 
   // Recalculate the fee whenever both endpoints are known.
   useEffect(() => {
@@ -105,6 +140,18 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
       }).select("id").single();
       if (insErr) throw insErr;
       const id = inserted.id as string;
+      // Optionally save this delivery address for next time (non-fatal).
+      if (saveThisAddress && (dest.address || destText).trim()) {
+        try {
+          await sb.from("saved_addresses").insert({
+            user_id: user.id,
+            label: saveLabel.trim() || (destArea.trim() || "Saved address"),
+            address: dest.address || destText,
+            postcode: dest.postcode || extractPostcode(dest.address || destText),
+            delivery_instructions: deliveryNotes.trim() || null,
+          });
+        } catch { /* non-fatal — request already created */ }
+      }
       // Notify approved drivers (non-fatal).
       try { await sb.functions.invoke("notify-drivers", { body: { request_id: id } }); } catch { /* non-fatal */ }
       router.push(`/fetch/${id}`);
@@ -156,6 +203,41 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
       {/* Delivery */}
       <section className="rounded-card border border-line bg-paper p-4 shadow-soft">
         <h2 className="mb-3 font-display text-lg font-bold text-ink">Delivery</h2>
+
+        {/* Saved-address picker — mirrors the app's request step-3 */}
+        {savedAddresses.length > 0 && (
+          <div className="mb-3">
+            <button type="button" onClick={() => setShowSavedPicker((v) => !v)}
+              className="flex w-full items-center gap-3 rounded-xl border border-line bg-cream/40 px-3 py-2.5 text-left transition hover:bg-cream/70">
+              <span className="text-lg">🏠</span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold text-ink">Use a saved address</span>
+                <span className="block text-xs text-ink-muted">Pick from your saved locations</span>
+              </span>
+              <span className="text-ink-faint">{showSavedPicker ? "▴" : "▾"}</span>
+            </button>
+            {showSavedPicker && (
+              <ul className="mt-2 space-y-2">
+                {savedAddresses.map((a) => (
+                  <li key={a.id}>
+                    <button type="button" onClick={() => applySavedAddress(a)}
+                      className="flex w-full items-start gap-3 rounded-xl border border-line bg-paper px-3 py-2.5 text-left shadow-soft transition hover:border-line-strong">
+                      <span className="text-lg">📍</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold text-ink">{a.label}</span>
+                        <span className="block text-sm text-ink-soft">{a.address}</span>
+                        {a.postcode && <span className="block text-sm text-ink-muted">{a.postcode}</span>}
+                        {a.delivery_instructions && <span className="mt-0.5 block text-xs text-ink-muted">💬 {a.delivery_instructions}</span>}
+                      </span>
+                      <span className="text-ink-faint">›</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         <label className="mb-1 block text-sm font-semibold text-ink-soft">Deliver to</label>
         <PlaceAutocomplete value={destText} placeholder="Your address"
           onChange={(t) => { setDestText(t); setDest((p) => ({ ...p, address: t })); }}
@@ -168,6 +250,17 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
         </div>
         <textarea value={deliveryNotes} onChange={(e) => setDeliveryNotes(e.target.value)} placeholder="Delivery notes (optional) — buzzer, where to leave it, etc."
           className="mt-2 min-h-[64px] w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint" />
+
+        {/* Optionally save this address for next time */}
+        {isLoggedIn && (
+          <div className="mt-3">
+            <Toggle label="Save this address" sub="Reuse it on your next delivery" checked={saveThisAddress} onChange={setSaveThisAddress} />
+            {saveThisAddress && (
+              <input value={saveLabel} onChange={(e) => setSaveLabel(e.target.value)} placeholder="Label (e.g. Home, Mum's)"
+                className="mt-2 w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint" />
+            )}
+          </div>
+        )}
       </section>
 
       {/* Fee estimate */}
@@ -177,9 +270,19 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
           <p className="mt-1 text-sm text-ink-muted">Calculating based on distance…</p>
         ) : feePence != null ? (
           <>
-            <p className="mt-1 font-display text-3xl font-extrabold text-ink">{penceToGBP(feePence)}</p>
+            <p className="mt-1 font-display text-3xl font-extrabold text-ink">{penceToGBP(feePence + SERVICE_FEE_PENCE)}</p>
             {miles != null && <p className="text-sm text-ink-muted">~{miles} miles (road estimate)</p>}
-            <p className="mt-1 text-xs text-ink-muted">Priced at 95p/mile with a £4.00 minimum. Your card is pre-authorised when a driver accepts and only charged on delivery.</p>
+            <div className="mt-3 space-y-1.5">
+              <div className="flex items-center justify-between text-sm text-ink-muted">
+                <span>Delivery fee (your driver gets this)</span>
+                <span>{penceToGBP(feePence)}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm text-ink-muted">
+                <span>OneShetland service fee</span>
+                <span>{penceToGBP(SERVICE_FEE_PENCE)}</span>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-ink-muted">Priced at 95p/mile with a £4.00 minimum. Your driver receives the full delivery fee; the service fee is OneShetland&apos;s share, added on top. Your card is pre-authorised when a driver accepts and only charged on delivery.</p>
           </>
         ) : (
           <p className="mt-1 text-sm text-ink-muted">{feeMsg ?? "Choose both addresses to see your fee."}</p>

@@ -52,10 +52,61 @@ export async function getJobApplicants(jobId: string): Promise<JobApplication[]>
   })(), []);
 }
 
+export type BusinessJob = Job & { is_hidden: boolean; application_count: number };
+
+/** All jobs (open + closed) posted as a given business, with applicant counts. */
+export async function getBusinessJobs(businessId: string): Promise<BusinessJob[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("jobs")
+      .select("*, business:local_businesses(id,name,logo_url,brand_color,slug,is_verified)")
+      .eq("posted_as_business_id", businessId)
+      .order("posted_at", { ascending: false });
+    const jobs = (data ?? []) as unknown as (Job & { is_hidden?: boolean })[];
+    if (!jobs.length) return [];
+    const ids = jobs.map((j) => j.id);
+    const { data: apps } = await sb.from("job_applications")
+      .select("job_id").in("job_id", ids).neq("status", "withdrawn");
+    const counts: Record<string, number> = {};
+    for (const a of (apps ?? []) as { job_id: string }[]) counts[a.job_id] = (counts[a.job_id] ?? 0) + 1;
+    return jobs.map((j): BusinessJob => ({
+      ...j,
+      is_hidden: j.is_hidden ?? false,
+      application_count: counts[j.id] ?? 0,
+    }));
+  })(), []);
+}
+
 export async function getWorkerProfile(userId: string): Promise<WorkerProfile | null> {
   const sb = await createServerClient();
   const { data } = await sb.from("worker_profiles").select("*").eq("user_id", userId).maybeSingle();
   return (data ?? null) as WorkerProfile | null;
+}
+
+export type ShiftWorkerProfile = {
+  user_id: string;
+  bio: string | null;
+  experience_summary: string | null;
+  skills: string[] | null;
+  qualifications: string[] | null;
+  hourly_rate_min: number | null;
+  hourly_rate_max: number | null;
+  is_open_to_work: boolean | null;
+  open_to_categories: string[] | null;
+};
+
+/** The shift-side view of the UNIFIED worker profile (shared with Jobs).
+ *  `summary` is the canonical "about you" column, aliased to `bio` here. */
+export async function getShiftWorkerProfile(userId: string): Promise<ShiftWorkerProfile | null> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb
+      .from("worker_profiles")
+      .select("user_id, bio:summary, experience_summary, skills, qualifications, hourly_rate_min, hourly_rate_max, is_open_to_work, open_to_categories")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data ?? null) as ShiftWorkerProfile | null;
+  })(), null);
 }
 
 /** Local businesses owned by the user — for the "post as" picker. */
@@ -141,7 +192,7 @@ export async function getEmployerShiftApplications(employerId: string): Promise<
     const workerIds = [...new Set(appList.map(a => a.worker_id))];
     const [{ data: profiles }, { data: wp }] = await Promise.all([
       sb.from("profiles").select("id, full_name, avatar_url, location_area, created_at").in("id", workerIds),
-      sb.from("shift_worker_profiles").select("user_id, bio, experience_summary, skills, hourly_rate_min, hourly_rate_max, qualifications").in("user_id", workerIds),
+      sb.from("worker_profiles").select("user_id, bio:summary, experience_summary, skills, hourly_rate_min, hourly_rate_max, qualifications").in("user_id", workerIds),
     ]);
     type WRow = NonNullable<EmployerShiftApplication["worker"]>;
     type WPRow = NonNullable<EmployerShiftApplication["workerProfile"]> & { user_id: string };
@@ -154,4 +205,23 @@ export async function getEmployerShiftApplications(employerId: string): Promise<
       workerProfile: wpMap[a.worker_id] ?? null,
     }));
   })(), []);
+}
+
+/* ── Employer (business) profile ─────────────────────────────────────────── */
+
+export interface EmployerProfile {
+  business_name: string | null;
+  description: string | null;
+  is_verified: boolean;
+  logo_url: string | null;
+}
+
+export async function getEmployerProfile(userId: string): Promise<EmployerProfile | null> {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data } = await sb.from("shift_employer_profiles")
+      .select("business_name, description, is_verified, logo_url")
+      .eq("id", userId).maybeSingle();
+    return (data ?? null) as EmployerProfile | null;
+  })(), null);
 }

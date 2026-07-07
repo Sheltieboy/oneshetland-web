@@ -4,6 +4,7 @@ import {
   getJobs, getOpenShifts, JOB_CATEGORIES, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
 import { JobCard, ShiftCard, EmptyState, JOBS, SHIFTS } from "@/components/jobs/JobsUI";
+import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Work · Jobs & Shifts · OneShetland" };
@@ -41,6 +42,13 @@ export default async function WorkHubPage({
 
   return (
     <>
+      {q && (
+        <TrackSearch
+          section="jobs"
+          query={q}
+          resultsCount={isShifts ? visibleShifts.length : jobs.length}
+        />
+      )}
       <section className="relative isolate overflow-hidden" style={{ background: accent }}>
         <Image src="/heroes/jobs.webp" alt="" fill priority className="object-cover opacity-20" />
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${accent}e6 30%,${accent}b0)` }} />

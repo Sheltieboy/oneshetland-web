@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getMonthDays, getUpcomingDaysRich, getSeasonBounds, getScopeData, getScopeAvailability, getCruiseHomeCard } from "@/lib/cruise-data";
-import { baro, BAROMETER, CRUISE_ACCENT, CRUISE_HERO, fmtDateShort, scopeRange, type CruiseScope } from "@/lib/cruise-shared";
+import { baro, BAROMETER, CRUISE_ACCENT, CRUISE_HERO, fmtDateShort, scopeRange, londonToday, type CruiseScope } from "@/lib/cruise-shared";
 import { CruiseTodayCard } from "@/components/cruise/CruiseTodayCard";
 import { SeasonStatTiles, SeasonMonthChart } from "@/components/cruise/SeasonStats";
 import { SeasonMap } from "@/components/cruise/SeasonMap";
@@ -33,7 +33,7 @@ export default async function CruisePage({
   searchParams: Promise<{ month?: string; scope?: string }>;
 }) {
   const { month: monthParam, scope: scopeParam } = await searchParams;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = londonToday();
   const scope: CruiseScope = (["today", "weekend", "week"].includes(scopeParam ?? "") ? scopeParam : "season") as CruiseScope;
   const range = scope === "season" ? null : scopeRange(scope, today);
   const available = await getScopeAvailability(today);
@@ -53,8 +53,9 @@ export default async function CruisePage({
   }
 
   const bounds = await getSeasonBounds();
-  const fallbackMonth = bounds.first ? bounds.first.slice(0, 7) : new Date().toISOString().slice(0, 7);
-  const month = /^\d{4}-\d{2}$/.test(monthParam ?? "") ? (monthParam as string) : (new Date().toISOString().slice(0, 7) >= fallbackMonth ? new Date().toISOString().slice(0, 7) : fallbackMonth);
+  const thisMonth = today.slice(0, 7);
+  const fallbackMonth = bounds.first ? bounds.first.slice(0, 7) : thisMonth;
+  const month = /^\d{4}-\d{2}$/.test(monthParam ?? "") ? (monthParam as string) : (thisMonth >= fallbackMonth ? thisMonth : fallbackMonth);
 
   const [days, upcoming, seasonStats, origins] = await Promise.all([getMonthDays(month), getUpcomingDaysRich(12), getSeasonStats(), getSeasonOrigins()]);
 

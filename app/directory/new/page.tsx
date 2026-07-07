@@ -5,7 +5,7 @@ import { BusinessCreateForm } from "@/components/directory/BusinessCreateForm";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Add your business · Directory" };
 
-const DIR = "#6b47bf";
+const DIR = "#4f46e5";
 
 export default async function NewBusinessPage() {
   const account = await getAccount();

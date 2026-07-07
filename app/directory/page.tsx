@@ -1,28 +1,51 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getAllBusinesses, getDirectoryFeatured, searchHubs, CATEGORIES, CATEGORY_LABEL } from "@/lib/local-data";
+import { getAllBusinesses, getDirectoryFeatured, searchHubs, CATEGORIES, CATEGORY_LABEL, SHETLAND_AREAS } from "@/lib/local-data";
 import { BusinessCard } from "@/components/local/LocalUI";
 import { HUB_TYPE_LABELS } from "@/lib/hubs-data";
+import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Directory" };
 
-const DIR = "#6b47bf";
+const DIR = "#4f46e5";
 
 export default async function DirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; area?: string; bookable?: string }>;
 }) {
-  const { category, q } = await searchParams;
-  const all = await getAllBusinesses({ category, q });
+  const { category, q, area, bookable } = await searchParams;
+  const bookableOnly = bookable === "1";
+  const all = await getAllBusinesses({ category, q, area, bookableOnly });
   // Featured row only on the default (unfiltered, unsearched) view.
-  const showFeatured = !category && !q;
+  const showFeatured = !category && !q && !area && !bookableOnly;
   const featured = showFeatured ? await getDirectoryFeatured(6) : [];
   const featuredIds = new Set(featured.map((b) => b.id));
   // Exclude featured from the main grid so they aren't shown twice.
   const businesses = featured.length ? all.filter((b) => !featuredIds.has(b.id)) : all;
   const hubs = q && all.length === 0 ? await searchHubs(q) : [];
+
+  // Build a /directory URL preserving current filters, overriding the given keys.
+  // A null value removes that param.
+  const buildHref = (overrides: Record<string, string | null>) => {
+    const params = new URLSearchParams();
+    const base: Record<string, string | undefined> = {
+      category,
+      q,
+      area,
+      bookable: bookableOnly ? "1" : undefined,
+    };
+    for (const [k, v] of Object.entries(base)) {
+      if (v) params.set(k, v);
+    }
+    for (const [k, v] of Object.entries(overrides)) {
+      if (v === null) params.delete(k);
+      else params.set(k, v);
+    }
+    const qs = params.toString();
+    return qs ? `/directory?${qs}` : "/directory";
+  };
 
   const chip = (label: string, href: string, on: boolean) => (
     <Link
@@ -40,6 +63,7 @@ export default async function DirectoryPage({
 
   return (
     <>
+      {q && <TrackSearch section="local" query={q} resultsCount={all.length + hubs.length} />}
       {/* Header */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: DIR }}>
         <Image src="/heroes/directory.jpg" alt="" fill priority className="object-cover opacity-25" />
@@ -56,21 +80,35 @@ export default async function DirectoryPage({
       {/* Sticky search + filter */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
-          <form action="/directory" method="get" className="mb-3 flex gap-2">
+          <form action="/directory" method="get" className="mb-3 flex flex-wrap gap-2">
             {category ? <input type="hidden" name="category" value={category} /> : null}
+            {area ? <input type="hidden" name="area" value={area} /> : null}
+            {bookableOnly ? <input type="hidden" name="bookable" value="1" /> : null}
             <input
               name="q"
               defaultValue={q ?? ""}
-              placeholder="Search businesses by name…"
-              className="w-full rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint focus:border-local"
+              placeholder="Search by name, type, place or tag…"
+              className="min-w-0 flex-1 rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint focus:border-local"
             />
             <button type="submit" className="rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: DIR }}>
               Search
             </button>
           </form>
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {chip("All", "/directory", !category)}
-            {CATEGORIES.map((c) => chip(c.label, `/directory?category=${c.key}`, category === c.key))}
+            {chip("All", buildHref({ category: null }), !category)}
+            {CATEGORIES.map((c) => chip(c.label, buildHref({ category: c.key }), category === c.key))}
+          </div>
+          <div className="-mx-5 mt-2 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {/* Bookable-only toggle */}
+            {chip(
+              "📅 Bookable only",
+              buildHref({ bookable: bookableOnly ? null : "1" }),
+              bookableOnly,
+            )}
+            {/* Area filter — chips mirror the app's locality filter */}
+            <span className="ml-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-faint">Area</span>
+            {chip("All Shetland", buildHref({ area: null }), !area)}
+            {SHETLAND_AREAS.map((a) => chip(a.label, buildHref({ area: a.key }), area === a.key))}
           </div>
         </div>
       </div>
@@ -102,6 +140,12 @@ export default async function DirectoryPage({
             <p className="text-sm text-ink-muted">
               {all.length} listing{all.length === 1 ? "" : "s"}
             </p>
+            <Link
+              href="/directory/bookable"
+              className="hidden rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink transition hover:bg-sand sm:inline-block"
+            >
+              📅 Book in Shetland
+            </Link>
             <Link
               href="/directory/new"
               className="rounded-pill px-4 py-2 text-sm font-semibold text-paper shadow-soft transition hover:brightness-95"

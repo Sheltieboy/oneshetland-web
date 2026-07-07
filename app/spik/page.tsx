@@ -12,6 +12,7 @@ import {
   type SpikListItem,
   type SpikStats,
 } from "@/lib/spik-data";
+import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -61,6 +62,7 @@ export default async function SpikPage({
 
   return (
     <>
+      {searching && <TrackSearch section="spik" query={query} resultsCount={words.length} />}
       {/* Header band */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: SPIK_COLOR }}>
         <div

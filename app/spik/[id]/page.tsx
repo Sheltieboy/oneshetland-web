@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getWord, stripHtml, SUGGEST_FIELDS, SPIK_COLOR } from "@/lib/spik-data";
 import { SuggestModal } from "@/components/spik/SuggestModal";
+import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
+      <TrackView event="content_viewed" objectType="spik_word" objectId={id} />
       {/* Header band */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: SPIK_COLOR }}>
         <div
@@ -86,6 +88,21 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
           {shortMeaning && <p className="mt-4 text-xl font-semibold text-paper">{shortMeaning}</p>}
           {fullMeaning && fullMeaning !== shortMeaning && (
             <p className="mt-2 max-w-xl leading-relaxed text-paper/90">{fullMeaning}</p>
+          )}
+          {/* Community contributor credit — mirrors the app's spik-detail screen.
+              Renders nothing gracefully when contributor_name is absent. */}
+          {w.contributor_name && (
+            <p className="mt-4 flex items-center gap-1.5 text-sm text-paper/80">
+              <span aria-hidden>👥</span>
+              {w.contributor_show ? (
+                <span>
+                  Improved by the community —{" "}
+                  <span className="font-bold text-paper">{stripHtml(w.contributor_name)}</span>
+                </span>
+              ) : (
+                <span>Improved by the community</span>
+              )}
+            </p>
           )}
         </div>
       </section>

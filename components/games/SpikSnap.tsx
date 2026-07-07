@@ -21,15 +21,31 @@ export function SpikSnap({ userId }: { userId: string | null }) {
   const [flash, setFlash] = useState<"ok" | "no" | null>(null);
   const [burstKey, setBurstKey] = useState(0);
   const [locked, setLocked] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { loadSpikGameWords().then((w) => { setPool(w); setPhase("ready"); }); }, []);
 
+  const save = useCallback(async (finalScore: number, finalBestStreak: number) => {
+    if (!userId) return;
+    setSaving(true);
+    setSaveError(false);
+    try {
+      await submitScore(userId, "spik_snap", finalScore, { durationMs: 60000, metadata: { best_streak: finalBestStreak }, xpEarned: finalScore });
+    } catch (e) {
+      console.error("Score submit failed", e);
+      setSaveError(true);
+    } finally {
+      setSaving(false);
+    }
+  }, [userId]);
+
   const end = useCallback(async () => {
     if (timer.current) clearInterval(timer.current);
     setPhase("done");
-    setScore((s) => { if (userId) submitScore(userId, "spik_snap", s, { durationMs: 60000, metadata: { best_streak: bestStreak }, xpEarned: s }).catch(() => {}); return s; });
-  }, [userId, bestStreak]);
+    setScore((s) => { void save(s, bestStreak); return s; });
+  }, [save, bestStreak]);
 
   function start() {
     setScore(0); setStreak(0); setBestStreak(0); setTimeLeft(60); setPhase("playing"); setCard(makeSnapCard(pool));
@@ -65,7 +81,15 @@ export function SpikSnap({ userId }: { userId: string | null }) {
         <p className="text-sm font-bold uppercase tracking-widest" style={{ color: ACCENT }}>{score >= 10 ? "🎉 Sharp work!" : "Time's up"}</p>
         <p className="mt-2 font-display text-5xl font-bold text-ink">{score}</p>
         <p className="text-ink-muted">correct{bestStreak >= 3 ? ` · best streak ${bestStreak}` : ""}</p>
-        {userId ? <p className="mt-2 text-sm font-semibold" style={{ color: ACCENT }}>+{score} XP</p> : <p className="mt-2 text-xs text-ink-muted"><a href="/sign-in?next=/games/spik-snap" className="underline">Sign in</a> to save your score</p>}
+        {userId && !saveError && <p className="mt-2 text-sm font-semibold" style={{ color: ACCENT }}>+{score} XP</p>}
+        {!userId && <p className="mt-2 text-xs text-ink-muted"><a href="/sign-in?next=/games/spik-snap" className="underline">Sign in</a> to save your score</p>}
+        {userId && saveError && (
+          <div className="mt-3 rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            <p className="font-semibold">Couldn&apos;t save your score.</p>
+            <p className="mt-0.5 text-rose-600">It won&apos;t count on the leaderboard until it saves.</p>
+            <button onClick={() => save(score, bestStreak)} disabled={saving} className="mt-2 rounded-pill bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:opacity-60">{saving ? "Saving…" : "Retry"}</button>
+          </div>
+        )}
         <div className="mt-6 flex justify-center gap-3">
           <button onClick={start} className="rounded-pill px-6 py-2.5 font-semibold text-paper hover:brightness-95" style={{ background: ACCENT }}>Play again</button>
           <Link href="/games" className="rounded-pill border border-line-strong px-6 py-2.5 font-semibold text-ink hover:bg-sand">Back to games</Link>

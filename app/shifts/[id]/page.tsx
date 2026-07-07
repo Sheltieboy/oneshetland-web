@@ -9,6 +9,7 @@ import {
 import { getMyShiftApplication } from "@/lib/jobs-data.server";
 import { SHIFTS } from "@/components/jobs/JobsUI";
 import { ShiftApplyPanel } from "@/components/jobs/ShiftApplyPanel";
+import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +43,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
 
   return (
     <>
+      <TrackView event="content_viewed" objectType="shift" objectId={id} />
       <section className="relative isolate overflow-hidden" style={{ background: SHIFTS }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${SHIFTS}f0 30%,${SHIFTS}c0)` }} />
         <div className="relative mx-auto max-w-4xl px-5 py-10 sm:py-12">

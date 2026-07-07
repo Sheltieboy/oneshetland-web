@@ -53,7 +53,7 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
     setList((l) => l.filter((c) => c.id !== id)); router.refresh();
   }
   async function deleteMemory() {
-    if (!confirm("Delete this memory for good?")) return;
+    if (!confirm("Delete this story for good?")) return;
     await createClient().from("memories").delete().eq("id", memoryId);
     router.push("/memories");
   }
@@ -70,7 +70,7 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
             </button>
           );
         })}
-        {isAuthor && <button onClick={deleteMemory} className="ml-auto rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">Delete memory</button>}
+        {isAuthor && <button onClick={deleteMemory} className="ml-auto rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">Delete story</button>}
       </div>
 
       {/* Comments */}

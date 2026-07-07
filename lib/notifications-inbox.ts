@@ -47,19 +47,47 @@ export async function markNotificationsRead(ids?: string[]): Promise<void> {
   if (error) throw error;
 }
 
+// `screen` aliases — mirrors the app's SCREEN_ALIASES (lib/notifications.ts),
+// mapped to the equivalent web route. Some app-only destinations fall back to
+// the nearest web page (e.g. notices → /local; cruise → /cruise).
+const SCREEN_ALIASES: Record<string, string> = {
+  fetch: "/fetch",
+  shifts: "/jobs?tab=shifts",
+  jobs: "/jobs",
+  spik: "/spik",
+  games: "/games",
+  "my-shift-applications": "/shifts/applications",
+  "my-job-applications": "/jobs/applications",
+  "employer-applications": "/shifts/manage",
+  "local-my-cards": "/account/loyalty",
+  "local-offers": "/local",
+  "local-wallet": "/account/wallet",
+  "local-my-passes": "/account/passes",
+  "local-my-gifts": "/account/gifts",
+  "local-my-bookings": "/account/bookings",
+  "my-event-tickets": "/account/memberships",
+  notices: "/local",
+};
+
 /** Map a notification's data payload to a web route (or null if not linkable). */
 export function webNotificationRoute(data: Record<string, unknown> | null): string | null {
   if (!data) return null;
-  // Employer applicants pipeline.
-  if (data.screen === "job-applicants" && typeof data.job_id === "string") return `/jobs/${data.job_id}/applicants`;
+
+  const screen = typeof data.screen === "string" ? data.screen : null;
+
+  // Employer applicants pipeline needs the job id.
+  if (screen === "job-applicants" && typeof data.job_id === "string") return `/jobs/${data.job_id}/applicants`;
+  if (screen && SCREEN_ALIASES[screen]) return SCREEN_ALIASES[screen];
+
+  // Id-based fallbacks (most specific first) — mirrors the app's order.
   if (typeof data.shift_id === "string") return `/shifts/${data.shift_id}`;
   if (typeof data.job_id === "string") return `/jobs/${data.job_id}`;
   if (typeof data.hub_id === "string") return `/hubs/${data.hub_id}`;
-  if (typeof data.event_id === "string") return `/events/${data.event_id}`;
+  if (typeof data.order_id === "string") return "/account/memberships";
+  if (typeof data.event_id === "string") return `/whats-on/${data.event_id}`;
+  if (typeof data.request_id === "string") return "/fetch";
   if (typeof data.memory_id === "string") return `/memories/${data.memory_id}`;
   if (typeof data.vessel_id === "string") return `/boats/${data.vessel_id}`;
-  if (typeof data.order_id === "string") return "/account/memberships";
-  if (typeof data.request_id === "string") return "/fetch";
   if (typeof data.business_id === "string") return `/directory/${data.business_id}`;
   return null;
 }

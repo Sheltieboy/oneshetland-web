@@ -14,7 +14,7 @@ export function MemoryCard({ m }: { m: MemoryPin }) {
       </div>
       <div className="flex flex-1 flex-col p-4">
         {m.place_name && <p className="text-xs font-bold uppercase tracking-widest" style={{ color: MEMORIES }}>{m.place_name}</p>}
-        <h3 className="mt-0.5 font-display text-lg font-bold leading-tight text-ink group-hover:underline">{m.title || "A memory"}</h3>
+        <h3 className="mt-0.5 font-display text-lg font-bold leading-tight text-ink group-hover:underline">{m.title || "A story"}</h3>
         {m.era && <p className="mt-0.5 text-sm text-ink-muted">{m.era}</p>}
         {(m.tags ?? []).length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">

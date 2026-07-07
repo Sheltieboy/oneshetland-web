@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/local-data";
 
-const DIR = "#6b47bf";
+const DIR = "#4f46e5";
 
 export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
   const router = useRouter();
@@ -53,8 +53,9 @@ export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
         phone: phone.trim() || null,
         email: email.trim() || null,
         website: website.trim() || null,
-        address: address.trim() || null,
-        locality: locality.trim() || null,
+        // `local_businesses` has no locality column — keep the area inside the
+        // address text so it stays searchable by the directory area filter.
+        address: [address.trim(), locality.trim()].filter(Boolean).join(", ") || null,
         is_active: true,
         is_claimed: true,
         source: "owner",

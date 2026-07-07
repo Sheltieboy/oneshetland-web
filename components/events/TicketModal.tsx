@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib/events-client";
+import { fetchWalletBalance } from "@/lib/local-commerce-client";
 
 const EVENTS = "#d4921a";
-const BOOKING_FEE_PENCE = 50;
+// Must match the app (app/event-ticket-checkout.tsx) and the create-event-ticket-intent
+// edge function, which is authoritative for the actual charge.
+const BOOKING_FEE_PENCE = 95;
 
 function gbp(pence: number) {
   return pence <= 0 ? "Free" : `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
@@ -47,6 +50,14 @@ export function TicketModal({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [orderId, setOrderId] = useState<string | null>(null);
   const [ticketCount, setTicketCount] = useState(0);
+  const [walletPence, setWalletPence] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!open || !isLoggedIn) return;
+    let live = true;
+    fetchWalletBalance().then((p) => { if (live) setWalletPence(p); }).catch(() => {});
+    return () => { live = false; };
+  }, [open, isLoggedIn]);
 
   function reset() {
     setStep("select");
@@ -74,14 +85,15 @@ export function TicketModal({
   const isPaid = faceValuePence > 0;
   const bookingFeePence = isPaid ? BOOKING_FEE_PENCE * totalTickets : 0;
   const totalPence = faceValuePence + bookingFeePence;
+  const canWallet = walletPence != null && isPaid && walletPence >= totalPence;
 
-  async function proceed() {
+  async function proceed(viaWallet = false) {
     if (lineItems.length === 0) return;
     if (!isLoggedIn) { window.location.href = signInHref; return; }
     setBusy(true);
     setError(null);
     try {
-      const result = await startTicketPurchase(eventId, lineItems);
+      const result = await startTicketPurchase(eventId, lineItems, viaWallet ? { payWithWallet: true } : {});
       if ("free" in result || "charged" in result) {
         setTicketCount(totalTickets);
         setStep("done");
@@ -180,14 +192,34 @@ export function TicketModal({
             <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>
           )}
 
-          <button
-            onClick={proceed}
-            disabled={totalTickets === 0 || busy}
-            className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
-            style={{ background: EVENTS }}
-          >
-            {busy ? "Please wait…" : isLoggedIn ? (isPaid ? `Continue · ${gbp(totalPence)}` : "Get free tickets") : "Sign in to continue"}
-          </button>
+          {canWallet ? (
+            <div className="space-y-3">
+              <button
+                onClick={() => proceed(true)}
+                disabled={totalTickets === 0 || busy}
+                className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
+                style={{ background: EVENTS }}
+              >
+                {busy ? "Please wait…" : `Pay from wallet · ${gbp(totalPence)}`}
+              </button>
+              <button
+                onClick={() => proceed(false)}
+                disabled={totalTickets === 0 || busy}
+                className="w-full rounded-pill border border-line-strong py-3 font-semibold text-ink transition hover:bg-sand disabled:opacity-40"
+              >
+                {busy ? "Please wait…" : `Pay by card · ${gbp(totalPence)}`}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => proceed(false)}
+              disabled={totalTickets === 0 || busy}
+              className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
+              style={{ background: EVENTS }}
+            >
+              {busy ? "Please wait…" : isLoggedIn ? (isPaid ? `Continue · ${gbp(totalPence)}` : "Get free tickets") : "Sign in to continue"}
+            </button>
+          )}
         </div>
       )}
 

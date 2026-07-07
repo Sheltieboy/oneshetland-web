@@ -32,7 +32,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
   if (!isLoggedIn) {
     return (
       <div className="rounded-card border border-line bg-paper p-8 text-center shadow-soft">
-        <p className="font-display text-xl font-bold">Sign in to add a memory</p>
+        <p className="font-display text-xl font-bold">Sign in to add a story</p>
         <a href="/sign-in?next=/memories/new" className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-white" style={{ background: MEMORIES }}>Sign in or create account</a>
       </div>
     );
@@ -45,7 +45,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
   function toggleTag(s: string) { setTags((t) => t.includes(s) ? t.filter((x) => x !== s) : [...t, s]); }
 
   async function save() {
-    if (!parentId && !existing && !loc) { setError("Choose where on the map this memory belongs."); return; }
+    if (!parentId && !existing && !loc) { setError("Choose where on the map this story belongs."); return; }
     if (!title.trim() && !body.trim() && drafts.length === 0) { setError("Add a story or some media."); return; }
     setError(null); setBusy(true);
     try {
@@ -84,7 +84,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
         // Transcription is run (and shown) on the detail page by AudioTranscriber.
       }
       router.push(`/memories/${memoryId}`);
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the memory."); setBusy(false); }
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save the story."); setBusy(false); }
   }
 
   const pill = (on: boolean) => "rounded-pill border px-3 py-1.5 text-sm font-semibold transition " + (on ? "text-white" : "border-line bg-sand text-ink hover:border-line-strong");
@@ -102,7 +102,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
       )}
 
       <section className="rounded-card border border-line bg-paper p-6 shadow-soft">
-        <h2 className="mb-3 font-display text-xl font-bold text-ink">The memory</h2>
+        <h2 className="mb-3 font-display text-xl font-bold text-ink">The story</h2>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title (optional)" className="auth-input" />
         <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5} placeholder="Tell the story…" className="auth-input mt-3 resize-none" />
         <p className="mb-2 mt-4 text-sm font-semibold text-ink">When</p>
@@ -129,7 +129,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
           <input ref={videoRef} type="file" accept="video/*" className="hidden" onChange={(e) => addFile("video", e.target.files?.[0] ?? null)} />
         </div>
         <p className="mt-2 rounded-lg bg-sand/60 px-3 py-2 text-xs text-ink-soft">
-          🎙 <span className="font-semibold text-ink">Voice notes are turned into text automatically.</span> Record your note and save the memory — the written transcript appears on the memory's page a few seconds after you open it (it's also searchable). Allow microphone access when your browser asks.
+          🎙 <span className="font-semibold text-ink">Voice notes are turned into text automatically.</span> Record your note and save the story — the written transcript appears on the story's page a few seconds after you open it (it's also searchable). Allow microphone access when your browser asks.
         </p>
         {Voice && (
           <div className="mt-3">
@@ -143,7 +143,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
                 {d.kind === "photo" && <img src={d.preview} alt="" className="h-28 w-full object-cover" />}
                 {d.kind === "video" && <video src={d.preview} className="h-28 w-full object-cover" />}
                 {d.kind === "audio" && <div className="grid h-28 w-full place-items-center bg-sand text-sm text-ink-soft">🎙 Voice note{d.durationSec ? ` · ${d.durationSec}s` : ""}</div>}
-                <button type="button" onClick={() => setDrafts((arr) => arr.filter((_, j) => j !== i))} className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-xs font-bold text-white">✕</button>
+                <button type="button" onClick={() => setDrafts((arr) => arr.filter((_, j) => j !== i))} aria-label="Remove" className="absolute right-1 top-1 grid h-6 w-6 place-items-center rounded-full bg-black/55 text-xs font-bold text-white">✕</button>
               </div>
             ))}
           </div>
@@ -161,7 +161,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
 
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
       <button onClick={save} disabled={busy} className="w-full rounded-pill py-3 font-semibold text-white transition hover:brightness-110 disabled:opacity-40" style={{ background: MEMORIES }}>
-        {busy ? "Saving…" : existing ? "Save changes" : parentId ? "Add to memory" : "Save memory"}
+        {busy ? "Saving…" : existing ? "Save changes" : parentId ? "Add to story" : "Save story"}
       </button>
     </div>
   );

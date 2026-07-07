@@ -47,6 +47,7 @@ export function SiteFooter() {
         </div>
 
         <nav className="mt-12 flex flex-wrap gap-x-5 gap-y-2 border-t border-paper/15 pt-6 text-sm text-paper/70">
+          <Link href="/business" className="hover:text-paper">For businesses</Link>
           <Link href="/terms" className="hover:text-paper">Terms</Link>
           <Link href="/privacy" className="hover:text-paper">Privacy</Link>
           <Link href="/community-guidelines" className="hover:text-paper">Community guidelines</Link>

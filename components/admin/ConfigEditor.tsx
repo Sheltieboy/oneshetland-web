@@ -33,7 +33,19 @@ export function ConfigEditor({ rows }: { rows: Row[] }) {
     const key = newKey.trim();
     if (!key) return;
     setAdding(true);
-    try { await save(key, newValue.trim()); setNewKey(""); setNewValue(""); } finally { setAdding(false); }
+    try {
+      const sb = createClient();
+      const { data: { user } } = await sb.auth.getUser();
+      // `category` is NOT NULL — a brand-new key must supply one or the insert
+      // is rejected (this was silently failing). Default new keys to "Other".
+      const { error } = await sb.from("admin_config").upsert(
+        { key, value: newValue.trim(), category: "Other", updated_by: user?.id ?? null },
+        { onConflict: "key" },
+      );
+      if (error) { window.alert(`Could not save key: ${error.message}`); return; }
+      setNewKey(""); setNewValue("");
+      router.refresh();
+    } finally { setAdding(false); }
   }
 
   const groups = [...new Set(rows.map((r) => r.category ?? "Other"))];

@@ -11,6 +11,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const badges: Record<string, number> = {
     pendingDrivers: stats.pendingDrivers, pendingEvents: stats.pendingEvents,
     pendingClaims: stats.pendingClaims, pendingAlerts: stats.pendingAlerts, pendingSpik: stats.pendingSpik,
+    openReports: stats.openReports, pendingVesselPhotos: stats.pendingVesselPhotos,
   };
 
   return (

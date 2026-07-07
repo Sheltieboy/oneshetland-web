@@ -8,7 +8,18 @@ export function NotificationBell() {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    fetchUnreadCount().then(setCount).catch(() => {});
+    const refresh = () => fetchUnreadCount().then(setCount).catch(() => {});
+    refresh();
+    // Refetch the unread badge whenever the tab/window regains focus, so the
+    // count stays fresh after the user reads notifications in another tab.
+    const onFocus = () => refresh();
+    const onVisible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   return (

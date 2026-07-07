@@ -45,11 +45,12 @@ async function count(table: string, build?: (q: any) => any): Promise<number> {
 
 export interface AdminStats {
   users: number; pendingDrivers: number; openRequests: number; activeRuns: number;
-  pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number;
+  pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number; openReports: number;
+  pendingVesselPhotos: number;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents] = await Promise.all([
+  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos] = await Promise.all([
     count("profiles"),
     count("driver_profiles", (q) => q.eq("driver_status", "pending")),
     count("delivery_requests", (q) => q.eq("status", "pending")),
@@ -58,8 +59,10 @@ export async function getAdminStats(): Promise<AdminStats> {
     count("business_claims", (q) => q.eq("status", "pending")),
     count("business_alert_access", (q) => q.eq("status", "requested")),
     count("events", (q) => q.not("organiser_hub_id", "is", null).eq("calendar_approved", false)),
+    count("content_reports", (q) => q.eq("status", "open")),
+    count("media_assets", (q) => q.eq("approval_status", "pending")),
   ]);
-  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents };
+  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos };
 }
 
 /* ── Helper: attach profiles by id ───────────────────────────────────────── */
@@ -98,6 +101,33 @@ export async function getPendingEvents() {
   })(), [] as Record<string, unknown>[]);
 }
 
+/* ── Vessel photo approvals (community gallery submissions) ──────────────── */
+
+// Pending community-submitted vessel photos (media_assets.approval_status =
+// 'pending'), with the vessel(s) they were linked to and the submitter's name.
+// Admin-only read via RLS (is_boats_moderator). Never 500s — empty on error.
+export async function getPendingVesselPhotos(status: "pending" | "approved" | "rejected" = "pending") {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data: assets } = await sb.from("media_assets")
+      .select("id, image_url, title, submitted_by, approval_status, created_at")
+      .eq("approval_status", status).order("created_at", { ascending: true }).limit(200);
+    const rows = (assets ?? []) as { id: string; image_url: string | null; title: string | null; submitted_by: string | null; approval_status: string; created_at: string }[];
+    if (!rows.length) return [] as Record<string, unknown>[];
+
+    // Which vessel each pending asset is linked to.
+    const { data: links } = await sb.from("vessel_media_links")
+      .select("media_asset_id, vessel:vessels(id, canonical_name, primary_lk_number)")
+      .in("media_asset_id", rows.map((r) => r.id));
+    const vesselByAsset = new Map<string, { id: string; canonical_name: string; primary_lk_number: string | null }>();
+    for (const l of (links ?? []) as unknown as { media_asset_id: string; vessel: { id: string; canonical_name: string; primary_lk_number: string | null } | null }[]) {
+      if (l.vessel && !vesselByAsset.has(l.media_asset_id)) vesselByAsset.set(l.media_asset_id, l.vessel);
+    }
+    const withVessel = rows.map((r) => ({ ...r, vessel: vesselByAsset.get(r.id) ?? null }));
+    return attachProfiles(withVessel, "submitted_by", "submitter");
+  })(), [] as Record<string, unknown>[]);
+}
+
 /* ── Business claims ─────────────────────────────────────────────────────── */
 
 export async function getBusinessClaims(status: "pending" | "approved" | "all" = "pending") {
@@ -109,6 +139,20 @@ export async function getBusinessClaims(status: "pending" | "approved" | "all" =
     if (status !== "all") q = q.eq("status", status);
     const { data } = await q;
     return (data ?? []) as Record<string, unknown>[];
+  })(), [] as Record<string, unknown>[]);
+}
+
+/* ── Content reports (UGC moderation queue) ──────────────────────────────── */
+
+export async function getContentReports(status: "open" | "reviewing" | "actioned" | "dismissed" | "all" = "open") {
+  return safe((async () => {
+    const sb = await createServerClient();
+    let q = sb.from("content_reports")
+      .select("id, reporter_id, content_type, content_id, reported_user_id, reason, details, status, created_at, reviewed_by, reviewed_at")
+      .order("created_at", { ascending: false }).limit(300);
+    if (status !== "all") q = q.eq("status", status);
+    const { data } = await q;
+    return attachProfiles(data ?? [], "reporter_id", "reporter");
   })(), [] as Record<string, unknown>[]);
 }
 
@@ -218,6 +262,16 @@ export async function getEmailTemplates() {
   })(), [] as Record<string, unknown>[]);
 }
 
+export async function getEmailSettings() {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data } = await sb.from("email_settings")
+      .select("id, from_name, from_email, reply_to, footer_sign_off, footer_signature, footer_tagline, footer_promo_text, footer_promo_url, footer_legal")
+      .single();
+    return (data ?? null) as Record<string, unknown> | null;
+  })(), null as Record<string, unknown> | null);
+}
+
 export async function getEmailLog() {
   return safe((async () => {
     const sb = await createServerClient();
@@ -228,12 +282,15 @@ export async function getEmailLog() {
   })(), [] as Record<string, unknown>[]);
 }
 
-export async function getDisputes() {
+export async function getDisputes(status: "open" | "resolved" | "all" = "all") {
   return safe((async () => {
     const sb = await createServerClient();
-    const { data } = await sb.from("waiting_events")
+    let q = sb.from("waiting_events")
       .select("id, request_id, arrived_at, collected_at, waiting_fee_pence, customer_confirmed, dispute_raised, created_at")
       .eq("dispute_raised", true).order("created_at", { ascending: false }).limit(200);
+    if (status === "open") q = q.is("customer_confirmed", null);
+    else if (status === "resolved") q = q.not("customer_confirmed", "is", null);
+    const { data } = await q;
     return (data ?? []) as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);
 }

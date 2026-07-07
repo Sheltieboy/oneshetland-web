@@ -7,11 +7,12 @@
  */
 
 import { publicClient } from "@/lib/supabase/public";
+import { BASE_TRIES } from "@/lib/guess-da-wird";
 
 export const GAMES = {
   spik_sprint:   { id: "spik_sprint",   label: "Spik Sprint",   href: "/games/spik-sprint",   live: true, description: "60-second tap-the-right-meaning speed round." },
   spik_snap:     { id: "spik_snap",     label: "Spik Snap",     href: "/games/spik-snap",     live: true, description: "Yes or no — does the meaning match the wird?" },
-  guess_da_wird: { id: "guess_da_wird", label: "Guess Da Wird", href: "/games/guess-da-wird", live: true, description: "Daily Shetland dialect word puzzle. 7 tries, progressive clues." },
+  guess_da_wird: { id: "guess_da_wird", label: "Guess Da Wird", href: "/games/guess-da-wird", live: true, description: `Daily Shetland dialect word puzzle. ${BASE_TRIES} tries, progressive clues.` },
   map_it:        { id: "map_it",        label: "Map It",        href: "/games/map-it",        live: true, description: "Pin Shetland places on the map. 10 rounds — the closer the better." },
 } as const;
 

@@ -40,6 +40,12 @@ export function ShiftApplyPanel({
       const c = sb();
       const { data: { user } } = await c.auth.getUser();
       if (!user) throw new Error("Please sign in.");
+      // Ensure the unified worker profile exists so the employer's applicant
+      // view (which reads worker_profiles) resolves to this worker. Mirrors the
+      // app's ensureWorkerProfile(); best-effort — never block the application.
+      await c.from("worker_profiles")
+        .upsert({ user_id: user.id }, { onConflict: "user_id", ignoreDuplicates: true })
+        .then(undefined, () => {});
       const { data, error: dbErr } = await c.from("shift_applications")
         .insert({ shift_id: shiftId, worker_id: user.id, message: message.trim() || null })
         .select("id, status, check_in_status").single();

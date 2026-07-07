@@ -7,10 +7,19 @@ import {
   getBusinessExtras,
   getBusinessEventsAndJobs,
   CATEGORY_LABEL,
-  offerBadge,
-  money,
   type OpeningHours,
 } from "@/lib/local-data";
+import { getAccount } from "@/lib/auth";
+import { TrackView } from "@/components/analytics/TrackView";
+import { ContactLink } from "@/components/analytics/ContactLink";
+import { OfferClaimList } from "@/components/local/OfferClaimList";
+import { UnitItemsSection } from "@/components/local/UnitItemsSection";
+import { ServicesSection } from "@/components/local/ServicesSection";
+import { WalletTopUpButton } from "@/components/local/WalletTopUpButton";
+import { FollowButton } from "@/components/local/FollowButton";
+import { LoyaltyProgress } from "@/components/local/LoyaltyProgress";
+import { BusinessLocationMap } from "@/components/local/BusinessLocationMap";
+import { tierUnlocks } from "@/lib/listing-tiers";
 
 export const dynamic = "force-dynamic";
 
@@ -36,18 +45,38 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const b = await getBusiness(id);
   if (!b) notFound();
 
-  const [{ offers, loyalty, services }, { events, jobs, owner }] = await Promise.all([
+  const [{ offers, loyalty, services, unitItems }, { events, jobs, owner }, account] = await Promise.all([
     getBusinessExtras(b.id),
     getBusinessEventsAndJobs(b.id),
+    getAccount(),
   ]);
   const accent = accentOf(b.brand_color);
   const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
+  const isLoggedIn = !!account;
+  const signInHref = `/sign-in?next=/directory/${id}`;
+
+  // Tier gating — richer listings for higher subscription tiers. Only affects
+  // what is DISPLAYED; a business always keeps everything its tier includes.
+  const tier = b.subscription_tier;
+  const showCover     = tierUnlocks(tier, "coverPhoto");
+  const showAbout     = tierUnlocks(tier, "description");
+  const showContacts  = tierUnlocks(tier, "extraContacts");
+  const showMap       = tierUnlocks(tier, "mapPin");
+  const showOffers    = tierUnlocks(tier, "offers");
+  const showLoyalty   = tierUnlocks(tier, "loyalty");
+  const showHiring    = tierUnlocks(tier, "hiring");
+  const showWallet    = tierUnlocks(tier, "wallet");
+  const showFeatured  = tierUnlocks(tier, "featuredBadge");
+  const showGallery   = tierUnlocks(tier, "gallery");
+  const showEvents    = tierUnlocks(tier, "events");
+  const showServices  = tierUnlocks(tier, "services");
+  const showTickets   = tierUnlocks(tier, "tickets");
 
   const highlights = [
-    b.accepts_bookings && { t: "Book online", s: "Reserve a slot" },
-    cashback && { t: `${cashback}% cashback`, s: "Pay with OneShetland" },
-    offers.length > 0 && { t: "Offers", s: `${offers.length} live just now` },
-    loyalty && { t: "Loyalty rewards", s: loyalty.type === "points" ? "Earn points" : "Collect stamps" },
+    showTickets && b.accepts_bookings && { t: "Book online", s: "Reserve a slot" },
+    showWallet && cashback && { t: `${cashback}% cashback`, s: "Pay with OneShetland" },
+    showOffers && offers.length > 0 && { t: "Offers", s: `${offers.length} live just now` },
+    showLoyalty && loyalty && { t: "Loyalty rewards", s: loyalty.type === "points" ? "Earn points" : "Collect stamps" },
   ].filter(Boolean) as { t: string; s: string }[];
 
   const mapHref = b.address
@@ -56,9 +85,10 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
+      <TrackView event="content_viewed" objectType="business" objectId={id} businessId={id} />
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[34vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[40vh]" style={{ background: accent }}>
-        {b.cover_url ? (
+        {showCover && b.cover_url ? (
           <img src={b.cover_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
         ) : (
           <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}aa)` }} />
@@ -75,16 +105,16 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
 
         <div className="relative mx-auto flex w-full max-w-5xl items-end gap-4 px-5 pb-8">
           {b.logo_url ? (
-            <img src={b.logo_url} alt="" className="h-20 w-20 shrink-0 rounded-2xl border-2 border-paper object-cover shadow-lg" />
+            <img src={b.logo_url} alt="" className="h-20 w-20 shrink-0 rounded-2xl border-2 border-paper bg-paper object-contain p-1.5 shadow-lg" />
           ) : null}
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               {b.category && (
                 <span className="rounded-pill bg-paper/90 px-2.5 py-0.5 text-xs font-bold" style={{ color: accent }}>
                   {CATEGORY_LABEL[b.category] ?? b.category}
                 </span>
               )}
-              {b.subscription_tier === "premium" && (
+              {showFeatured && (
                 <span className="rounded-pill bg-paper/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm">★ Featured</span>
               )}
             </div>
@@ -98,6 +128,9 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
               )}
             </h1>
             {b.address && <p className="mt-1 text-paper/85">{b.address}</p>}
+          </div>
+          <div className="shrink-0 self-end pb-1">
+            <FollowButton businessId={id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
           </div>
         </div>
       </section>
@@ -127,7 +160,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
               </p>
             </div>
             <Link
-              href={`/sign-in?next=/directory/${id}`}
+              href={`/directory/${id}/claim`}
               className="shrink-0 rounded-pill px-6 py-3 font-semibold text-paper shadow-soft transition hover:brightness-95"
               style={{ background: LOCAL }}
             >
@@ -140,31 +173,25 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
       {/* Body */}
       <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 lg:grid-cols-[1.6fr_1fr] lg:py-16">
         <div className="space-y-12">
-          {b.description && (
+          {showAbout && b.description && (
             <section>
               <h2 className="font-display text-2xl font-bold">About</h2>
               <p className="mt-4 whitespace-pre-line text-lg leading-relaxed text-ink-soft">{b.description}</p>
             </section>
           )}
 
-          {offers.length > 0 && (
+          {showOffers && offers.length > 0 && (
             <section>
               <h2 className="font-display text-2xl font-bold">Current offers</h2>
-              <div className="mt-5 space-y-3">
-                {offers.map((o) => (
-                  <div key={o.id} className="flex items-start gap-4 rounded-card border border-line bg-paper p-4 shadow-soft">
-                    <span className="shrink-0 rounded-pill bg-local/12 px-3 py-1 text-sm font-bold text-local">{offerBadge(o)}</span>
-                    <div>
-                      <h3 className="font-display text-lg font-bold">{o.title}</h3>
-                      {o.description && <p className="mt-0.5 text-ink-soft">{o.description}</p>}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <OfferClaimList offers={offers} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
             </section>
           )}
 
-          {loyalty && (
+          {showTickets && (
+            <UnitItemsSection items={unitItems} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+          )}
+
+          {showLoyalty && loyalty && (
             <section>
               <h2 className="font-display text-2xl font-bold">Loyalty rewards</h2>
               <div className="mt-5 overflow-hidden rounded-xl p-6 text-paper shadow-soft" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}>
@@ -189,33 +216,18 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                     </p>
                   </>
                 )}
+                <LoyaltyProgress businessId={id} loyalty={loyalty} isLoggedIn={isLoggedIn} />
                 <p className="mt-4 text-sm text-paper/80">Collect your stamps and points in the OneShetland app.</p>
               </div>
             </section>
           )}
 
-          {b.accepts_bookings && services.length > 0 && (
-            <section>
-              <h2 className="font-display text-2xl font-bold">Book online</h2>
-              <div className="mt-5 divide-y divide-line rounded-xl border border-line bg-paper shadow-soft">
-                {services.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-4 p-4">
-                    <div className="min-w-0">
-                      <h3 className="font-semibold text-ink">{s.name}</h3>
-                      <p className="text-sm text-ink-muted">
-                        {s.duration_minutes} min{s.description ? ` · ${s.description}` : ""}
-                      </p>
-                    </div>
-                    <span className="shrink-0 font-display text-lg font-bold" style={{ color: LOCAL }}>{money(s.price_pence)}</span>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3 text-sm text-ink-muted">Online booking is coming to the website — book in the app for now.</p>
-            </section>
+          {showServices && b.accepts_bookings && services.length > 0 && (
+            <ServicesSection services={services} businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} userId={account?.id ?? null} />
           )}
 
           {/* Upcoming events */}
-          {events.length > 0 && (
+          {showEvents && events.length > 0 && (
             <section>
               <h2 className="font-display text-2xl font-bold">Upcoming events</h2>
               <div className="mt-5 space-y-3">
@@ -243,7 +255,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
           )}
 
           {/* Jobs */}
-          {jobs.length > 0 && (
+          {showHiring && jobs.length > 0 && (
             <section>
               <h2 className="font-display text-2xl font-bold">We&apos;re hiring</h2>
               <div className="mt-5 divide-y divide-line rounded-xl border border-line bg-paper shadow-soft">
@@ -265,7 +277,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
           )}
 
           {/* Photo gallery */}
-          {(b as { gallery_urls?: string[] | null }).gallery_urls?.length ? (
+          {showGallery && (b as { gallery_urls?: string[] | null }).gallery_urls?.length ? (
             <section>
               <h2 className="font-display text-2xl font-bold">Photos</h2>
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -283,32 +295,37 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
             <h3 className="font-display text-lg font-bold">Find &amp; contact</h3>
+            {showMap && b.lat != null && b.lng != null && (
+              <div className="mt-4">
+                <BusinessLocationMap lat={b.lat} lng={b.lng} name={b.name} accent={accent} />
+              </div>
+            )}
             <dl className="mt-4 space-y-3 text-ink-soft">
               {b.address && (
                 <ContactRow label="Address">
                   {b.address}
                   {mapHref && (
-                    <a href={mapHref} target="_blank" rel="noreferrer" className="mt-1 block text-sm font-semibold text-local hover:underline">
+                    <ContactLink objectType="business" objectId={id} businessId={id} method="directions" href={mapHref} target="_blank" rel="noreferrer" className="mt-1 block text-sm font-semibold text-local hover:underline">
                       View on map →
-                    </a>
+                    </ContactLink>
                   )}
                 </ContactRow>
               )}
               {b.phone && (
                 <ContactRow label="Phone">
-                  <a href={`tel:${b.phone}`} className="font-medium text-ink hover:text-local">{b.phone}</a>
+                  <ContactLink objectType="business" objectId={id} businessId={id} method="phone" href={`tel:${b.phone}`} className="font-medium text-ink hover:text-local">{b.phone}</ContactLink>
                 </ContactRow>
               )}
-              {b.website && (
+              {showContacts && b.website && (
                 <ContactRow label="Website">
-                  <a href={b.website} target="_blank" rel="noreferrer" className="break-all font-medium text-ink hover:text-local">
+                  <ContactLink objectType="business" objectId={id} businessId={id} method="website" href={b.website} target="_blank" rel="noreferrer" className="break-all font-medium text-ink hover:text-local">
                     {b.website.replace(/^https?:\/\//, "")}
-                  </a>
+                  </ContactLink>
                 </ContactRow>
               )}
-              {b.email && (
+              {showContacts && b.email && (
                 <ContactRow label="Email">
-                  <a href={`mailto:${b.email}`} className="break-all font-medium text-ink hover:text-local">{b.email}</a>
+                  <ContactLink objectType="business" objectId={id} businessId={id} method="email" href={`mailto:${b.email}`} className="break-all font-medium text-ink hover:text-local">{b.email}</ContactLink>
                 </ContactRow>
               )}
             </dl>
@@ -328,12 +345,13 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             </div>
           )}
 
-          {cashback > 0 && (
+          {showWallet && cashback > 0 && (
             <div className="rounded-xl border border-local/30 bg-local/8 p-6">
               <p className="font-display text-lg font-bold text-local">Pay with OneShetland</p>
               <p className="mt-1 text-ink-soft">
-                Pay through the app and get <strong>{cashback}% back</strong> into your wallet.
+                Pay with your wallet and get <strong>{cashback}% back</strong>.
               </p>
+              <WalletTopUpButton accent={LOCAL} isLoggedIn={isLoggedIn} signInHref={signInHref} />
             </div>
           )}
 

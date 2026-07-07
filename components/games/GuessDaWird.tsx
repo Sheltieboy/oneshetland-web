@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   getDailyWird, maxTries, checkGuess, buildKeyMap, buildClues, isValidGuess, calcScore,
@@ -29,6 +29,10 @@ export function GuessDaWird({ userId }: { userId: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [copied, setCopied] = useState(false);
+  const [saveError, setSaveError] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Holds the last winning-score payload so a failed save can be retried.
+  const pendingSave = useRef<{ score: number; metadata: Record<string, unknown> } | null>(null);
 
   // Load daily word + restore saved state
   useEffect(() => {
@@ -58,9 +62,27 @@ export function GuessDaWird({ userId }: { userId: string | null }) {
     saveDailyState(uid, { dateKey: wird.date_key, guesses: guesses.map((g) => g.word), won, lost: !won, cluesShown });
     if (userId && won) {
       const score = calcScore(tries, maxTries(wird.word), cluesUsed, won, wird.difficulty);
-      submitScore(userId, "guess_da_wird", score, { metadata: { date: wird.date_key, tries, won, cluesUsed, difficulty: wird.difficulty }, xpEarned: score }).catch(() => {});
+      const metadata = { date: wird.date_key, tries, won, cluesUsed, difficulty: wird.difficulty };
+      pendingSave.current = { score, metadata };
+      setSaving(true);
+      setSaveError(false);
+      submitScore(userId, "guess_da_wird", score, { metadata, xpEarned: score })
+        .then(() => { pendingSave.current = null; })
+        .catch((e) => { console.error("Score submit failed", e); setSaveError(true); })
+        .finally(() => setSaving(false));
     }
   }, [wird, cluesShown, uid, userId]);
+
+  const retrySave = useCallback(() => {
+    if (!userId || !pendingSave.current || saving) return;
+    const { score, metadata } = pendingSave.current;
+    setSaving(true);
+    setSaveError(false);
+    submitScore(userId, "guess_da_wird", score, { metadata, xpEarned: score })
+      .then(() => { pendingSave.current = null; })
+      .catch((e) => { console.error("Score submit retry failed", e); setSaveError(true); })
+      .finally(() => setSaving(false));
+  }, [userId, saving]);
 
   const submit = useCallback(async () => {
     if (!wird || status !== "playing") return;
@@ -153,6 +175,13 @@ export function GuessDaWird({ userId }: { userId: string | null }) {
           </p>
           <p className="mt-1 text-ink-soft">The wird was <b className="uppercase">{wird.word}</b></p>
           {stats && <p className="mt-2 text-sm text-ink-muted">🔥 Streak {stats.currentStreak} · Played {stats.played} · Won {stats.won}</p>}
+          {userId && status === "won" && saveError && (
+            <div className="mx-auto mt-3 max-w-xs rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              <p className="font-semibold">Couldn&apos;t save today&apos;s result.</p>
+              <p className="mt-0.5 text-rose-600">It won&apos;t count on the leaderboard until it saves.</p>
+              <button onClick={retrySave} disabled={saving} className="mt-2 rounded-pill bg-rose-600 px-4 py-1.5 text-xs font-semibold text-white hover:brightness-95 disabled:opacity-60">{saving ? "Saving…" : "Retry"}</button>
+            </div>
+          )}
           <div className="mt-4 flex justify-center gap-3">
             <button onClick={share} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-paper hover:brightness-95" style={{ background: ACCENT }}>{copied ? "Copied!" : "Share result"}</button>
             <Link href={`/spik/${wird.id}`} className="rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">See definition</Link>

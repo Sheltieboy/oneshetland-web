@@ -25,12 +25,17 @@ export function ApplyDriverForm() {
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) throw new Error("Please sign in.");
-      const { error: dpErr } = await sb.from("driver_profiles").upsert({
-        id: user.id, driver_status: "pending",
-        vehicle_type: vehicleType, vehicle_reg: vehicleReg.trim().toUpperCase(), notes: statement.trim(),
+      // Submit via the become-driver edge function. This MUST be server-side:
+      // migration 064 locks profiles.role and the driver_status columns on
+      // user-initiated updates, so a client-side write is silently reverted (the
+      // old bug). The function (service role) upserts driver_profiles + sets the
+      // pending status. Driver-ness is a capability, NOT a profiles.role flip.
+      const { data: result, error: fnError } = await sb.functions.invoke("become-driver", {
+        body: { vehicle_type: vehicleType, vehicle_reg: vehicleReg.trim(), statement: statement.trim() },
       });
-      if (dpErr) throw dpErr;
-      await sb.from("profiles").update({ role: "driver" }).eq("id", user.id);
+      if (fnError || (result as { error?: string } | null)?.error) {
+        throw new Error((result as { error?: string } | null)?.error ?? fnError?.message ?? "Could not submit your application.");
+      }
       router.push("/fetch?tab=driver");
       router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not submit your application."); setBusy(false); }

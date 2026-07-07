@@ -1,29 +1,30 @@
 /**
- * map-it.ts (web) — Map It game logic + a self-contained Shetland polygon map.
- * Ported from the app: simplified island polygons + equirectangular projection
- * (so we draw our own SVG and invert clicks), Haversine scoring, daily picker,
- * levels, and localStorage session/cumulative state.
+ * map-it.ts (web) — Map It game logic + the SAME accurate Shetland SVG projection
+ * the mobile app uses. We render the real Wikipedia "Shetland UK blank map" SVG
+ * (832×1582 units) as the basemap and map lat/lng ↔ SVG coords with the exact
+ * linear calibration ported from the app, so both platforms render an identical,
+ * accurate map and the shared leaderboard is truly fair. Haversine scoring, daily
+ * picker, levels, and localStorage session/cumulative state are unchanged.
  */
 
 import { publicClient } from "@/lib/supabase/public";
 
-/* ── Geometry ────────────────────────────────────────────────────────────── */
+/* ── SVG geometry + projection (calibrated 2026-06-06 from 5 control points) ─
+ *
+ * The Wikipedia "Shetland UK blank map" is 832×1582 SVG units. Latitude maps
+ * linearly to Y, longitude linearly to X. These EXACT constants + helpers are
+ * shared with the app (app/games/map-it.tsx) so scoring stays comparable and
+ * the basemap is pixel-identical across platforms.
+ */
+const SVG_W = 832, SVG_H = 1582;
+const Y_SLOPE = -1163.68, Y_INTERCEPT = 70825.82;
+const X_SLOPE = 564.85,  X_INTERCEPT = 1219.31;
+export function latToSvgY(lat: number) { return Y_SLOPE * lat + Y_INTERCEPT; }
+export function lngToSvgX(lng: number) { return X_SLOPE * lng + X_INTERCEPT; }
+export function svgYToLat(y: number)   { return (Y_INTERCEPT - y) / -Y_SLOPE; }
+export function svgXToLng(x: number)   { return (x - X_INTERCEPT) / X_SLOPE; }
+export { SVG_W, SVG_H };
 
-export const VIEW_BOUNDS = { minLat: 59.45, maxLat: 60.92, minLng: -2.30, maxLng: -0.55 };
-const CENTRE_LAT = (VIEW_BOUNDS.minLat + VIEW_BOUNDS.maxLat) / 2;
-const COS_CENTRE = Math.cos((CENTRE_LAT * Math.PI) / 180);
-
-export function latLngToXY(lat: number, lng: number, w: number, h: number): { x: number; y: number } {
-  const fx = ((lng - VIEW_BOUNDS.minLng) * COS_CENTRE) / ((VIEW_BOUNDS.maxLng - VIEW_BOUNDS.minLng) * COS_CENTRE);
-  const fy = 1 - (lat - VIEW_BOUNDS.minLat) / (VIEW_BOUNDS.maxLat - VIEW_BOUNDS.minLat);
-  return { x: fx * w, y: fy * h };
-}
-export function xyToLatLng(x: number, y: number, w: number, h: number): { lat: number; lng: number } {
-  return {
-    lat: VIEW_BOUNDS.minLat + (1 - y / h) * (VIEW_BOUNDS.maxLat - VIEW_BOUNDS.minLat),
-    lng: VIEW_BOUNDS.minLng + (x / w) * (VIEW_BOUNDS.maxLng - VIEW_BOUNDS.minLng),
-  };
-}
 export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
@@ -31,56 +32,6 @@ export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; ln
   const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
 }
-
-export interface Island { name: string; points: Array<{ lat: number; lng: number }> }
-export const ISLANDS: Island[] = [
-  { name: "Mainland", points: [
-    { lat: 59.852, lng: -1.272 }, { lat: 59.870, lng: -1.300 }, { lat: 59.880, lng: -1.345 }, { lat: 59.940, lng: -1.345 },
-    { lat: 59.975, lng: -1.355 }, { lat: 60.005, lng: -1.345 }, { lat: 60.085, lng: -1.395 }, { lat: 60.130, lng: -1.475 },
-    { lat: 60.230, lng: -1.625 }, { lat: 60.305, lng: -1.680 }, { lat: 60.355, lng: -1.620 }, { lat: 60.395, lng: -1.500 },
-    { lat: 60.440, lng: -1.500 }, { lat: 60.480, lng: -1.640 }, { lat: 60.540, lng: -1.500 }, { lat: 60.605, lng: -1.420 },
-    { lat: 60.630, lng: -1.330 }, { lat: 60.580, lng: -1.205 }, { lat: 60.490, lng: -1.140 }, { lat: 60.440, lng: -1.080 },
-    { lat: 60.385, lng: -1.060 }, { lat: 60.330, lng: -1.115 }, { lat: 60.270, lng: -1.125 }, { lat: 60.200, lng: -1.105 },
-    { lat: 60.155, lng: -1.135 }, { lat: 60.110, lng: -1.180 }, { lat: 60.040, lng: -1.210 }, { lat: 59.990, lng: -1.230 },
-    { lat: 59.940, lng: -1.245 }, { lat: 59.890, lng: -1.265 },
-  ] },
-  { name: "Yell", points: [
-    { lat: 60.480, lng: -1.150 }, { lat: 60.520, lng: -1.230 }, { lat: 60.600, lng: -1.240 }, { lat: 60.660, lng: -1.140 },
-    { lat: 60.735, lng: -1.020 }, { lat: 60.715, lng: -0.940 }, { lat: 60.620, lng: -0.940 }, { lat: 60.560, lng: -0.985 },
-    { lat: 60.515, lng: -1.045 }, { lat: 60.490, lng: -1.110 },
-  ] },
-  { name: "Unst", points: [
-    { lat: 60.690, lng: -0.970 }, { lat: 60.715, lng: -0.965 }, { lat: 60.760, lng: -0.940 }, { lat: 60.830, lng: -0.910 },
-    { lat: 60.840, lng: -0.860 }, { lat: 60.815, lng: -0.780 }, { lat: 60.745, lng: -0.780 }, { lat: 60.700, lng: -0.860 }, { lat: 60.685, lng: -0.950 },
-  ] },
-  { name: "Fetlar", points: [
-    { lat: 60.610, lng: -0.900 }, { lat: 60.635, lng: -0.870 }, { lat: 60.640, lng: -0.790 }, { lat: 60.620, lng: -0.755 }, { lat: 60.595, lng: -0.790 }, { lat: 60.590, lng: -0.870 },
-  ] },
-  { name: "Whalsay", points: [
-    { lat: 60.330, lng: -1.000 }, { lat: 60.345, lng: -1.010 }, { lat: 60.390, lng: -0.985 }, { lat: 60.395, lng: -0.940 }, { lat: 60.370, lng: -0.910 }, { lat: 60.335, lng: -0.940 },
-  ] },
-  { name: "Bressay", points: [
-    { lat: 60.090, lng: -1.080 }, { lat: 60.105, lng: -1.105 }, { lat: 60.165, lng: -1.110 }, { lat: 60.200, lng: -1.075 }, { lat: 60.160, lng: -1.020 }, { lat: 60.110, lng: -1.030 },
-  ] },
-  { name: "Foula", points: [
-    { lat: 60.105, lng: -2.080 }, { lat: 60.115, lng: -2.105 }, { lat: 60.140, lng: -2.105 }, { lat: 60.155, lng: -2.075 }, { lat: 60.140, lng: -2.045 }, { lat: 60.110, lng: -2.050 },
-  ] },
-  { name: "Papa Stour", points: [
-    { lat: 60.315, lng: -1.720 }, { lat: 60.345, lng: -1.730 }, { lat: 60.355, lng: -1.690 }, { lat: 60.340, lng: -1.660 }, { lat: 60.320, lng: -1.680 },
-  ] },
-  { name: "Fair Isle", points: [
-    { lat: 59.510, lng: -1.660 }, { lat: 59.530, lng: -1.670 }, { lat: 59.555, lng: -1.640 }, { lat: 59.550, lng: -1.595 }, { lat: 59.520, lng: -1.590 }, { lat: 59.500, lng: -1.625 },
-  ] },
-  { name: "Burra", points: [
-    { lat: 60.025, lng: -1.330 }, { lat: 60.060, lng: -1.380 }, { lat: 60.130, lng: -1.360 }, { lat: 60.130, lng: -1.310 }, { lat: 60.090, lng: -1.300 }, { lat: 60.050, lng: -1.320 },
-  ] },
-  { name: "Muckle Roe", points: [
-    { lat: 60.365, lng: -1.490 }, { lat: 60.405, lng: -1.495 }, { lat: 60.410, lng: -1.430 }, { lat: 60.385, lng: -1.405 }, { lat: 60.365, lng: -1.430 },
-  ] },
-  { name: "Mousa", points: [
-    { lat: 59.990, lng: -1.190 }, { lat: 60.010, lng: -1.195 }, { lat: 60.015, lng: -1.165 }, { lat: 59.995, lng: -1.160 },
-  ] },
-];
 
 /* ── Game logic ──────────────────────────────────────────────────────────── */
 
@@ -186,12 +137,4 @@ export function saveSession(userId: string, state: SessionState): void {
 export function buildShareText(state: SessionState, total: number): string {
   const grid = state.results.map((r) => { const s = starsForDistance(r.distanceKm); return s === 3 ? "⚓" : s === 2 ? "〰" : s === 1 ? "·" : "✕"; }).join(" ");
   return `Map It · ${formatDateLabel(state.dateKey)}\n${total.toLocaleString()} / ${ROUNDS_PER_DAY * MAX_POINTS_PER_ROUND} pts\n${grid}\n\nOneShetland`;
-}
-
-/** SVG polygon point strings for a given canvas size (for rendering the map). */
-export function islandPolygons(w: number, h: number): { name: string; points: string }[] {
-  return ISLANDS.map((isl) => ({
-    name: isl.name,
-    points: isl.points.map((p) => { const { x, y } = latLngToXY(p.lat, p.lng, w, h); return `${x.toFixed(1)},${y.toFixed(1)}`; }).join(" "),
-  }));
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startDonation, confirmDonation, type GiftAid } from "@/lib/hubs-client";
+import { fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
 import { gbp } from "@/lib/stripe";
 
 const PRESETS = [500, 1000, 2000, 5000];
@@ -40,6 +41,7 @@ export function DonateModal({
   const [step, setStep] = useState<"form" | "pay" | "done">("form");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [piId, setPiId] = useState<string | null>(null);
+  const [walletPence, setWalletPence] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +49,15 @@ export function DonateModal({
   const validAmount = pence >= 100;
   const coverPence = Math.round(pence * 0.015) + 20; // ~Stripe fee
   const chargePence = pence + (coverFees ? coverPence : 0);
+
+  useEffect(() => {
+    if (!open || !isLoggedIn) return;
+    let live = true;
+    fetchWalletBalance().then((p) => { if (live) setWalletPence(p); }).catch(() => {});
+    return () => { live = false; };
+  }, [open, isLoggedIn]);
+
+  const canWallet = walletPence != null && walletPence >= pence;
 
   async function toPayment() {
     if (!validAmount) return setError("Please enter at least £1.");
@@ -56,7 +67,7 @@ export function DonateModal({
     setError(null);
     setBusy(true);
     try {
-      const res = await startDonation(campaignId, pence, false, coverFees);
+      const res = await startDonation(campaignId, pence, true, coverFees);   // use the donor's saved card (server shows the card form if none)
       if (res.charged) {
         await confirmDonation(res.payment_intent_id, { message, anonymous, giftAid: giftAid ? ga : null });
         setStep("done");
@@ -70,6 +81,24 @@ export function DonateModal({
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start the donation.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function payFromWallet() {
+    if (!validAmount) return setError("Please enter at least £1.");
+    if (giftAid && (!ga.first_name || !ga.last_name || !ga.address || !ga.postcode)) {
+      return setError("Please complete your Gift Aid details.");
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await walletCheckout({ type: "hub_donation", campaign_id: campaignId, amount_pence: pence, message, anonymous, gift_aid: giftAid ? ga : null });
+      setStep("done");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not pay from your wallet.");
     } finally {
       setBusy(false);
     }
@@ -160,8 +189,17 @@ export function DonateModal({
 
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
+          {canWallet && (
+            <button onClick={payFromWallet} disabled={busy || !validAmount}
+              className="w-full rounded-pill px-5 py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-50" style={{ background: accent }}>
+              {busy ? "Please wait…" : `Donate ${gbp(pence)} from wallet`}
+            </button>
+          )}
           <button onClick={toPayment} disabled={busy || !validAmount}
-            className="w-full rounded-pill px-5 py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-50" style={{ background: accent }}>
+            className={canWallet
+              ? "w-full rounded-pill border border-line-strong px-5 py-3 font-semibold text-ink transition hover:bg-sand disabled:opacity-50"
+              : "w-full rounded-pill px-5 py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"}
+            style={canWallet ? undefined : { background: accent }}>
             {busy ? "Please wait…" : `Continue · ${gbp(chargePence)}`}
           </button>
         </div>

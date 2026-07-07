@@ -14,7 +14,13 @@ export function AccountSidebar({ isAdmin, isBusiness }: { isAdmin: boolean; isBu
     { href: "/account/security", label: "Security" },
   ];
   const activity: Item[] = [
+    { href: "/account/wallet", label: "Wallet" },
+    { href: "/account/bookings", label: "My bookings" },
+    { href: "/account/passes", label: "My passes" },
+    { href: "/account/gifts", label: "My gifts" },
+    { href: "/account/loyalty", label: "Loyalty cards" },
     { href: "/account/memberships", label: "Memberships" },
+    { href: "/account/following", label: "Following" },
     { href: "/account/hubs", label: "My hubs" },
     { href: "/jobs/applications", label: "Job applications", external: true },
     { href: "/games/stats", label: "Game stats", external: true },

@@ -40,6 +40,11 @@ export default async function FetchHub({ searchParams }: { searchParams: Promise
             <Link href="/fetch" className={"rounded-pill px-5 py-2 text-sm font-bold transition " + (!isDriver ? "bg-white" : "text-white/80 hover:text-white")} style={!isDriver ? { color: FETCH } : undefined}>Request</Link>
             <Link href="/fetch?tab=driver" className={"rounded-pill px-5 py-2 text-sm font-bold transition " + (isDriver ? "bg-white" : "text-white/80 hover:text-white")} style={isDriver ? { color: FETCH } : undefined}>Drive</Link>
           </div>
+          <p className="mt-4">
+            <Link href={isDriver ? "/fetch/about?tab=driver" : "/fetch/about"} className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/85 underline-offset-2 transition hover:text-white hover:underline">
+              How Fetch works <span aria-hidden>→</span>
+            </Link>
+          </p>
         </div>
       </section>
 

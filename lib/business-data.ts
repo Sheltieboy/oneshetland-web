@@ -114,7 +114,8 @@ export type DiscountType = "percent" | "fixed" | "freebie" | "bogo" | "other";
 export type LocalOffer = {
   id: string; business_id: string; title: string; description: string | null;
   discount_type: DiscountType | null; discount_value: number | null;
-  valid_from: string; valid_until: string; is_active: boolean; redemption_count: number; created_at: string;
+  valid_from: string; valid_until: string; is_active: boolean; redemption_count: number;
+  max_redemptions: number | null; created_at: string;
 };
 export type LoyaltyProgram = {
   id: string; business_id: string; type: "stamps" | "points";
@@ -125,6 +126,8 @@ export type WalletReceipt = {
   id: string; created_at: string; gross_pence: number; fee_pence: number | null;
   cashback_pence: number | null; net_pence: number | null; customer_first_name: string | null;
 };
+/** Rotating at-till redemption code (table: local_business_codes). */
+export type BusinessCode = { business_id: string; current_code: string; expires_at: string; updated_at: string };
 
 export function formatOfferDiscount(o: Pick<LocalOffer, "discount_type" | "discount_value">): string {
   switch (o.discount_type) {

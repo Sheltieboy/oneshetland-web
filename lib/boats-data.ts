@@ -183,29 +183,123 @@ export async function fetchVesselEdits(id: string): Promise<VesselEditProposal[]
   })(), []);
 }
 
+/* ── Build-place gazetteer ───────────────────────────────────────────────── */
+// Mirrors the app's lib/boats-stats.ts. Builder strings in the archive embed
+// the yard's town ("…in Buckie", "Macduff Shipyards", "in Skagen"); we match
+// those to coordinates so the landing can plot where the fleet was built.
+
+export interface BuildPlace { key: string; label: string; lat: number; lng: number; aliases: string[]; }
+
+const BUILD_PLACES: BuildPlace[] = [
+  // North-East Scotland
+  { key: "buckie", label: "Buckie", lat: 57.676, lng: -2.965, aliases: ["buckie", "jones buckie", "herd & mackenzie", "herd and mackenzie"] },
+  { key: "macduff", label: "Macduff", lat: 57.671, lng: -2.497, aliases: ["macduff"] },
+  { key: "fraserburgh", label: "Fraserburgh", lat: 57.693, lng: -2.005, aliases: ["fraserburgh"] },
+  { key: "sandhaven", label: "Sandhaven", lat: 57.700, lng: -2.040, aliases: ["sandhaven", "forbes"] },
+  { key: "peterhead", label: "Peterhead", lat: 57.508, lng: -1.784, aliases: ["peterhead"] },
+  { key: "aberdeen", label: "Aberdeen", lat: 57.149, lng: -2.094, aliases: ["aberdeen", "hall russell"] },
+  { key: "banff", label: "Banff", lat: 57.665, lng: -2.529, aliases: ["banff"] },
+  { key: "whitehills", label: "Whitehills", lat: 57.679, lng: -2.581, aliases: ["whitehills"] },
+  // East / Fife / Borders
+  { key: "stmonans", label: "St Monans", lat: 56.206, lng: -2.766, aliases: ["st monans", "st. monans", "miller"] },
+  { key: "anstruther", label: "Anstruther", lat: 56.221, lng: -2.699, aliases: ["anstruther"] },
+  { key: "arbroath", label: "Arbroath", lat: 56.561, lng: -2.583, aliases: ["arbroath"] },
+  { key: "eyemouth", label: "Eyemouth", lat: 55.872, lng: -2.090, aliases: ["eyemouth", "coastal marine"] },
+  // West coast
+  { key: "campbeltown", label: "Campbeltown", lat: 55.425, lng: -5.606, aliases: ["campbeltown"] },
+  { key: "girvan", label: "Girvan", lat: 55.245, lng: -4.857, aliases: ["girvan", "noble"] },
+  // England / Wales
+  { key: "whitby", label: "Whitby", lat: 54.486, lng: -0.613, aliases: ["whitby", "parkol"] },
+  { key: "penryn", label: "Penryn", lat: 50.169, lng: -5.107, aliases: ["penryn", "cygnus"] },
+  { key: "appledore", label: "Appledore", lat: 51.057, lng: -4.193, aliases: ["appledore", "bideford"] },
+  // Shetland & Orkney (home-built)
+  { key: "lerwick", label: "Lerwick", lat: 60.155, lng: -1.145, aliases: ["lerwick", "hay & co", "malakoff"] },
+  { key: "scalloway", label: "Scalloway", lat: 60.133, lng: -1.276, aliases: ["scalloway"] },
+  // Nordic & beyond
+  { key: "skagen", label: "Skagen (DK)", lat: 57.721, lng: 10.583, aliases: ["skagen", "karstensen"] },
+  { key: "flekkefjord", label: "Flekkefjord (NO)", lat: 58.297, lng: 6.661, aliases: ["flekkefjord"] },
+  { key: "maloy", label: "Måløy (NO)", lat: 61.936, lng: 5.113, aliases: ["måløy", "maloy", "solund"] },
+  { key: "simek", label: "Flekkefjord (NO)", lat: 58.297, lng: 6.661, aliases: ["simek"] },
+  { key: "istanbul", label: "Istanbul (TR)", lat: 41.008, lng: 28.978, aliases: ["istanbul", "sedef", "tersan"] },
+  { key: "gdansk", label: "Gdańsk (PL)", lat: 54.352, lng: 18.646, aliases: ["gdansk", "gdańsk", "poland"] },
+  { key: "iceland", label: "Iceland", lat: 64.146, lng: -21.94, aliases: ["reykjav", "iceland", "akureyri"] },
+];
+
+export function matchBuildPlace(builder: string | null): BuildPlace | null {
+  if (!builder) return null;
+  const b = builder.toLowerCase();
+  for (const p of BUILD_PLACES) if (p.aliases.some((a) => b.includes(a))) return p;
+  return null;
+}
+
 /* ── Fleet stats (landing) ───────────────────────────────────────────────── */
 
+export interface BuildPlaceCount extends BuildPlace { count: number; }
 export interface FleetStats {
   total: number; withPhotos: number; yearMin: number | null; yearMax: number | null; builderCount: number;
   decades: { label: string; count: number }[]; hulls: { label: string; count: number }[];
   topBuilders: { name: string; count: number }[];
+  buildPlaces: BuildPlaceCount[]; placedBoats: number;
 }
 export function cleanBuilderName(name: string): string {
   return name.replace(/,.*$/, "").replace(/\(.*?\)/g, "").replace(/\s+/g, " ").trim();
 }
 export function computeFleetStats(rows: VesselSearchRow[]): FleetStats {
   const decades = new Map<string, number>(); const hulls = new Map<string, number>(); const builders = new Map<string, number>();
-  let withPhotos = 0; let yearMin: number | null = null; let yearMax: number | null = null;
+  const places = new Map<string, BuildPlaceCount>();
+  let withPhotos = 0; let yearMin: number | null = null; let yearMax: number | null = null; let placedBoats = 0;
   for (const r of rows) {
     if ((r.media_asset_count ?? 0) > 0) withPhotos++;
     if (r.built_year) { const d = `${Math.floor(r.built_year / 10) * 10}s`; decades.set(d, (decades.get(d) ?? 0) + 1); yearMin = yearMin === null ? r.built_year : Math.min(yearMin, r.built_year); yearMax = yearMax === null ? r.built_year : Math.max(yearMax, r.built_year); }
     const hl = hullMaterialLabel(r.hull_material); if (hl) hulls.set(hl, (hulls.get(hl) ?? 0) + 1);
     if (r.builder) { const b = cleanBuilderName(r.builder); if (b) builders.set(b, (builders.get(b) ?? 0) + 1); }
+    const place = matchBuildPlace(r.builder);
+    if (place) { placedBoats++; const ex = places.get(place.key); if (ex) ex.count++; else places.set(place.key, { ...place, count: 1 }); }
   }
   return {
     total: rows.length, withPhotos, yearMin, yearMax, builderCount: builders.size,
     decades: [...decades.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => a.label.localeCompare(b.label)),
     hulls: [...hulls.entries()].map(([label, count]) => ({ label, count })).sort((a, b) => b.count - a.count),
     topBuilders: [...builders.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count).slice(0, 10),
+    buildPlaces: [...places.values()].sort((a, b) => b.count - a.count),
+    placedBoats,
   };
 }
+
+/* ── Saved / recently-viewed (localStorage) ──────────────────────────────── */
+// Mirrors the app's lib/boats-prefs.ts (AsyncStorage). Lightweight stubs so the
+// landing can render Saved + Recent rows instantly without a fetch.
+
+export interface VesselStub { id: string; lk_number: string | null; canonical_name: string; built_year: number | null; hero_url: string | null; last_seen?: string; }
+
+const SAVED_KEY = "daBoats.saved.v1";
+const RECENT_KEY = "daBoats.recent.v1";
+const MAX_RECENT = 8;
+
+function readStubs(key: string): VesselStub[] {
+  if (typeof window === "undefined") return [];
+  try { const raw = window.localStorage.getItem(key); if (!raw) return []; const arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+function writeStubs(key: string, list: VesselStub[]): void {
+  if (typeof window === "undefined") return;
+  try { window.localStorage.setItem(key, JSON.stringify(list)); } catch { /* non-fatal */ }
+}
+
+export function loadSavedBoats(): VesselStub[] { return readStubs(SAVED_KEY); }
+export function isBoatSaved(id: string): boolean { return loadSavedBoats().some((b) => b.id === id); }
+/** Toggle saved. Returns the new saved-state. */
+export function toggleSavedBoat(stub: VesselStub): boolean {
+  const list = loadSavedBoats();
+  const had = list.some((b) => b.id === stub.id);
+  writeStubs(SAVED_KEY, had ? list.filter((b) => b.id !== stub.id) : [{ ...stub, last_seen: new Date().toISOString() }, ...list]);
+  return !had;
+}
+
+export function loadRecentBoats(): VesselStub[] { return readStubs(RECENT_KEY); }
+export function pushRecentBoat(stub: VesselStub): VesselStub[] {
+  const filtered = loadRecentBoats().filter((b) => b.id !== stub.id);
+  const next = [{ ...stub, last_seen: new Date().toISOString() }, ...filtered].slice(0, MAX_RECENT);
+  writeStubs(RECENT_KEY, next);
+  return next;
+}
+export function clearRecentBoats(): void { writeStubs(RECENT_KEY, []); }

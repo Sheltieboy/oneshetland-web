@@ -5,6 +5,8 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getAccount, accountName } from "@/lib/auth";
 import { getFetchStatusSummary } from "@/lib/fetch-data.server";
+import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -62,6 +64,8 @@ export default async function RootLayout({
       className={`${fraunces.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-cream text-ink">
+        <AnalyticsProvider />
+        <ConsentBanner />
         <SiteHeader user={user} fetchStatus={fetchStatus} />
         <main className="flex-1">{children}</main>
         <SiteFooter />

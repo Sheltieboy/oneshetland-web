@@ -1,7 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
-import { searchVessels, fetchHeroPhotos, computeFleetStats, BOATS, type VesselSearchRow } from "@/lib/boats-data";
-import { BoatCard } from "@/components/boats/BoatsUI";
+import { searchVessels, fetchHeroPhotos, computeFleetStats, BOATS } from "@/lib/boats-data";
+import { BoatsSortableList } from "@/components/boats/BoatsSortableList";
+import { BoatsSavedRecent } from "@/components/boats/BoatsSavedRecent";
+import { BoatBuildMap } from "@/components/boats/BoatBuildMap";
+import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Da Boats · OneShetland", description: "The Shetland fishing fleet, past and present — names, numbers, builders and the folk who knew them." };
@@ -31,6 +34,7 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
+      {q && <TrackSearch section="boats" query={q} resultsCount={rows.length} />}
       {/* Hero */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: BOATS }}>
         <Image src="/heroes/da-boats.jpg" alt="" fill priority className="object-cover opacity-30" />
@@ -54,12 +58,15 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
             {chip("All", decadeHref(), !decade)}
             {DECADES.map((d) => chip(d, decadeHref(d.slice(0, 4)), decade === d.slice(0, 4)))}
             <span className="w-px shrink-0 bg-line" />
-            {chip("📷 With photos", photosHref(), photos === "1")}
+            {chip("With photos", photosHref(), photos === "1")}
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
+        {/* Saved + recently-viewed (client island, browse view only) */}
+        {browsing && <BoatsSavedRecent />}
+
         {/* Fleet stats — only on the clean browse view */}
         {browsing && (
           <section className="mb-10 grid gap-4 lg:grid-cols-3">
@@ -101,6 +108,36 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
           </section>
         )}
 
+        {/* Hull split + where she was built — browse view only */}
+        {browsing && (stats.hulls.length > 0 || stats.buildPlaces.length > 0) && (
+          <section className="mb-10 grid gap-4 lg:grid-cols-3">
+            {stats.hulls.length > 0 && (
+              <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
+                <p className="mb-3 font-display font-bold text-ink">By hull material</p>
+                <div className="space-y-1.5">
+                  {stats.hulls.map((h) => {
+                    const max = Math.max(...stats.hulls.map((x) => x.count), 1);
+                    return (
+                      <div key={h.label} className="flex items-center gap-2 text-sm">
+                        <span className="w-20 shrink-0 text-ink-muted">{h.label}</span>
+                        <span className="h-3 rounded-pill" style={{ width: `${Math.max(6, (h.count / max) * 100)}%`, background: BOATS }} />
+                        <span className="text-xs font-semibold text-ink-faint">{h.count}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {stats.buildPlaces.length > 0 && (
+              <div className="rounded-card border border-line bg-paper p-5 shadow-soft lg:col-span-2">
+                <p className="font-display font-bold text-ink">Where she was built</p>
+                <p className="mb-3 text-xs text-ink-muted">{stats.placedBoats} boats traced to {stats.buildPlaces.length} yards.</p>
+                <BoatBuildMap places={stats.buildPlaces} />
+              </div>
+            )}
+          </section>
+        )}
+
         {/* Active filter */}
         {!browsing && (
           <div className="mb-6 flex items-center gap-3">
@@ -115,9 +152,7 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
             <p className="mt-1 text-sm text-ink-muted">Try a different name, number or decade.</p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {display.map((v: VesselSearchRow) => <BoatCard key={v.id} v={v} hero={heroes[v.id]} />)}
-          </div>
+          <BoatsSortableList rows={display} heroes={heroes} />
         )}
       </div>
     </>

@@ -8,7 +8,7 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
-import type { AddonKey, AlertType, ManagedBusiness } from "@/lib/business-data";
+import type { AddonKey, AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
 
 async function invoke<T = Record<string, unknown>>(name: string, body?: Record<string, unknown>): Promise<T> {
   const sb = createClient();
@@ -63,7 +63,7 @@ export const createBusinessOnboardingLink = (businessId: string) =>
   invoke<{ url: string; account_id?: string }>("local-business-onboard", { business_id: businessId });
 
 export const createSubscriptionIntent = (businessId: string, tier: "pro" | "premium") =>
-  invoke<{ paymentIntent: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>("local-subscription-intent", { business_id: businessId, tier });
+  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>("local-subscription-intent", { business_id: businessId, tier });
 
 export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium") =>
   invoke<{ previewAmountPence: number; currency: string; nextRenewalAt: string | null; noChange?: boolean }>("local-subscription-change", { business_id: businessId, tier, preview: true });
@@ -72,7 +72,7 @@ export const applySubscriptionChange = (businessId: string, tier: "pro" | "premi
   invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, preview: false });
 
 export const createBoostIntent = (businessId: string, weeks: 1 | 2 | 3) =>
-  invoke<{ paymentIntent: string; amountPence: number; weeks: number }>("local-boost-checkout", { business_id: businessId, weeks });
+  invoke<{ charged?: boolean; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>("local-boost-checkout", { business_id: businessId, weeks });
 
 export const createBillingPortalLink = (businessId: string) =>
   invoke<{ url: string }>("local-billing-portal", { business_id: businessId });
@@ -95,6 +95,9 @@ export async function requestAlertAccess(businessId: string): Promise<void> {
 export const createAlertAddonIntent = (businessId: string) =>
   invoke<{ activated?: boolean; paymentIntent?: string }>("alert-addon-intent", { business_id: businessId });
 
+export const createAnalyticsAddonIntent = (businessId: string) =>
+  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string }>("analytics-addon-intent", { business_id: businessId });
+
 export async function sendAlert(p: { businessId: string; businessName: string; message: string; type: AlertType; expiresAt?: Date | null; scheduledFor?: Date | null }): Promise<void> {
   const sb = createClient();
   const { data: { user } } = await sb.auth.getUser();
@@ -112,6 +115,28 @@ export async function cancelAlert(alertId: string): Promise<void> {
   const sb = createClient();
   const { error } = await sb.from("partner_alerts").update({ is_active: false }).eq("id", alertId);
   if (error) throw error;
+}
+
+/** Force-end a live alert immediately — mirrors the app's forceExpireAlert (sets expires_at = now). */
+export async function forceExpireAlert(alertId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb.from("partner_alerts").update({ is_active: false, expires_at: new Date().toISOString() }).eq("id", alertId);
+  if (error) throw error;
+}
+
+/* ── At-till rotating code ─────────────────────────────────────────────────── */
+
+/** Generate + persist a fresh 6-digit till code. Mirrors the app's refreshBusinessCode
+ *  (random 6 digits, 90s window for tolerance, upsert keyed on business_id). */
+export async function refreshBusinessCode(businessId: string): Promise<BusinessCode> {
+  const sb = createClient();
+  const code = Math.floor(100_000 + Math.random() * 900_000).toString();
+  const now = new Date();
+  const { data, error } = await sb.from("local_business_codes")
+    .upsert({ business_id: businessId, current_code: code, expires_at: new Date(now.getTime() + 90_000).toISOString(), updated_at: now.toISOString() }, { onConflict: "business_id" })
+    .select("business_id, current_code, expires_at, updated_at").single();
+  if (error) throw error;
+  return data as BusinessCode;
 }
 
 export async function requestNfcTile(businessId: string): Promise<void> {

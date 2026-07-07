@@ -68,6 +68,15 @@ function SignUpInner() {
       return;
     }
 
+    // Existing account: with email confirmation on, Supabase returns success but
+    // an empty `identities` array (to avoid leaking which emails are registered).
+    // Don't show a fake "check your inbox" — steer them to sign in instead.
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      setBusy(false);
+      setError("That email already has a OneShetland account. Please sign in instead.");
+      return;
+    }
+
     // Email confirmation required.
     setBusy(false);
     setSent(true);

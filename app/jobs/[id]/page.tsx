@@ -5,6 +5,7 @@ import { getJob, formatJobPay, CONTRACT_LABELS, REMOTE_LABELS } from "@/lib/jobs
 import { hasAppliedToJob, getSavedJobIds, getWorkerProfile } from "@/lib/jobs-data.server";
 import { JOBS } from "@/components/jobs/JobsUI";
 import { JobApplyPanel } from "@/components/jobs/JobApplyPanel";
+import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
+      <TrackView event="content_viewed" objectType="job" objectId={id} />
       {/* Hero */}
       <section className="relative isolate overflow-hidden" style={{ background: JOBS }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${JOBS}f0 30%,${JOBS}c0)` }} />
@@ -102,6 +104,18 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </Link>
               <Link href={`/jobs/new?jobId=${job.id}`} className="mt-2 block rounded-pill border border-line-strong px-4 py-2.5 text-center text-sm font-semibold text-ink hover:bg-sand">
                 Edit job
+              </Link>
+            </div>
+          ) : job.status === "closed" || job.status === "filled" ? (
+            <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
+              <p className="font-display font-bold text-ink">
+                {job.status === "filled" ? "This role has been filled" : "Applications closed"}
+              </p>
+              <p className="mt-1 text-sm text-ink-muted">
+                This role is no longer accepting applications. Browse other open jobs.
+              </p>
+              <Link href="/jobs" className="mt-3 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: JOBS }}>
+                See open jobs →
               </Link>
             </div>
           ) : (

@@ -9,13 +9,13 @@ export function BoatCard({ v, hero }: { v: VesselSearchRow; hero?: string }) {
         {hero ? (
           <img src={hero} alt="" className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]" />
         ) : (
-          <div className="grid h-full w-full place-items-center text-5xl opacity-25">⚓</div>
+          <div className="grid h-full w-full place-items-center text-5xl opacity-25" aria-hidden="true">⚓</div>
         )}
         {v.primary_lk_number && (
           <span className="absolute bottom-2 left-2 rounded-pill px-2.5 py-1 text-xs font-black text-white shadow" style={{ background: BOATS }}>{v.primary_lk_number}</span>
         )}
         {(v.media_asset_count ?? 0) > 1 && (
-          <span className="absolute bottom-2 right-2 rounded-pill bg-black/55 px-2 py-0.5 text-xs font-bold text-white">📷 {v.media_asset_count}</span>
+          <span className="absolute bottom-2 right-2 rounded-pill bg-black/55 px-2 py-0.5 text-xs font-bold text-white" aria-label={`${v.media_asset_count} photos`}><span aria-hidden="true">📷</span> {v.media_asset_count}</span>
         )}
       </div>
       <div className="flex flex-1 flex-col p-4">

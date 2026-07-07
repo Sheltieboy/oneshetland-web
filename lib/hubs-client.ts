@@ -41,7 +41,7 @@ function invokeError(error: { message: string; context?: { json?: () => Promise<
 export type PaymentStart = { charged?: boolean; payment_intent_id: string; clientSecret?: string };
 
 /** Start payment for a paid membership tier. */
-export async function startMembershipPayment(membershipTypeId: string, useSavedCard = false): Promise<PaymentStart> {
+export async function startMembershipPayment(membershipTypeId: string, useSavedCard = true): Promise<PaymentStart> {
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-hub-membership-intent", {
     body: { membership_type_id: membershipTypeId, use_saved_card: useSavedCard },
@@ -63,7 +63,7 @@ export async function confirmMembership(paymentIntentId: string): Promise<{ ok: 
 
 export type GiftAid = { title?: string | null; first_name: string; last_name: string; address: string; postcode: string };
 
-export async function startDonation(campaignId: string, amountPence: number, useSavedCard = false, coverFees = false): Promise<PaymentStart> {
+export async function startDonation(campaignId: string, amountPence: number, useSavedCard = true, coverFees = false): Promise<PaymentStart> {
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-hub-donation-intent", {
     body: { campaign_id: campaignId, amount_pence: amountPence, use_saved_card: useSavedCard, cover_fees: coverFees },

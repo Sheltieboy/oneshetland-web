@@ -18,6 +18,8 @@ import { getAccount } from "@/lib/auth";
 import { getMyMembership, isHubAdmin, getHubDirectory } from "@/lib/hubs-server";
 import { HubMembershipPanel } from "@/components/hubs/HubMembershipPanel";
 import { DirectoryButton, CampaignSidebar } from "@/components/hubs/HubSidebarActions";
+import { TrackView } from "@/components/analytics/TrackView";
+import { ContactLink } from "@/components/analytics/ContactLink";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,7 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
 
   return (
     <>
+      <TrackView event="content_viewed" objectType="hub" objectId={id} hubId={id} />
       {/* Branded hero */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: accent }}>
         {hub.cover_url && (
@@ -237,16 +240,16 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
               <p className="eyebrow text-ink-muted">Get in touch</p>
               <ul className="mt-3 space-y-2 text-sm">
                 {hub.contact_phone && (
-                  <li><a href={`tel:${hub.contact_phone}`} className="font-semibold text-ink hover:underline">{hub.contact_phone}</a></li>
+                  <li><ContactLink objectType="hub" objectId={id} hubId={id} method="phone" href={`tel:${hub.contact_phone}`} className="font-semibold text-ink hover:underline">{hub.contact_phone}</ContactLink></li>
                 )}
                 {hub.contact_email && (
-                  <li><a href={`mailto:${hub.contact_email}`} className="font-semibold text-ink hover:underline">{hub.contact_email}</a></li>
+                  <li><ContactLink objectType="hub" objectId={id} hubId={id} method="email" href={`mailto:${hub.contact_email}`} className="font-semibold text-ink hover:underline">{hub.contact_email}</ContactLink></li>
                 )}
                 {hub.website && (
                   <li>
-                    <a href={hub.website} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline" style={{ color: accent }}>
+                    <ContactLink objectType="hub" objectId={id} hubId={id} method="website" href={hub.website} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline" style={{ color: accent }}>
                       Website ↗
-                    </a>
+                    </ContactLink>
                   </li>
                 )}
               </ul>

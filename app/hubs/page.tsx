@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getHubs, getHubTypeCounts, HUB_TYPES, HUB_TYPE_LABELS, HUB_COLOR, type HubType } from "@/lib/hubs-data";
-import { HubCard } from "@/components/hubs/HubCard";
+import { HubSearchGrid } from "@/components/hubs/HubSearchGrid";
 import { getAccount } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -72,21 +72,8 @@ export default async function HubsPage({
           )}
         </div>
 
-        {/* Grid */}
-        {hubs.length === 0 ? (
-          <div className="mt-10 rounded-2xl border border-line bg-paper p-12 text-center shadow-soft">
-            <h3 className="font-display text-xl font-bold">Nae hubs here yet</h3>
-            <p className="mx-auto mt-2 max-w-md text-ink-soft">
-              {type ? "No hubs of this kind yet — be the first." : "Be the first to start a community hub."}
-            </p>
-          </div>
-        ) : (
-          <div className="mt-7 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {hubs.map((h) => (
-              <HubCard key={h.id} hub={h} />
-            ))}
-          </div>
-        )}
+        {/* Search + grid (client-side keyword filter) */}
+        <HubSearchGrid hubs={hubs} typeFiltered={!!type} />
       </div>
     </>
   );

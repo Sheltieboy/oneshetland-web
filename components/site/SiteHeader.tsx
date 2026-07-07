@@ -76,6 +76,12 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          <Link
+            href="/business"
+            className="hidden rounded-pill px-3.5 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-sand hover:text-ink lg:inline-flex"
+          >
+            For businesses
+          </Link>
           {fetchStatus && (
             <FetchStatusIndicator userId={fetchStatus.userId} initialStatus={fetchStatus.status} initialCount={fetchStatus.count} />
           )}
@@ -164,6 +170,14 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
                 {s.label}
               </Link>
             ))}
+            <Link
+              href="/business"
+              onClick={() => setOpen(false)}
+              className="mt-1 flex items-center gap-3 rounded-xl px-2 py-3 text-base font-medium text-ink hover:bg-sand"
+            >
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
+              For businesses
+            </Link>
             {user ? (
               <>
                 <Link

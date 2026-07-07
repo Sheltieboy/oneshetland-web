@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  BIZ, ADDON_META, PREMIUM_ADDON_KEYS, STANDARD_ADDON_KEYS, EXTRA_ADDON_MONTHLY_PENCE,
+  BIZ, ADDON_META, PREMIUM_ADDON_KEYS, STANDARD_ADDON_KEYS, EXTRA_ADDON_MONTHLY_PENCE, TIER_PRICE,
   countExtraPremiumAddons, tierMeets, type AddonKey, type BusinessAddon, type SubscriptionTier,
 } from "@/lib/business-data";
+
+const gbp = (p: number) => `£${(p / 100).toFixed(2)}`;
 import { toggleAddon, syncBusinessAddons } from "@/lib/business-client";
 
 export function AddonsManager({ businessId, addons, tier }: { businessId: string; addons: BusinessAddon[]; tier: SubscriptionTier }) {
@@ -15,6 +17,18 @@ export function AddonsManager({ businessId, addons, tier }: { businessId: string
   const premium = tierMeets(tier, "premium");
   const map = Object.fromEntries(addons.map((a) => [a.addon_key, a]));
   const extra = countExtraPremiumAddons(addons);
+  const [confirm, setConfirm] = useState<AddonKey | null>(null);
+
+  // Premium base price in pence, parsed from the display string (e.g. "£49.99/mo").
+  const basePence = Math.round(Number((TIER_PRICE[tier] || "").replace(/[^0-9.]/g, "")) * 100) || 0;
+  const enabledPremiumCount = PREMIUM_ADDON_KEYS.filter((k) => map[k]?.enabled).length;
+
+  // Enabling a premium add-on changes the monthly bill → confirm first with a
+  // breakdown. Everything else (disabling, free standard features) flips now.
+  function requestFlip(key: AddonKey, on: boolean) {
+    if (on && ADDON_META[key].isPremium && premium) { setConfirm(key); return; }
+    flip(key, on);
+  }
 
   async function flip(key: AddonKey, enabled: boolean) {
     setBusy(key); setError(null);
@@ -40,7 +54,7 @@ export function AddonsManager({ businessId, addons, tier }: { businessId: string
             <p className="text-xs text-ink-muted">{meta.description}</p>
           </div>
         </div>
-        <button type="button" disabled={locked || busy === k} onClick={() => flip(k, !on)} className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-40" style={{ background: on ? BIZ : "var(--color-line-strong)" }}>
+        <button type="button" disabled={locked || busy === k} onClick={() => requestFlip(k, !on)} className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-40" style={{ background: on ? BIZ : "var(--color-line-strong)" }}>
           <span className={"inline-block h-5 w-5 transform rounded-full bg-white shadow transition " + (on ? "translate-x-5" : "translate-x-0.5")} />
         </button>
       </div>
@@ -61,6 +75,32 @@ export function AddonsManager({ businessId, addons, tier }: { businessId: string
         <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-muted">Standard features</p>
         {STANDARD_ADDON_KEYS.map((k) => <Row key={k} k={k} />)}
       </section>
+
+      {confirm && (() => {
+        const meta = ADDON_META[confirm];
+        const projectedExtras = enabledPremiumCount;            // extras after enabling the next premium add-on
+        const addonPence = projectedExtras * EXTRA_ADDON_MONTHLY_PENCE;
+        const totalPence = basePence + addonPence;
+        const freeIncluded = enabledPremiumCount === 0;          // first premium add-on is included
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setConfirm(null)}>
+            <div className="w-full max-w-sm rounded-card border border-line bg-paper p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <p className="font-display text-lg font-bold text-ink">Add {meta.label}?</p>
+              <p className="mt-1 text-sm text-ink-muted">{freeIncluded ? "Included with Premium — no extra charge." : "This adds £10/mo to your subscription."}</p>
+              <div className="mt-4 space-y-1.5 rounded-lg border border-line bg-sand/40 p-3 text-sm">
+                <div className="flex justify-between"><span className="text-ink-soft">Premium plan</span><span className="text-ink">{gbp(basePence)}</span></div>
+                <div className="flex justify-between"><span className="text-ink-soft">Extra add-ons{projectedExtras > 0 ? ` (${projectedExtras} × £${(EXTRA_ADDON_MONTHLY_PENCE / 100).toFixed(0)})` : ""}</span><span className="text-ink">{gbp(addonPence)}</span></div>
+                <div className="mt-1 flex justify-between border-t border-line pt-1.5 text-base font-bold text-ink"><span>New monthly total</span><span>{gbp(totalPence)}/mo</span></div>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => setConfirm(null)} className="flex-1 rounded-pill border border-line-strong px-4 py-2.5 text-sm font-semibold text-ink hover:bg-sand">Cancel</button>
+                <button onClick={() => { const k = confirm; setConfirm(null); flip(k, true); }} className="flex-1 rounded-pill px-4 py-2.5 text-sm font-semibold text-white" style={{ background: BIZ }}>Confirm &amp; subscribe</button>
+              </div>
+              <p className="mt-2 text-center text-[11px] text-ink-muted">Charged to your card on file, prorated for this month.</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

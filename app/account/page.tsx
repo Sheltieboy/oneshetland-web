@@ -18,8 +18,15 @@ export default async function AccountOverview() {
     { href: "/account/profile", title: "Edit profile", desc: "Name, bio, photo, area and games handle" },
     { href: "/account/notifications", title: "Notifications", desc: "Choose what you're told about, and quiet hours" },
     { href: "/account/security", title: "Security", desc: "Email and password" },
+    { href: "/account/wallet", title: "Wallet", desc: "Your balance, top-ups and spending history" },
+    { href: "/account/bookings", title: "My bookings", desc: "Your upcoming and past service bookings" },
+    { href: "/account/passes", title: "My passes", desc: "Passes and packs you've bought" },
+    { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, ready to claim" },
+    { href: "/account/loyalty", title: "Loyalty cards", desc: "Your stamps and points at local businesses" },
     { href: "/account/memberships", title: "Memberships", desc: "Your digital hub membership cards" },
+    { href: "/account/following", title: "Following", desc: "Businesses you follow" },
     { href: "/account/hubs", title: "My hubs", desc: "Groups and committees you run or belong to" },
+    { href: "/work-profile", title: "Work profile", desc: "Your details for jobs & shifts, your applications, and jobs you've posted" },
     { href: "/games/stats", title: "Game stats", desc: "Your XP, streaks and leaderboard places" },
   ];
 

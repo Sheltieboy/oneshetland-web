@@ -93,6 +93,16 @@ export type DriverInfo = {
   ferry_crossing: boolean | null;
 };
 
+/** A customer's saved delivery address. Mirrors the app's `saved_addresses`
+ *  table (app request step-3). */
+export type SavedAddress = {
+  id: string;
+  label: string;
+  address: string;
+  postcode: string | null;
+  delivery_instructions: string | null;
+};
+
 /* ── Constants ────────────────────────────────────────────────────────────── */
 
 export const DELIVERY_CATEGORIES = [
@@ -147,6 +157,10 @@ export const DRIVER_STATUS_PILL: Record<DriverStatus, Pill> = {
 export const PRICE_PER_MILE_PENCE = 95;
 export const MIN_FEE_PENCE = 400;
 export const ROAD_FACTOR = 1.4;
+
+/** OneShetland service fee — added ON TOP of the delivery fee (the driver keeps
+ *  the full delivery fee). Mirrors the app's request step-4 SERVICE_FEE_PENCE. */
+export const SERVICE_FEE_PENCE = 150;
 
 export const WAIT_GRACE_SECS = 5 * 60;
 export const WAIT_PERIOD_SECS = 5 * 60;

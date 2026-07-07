@@ -88,6 +88,13 @@ export function fmtDateShort(date: string): string {
   return new Date(date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
 }
 
+/** Today's date (YYYY-MM-DD) in Shetland local time (Europe/London).
+ *  Cruise season runs in BST, so UTC midnight ≠ local midnight — always use this for "today". */
+export function londonToday(now: Date = new Date()): string {
+  // en-CA renders ISO-style YYYY-MM-DD; timeZone pins it to Shetland local.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
 /** Decimal hour-of-day (0–24) in Shetland local time, for timeline plotting. */
 export function londonHours(iso?: string | null): number | null {
   if (!iso) return null;
@@ -95,6 +102,53 @@ export function londonHours(iso?: string | null): number | null {
   const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
   const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
   return h + m / 60;
+}
+
+/** Format a decimal Shetland hour (e.g. 13.5) as a friendly clock time like "1.30pm". */
+export function fmtHourLabel(h: number): string {
+  const hh = ((Math.floor(h) % 24) + 24) % 24;
+  const mm = Math.round((h - Math.floor(h)) * 60);
+  const ampm = hh < 12 ? "am" : "pm";
+  const h12 = hh % 12 === 0 ? 12 : hh % 12;
+  return mm === 0 ? `${h12}${ampm}` : `${h12}.${String(mm).padStart(2, "0")}${ampm}`;
+}
+
+type PeakVisit = { arrival_at: string | null; departure_at: string | null; est_pax: number | null };
+/** Busiest footfall window of the day, derived from when passengers are ashore.
+ *  Builds each ship's ashore interval (capping unknown departures at +6h, like the timeline),
+ *  weights by est_pax, and returns the contiguous band where footfall stays near its peak. */
+export function peakWindow(visits: PeakVisit[]): { from: number; to: number; label: string } | null {
+  const spans = visits
+    .map((v) => {
+      const a = londonHours(v.arrival_at);
+      let d = londonHours(v.departure_at);
+      if (a == null) return null;
+      if (d == null || d <= a) d = Math.min(24, a + 6);
+      return { a, d, pax: Math.max(1, v.est_pax ?? 1) };
+    })
+    .filter(Boolean) as { a: number; d: number; pax: number }[];
+  if (spans.length === 0) return null;
+
+  // Sample footfall every 30 min across the in-port span.
+  const lo = Math.min(...spans.map((s) => s.a));
+  const hi = Math.max(...spans.map((s) => s.d));
+  const STEP = 0.5;
+  const slots: { t: number; pax: number }[] = [];
+  for (let t = lo; t <= hi + 1e-9; t += STEP) {
+    let pax = 0;
+    for (const s of spans) if (t >= s.a && t <= s.d) pax += s.pax;
+    slots.push({ t, pax });
+  }
+  const peak = Math.max(...slots.map((s) => s.pax));
+  const threshold = peak * 0.7; // "near peak" band
+  const busy = slots.filter((s) => s.pax >= threshold).map((s) => s.t);
+  let from = Math.min(...busy);
+  let to = Math.max(...busy) + STEP; // include the trailing half-hour
+  // Round to friendly half-hours and keep within the day.
+  from = Math.max(0, Math.floor(from * 2) / 2);
+  to = Math.min(24, Math.ceil(to * 2) / 2);
+  if (to - from < 1) to = Math.min(24, from + 1); // never narrower than an hour
+  return { from, to, label: `${fmtHourLabel(from)}–${fmtHourLabel(to)}` };
 }
 
 export function hoursAshore(v: { time_in_port_hours: number | null; arrival_at: string | null; departure_at: string | null }): number | null {

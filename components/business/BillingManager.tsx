@@ -58,9 +58,11 @@ export function BillingManager({ business, addons = [] }: { business: ManagedBus
         await applySubscriptionChange(b.id, target);
         router.refresh();
       } else {
-        // New subscription → collect payment via Elements.
+        // New subscription → saved card charged silently, else collect via Elements.
         const intent = await createSubscriptionIntent(b.id, target);
-        setPay({ clientSecret: intent.paymentIntent, amountPence: target === "pro" ? 1999 : 4999, label: `Subscribe to ${TIER_LABELS[target]}` });
+        if (intent.activated) { router.refresh(); pollTier(); }
+        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: target === "pro" ? 1999 : 4999, label: `Subscribe to ${TIER_LABELS[target]}` });
+        else throw new Error("Could not start subscription.");
       }
     } catch (e) { fail(e); } finally { setBusy(null); }
   }
@@ -69,7 +71,9 @@ export function BillingManager({ business, addons = [] }: { business: ManagedBus
     setBusy(`boost${weeks}`); setError(null);
     try {
       const intent = await createBoostIntent(b.id, weeks);
-      setPay({ clientSecret: intent.paymentIntent, amountPence: intent.amountPence, label: `${weeks} week${weeks > 1 ? "s" : ""} of Pro` });
+      if (intent.charged) { router.refresh(); pollTier(); }
+      else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: intent.amountPence, label: `${weeks} week${weeks > 1 ? "s" : ""} of Pro` });
+      else throw new Error("Could not start boost.");
     } catch (e) { fail(e); } finally { setBusy(null); }
   }
 

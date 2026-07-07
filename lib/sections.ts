@@ -32,7 +32,7 @@ export const SECTIONS: Section[] = [
     key: "directory",
     label: "Directory",
     href: "/directory",
-    color: "#6b47bf",
+    color: "#4f46e5",
     token: "directory",
     blurb: "The full island business directory — find anyone, from cafés to crofters.",
   },
@@ -54,7 +54,7 @@ export const SECTIONS: Section[] = [
   },
   {
     key: "memories",
-    label: "Memories",
+    label: "Auld Stories",
     href: "/memories",
     color: "#9f1239",
     token: "memories",
@@ -104,13 +104,13 @@ export const SECTIONS: Section[] = [
 
 /** The handful shown directly in the top navigation bar, in display order.
  *  (Home is the wordmark; Profile lives in the header user menu.) */
-const PRIMARY_NAV_ORDER = ["whats-on", "local", "jobs", "directory", "hubs", "games"];
+const PRIMARY_NAV_ORDER = ["whats-on", "local", "games", "cruise", "jobs", "directory", "hubs"];
 export const PRIMARY_NAV = PRIMARY_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
 
 /** Secondary sections tucked behind the "More" menu in the header. */
-const MORE_NAV_ORDER = ["cruise", "spik", "boats", "memories", "fetch"];
+const MORE_NAV_ORDER = ["spik", "boats", "memories", "fetch"];
 export const MORE_NAV = MORE_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));

@@ -50,6 +50,8 @@ export function MemoryMap({
             const wrap = document.createElement("div");
             wrap.style.cssText = "position:absolute;transform:translate(-50%,-100%);cursor:pointer;will-change:transform;";
             wrap.title = this.pin.title ?? "";
+            wrap.setAttribute("role", "button");
+            wrap.setAttribute("aria-label", this.pin.title ?? "Memory");
             const bubble = document.createElement("div");
             bubble.style.cssText = `width:46px;height:46px;border-radius:9999px;border:3px solid #fff;box-shadow:0 2px 7px rgba(0,0,0,.4);overflow:hidden;background:${MEMORIES};display:grid;place-items:center;`;
             if (this.pin.hero_url) {
@@ -81,10 +83,99 @@ export function MemoryMap({
           }
           onRemove() { if (this.el) { this.el.remove(); this.el = null; } }
         }
-        for (const p of pins) {
-          if (p.lat == null || p.lng == null) continue;
-          new PhotoMarker(p, () => (onOpenPin ? onOpenPin(p.id) : router.push(`/memories/${p.id}`)));
+
+        // A count bubble standing in for several pins gathered into one grid
+        // cell. Clicking zooms the map in on the cluster's bounds so it breaks
+        // apart — same "expand on tap" behaviour as the app. Kept as a plain
+        // OverlayView so we don't pull in a clustering library.
+        class ClusterMarker extends g.maps.OverlayView {
+          lat: number; lng: number; members: Pin[]; el: HTMLDivElement | null = null;
+          constructor(lat: number, lng: number, members: Pin[]) {
+            super(); this.lat = lat; this.lng = lng; this.members = members; this.setMap(map);
+          }
+          onAdd() {
+            const n = this.members.length;
+            const size = n >= 25 ? 50 : n >= 10 ? 44 : 38;
+            const wrap = document.createElement("div");
+            wrap.style.cssText = "position:absolute;transform:translate(-50%,-50%);cursor:pointer;will-change:transform;";
+            wrap.setAttribute("role", "button");
+            wrap.setAttribute("aria-label", `${n} stories here — click to zoom in`);
+            wrap.title = `${n} stories`;
+            const bubble = document.createElement("div");
+            bubble.style.cssText = `width:${size}px;height:${size}px;border-radius:9999px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);background:${MEMORIES};color:#fff;font-weight:800;font-size:15px;display:grid;place-items:center;`;
+            bubble.textContent = n > 99 ? "99+" : String(n);
+            wrap.appendChild(bubble);
+            wrap.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const bounds = new g.maps.LatLngBounds();
+              for (const m of this.members) {
+                if (m.lat != null && m.lng != null) bounds.extend(new g.maps.LatLng(m.lat, m.lng));
+              }
+              map.fitBounds(bounds, 64);
+              // fitBounds on a tight cluster can over-zoom past the pins'
+              // breaking point; cap it so they actually separate.
+              const z = map.getZoom();
+              if (typeof z === "number" && z > 17) map.setZoom(17);
+            });
+            this.el = wrap;
+            this.getPanes()!.overlayMouseTarget.appendChild(wrap);
+          }
+          draw() {
+            const proj = this.getProjection();
+            if (!proj || !this.el) return;
+            const pt = proj.fromLatLngToDivPixel(new g.maps.LatLng(this.lat, this.lng));
+            if (pt) { this.el.style.left = `${pt.x}px`; this.el.style.top = `${pt.y}px`; }
+          }
+          onRemove() { if (this.el) { this.el.remove(); this.el = null; } }
         }
+
+        const valid = pins.filter((p) => p.lat != null && p.lng != null);
+        const open = (id: string) => (onOpenPin ? onOpenPin(id) : router.push(`/memories/${id}`));
+
+        // Grid clustering: divide the world into cells whose size scales with
+        // the current zoom, collapse each cell's pins into one bubble. Below
+        // a close-in zoom we stop clustering so individual pins always show.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let overlays: any[] = [];
+        const CLUSTER_DISABLE_ZOOM = 14;  // zoomed in past this → real pins only
+        const GRID_PX = 64;               // ~cell size on screen, in pixels
+
+        const clear = () => { for (const o of overlays) o.setMap(null); overlays = []; };
+
+        const render = () => {
+          clear();
+          const zoom = map.getZoom() ?? SHETLAND_ZOOM;
+          if (zoom >= CLUSTER_DISABLE_ZOOM) {
+            for (const p of valid) overlays.push(new PhotoMarker(p, () => open(p.id)));
+            return;
+          }
+          // Cell size in degrees ≈ pixels / pixels-per-degree at this zoom.
+          // 256 * 2^zoom px spans 360° of longitude in the Web Mercator base.
+          const degPerPx = 360 / (256 * Math.pow(2, zoom));
+          const cell = Math.max(GRID_PX * degPerPx, 1e-4);
+          const buckets = new Map<string, Pin[]>();
+          for (const p of valid) {
+            const gx = Math.floor(p.lng! / cell);
+            const gy = Math.floor(p.lat! / cell);
+            const k = `${gx}:${gy}`;
+            const arr = buckets.get(k);
+            if (arr) arr.push(p); else buckets.set(k, [p]);
+          }
+          for (const group of buckets.values()) {
+            if (group.length === 1) {
+              const p = group[0];
+              overlays.push(new PhotoMarker(p, () => open(p.id)));
+            } else {
+              let sLat = 0, sLng = 0;
+              for (const p of group) { sLat += p.lat!; sLng += p.lng!; }
+              overlays.push(new ClusterMarker(sLat / group.length, sLng / group.length, group));
+            }
+          }
+        };
+
+        render();
+        // Re-cluster after every zoom change (idle fires once the map settles).
+        map.addListener("idle", render);
       }
 
       if (mode === "pick") {

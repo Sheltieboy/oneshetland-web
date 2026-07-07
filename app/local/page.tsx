@@ -49,6 +49,11 @@ export default async function LocalPage({
   const { events, jobs, businesses, notices, offers } = await getLocalFeed(area);
   const areaLabel = SHETLAND_AREAS.find((a) => a.key === area)?.label;
 
+  // Curated-proposition counts (Local = offers / bookable / cashback, not an
+  // exhaustive business list — that lives in the Directory).
+  const bookableCount = businesses.filter((b) => b.accepts_bookings).length;
+  const cashbackCount = businesses.filter((b) => (b.cashback_percent ?? 0) > 0).length;
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -62,8 +67,8 @@ export default async function LocalPage({
           </h1>
           <p className="mt-2 text-base text-white/80 sm:text-lg">
             {areaLabel
-              ? `What's happening in ${areaLabel} — events, businesses, jobs and notices.`
-              : "Everything happening across Shetland — in one place."}
+              ? `What's good in ${areaLabel} — offers, bookable experiences and cashback from local businesses.`
+              : "The good stuff close to home — offers, bookable experiences and cashback partners across Shetland."}
           </p>
           {/* Area chips */}
           <div className="-mx-5 mt-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -92,9 +97,9 @@ export default async function LocalPage({
       <div className="border-b border-line bg-paper">
         <div className="mx-auto flex max-w-6xl divide-x divide-line px-5">
           {[
-            { n: events.length, label: "events this season" },
-            { n: businesses.length, label: "local businesses" },
-            { n: jobs.length, label: "open positions" },
+            { n: offers.length, label: "live offers" },
+            { n: bookableCount, label: "bookable spots" },
+            { n: cashbackCount, label: "cashback partners" },
           ].map(({ n, label }) => (
             <div key={label} className="px-6 py-3 first:pl-0 last:pr-0">
               <span className="font-display text-xl font-bold text-ink">{n}</span>
@@ -105,6 +110,31 @@ export default async function LocalPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12 space-y-14">
+
+        {/* ── Curated pillars ─────────────────────────────────────────────────
+            Local leads with what's good locally — offers, bookable experiences
+            and cashback partners. The exhaustive A–Z list lives in the Directory. */}
+        <section className="grid gap-4 sm:grid-cols-3">
+          {[
+            { emoji: "🏷", title: "Offers & deals", body: "Exclusive savings from local businesses", href: "#offers", color: OFFERS_COLOR },
+            { emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" },
+            { emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL },
+          ].map((p) => (
+            <Link
+              key={p.title}
+              href={p.href}
+              className="group flex items-start gap-3 rounded-2xl border border-line bg-paper p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-xl" style={{ background: p.color + "18" }}>
+                {p.emoji}
+              </span>
+              <span className="min-w-0">
+                <span className="block font-display font-bold text-ink group-hover:underline">{p.title}</span>
+                <span className="mt-0.5 block text-sm text-ink-muted">{p.body}</span>
+              </span>
+            </Link>
+          ))}
+        </section>
 
         {/* ── Events ──────────────────────────────────────────────────────── */}
         <section>
@@ -180,7 +210,7 @@ export default async function LocalPage({
 
         {/* ── Offers & deals ──────────────────────────────────────────────── */}
         {offers.length > 0 && (
-          <section>
+          <section id="offers" className="scroll-mt-24">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: OFFERS_COLOR }}>
@@ -255,12 +285,12 @@ export default async function LocalPage({
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest" style={{ color: LOCAL }}>
-                {areaLabel ? `Businesses in ${areaLabel}` : "Shetland makers & shops"}
+                {areaLabel ? `Featured in ${areaLabel}` : "Worth a look"}
               </p>
-              <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Open for business</h2>
+              <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Featured businesses</h2>
             </div>
             <Link href="/directory" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
-              Directory →
+              Full directory →
             </Link>
           </div>
 

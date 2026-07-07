@@ -1,7 +1,7 @@
 import { publicClient } from "./supabase/public";
 import type { Barometer } from "./cruise-shared";
 import { portCoord, type Origin } from "./cruise-stats";
-import { scopeRange, datesBetween, type CruiseScope } from "./cruise-shared";
+import { scopeRange, datesBetween, londonToday, type CruiseScope } from "./cruise-shared";
 
 export type CruiseShip = {
   id: string;
@@ -56,7 +56,7 @@ const VISIT_COLS =
 /** Day summaries from today forward (calendar + upcoming list). */
 export async function getUpcomingDays(limit = 90): Promise<CruiseDay[]> {
   const sb = publicClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = londonToday();
   try {
     const { data } = await sb
       .from("cruise_day_summary")
@@ -153,19 +153,36 @@ export async function getCruiseVisit(id: string): Promise<CruiseVisit | null> {
   }
 }
 
+export type CruiseHomeVisit = {
+  id: string;
+  name: string;
+  image: string | null;
+  line: string | null;
+  arrival: string | null;
+  departure: string | null;
+  berth: string | null;
+  tender: boolean;
+  pax: number | null;
+  paxLabel: string | null;
+};
+
 export type CruiseHomeCard = {
   date: string;
   isToday: boolean;
   barometer: Barometer;
   ships_count: number;
   total_est_pax: number;
-  thumbs: { id: string; name: string; image: string | null }[];
+  firstIn: string | null;
+  lastOut: string | null;
+  visits: CruiseHomeVisit[];
 };
 
-/** The "In port today" card data — today if ships are in, otherwise the next call. */
+/** The "In port today" card data — today if ships are in, otherwise the next call.
+ *  Returns per-visit detail (times, berth/tender, passengers, line) so the home
+ *  card can show the day at a glance without opening it. */
 export async function getCruiseHomeCard(): Promise<CruiseHomeCard | null> {
   const sb = publicClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = londonToday();
   try {
     const { data: todayRow } = await sb.from("cruise_day_summary").select("*").eq("visit_date", today).maybeSingle();
     let day = (todayRow ?? null) as CruiseDay | null;
@@ -176,20 +193,40 @@ export async function getCruiseHomeCard(): Promise<CruiseHomeCard | null> {
     if (!day) return null;
     const { data: vis } = await sb
       .from("cruise_visits")
-      .select("id, est_pax, ship:cruise_ships(name,image_url)")
+      .select("id, arrival_at, departure_at, berth, berth_area_group, is_tender, est_pax, est_pax_label, ship:cruise_ships(name,image_url,cruise_line)")
       .eq("visit_date", day.visit_date)
       .neq("status", "cancelled")
       .order("est_pax", { ascending: false, nullsFirst: false })
       .limit(6);
-    const thumbs = ((vis ?? []) as unknown as { id: string; ship: { name: string | null; image_url: string | null } | null }[])
-      .map((v) => ({ id: v.id, name: v.ship?.name ?? "Ship", image: v.ship?.image_url ?? null }));
+    const rows = (vis ?? []) as unknown as {
+      id: string; arrival_at: string | null; departure_at: string | null;
+      berth: string | null; berth_area_group: string | null; is_tender: boolean | null;
+      est_pax: number | null; est_pax_label: string | null;
+      ship: { name: string | null; image_url: string | null; cruise_line: string | null } | null;
+    }[];
+    const visits: CruiseHomeVisit[] = rows.map((v) => ({
+      id: v.id,
+      name: v.ship?.name ?? "Ship",
+      image: v.ship?.image_url ?? null,
+      line: v.ship?.cruise_line ?? null,
+      arrival: v.arrival_at,
+      departure: v.departure_at,
+      berth: v.berth_area_group ?? v.berth ?? null,
+      tender: !!v.is_tender,
+      pax: v.est_pax,
+      paxLabel: v.est_pax_label,
+    }));
+    const arr = (rows.map((v) => v.arrival_at).filter(Boolean) as string[]).sort();
+    const dep = (rows.map((v) => v.departure_at).filter(Boolean) as string[]).sort();
     return {
       date: day.visit_date,
       isToday: day.visit_date === today,
       barometer: day.barometer,
       ships_count: day.ships_count,
       total_est_pax: day.total_est_pax,
-      thumbs,
+      firstIn: arr[0] ?? null,
+      lastOut: dep.length ? dep[dep.length - 1] : null,
+      visits,
     };
   } catch {
     return null;

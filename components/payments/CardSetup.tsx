@@ -13,9 +13,31 @@ import { getStripe } from "@/lib/stripe";
  * is taken; the card is stored off-session for future payments.
  */
 export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?: string; hasCard: boolean; businessId?: string }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+
+  async function removeCard() {
+    if (!window.confirm("Remove your saved card? You can add one again any time.")) return;
+    setRemoving(true); setRemoveError(null);
+    try {
+      const sb = createClient();
+      // Detaching the card + clearing the locked has_payment_method flag must
+      // happen server-side (the lock trigger reverts any client write).
+      const { data, error: fnErr } = await sb.functions.invoke("remove-card", businessId ? { body: { business_id: businessId } } : { body: {} });
+      if (fnErr || (data as { error?: string } | null)?.error) {
+        throw new Error((data as { error?: string } | null)?.error ?? fnErr?.message ?? "Could not remove the card.");
+      }
+      router.refresh();
+    } catch (e) {
+      setRemoveError(e instanceof Error ? e.message : "Could not remove the card.");
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   async function begin() {
     setOpen(true); setError(null); setClientSecret(null);
@@ -31,9 +53,19 @@ export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?
 
   if (!open) {
     return (
-      <button onClick={begin} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95" style={{ background: accent }}>
-        {hasCard ? "Replace card" : "Add a payment card"}
-      </button>
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <button onClick={begin} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95" style={{ background: accent }}>
+            {hasCard ? "Replace card" : "Add a payment card"}
+          </button>
+          {hasCard && (
+            <button onClick={removeCard} disabled={removing} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-50">
+              {removing ? "Removing…" : "Remove card"}
+            </button>
+          )}
+        </div>
+        {removeError && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{removeError}</p>}
+      </div>
     );
   }
 
@@ -63,17 +95,23 @@ function CardForm({ accent, businessId, onCancel }: { accent: string; businessId
     const { error: confirmErr, setupIntent } = await stripe.confirmSetup({ elements, redirect: "if_required" });
     if (confirmErr) { setBusy(false); setError(confirmErr.message ?? "Could not save your card."); return; }
     if (setupIntent && setupIntent.status === "succeeded") {
-      // Mark the card as on file (webhook also reconciles; we set it directly so
-      // the UI updates immediately). Business cards update the business row.
+      // Persist the card-on-file flag via the service-role `confirm-card-setup`
+      // function. A direct client write to profiles.has_payment_method is
+      // silently REVERTED by the tg_profiles_lock_sensitive trigger (anti-tamper),
+      // and stripe-webhook has no setup_intent.succeeded handler — so the flag
+      // would never stick. confirm-card-setup checks Stripe and sets it for real.
       try {
         const sb = createClient();
-        if (businessId) {
-          await sb.from("local_businesses").update({ has_business_payment_method: true }).eq("id", businessId);
-        } else {
-          const { data: { user } } = await sb.auth.getUser();
-          if (user) await sb.from("profiles").update({ has_payment_method: true }).eq("id", user.id);
-        }
-      } catch { /* webhook will reconcile */ }
+        const { data, error: confErr } = await sb.functions.invoke(
+          "confirm-card-setup",
+          businessId ? { body: { business_id: businessId } } : undefined,
+        );
+        if (confErr || !data?.ok) throw new Error(data?.error ?? "Card saved but could not be confirmed.");
+      } catch (e) {
+        setBusy(false);
+        setError(e instanceof Error ? e.message : "Card saved but could not be confirmed. Please try again.");
+        return;
+      }
       router.refresh();
       return; // leave spinner; page re-renders with card on file
     }

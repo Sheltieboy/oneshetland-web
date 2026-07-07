@@ -32,8 +32,8 @@ export function BoatProfile({ profile, edits, myVotes, isLoggedIn, userId }: {
   const pendingCount = (t: Target) => proposalsFor(t).length;
 
   const Pencil = ({ t }: { t: Target }) => editMode ? (
-    <button onClick={() => setTarget(t)} className="ml-2 rounded-pill border border-line-strong px-2 py-0.5 text-[11px] font-semibold text-ink-soft hover:bg-sand">
-      ✎ suggest{pendingCount(t) > 0 ? ` · ${pendingCount(t)}` : ""}
+    <button onClick={() => setTarget(t)} aria-label="Suggest a change" className="ml-2 rounded-pill border border-line-strong px-2 py-0.5 text-[11px] font-semibold text-ink-soft hover:bg-sand">
+      <span aria-hidden="true">✎</span> suggest{pendingCount(t) > 0 ? ` · ${pendingCount(t)}` : ""}
     </button>
   ) : pendingCount(t) > 0 ? (
     <button onClick={() => setTarget(t)} className="ml-2 rounded-pill bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">{pendingCount(t)} pending</button>
@@ -61,8 +61,8 @@ export function BoatProfile({ profile, edits, myVotes, isLoggedIn, userId }: {
             </div>
             <div className="mt-2"><ConfPill c={v.identity_confidence} />{v.identity_notes && <span className="ml-2 text-sm text-ink-muted">{v.identity_notes}</span>}</div>
           </div>
-          <button onClick={() => setEditMode((m) => !m)} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold " + (editMode ? "text-white" : "border border-line-strong text-ink hover:bg-sand")} style={editMode ? { background: BOATS } : undefined}>
-            {editMode ? "Done" : "✎ Suggest edits"}{!editMode && openCount > 0 ? ` (${openCount})` : ""}
+          <button onClick={() => setEditMode((m) => !m)} aria-pressed={editMode} aria-label={editMode ? "Finish suggesting edits" : "Suggest edits"} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold " + (editMode ? "text-white" : "border border-line-strong text-ink hover:bg-sand")} style={editMode ? { background: BOATS } : undefined}>
+            {editMode ? "Done" : <><span aria-hidden="true">✎</span> Suggest edits</>}{!editMode && openCount > 0 ? ` (${openCount})` : ""}
           </button>
         </div>
         {editMode && <p className="mt-3 rounded-lg bg-sand/60 px-3 py-2 text-sm text-ink-soft">Tap “suggest” by any detail to propose a change. Other folk vote — 3 agrees and it's applied. Help keep da history right.</p>}
@@ -70,21 +70,24 @@ export function BoatProfile({ profile, edits, myVotes, isLoggedIn, userId }: {
 
       <Section title="Names she went by" onAdd={editMode ? () => setTarget({ table: "vessel_names", rowId: null, column: null, label: "a name she went by", currentValue: null, actions: ["add"], addKey: "name" }) : undefined}>
         {nameGroups.map(({ rep, others }) => (
-          <Row key={rep.id} title={rep.name} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} primary={rep.is_primary} conf={rep.confidence} dupes={others.length}
+          <Row key={rep.id} title={rep.name} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} primary={rep.is_primary} conf={rep.confidence}
+            dupRows={others.map((o) => <Row key={o.id} title={o.name} meta={yrs(o.start_year, o.end_year, o.date_text)} primary={o.is_primary} conf={o.confidence} dim />)}
             pencil={<Pencil t={{ table: "vessel_names", rowId: rep.id, column: "name", label: "name", currentValue: rep.name, actions: ["edit", "remove"] }} />} />
         ))}
       </Section>
 
       <Section title="Numbers she carried" onAdd={editMode ? () => setTarget({ table: "registrations", rowId: null, column: null, label: "a registration number", currentValue: null, actions: ["add"], addKey: "registration" }) : undefined}>
         {regGroups.map(({ rep, others }) => (
-          <Row key={rep.id} title={rep.registration} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} primary={rep.is_primary} conf={rep.confidence} dupes={others.length}
+          <Row key={rep.id} title={rep.registration} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} primary={rep.is_primary} conf={rep.confidence}
+            dupRows={others.map((o) => <Row key={o.id} title={o.registration} meta={yrs(o.start_year, o.end_year, o.date_text)} primary={o.is_primary} conf={o.confidence} dim />)}
             pencil={<Pencil t={{ table: "registrations", rowId: rep.id, column: "registration", label: "number", currentValue: rep.registration, actions: ["edit", "remove"] }} />} />
         ))}
       </Section>
 
       <Section title="Owners through the years" onAdd={editMode ? () => setTarget({ table: "ownership_periods", rowId: null, column: null, label: "a previous owner", currentValue: null, actions: ["add"], addKey: "owner" }) : undefined}>
         {ownGroups.map(({ rep, others }) => (
-          <Row key={rep.id} title={rep.owner?.name ?? "Unknown owner"} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} conf={rep.confidence} dupes={others.length}
+          <Row key={rep.id} title={rep.owner?.name ?? "Unknown owner"} meta={yrs(rep.start_year, rep.end_year, rep.date_text)} conf={rep.confidence}
+            dupRows={others.map((o) => <Row key={o.id} title={o.owner?.name ?? "Unknown owner"} meta={yrs(o.start_year, o.end_year, o.date_text)} conf={o.confidence} dim />)}
             pencil={<Pencil t={{ table: "ownership_periods", rowId: rep.id, column: "date_text", label: "ownership dates", currentValue: rep.date_text, actions: ["edit", "remove"] }} />} />
         ))}
       </Section>
@@ -118,15 +121,24 @@ function Section({ title, children, onAdd }: { title: string; children: React.Re
   );
 }
 
-function Row({ title, meta, primary, conf, dupes, pencil }: { title: string; meta?: string; primary?: boolean; conf?: Confidence | null; dupes?: number; pencil?: React.ReactNode }) {
+function Row({ title, meta, primary, conf, dupRows, pencil, dim }: { title: string; meta?: string; primary?: boolean; conf?: Confidence | null; dupRows?: React.ReactNode[]; pencil?: React.ReactNode; dim?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const dupes = dupRows?.length ?? 0;
   return (
-    <div className="flex flex-wrap items-center gap-2 py-2.5">
-      <span className="font-semibold text-ink">{title}</span>
-      {primary && <span className="rounded-pill bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700">main</span>}
-      {conf && <ConfPill c={conf} />}
-      {meta && <span className="text-sm text-ink-muted">{meta}</span>}
-      {dupes ? <span className="text-xs text-ink-faint">+{dupes} duplicate{dupes === 1 ? "" : "s"} merged</span> : null}
-      {pencil}
+    <div className={dim ? "py-2" : "py-2.5"}>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={dim ? "text-sm text-ink-muted" : "font-semibold text-ink"}>{title}</span>
+        {primary && <span className="rounded-pill bg-blue-100 px-2 py-0.5 text-[11px] font-bold text-blue-700">main</span>}
+        {conf && <ConfPill c={conf} />}
+        {meta && <span className="text-sm text-ink-muted">{meta}</span>}
+        {dupes > 0 && (
+          <button onClick={() => setOpen((o) => !o)} className="text-xs font-semibold hover:underline" style={{ color: BOATS }}>
+            {open ? "Hide duplicates" : `Show ${dupes} duplicate${dupes === 1 ? "" : "s"}`}
+          </button>
+        )}
+        {pencil}
+      </div>
+      {open && dupes > 0 && <div className="mt-1 ml-3 border-l-2 border-line pl-3">{dupRows}</div>}
     </div>
   );
 }
@@ -177,7 +189,7 @@ function SuggestModal({ target, vesselId, isLoggedIn, userId, proposals, myVotes
       <div className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-card bg-paper p-6 shadow-lift sm:rounded-card" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-display text-xl font-bold text-ink">Suggest a change</h3>
-          <button onClick={onClose} className="text-ink-muted hover:text-ink">✕</button>
+          <button onClick={onClose} aria-label="Close" className="text-ink-muted hover:text-ink">✕</button>
         </div>
         <p className="mt-1 text-sm text-ink-muted">{target.label} {target.currentValue ? <>· currently <b className="text-ink">{target.currentValue}</b></> : null}</p>
 
@@ -192,8 +204,8 @@ function SuggestModal({ target, vesselId, isLoggedIn, userId, proposals, myVotes
                   <p className="text-sm font-semibold text-ink">{p.summary}</p>
                   {p.note && <p className="mt-0.5 text-sm text-ink-muted">“{p.note}”</p>}
                   <div className="mt-2 flex items-center gap-2 text-xs">
-                    <span className="font-semibold text-emerald-700">👍 {p.confirm_count}</span>
-                    <span className="font-semibold text-rose-700">👎 {p.dispute_count}</span>
+                    <span className="font-semibold text-emerald-700" aria-label={`${p.confirm_count} agree`}><span aria-hidden="true">👍</span> {p.confirm_count}</span>
+                    <span className="font-semibold text-rose-700" aria-label={`${p.dispute_count} disagree`}><span aria-hidden="true">👎</span> {p.dispute_count}</span>
                     {mine ? <span className="text-ink-faint">Your suggestion — waiting for others</span>
                       : !isLoggedIn ? <span className="text-ink-faint">Sign in to vote</span>
                       : voted ? <span className="text-ink-faint">You voted “{voted}”</span>

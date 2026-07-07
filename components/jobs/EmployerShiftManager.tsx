@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatShiftDate } from "@/lib/jobs-data";
+import { ShiftBoostModal } from "@/components/jobs/ShiftBoostModal";
 
 const SHIFTS = "#e8a020";
 
@@ -12,6 +13,7 @@ type ManagedShift = {
   id: string; title: string; start_at: string; status: string;
   positions_filled: number; positions_total: number;
   pending_count: number; total_apps: number; checked_out_count: number;
+  posted_as_business_id: string | null; boosted_until: string | null;
 };
 type Applicant = {
   id: string; shift_id: string; message: string | null;
@@ -24,6 +26,7 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
   const [apps, setApps] = useState(applications);
   const [shiftList, setShiftList] = useState(shifts);
   const [busy, setBusy] = useState<string | null>(null);
+  const [boostShift, setBoostShift] = useState<ManagedShift | null>(null);
 
   const sb = () => createClient();
 
@@ -118,6 +121,8 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
             const badge = STATUS_BADGE[s.status] ?? STATUS_BADGE.open;
             const active = s.status === "open" || s.status === "filled";
             const canComplete = s.status === "filled" && s.checked_out_count > 0;
+            const isBoosted = !!(s.boosted_until && s.boosted_until > new Date().toISOString());
+            const canBoost = s.status === "open" && !isBoosted;
             return (
               <div key={s.id} className="rounded-card border border-line bg-paper p-4 shadow-soft">
                 <div className="flex items-start justify-between gap-3">
@@ -126,12 +131,16 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
                     <p className="text-sm text-ink-muted">{formatShiftDate(s.start_at)}</p>
                     <p className="mt-0.5 text-xs text-ink-faint">{s.positions_filled}/{s.positions_total} filled · {s.total_apps} application{s.total_apps === 1 ? "" : "s"}{s.pending_count > 0 ? ` · ${s.pending_count} to review` : ""}</p>
                   </div>
-                  <span className="shrink-0 rounded-pill px-2.5 py-1 text-xs font-bold" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="rounded-pill px-2.5 py-1 text-xs font-bold" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                    {isBoosted && <span className="rounded-pill px-2.5 py-1 text-xs font-bold text-paper" style={{ background: SHIFTS }}>⚡ Boosted</span>}
+                  </div>
                 </div>
-                {active && (
+                {(active || canBoost) && (
                   <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
                     {canComplete && <button onClick={() => complete(s.id)} disabled={busy === s.id} className="rounded-pill px-3.5 py-1.5 text-xs font-semibold text-paper disabled:opacity-40" style={{ background: "#059669" }}>Mark complete</button>}
-                    <button onClick={() => cancelShift(s.id)} disabled={busy === s.id} className="rounded-pill border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40">Cancel shift</button>
+                    {canBoost && <button onClick={() => setBoostShift(s)} className="rounded-pill px-3.5 py-1.5 text-xs font-semibold text-paper hover:brightness-95" style={{ background: SHIFTS }}>⚡ Boost · £2.99</button>}
+                    {active && <button onClick={() => cancelShift(s.id)} disabled={busy === s.id} className="rounded-pill border border-line-strong px-3.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40">Cancel shift</button>}
                   </div>
                 )}
               </div>
@@ -139,6 +148,20 @@ export function EmployerShiftManager({ shifts, applications }: { shifts: Managed
           })}
         </div>
       </section>
+
+      {boostShift && (
+        <ShiftBoostModal
+          open={!!boostShift}
+          onClose={() => setBoostShift(null)}
+          shiftId={boostShift.id}
+          shiftTitle={boostShift.title}
+          businessId={boostShift.posted_as_business_id}
+          accent={SHIFTS}
+          onBoosted={(boostedUntil) =>
+            setShiftList((prev) => prev.map((s) => (s.id === boostShift.id ? { ...s, boosted_until: boostedUntil } : s)))
+          }
+        />
+      )}
     </div>
   );
 }

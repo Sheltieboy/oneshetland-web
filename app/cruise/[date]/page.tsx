@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getCruiseDay } from "@/lib/cruise-data";
-import { baro, fmtTime, fmtDateLong, hoursAshore, CRUISE_ACCENT } from "@/lib/cruise-shared";
+import { baro, fmtTime, fmtDateLong, hoursAshore, peakWindow, CRUISE_ACCENT } from "@/lib/cruise-shared";
 import { DayTimeline } from "@/components/cruise/DayTimeline";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,8 @@ export default async function CruiseDayPage({ params }: { params: Promise<{ date
   const firstIn = arrSorted[0] ? fmtTime(arrSorted[0]) : null;
   const lastOut = depSorted.length ? fmtTime(depSorted[depSorted.length - 1]) : null;
   const berths = [...new Set(visits.map((v) => v.berth_area_group).filter(Boolean))] as string[];
+  const anyTender = visits.some((v) => v.is_tender);
+  const peak = busy ? peakWindow(visits) : null;
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-8 sm:py-10">
@@ -50,9 +52,16 @@ export default async function CruiseDayPage({ params }: { params: Promise<{ date
       </div>
 
       {busy && (
-        <p className="mt-3 rounded-xl bg-sand/60 px-4 py-3 text-sm text-ink-soft">
-          Lerwick town centre and the waterfront will be busy with visitors, roughly 9am–5pm.
-        </p>
+        <div className="mt-3 rounded-xl bg-sand/60 px-4 py-3 text-sm text-ink-soft">
+          <p className="font-semibold text-ink">
+            Plan for extra footfall{peak ? ` ~${peak.label}` : " through the day"}
+          </p>
+          <p className="mt-0.5">
+            Town and the waterfront will be busy with visitors — worth having extra hands on, more stock out, and the kettle on.
+            {berths.length > 0 ? ` Ships berth at ${berths.join(" and ")}.` : ""}
+            {anyTender ? " Some come ashore by tender, so folk arrive in waves." : ""}
+          </p>
+        </div>
       )}
 
       {/* Day stats + timeline */}

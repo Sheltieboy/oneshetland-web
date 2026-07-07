@@ -20,7 +20,10 @@ export default async function ManageShiftsPage() {
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
       <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-ink-soft hover:text-ink">← Shifts</Link>
-      <h1 className="mt-4 font-display text-4xl font-bold">Manage shifts</h1>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-4xl font-bold">Manage shifts</h1>
+        <Link href="/work-profile/employer" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">Business profile</Link>
+      </div>
       <p className="mt-2 text-ink-soft">Review applicants and keep your posted shifts up to date.</p>
 
       <div className="mt-8">
@@ -32,6 +35,7 @@ export default async function ManageShiftsPage() {
               id: s.id, title: s.title, start_at: s.start_at, status: s.status,
               positions_filled: s.positions_filled, positions_total: s.positions_total,
               pending_count: s.pending_count, total_apps: s.total_apps, checked_out_count: s.checked_out_count,
+              posted_as_business_id: s.posted_as_business_id, boosted_until: s.boosted_until,
             }))}
             applications={applications.map((a) => ({
               id: a.id, shift_id: a.shift_id, message: a.message,

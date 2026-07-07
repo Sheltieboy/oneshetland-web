@@ -61,7 +61,7 @@ export function VoiceRecorder({ onRecorded }: { onRecorded: (blob: Blob, duratio
         </div>
       )}
       {error && <p className="mt-2 text-sm text-rose-600">{error}</p>}
-      {state === "done" && <p className="mt-1 text-xs text-ink-faint">We'll transcribe this automatically once the memory is saved.</p>}
+      {state === "done" && <p className="mt-1 text-xs text-ink-faint">We'll transcribe this automatically once the story is saved.</p>}
     </div>
   );
 }

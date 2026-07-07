@@ -5,7 +5,7 @@ import { getMemoryDetail, MEMORIES } from "@/lib/memories-data";
 import { MemoryComposer, type EditableMemory } from "@/components/memories/MemoryComposer";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Edit memory · OneShetland" };
+export const metadata = { title: "Edit story · OneShetland" };
 
 export default async function EditMemoryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,11 +22,11 @@ export default async function EditMemoryPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href={`/memories/${id}`} className="text-sm font-semibold text-ink-soft hover:text-ink">← Back to memory</Link>
+      <Link href={`/memories/${id}`} className="text-sm font-semibold text-ink-soft hover:text-ink">← Back to story</Link>
       <div className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: MEMORIES }}>OneShetland · Memories</p>
-        <h1 className="mt-1 font-display text-4xl font-bold">Edit memory</h1>
-        <p className="mt-2 text-lg text-ink-soft">Update the place, story or tags. Any photos, videos or voice notes you add here join the ones already on this memory.</p>
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: MEMORIES }}>OneShetland · Auld Stories</p>
+        <h1 className="mt-1 font-display text-4xl font-bold">Edit story</h1>
+        <p className="mt-2 text-lg text-ink-soft">Update the place, story or tags. Any photos, videos or voice notes you add here join the ones already on this story.</p>
       </div>
       <div className="mt-8">
         <MemoryComposer isLoggedIn={!!account} existing={existing} />

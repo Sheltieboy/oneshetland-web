@@ -5,9 +5,11 @@ import {
   fetchVesselProfile, fetchVesselTimeline, fetchVesselComments, fetchVesselEdits,
   threadComments, vesselDisplayTitle, eventTypeLabel, BOATS,
 } from "@/lib/boats-data";
-import { getMyEditVotes } from "@/lib/boats-data.server";
+import { getMyEditVotes, getBlockedUserIds } from "@/lib/boats-data.server";
 import { BoatProfile } from "@/components/boats/BoatProfile";
 import { BoatDiscussion } from "@/components/boats/BoatDiscussion";
+import { BoatDetailActions } from "@/components/boats/BoatDetailActions";
+import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
 
@@ -27,8 +29,17 @@ export default async function BoatDetail({ params }: { params: Promise<{ id: str
   const myVotes = account ? await getMyEditVotes(edits.map((e) => e.id)) : {};
   const hero = profile.media.find((m) => m.image_url || m.thumbnail_url);
 
+  // Hide comments by authors the viewer has blocked — mirrors the app's
+  // client-side fetchBlockedIds filter, done server-side here so blocked
+  // authors stay hidden on refresh.
+  const blocked = account ? await getBlockedUserIds() : new Set<string>();
+  const visibleComments = blocked.size
+    ? comments.filter((c) => !c.author_id || !blocked.has(c.author_id))
+    : comments;
+
   return (
     <>
+      <TrackView event="content_viewed" objectType="vessel" objectId={id} />
       {/* Hero */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: BOATS }}>
         {hero?.image_url && <img src={hero.image_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-35" />}
@@ -36,6 +47,10 @@ export default async function BoatDetail({ params }: { params: Promise<{ id: str
         <div className="relative mx-auto max-w-4xl px-5 py-12 sm:py-14">
           <Link href="/boats" className="text-sm font-semibold text-paper/85 hover:text-paper">← Da Boats</Link>
           <h1 className="mt-3 font-display text-4xl font-bold sm:text-5xl">{vesselDisplayTitle(profile.vessel)}</h1>
+          <BoatDetailActions
+            title={vesselDisplayTitle(profile.vessel)}
+            stub={{ id, lk_number: profile.vessel.primary_lk_number, canonical_name: profile.vessel.canonical_name, built_year: profile.vessel.built_year, hero_url: hero?.thumbnail_url ?? hero?.image_url ?? null }}
+          />
         </div>
       </section>
 
@@ -50,7 +65,7 @@ export default async function BoatDetail({ params }: { params: Promise<{ id: str
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {profile.media.map((m) => {
                 const src = m.image_url || m.thumbnail_url;
-                const inner = src ? <img src={src} alt={m.title ?? ""} className="h-32 w-full rounded-card border border-line object-cover" /> : <div className="grid h-32 w-full place-items-center rounded-card border border-dashed border-line text-3xl opacity-30">⚓</div>;
+                const inner = src ? <img src={src} alt={m.title ?? ""} className="h-32 w-full rounded-card border border-line object-cover" /> : <div className="grid h-32 w-full place-items-center rounded-card border border-dashed border-line text-3xl opacity-30" aria-hidden="true">⚓</div>;
                 return m.page_url ? <a key={m.id} href={m.page_url} target="_blank" rel="noopener noreferrer" className="block transition hover:opacity-90">{inner}</a> : <div key={m.id}>{inner}</div>;
               })}
             </div>
@@ -78,7 +93,7 @@ export default async function BoatDetail({ params }: { params: Promise<{ id: str
         )}
 
         {/* Discussion */}
-        <BoatDiscussion vesselId={id} comments={threadComments(comments)} isLoggedIn={!!account} userId={account?.id ?? null} />
+        <BoatDiscussion vesselId={id} comments={threadComments(visibleComments)} isLoggedIn={!!account} userId={account?.id ?? null} />
       </div>
     </>
   );

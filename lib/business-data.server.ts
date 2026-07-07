@@ -8,8 +8,9 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
   BUSINESS_COLS,
   type ManagedBusiness, type BusinessAddon, type LocalOffer, type LoyaltyProgram,
-  type WalletReceipt, type PartnerAlert, type AlertAccess,
+  type WalletReceipt, type PartnerAlert, type AlertAccess, type BusinessCode,
 } from "@/lib/business-data";
+import type { BookAvailabilityRule, BookSlotOverride } from "@/lib/book-data";
 
 const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => { try { return await p; } catch { return f; } };
 
@@ -44,7 +45,7 @@ export async function getBusinessAddons(businessId: string): Promise<BusinessAdd
 export async function getBusinessOffers(businessId: string, includeExpired = false): Promise<LocalOffer[]> {
   const sb = await createServerClient();
   return safe((async () => {
-    let q = sb.from("local_offers").select("id, business_id, title, description, discount_type, discount_value, valid_from, valid_until, is_active, redemption_count, created_at")
+    let q = sb.from("local_offers").select("id, business_id, title, description, discount_type, discount_value, valid_from, valid_until, is_active, redemption_count, max_redemptions, created_at")
       .eq("business_id", businessId).order("created_at", { ascending: false });
     if (!includeExpired) q = q.eq("is_active", true).gte("valid_until", new Date().toISOString());
     const { data } = await q;
@@ -66,6 +67,15 @@ export async function getWalletReceipts(businessId: string, limit = 10): Promise
   })(), []);
 }
 
+/** Current at-till rotating code (may be stale/expired — the client refreshes it). */
+export async function getBusinessCode(businessId: string): Promise<BusinessCode | null> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("local_business_codes").select("business_id, current_code, expires_at, updated_at").eq("business_id", businessId).maybeSingle();
+    return (data ?? null) as BusinessCode | null;
+  })(), null);
+}
+
 export async function getAlertAccess(businessId: string): Promise<AlertAccess | null> {
   const sb = await createServerClient();
   const { data } = await sb.from("business_alert_access").select("id, business_id, status, requested_at, activated_at").eq("business_id", businessId).maybeSingle();
@@ -85,4 +95,36 @@ export async function getBusinessServicesCount(businessId: string): Promise<numb
   const sb = await createServerClient();
   const { count } = await sb.from("book_services").select("id", { count: "exact", head: true }).eq("business_id", businessId);
   return count ?? 0;
+}
+
+/** Active services for a business — id + name only, for the schedule's per-service selector. */
+export async function getBusinessServicesBrief(businessId: string): Promise<{ id: string; name: string }[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("book_services").select("id, name")
+      .eq("business_id", businessId).eq("is_active", true).order("display_order", { ascending: true });
+    return (data ?? []) as { id: string; name: string }[];
+  })(), []);
+}
+
+/** Active weekly availability rules (server-rendered for the schedule manager). */
+export async function getBusinessAvailabilityRules(businessId: string): Promise<BookAvailabilityRule[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("book_availability_rules").select("*")
+      .eq("business_id", businessId).eq("is_active", true)
+      .order("day_of_week", { ascending: true }).order("start_time", { ascending: true });
+    return (data ?? []) as BookAvailabilityRule[];
+  })(), []);
+}
+
+/** Upcoming one-off slot overrides (server-rendered for the schedule manager). */
+export async function getBusinessUpcomingOverrides(businessId: string): Promise<BookSlotOverride[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("book_slot_overrides").select("*")
+      .eq("business_id", businessId).gte("starts_at", new Date().toISOString())
+      .order("starts_at", { ascending: true });
+    return (data ?? []) as BookSlotOverride[];
+  })(), []);
 }

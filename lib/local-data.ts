@@ -39,7 +39,10 @@ export type Business = {
   category: string | null;
   description: string | null;
   address: string | null;
-  locality: string | null;
+  /** `local_businesses` has no locality column — area lives inside `address`. */
+  locality?: string | null;
+  lat: number | null;
+  lng: number | null;
   logo_url: string | null;
   cover_url: string | null;
   brand_color: string | null;
@@ -79,15 +82,39 @@ export type Loyalty = {
 
 export type Service = {
   id: string;
+  business_id: string;
   name: string;
   description: string | null;
   duration_minutes: number;
+  buffer_minutes: number;
   price_pence: number;
+  deposit_pence: number;
+  requires_deposit: boolean;
+  capacity: number;
+  category: string | null;
+};
+
+export type UnitItem = {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  price_pence: number;
+  stock: number | null;          // null = unlimited
+  valid_days: number | null;     // null = no expiry
+  uses_per_purchase: number;
+  image_url: string | null;
   category: string | null;
 };
 
 const LIST_COLS =
-  "id, name, category, description, address, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
+  "id, name, category, description, address, tags, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
+
+/** Escape a user query for safe use inside a PostgREST `.or(...)` filter value. */
+function sanitizeOrTerm(s: string): string {
+  // Commas and parens are PostgREST .or() delimiters; strip them out.
+  return s.replace(/[,()]/g, " ").trim();
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -192,7 +219,9 @@ export async function getCategoryCounts(): Promise<Record<string, number>> {
 }
 
 /* ── Directory ────────────────────────────────────────────────────────────── */
-export async function getAllBusinesses(opts: { category?: string; q?: string } = {}): Promise<Business[]> {
+export async function getAllBusinesses(
+  opts: { category?: string; q?: string; area?: string; bookableOnly?: boolean } = {},
+): Promise<Business[]> {
   const sb = publicClient();
   try {
     let q = sb
@@ -203,11 +232,109 @@ export async function getAllBusinesses(opts: { category?: string; q?: string } =
       .order("name", { ascending: true })
       .limit(200);
     if (opts.category) q = q.eq("category", opts.category);
-    if (opts.q) q = q.ilike("name", `%${opts.q}%`);
+    if (opts.bookableOnly) q = q.eq("accepts_bookings", true);
+    // Area filter — match locality first, falling back to address text (mirrors the app feed).
+    if (opts.area) {
+      const a = sanitizeOrTerm(opts.area);
+      if (a) q = q.ilike("address", `%${a}%`);
+    }
+    // Deep search — name + category + address (parity with the app's
+    // local-businesses-browse filter, which matches name/category/address/tags).
+    // tags is text[]: PostgREST can't substring-match inside array elements, so
+    // those rows are folded in via a post-filter below.
+    const term = opts.q ? sanitizeOrTerm(opts.q) : "";
+    if (term) {
+      q = q.or(
+        [
+          `name.ilike.%${term}%`,
+          `category.ilike.%${term}%`,
+          `address.ilike.%${term}%`,
+          `description.ilike.%${term}%`,
+          `tags.cs.{${term}}`,
+        ].join(","),
+      );
+    }
+    const { data } = await q;
+    let rows = (data ?? []) as unknown as Business[];
+
+    // Fold in businesses whose tags contain the term as a substring (the SQL
+    // `tags.cs.{term}` above only catches an exact-tag match). Cheap second
+    // pass over the active set, deduped against the primary results.
+    if (term) {
+      const have = new Set(rows.map((b) => b.id));
+      const lc = term.toLowerCase();
+      let tq = sb
+        .from("local_businesses")
+        .select(LIST_COLS)
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(200);
+      if (opts.category) tq = tq.eq("category", opts.category);
+      if (opts.bookableOnly) tq = tq.eq("accepts_bookings", true);
+      const { data: tagData } = await tq;
+      for (const b of (tagData ?? []) as unknown as Business[]) {
+        if (have.has(b.id)) continue;
+        if ((b.tags ?? []).some((t) => t.toLowerCase().includes(lc))) {
+          rows.push(b);
+          have.add(b.id);
+        }
+      }
+      // keep verified-first, then alphabetical ordering across the merged set
+      rows = rows.sort(
+        (a, b) =>
+          Number(b.is_verified) - Number(a.is_verified) || a.name.localeCompare(b.name),
+      );
+    }
+    return rows;
+  } catch {
+    return [];
+  }
+}
+
+/* ── Bookable browse ──────────────────────────────────────────────────────── */
+export async function getBookableBusinesses(
+  opts: { category?: string; area?: string } = {},
+): Promise<Business[]> {
+  const sb = publicClient();
+  try {
+    let q = sb
+      .from("local_businesses")
+      .select(LIST_COLS)
+      .eq("is_active", true)
+      .eq("accepts_bookings", true)
+      .order("subscription_tier", { ascending: false })
+      .order("is_verified", { ascending: false })
+      .order("name", { ascending: true })
+      .limit(200);
+    if (opts.category) q = q.eq("category", opts.category);
+    if (opts.area) {
+      const a = sanitizeOrTerm(opts.area);
+      if (a) q = q.ilike("address", `%${a}%`);
+    }
     const { data } = await q;
     return (data ?? []) as unknown as Business[];
   } catch {
     return [];
+  }
+}
+
+/** Count of active bookable services per business (for the bookable browse). */
+export async function getServiceCounts(businessIds: string[]): Promise<Record<string, number>> {
+  if (businessIds.length === 0) return {};
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("book_services")
+      .select("business_id")
+      .eq("is_active", true)
+      .in("business_id", businessIds);
+    const counts: Record<string, number> = {};
+    for (const r of (data ?? []) as { business_id: string }[]) {
+      counts[r.business_id] = (counts[r.business_id] ?? 0) + 1;
+    }
+    return counts;
+  } catch {
+    return {};
   }
 }
 
@@ -230,7 +357,7 @@ export async function getBusiness(idOrSlug: string): Promise<Business | null> {
 
 export async function getBusinessExtras(
   businessId: string,
-): Promise<{ offers: Offer[]; loyalty: Loyalty | null; services: Service[] }> {
+): Promise<{ offers: Offer[]; loyalty: Loyalty | null; services: Service[]; unitItems: UnitItem[] }> {
   const sb = publicClient();
   const now = new Date().toISOString();
   const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => {
@@ -241,7 +368,7 @@ export async function getBusinessExtras(
     }
   };
 
-  const [offers, loyalty, services] = await Promise.all([
+  const [offers, loyalty, services, unitItems] = await Promise.all([
     safe(
       sb
         .from("local_offers")
@@ -267,16 +394,27 @@ export async function getBusinessExtras(
     safe(
       sb
         .from("book_services")
-        .select("id, name, description, duration_minutes, price_pence, category")
+        .select("id, business_id, name, description, duration_minutes, buffer_minutes, price_pence, deposit_pence, requires_deposit, capacity, category")
         .eq("business_id", businessId)
         .eq("is_active", true)
         .order("display_order", { ascending: true })
         .then((r) => (r.data ?? []) as Service[]),
       [] as Service[],
     ),
+    safe(
+      sb
+        .from("book_unit_items")
+        .select("id, business_id, name, description, price_pence, stock, valid_days, uses_per_purchase, image_url, category")
+        .eq("business_id", businessId)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true })
+        .order("created_at", { ascending: true })
+        .then((r) => (r.data ?? []) as UnitItem[]),
+      [] as UnitItem[],
+    ),
   ]);
 
-  return { offers, loyalty, services };
+  return { offers, loyalty, services, unitItems };
 }
 
 /* ── Local feed ───────────────────────────────────────────────────────────── */

@@ -17,7 +17,7 @@ export default async function WorkProfilePage() {
       <div className="mt-6">
         <p className="text-xs font-bold uppercase tracking-widest" style={{ color: JOBS }}>OneShetland · Work</p>
         <h1 className="mt-1 font-display text-4xl font-bold">My work profile</h1>
-        <p className="mt-3 text-lg text-ink-soft">One profile employers see when you apply for jobs or shifts.</p>
+        <p className="mt-3 text-lg text-ink-soft">What employers see when you apply for a <strong>job</strong>. Applying for short <strong>shifts</strong>? Set up your <Link href="/work-profile/shifts" className="font-semibold underline" style={{ color: "#e8a020" }}>shift profile</Link> too.</p>
       </div>
       <div className="mt-8">
         {account ? (
