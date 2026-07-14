@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { WalletClient } from "./WalletClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My wallet · OneShetland" };
+export const metadata = { title: "My wallet" };
 
 export default async function WalletPage() {
   const account = await getAccount();

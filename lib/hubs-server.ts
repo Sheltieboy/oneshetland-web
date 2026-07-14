@@ -100,7 +100,7 @@ export async function getHubEventsAdmin(hubId: string): Promise<Record<string, u
   const sb = await createClient();
   const { data } = await sb
     .from("events")
-    .select("id, title, starts_at, ends_at, venue, locality, category, price_text, hub_visibility, status, has_tickets, ticket_url, ticket_types:event_ticket_types(id,name,price_pence,quantity_available,display_order)")
+    .select("id, title, starts_at, ends_at, venue, locality, category, price_text, hub_visibility, calendar_approved, status, has_tickets, ticket_url, ticket_types:event_ticket_types(id,name,price_pence,quantity_available,display_order)")
     .eq("organiser_hub_id", hubId)
     .order("starts_at", { ascending: false });
   return (data ?? []) as Record<string, unknown>[];

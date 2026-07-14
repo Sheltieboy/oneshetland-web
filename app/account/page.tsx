@@ -21,12 +21,13 @@ export default async function AccountOverview() {
     { href: "/account/wallet", title: "Wallet", desc: "Your balance, top-ups and spending history" },
     { href: "/account/bookings", title: "My bookings", desc: "Your upcoming and past service bookings" },
     { href: "/account/passes", title: "My passes", desc: "Passes and packs you've bought" },
+    { href: "/account/tickets", title: "My tickets", desc: "Event tickets you've bought" },
     { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, ready to claim" },
     { href: "/account/loyalty", title: "Loyalty cards", desc: "Your stamps and points at local businesses" },
     { href: "/account/memberships", title: "Memberships", desc: "Your digital hub membership cards" },
     { href: "/account/following", title: "Following", desc: "Businesses you follow" },
     { href: "/account/hubs", title: "My hubs", desc: "Groups and committees you run or belong to" },
-    { href: "/work-profile", title: "Work profile", desc: "Your details for jobs & shifts, your applications, and jobs you've posted" },
+    { href: "/work", title: "Work", desc: "Your work profile, applications, and the jobs & shifts you've posted" },
     { href: "/games/stats", title: "Game stats", desc: "Your XP, streaks and leaderboard places" },
   ];
 
@@ -89,6 +90,22 @@ export default async function AccountOverview() {
           <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payouts: {(p as { stripe_payouts_enabled?: boolean })?.stripe_payouts_enabled ? "connected ✓" : "not connected"}</span>
         </div>
       </Link>
+
+      {/* Legal & account management */}
+      <section className="mt-8 rounded-card border border-line bg-paper p-5 shadow-soft">
+        <h2 className="font-display text-xl font-bold text-ink">Legal &amp; account</h2>
+        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm font-semibold text-ink-soft">
+          <Link href="/terms" className="hover:text-ink">Terms</Link>
+          <Link href="/privacy" className="hover:text-ink">Privacy</Link>
+          <Link href="/community-guidelines" className="hover:text-ink">Community guidelines</Link>
+        </div>
+        <div className="mt-4 border-t border-line pt-4">
+          <Link href="/delete-account" className="text-sm font-semibold text-rose-600 hover:text-rose-700">
+            Delete my account
+          </Link>
+          <p className="mt-1 text-xs text-ink-muted">Permanently removes your account and personal data. You&apos;ll be asked to confirm.</p>
+        </div>
+      </section>
     </div>
   );
 }

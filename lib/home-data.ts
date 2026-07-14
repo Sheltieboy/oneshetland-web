@@ -133,7 +133,9 @@ async function fetchCampaigns(sb: SB): Promise<HomeCampaign[]> {
     .select("id, title, goal_pence, raised_pence, donor_count, hub:hubs ( name, logo_url, brand_color )")
     .eq("status", "active")
     .gt("goal_pence", 0)
-    .order("raised_pence", { ascending: false })
+    // Newest first so a freshly-launched appeal actually surfaces on the home
+    // teaser (ranking by amount-raised buried brand-new £0 campaigns forever).
+    .order("created_at", { ascending: false })
     .limit(2);
   return ((data ?? []) as Record<string, unknown>[]).map((r) => {
     const hub = r.hub as { name?: string; logo_url?: string; brand_color?: string } | null;

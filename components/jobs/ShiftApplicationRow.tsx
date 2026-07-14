@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { type ShiftApplication, formatPay, formatShiftDate, type PayType } from "@/lib/jobs-data";
+import { type ShiftApplication, formatPay, formatShiftDate, hoursWorked, type PayType } from "@/lib/jobs-data";
 
 const SHIFTS = "#e8a020";
 
@@ -16,10 +16,15 @@ export function ShiftApplicationRow({ app }: { app: ShiftApplication }) {
   const router = useRouter();
   const [status, setStatus] = useState(app.status);
   const [check, setCheck] = useState(app.check_in_status);
+  const [inAt, setInAt] = useState(app.checked_in_at);
+  const [outAt, setOutAt] = useState(app.checked_out_at);
   const [busy, setBusy] = useState(false);
 
   const s = app.shift;
   const sb = () => createClient();
+
+  const fmtTime = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true }) : "";
 
   async function withdraw() {
     setBusy(true);
@@ -34,8 +39,10 @@ export function ShiftApplicationRow({ app }: { app: ShiftApplication }) {
   async function setCheckStatus(next: "checked_in" | "checked_out") {
     setBusy(true);
     try {
-      const stamp = next === "checked_in" ? { checked_in_at: new Date().toISOString() } : { checked_out_at: new Date().toISOString() };
+      const now = new Date().toISOString();
+      const stamp = next === "checked_in" ? { checked_in_at: now } : { checked_out_at: now };
       await sb().from("shift_applications").update({ check_in_status: next, ...stamp }).eq("id", app.id);
+      if (next === "checked_in") setInAt(now); else setOutAt(now);
       setCheck(next); router.refresh();
     } finally { setBusy(false); }
   }
@@ -61,6 +68,18 @@ export function ShiftApplicationRow({ app }: { app: ShiftApplication }) {
       {/* Check-in flow for confirmed shifts */}
       {status === "accepted" && (
         <div className="mt-4 rounded-xl bg-sand/60 p-3">
+          {/* Timestamps + hours worked, once the worker has clocked any time */}
+          {(inAt || outAt) && (
+            <div className="mb-2 space-y-0.5 text-xs text-ink-muted">
+              {inAt && <p><span className="font-semibold text-ink-soft">Checked in:</span> {fmtTime(inAt)}</p>}
+              {outAt && <p><span className="font-semibold text-ink-soft">Checked out:</span> {fmtTime(outAt)}</p>}
+              {inAt && outAt && s?.start_at && s?.end_at && (
+                <p className="font-semibold" style={{ color: SHIFTS }}>
+                  {hoursWorked({ checked_in_at: inAt, checked_out_at: outAt }, s.start_at, s.end_at).label} worked
+                </p>
+              )}
+            </div>
+          )}
           {check === "employer_confirmed" ? (
             <p className="text-sm font-semibold text-ink-soft">Shift complete ✓</p>
           ) : check === "checked_out" ? (

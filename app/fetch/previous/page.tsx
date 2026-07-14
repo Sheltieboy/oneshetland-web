@@ -6,7 +6,7 @@ import { getMyPreviousRequests } from "@/lib/fetch-data.server";
 import { RequestCard, EmptyState } from "@/components/fetch/FetchUI";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Previous deliveries · Fetch · OneShetland" };
+export const metadata = { title: "Previous deliveries · Fetch" };
 
 export default async function PreviousRequestsPage() {
   const account = await getAccount();

@@ -1,6 +1,6 @@
 import { LegalLayout, L } from "@/components/site/LegalLayout";
 
-export const metadata = { title: "Restricted Goods · OneShetland" };
+export const metadata = { title: "Restricted Goods" };
 
 export default function RestrictedGoodsPage() {
   return (

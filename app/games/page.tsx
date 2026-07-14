@@ -9,7 +9,7 @@ import { fetchUserStats, fetchMyBestScore } from "@/lib/games-data.server";
 import { GameArt } from "@/components/games/GameArt";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Games · OneShetland" };
+export const metadata = { title: "Games" };
 
 const COMING_SOON = [
   { icon: "👨‍👩‍👧", label: "Family Mode" }, { icon: "🔎", label: "Wird Hunt" }, { icon: "🏫", label: "Class Mode" },

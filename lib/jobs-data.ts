@@ -70,7 +70,7 @@ export type JobApplication = {
   employer_note: string | null;
   applied_at: string;
   job?: (Pick<Job, "id" | "title" | "contract_type" | "posted_as_business_id"> & { business?: JobBusiness }) | null;
-  applicant?: { id: string; full_name: string | null; avatar_url: string | null } | null;
+  applicant?: { id: string; display_name?: string | null; full_name: string | null; avatar_url: string | null } | null;
 };
 
 export type WorkerProfile = {
@@ -127,7 +127,7 @@ export function formatJobPay(j: Pick<Job, "pay_min" | "pay_max" | "pay_period" |
   return j.pay_text?.trim() || "Competitive";
 }
 
-const JOB_SELECT = "*, business:local_businesses(id,name,logo_url,brand_color,slug,is_verified)";
+export const JOB_SELECT = "*, business:local_businesses(id,name,logo_url,brand_color,slug,is_verified)";
 
 /* ── Jobs: reads ─────────────────────────────────────────────────────────── */
 
@@ -262,6 +262,21 @@ export function formatDuration(startAt: string, endAt: string): string {
   if (hrs < 1) return `${Math.round(hrs * 60)} mins`;
   if (hrs === 1) return "1 hr";
   return Number.isInteger(hrs) ? `${hrs} hrs` : `${hrs.toFixed(1)} hrs`;
+}
+
+/**
+ * Hours the worker actually clocked (check-in → check-out). Falls back to the
+ * scheduled shift length when the times aren't recorded (e.g. the employer
+ * marked complete without the worker clocking in). `actual` says which it is.
+ */
+export function hoursWorked(
+  a: { checked_in_at: string | null; checked_out_at: string | null },
+  startAt: string, endAt: string,
+): { label: string; actual: boolean } {
+  if (a.checked_in_at && a.checked_out_at && new Date(a.checked_out_at) > new Date(a.checked_in_at)) {
+    return { label: formatDuration(a.checked_in_at, a.checked_out_at), actual: true };
+  }
+  return { label: formatDuration(startAt, endAt), actual: false };
 }
 
 export function formatShiftDate(startAt: string): string {

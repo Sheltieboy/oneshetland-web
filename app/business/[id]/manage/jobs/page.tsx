@@ -5,7 +5,7 @@ import { JOBS } from "@/components/jobs/JobsUI";
 import { BusinessJobsManager } from "@/components/jobs/BusinessJobsManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Jobs · OneShetland" };
+export const metadata = { title: "Jobs" };
 
 export default async function BusinessJobsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

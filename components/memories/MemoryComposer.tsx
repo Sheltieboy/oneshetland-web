@@ -7,7 +7,21 @@ import { MemoryMap } from "@/components/memories/MemoryMap";
 import { VoiceRecorder } from "@/components/memories/VoiceRecorder";
 import { MEMORY_CATEGORIES, ERA_SUGGESTIONS, MEMORIES, type Visibility, type MediaKind } from "@/lib/memories-data";
 
-type Draft = { kind: MediaKind; file: Blob; name: string; durationSec?: number; preview: string };
+type Draft = { kind: MediaKind; file: Blob; name: string; durationSec?: number; mimeType?: string; preview: string };
+
+/** Map a MediaRecorder mime type to the file extension Whisper expects.
+ *  Browsers differ: Chrome/Firefox record webm, Safari records mp4. Naming the
+ *  file wrongly (e.g. always ".webm") makes the transcribe-audio edge function
+ *  hand Whisper a mislabelled file, which it rejects — so derive from the real type. */
+function audioExt(mime?: string): string {
+  const m = (mime || "").toLowerCase();
+  if (m.includes("webm")) return "webm";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("wav")) return "wav";
+  if (m.includes("mpeg") || m.includes("mp3")) return "mp3";
+  if (m.includes("mp4") || m.includes("m4a") || m.includes("aac") || m.includes("x-m4a")) return "m4a";
+  return "webm";
+}
 export type EditableMemory = {
   id: string; title: string | null; body: string | null; place_name: string | null;
   era: string | null; tags: string[] | null; visibility: Visibility; lat: number | null; lng: number | null;
@@ -72,7 +86,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
 
       for (let i = 0; i < drafts.length; i++) {
         const d = drafts[i];
-        const ext = d.kind === "audio" ? "webm" : (d.name.split(".").pop()?.toLowerCase() || (d.kind === "video" ? "mp4" : "jpg"));
+        const ext = d.kind === "audio" ? audioExt(d.mimeType || d.file.type) : (d.name.split(".").pop()?.toLowerCase() || (d.kind === "video" ? "mp4" : "jpg"));
         const path = `${memoryId}/${d.kind}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await sb.storage.from("memories-media").upload(path, d.file, { upsert: true, contentType: d.file.type || undefined });
         if (upErr) throw upErr;
@@ -133,7 +147,7 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
         </p>
         {Voice && (
           <div className="mt-3">
-            <VoiceRecorder onRecorded={(blob, dur) => { setDrafts((d) => [...d, { kind: "audio", file: blob, name: "voice.webm", durationSec: dur, preview: URL.createObjectURL(blob) }]); setVoice(false); }} />
+            <VoiceRecorder onRecorded={(blob, dur, mimeType) => { setDrafts((d) => [...d, { kind: "audio", file: blob, name: `voice.${audioExt(mimeType)}`, durationSec: dur, mimeType, preview: URL.createObjectURL(blob) }]); setVoice(false); }} />
           </div>
         )}
         {drafts.length > 0 && (

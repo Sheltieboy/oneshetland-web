@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { FETCH } from "@/lib/fetch-data";
 
-export const metadata = { title: "How Fetch works · OneShetland" };
+export const metadata = { title: "How Fetch works" };
 
 const CATEGORIES = [
   { icon: "🍕", label: "Takeaway" },

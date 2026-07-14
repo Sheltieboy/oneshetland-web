@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const m = await getMemoryDetail(id);
-  return { title: m ? `${m.title || m.place_name || "A story"} · Auld Stories` : "Auld Stories" };
+  return { title: m ? `${m.title || m.place_name || "A story"} · Aald Stories` : "Aald Stories" };
 }
 
 export default async function MemoryDetail({ params }: { params: Promise<{ id: string }> }) {
@@ -31,7 +31,7 @@ export default async function MemoryDetail({ params }: { params: Promise<{ id: s
         <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${MEMORIES}f2, ${MEMORIES}aa 55%, ${MEMORIES}55)` }} />
         <div className="relative mx-auto max-w-3xl px-5 py-12 sm:py-14">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/memories" className="text-sm font-semibold text-paper/85 hover:text-paper">← Auld Stories</Link>
+            <Link href="/memories" className="text-sm font-semibold text-paper/85 hover:text-paper">← Aald Stories</Link>
             {account?.id === memory.author_id && (
               <Link href={`/memories/${id}/edit`} className="rounded-pill bg-paper/20 px-4 py-1.5 text-sm font-semibold text-paper backdrop-blur hover:bg-paper/30">Edit</Link>
             )}

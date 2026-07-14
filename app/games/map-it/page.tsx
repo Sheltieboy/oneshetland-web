@@ -3,7 +3,7 @@ import { getAccount } from "@/lib/auth";
 import { MapIt } from "@/components/games/MapIt";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Map It · OneShetland Games" };
+export const metadata = { title: "Map It · Games" };
 
 export default async function Page() {
   const account = await getAccount();

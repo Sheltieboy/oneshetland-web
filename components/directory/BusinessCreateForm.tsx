@@ -55,7 +55,8 @@ export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
         website: website.trim() || null,
         // `local_businesses` has no locality column — keep the area inside the
         // address text so it stays searchable by the directory area filter.
-        address: [address.trim(), locality.trim()].filter(Boolean).join(", ") || null,
+        // address is NOT NULL, so fall back to "Shetland" when both are blank.
+        address: [address.trim(), locality.trim()].filter(Boolean).join(", ") || "Shetland",
         is_active: true,
         is_claimed: true,
         source: "owner",
@@ -64,7 +65,11 @@ export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
       if (dbErr) throw dbErr;
       router.push(`/directory/${data.slug ?? data.id}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create listing.");
+      // Supabase PostgrestError isn't an Error instance — surface its real
+      // message/details so the actual reason shows instead of a generic string.
+      const err = e as { message?: string; details?: string; hint?: string; code?: string } | null;
+      console.error("[directory] create listing failed:", err);
+      setError(err?.message || err?.details || err?.hint || "Could not create listing.");
       setBusy(false);
     }
   }

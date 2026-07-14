@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { GiftsClient } from "./GiftsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Gifts received · OneShetland" };
+export const metadata = { title: "Gifts received" };
 
 export default async function GiftsPage() {
   const account = await getAccount();

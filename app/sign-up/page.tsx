@@ -146,8 +146,8 @@ function SignUpInner() {
 
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-          <button type="submit" disabled={busy}
-            className="w-full rounded-pill bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:opacity-50">
+          <button type="submit" disabled={busy || !agree}
+            className="w-full rounded-pill bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:cursor-not-allowed disabled:opacity-50">
             {busy ? "Creating account…" : "Create account"}
           </button>
         </form>

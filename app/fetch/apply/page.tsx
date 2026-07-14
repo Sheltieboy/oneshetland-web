@@ -5,7 +5,7 @@ import { FETCH } from "@/lib/fetch-data";
 import { ApplyDriverForm } from "@/components/fetch/ApplyDriverForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Apply to drive · Fetch · OneShetland" };
+export const metadata = { title: "Apply to drive · Fetch" };
 
 export default async function ApplyDriverPage() {
   const account = await getAccount();

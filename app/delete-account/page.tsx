@@ -1,21 +1,20 @@
 import { LegalLayout, L } from "@/components/site/LegalLayout";
+import { getAccount } from "@/lib/auth";
+import { DeleteAccountForm } from "@/components/account/DeleteAccountForm";
 
-export const metadata = { title: "Delete your account · OneShetland" };
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Delete your account" };
 
-export default function DeleteAccountPage() {
+export default async function DeleteAccountPage() {
+  const account = await getAccount();
   return (
-    <LegalLayout title="Delete your account" updated="June 2026">
-      <p>You can delete your OneShetland account and personal data at any time. This page explains how to do it, what we remove, and what we have to keep. It applies to both the OneShetland app and website — you have one account across both.</p>
+    <LegalLayout title="Delete your account" updated="July 2026">
+      <p>You can delete your OneShetland account and personal data at any time — right here on the web, or from inside the app. This page explains how, what we remove, and what we have to keep. You have one account across the app and website.</p>
 
-      <L h="Delete from inside the app (quickest)">
-        <p>The fastest way is from within the OneShetland app:</p>
-        <ol className="ml-5 list-decimal space-y-1">
-          <li>Open the OneShetland app and sign in.</li>
-          <li>Go to <span className="font-semibold text-ink">Account</span>.</li>
-          <li>Tap <span className="font-semibold text-ink">Delete account</span>.</li>
-          <li>Confirm when prompted.</li>
-        </ol>
-        <p>Your account and personal data are deleted straight away, subject to the limited records we&rsquo;re required to keep (see below). This action can&rsquo;t be undone.</p>
+      <L h="Delete your account now">
+        <p>Signed in? You can delete your account straight from this page:</p>
+        <div className="not-prose my-4"><DeleteAccountForm isLoggedIn={!!account} /></div>
+        <p>Your account and personal data are deleted straight away, subject to the limited records we&rsquo;re required to keep (see below). This action can&rsquo;t be undone. You can also do this from the app under <span className="font-semibold text-ink">Account → Delete account</span>.</p>
       </L>
 
       <L h="What we delete">

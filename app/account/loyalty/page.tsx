@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { LoyaltyClient } from "./LoyaltyClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Loyalty cards · OneShetland" };
+export const metadata = { title: "Loyalty cards" };
 
 export default async function LoyaltyPage() {
   const account = await getAccount();

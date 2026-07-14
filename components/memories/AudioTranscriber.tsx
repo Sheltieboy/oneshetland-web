@@ -36,26 +36,32 @@ export function AudioTranscriber({ mediaId, url, durationSeconds, initialStatus,
     } finally { setBusy(false); }
   }
 
-  // Auto-transcribe once if it hasn't been done yet.
+  // Auto-transcribe once on mount unless we already have a transcript. Covers
+  // 'pending' (never ran), 'failed' (retry), and stray 'done'-with-empty rows.
   useEffect(() => {
     if (tried.current) return;
     tried.current = true;
-    if (status !== "done" && !transcript) void run();
+    if (!transcript) void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const hasTranscript = status === "done" && !!transcript;
 
   return (
     <div className="p-4">
       <p className="mb-2 text-sm font-semibold text-ink">🎙 Voice note{durationSeconds ? ` · ${durationSeconds}s` : ""}</p>
       <audio src={url} controls className="w-full" />
-      {status === "done" && transcript && (
+      {hasTranscript && (
         <p className="mt-3 border-l-4 pl-3 text-sm italic text-ink-soft" style={{ borderColor: MEMORIES }}>“{transcript}”</p>
       )}
       {busy && <p className="mt-2 text-sm text-ink-faint">Transcribing… this takes a few seconds.</p>}
-      {!busy && status === "failed" && (
+      {/* Always give a visible state + action when there's no transcript yet. */}
+      {!busy && !hasTranscript && (
         <div className="mt-2">
-          <p className="text-sm text-ink-faint">{error || "Transcription unavailable."}</p>
-          <button onClick={run} className="mt-1 rounded-pill border border-line-strong px-3 py-1 text-xs font-semibold text-ink hover:bg-sand">Try transcribing again</button>
+          <p className="text-sm text-ink-faint">{error || "No transcript yet."}</p>
+          <button onClick={run} className="mt-1 rounded-pill border border-line-strong px-3 py-1 text-xs font-semibold text-ink hover:bg-sand">
+            {status === "failed" || error ? "Try transcribing again" : "Transcribe voice note"}
+          </button>
         </div>
       )}
     </div>

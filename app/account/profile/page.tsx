@@ -2,7 +2,7 @@ import { getAccount } from "@/lib/auth";
 import { ProfileEditForm } from "@/components/account/ProfileEditForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Edit profile · OneShetland" };
+export const metadata = { title: "Edit profile" };
 
 export default async function Page() {
   const account = (await getAccount())!;

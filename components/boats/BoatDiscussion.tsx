@@ -26,6 +26,8 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [posted, setPosted] = useState(false);
+  const [extra, setExtra] = useState<VesselComment[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   async function post() {
@@ -75,9 +77,27 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
         } catch (e) { console.warn("[boats] gallery photo submission failed (comment still posted):", e); }
       }
 
+      // Optimistically show the new top-level comment straight away (the server
+      // refresh will reconcile it by id).
+      if (cRow?.id && !replyTo) {
+        setExtra((prev) => [...prev, {
+          id: cRow.id, vessel_id: vesselId, author_id: userId, parent_comment_id: null,
+          subject_type: subject, body: body.trim(), is_hidden: false, edited_at: null,
+          created_at: new Date().toISOString(),
+          author: { id: userId, full_name: "You", display_name: "You", avatar_url: null },
+          replies: [],
+        } as unknown as VesselComment]);
+      }
       setBody(""); setFile(null); setReplyTo(null); setSubject("general"); setPhotoOfBoat(false);
+      setPosted(true); setTimeout(() => setPosted(false), 4000);
       router.refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not post."); }
+    } catch (e) {
+      // Supabase PostgrestError isn't an Error instance — read its message/details
+      // directly so the real reason surfaces instead of a generic "Could not post."
+      const err = e as { message?: string; details?: string; hint?: string; code?: string } | null;
+      console.error("[boats] comment post failed:", err);
+      setError(err?.message || err?.details || err?.hint || "Could not post.");
+    }
     finally { setBusy(false); }
   }
 
@@ -146,6 +166,10 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
     </div>
   );
 
+  // Merge in any just-posted comments optimistically (deduped once the server
+  // refresh brings them back), so a new post shows immediately.
+  const shown = [...comments, ...extra.filter((e) => !comments.some((c) => c.id === e.id))];
+
   return (
     <section className="rounded-card border border-line bg-paper p-6 shadow-soft">
       <h3 className="font-display text-xl font-bold text-ink">Discussion</h3>
@@ -171,6 +195,7 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
             </label>
           )}
           {error && <p className="mt-1 text-sm text-rose-600">{error}</p>}
+          {posted && <p className="mt-1 text-sm font-semibold" style={{ color: BOATS }}>✓ Posted — your comment is now in the discussion.</p>}
           <div className="mt-2 flex items-center gap-2">
             <button onClick={() => fileRef.current?.click()} className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink hover:bg-sand" aria-label="Attach a photo"><span aria-hidden="true">📷</span> Photo</button>
             <input ref={fileRef} type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="hidden" />
@@ -183,7 +208,7 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
 
       {/* Thread */}
       <div className="mt-5 space-y-1">
-        {comments.length === 0 ? <p className="py-4 text-sm text-ink-muted">No comments yet — be the first.</p> : comments.map((c) => <Node key={c.id} c={c} />)}
+        {shown.length === 0 ? <p className="py-4 text-sm text-ink-muted">No comments yet — be the first.</p> : shown.map((c) => <Node key={c.id} c={c} />)}
       </div>
     </section>
   );

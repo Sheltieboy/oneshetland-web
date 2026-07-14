@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const j = await getJob(id);
-  return { title: j ? `${j.title} · Jobs · OneShetland` : "Job" };
+  return { title: j ? `${j.title} · Jobs` : "Job" };
 }
 
 export default async function JobDetailPage({ params }: { params: Promise<{ id: string }> }) {

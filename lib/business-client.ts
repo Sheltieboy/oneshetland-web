@@ -30,6 +30,43 @@ export async function updateBusiness(id: string, patch: Partial<ManagedBusiness>
   if (error) throw error;
 }
 
+/**
+ * Upload a business logo/cover to the public `business-media` bucket and return
+ * the public URL. Mirrors the app's lib/image-upload.ts contract (migration 037):
+ * bucket `business-media`, path `<business_id>/<kind>/<uuid>.<ext>`, public-read /
+ * owner-write via RLS. Same bucket + path shape the mobile app writes, so both
+ * platforms share the same files. Save the returned URL onto
+ * local_businesses.logo_url / cover_url.
+ */
+export async function uploadBusinessMedia(businessId: string, kind: "logo" | "cover", file: File): Promise<string> {
+  const sb = createClient();
+  // Direct REST POST with explicit apikey + bearer — the supabase-js storage
+  // client can stall / fall back to anon (RLS then rejects). Mirrors the app's
+  // proven upload path (lib/image-upload.ts).
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error("Please sign in.");
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const uuid = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  const path = `${businessId}/${kind}/${uuid}.${ext}`;
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/business-media/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${session.access_token}`,
+      "x-upsert": "true",
+    },
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Image upload failed (${res.status}): ${text.slice(0, 160)}`);
+  }
+  const { data } = sb.storage.from("business-media").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export async function toggleAddon(businessId: string, key: AddonKey, enabled: boolean): Promise<void> {
   const sb = createClient();
   const { error } = await sb.from("business_addons").update({ enabled }).eq("business_id", businessId).eq("addon_key", key);

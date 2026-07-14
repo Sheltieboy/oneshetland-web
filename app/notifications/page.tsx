@@ -3,7 +3,7 @@ import { getAccount } from "@/lib/auth";
 import { NotificationInbox } from "@/components/notifications/NotificationInbox";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Notifications · OneShetland" };
+export const metadata = { title: "Notifications" };
 
 export default async function Page() {
   const account = await getAccount();

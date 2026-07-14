@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   getEvent,
+  getEventSocialStats,
+  computeScarcity,
   fmtLongDateTime,
   fmtTime,
   ticketTypeOnSale,
@@ -11,8 +13,13 @@ import {
   type TicketType,
   type EventUpdate,
 } from "@/lib/events-data";
+import { getEventConditions, LERWICK_COORDS } from "@/lib/shetland-today";
+import { detectEventArea, detectEventStop, defaultStopForArea } from "@/lib/transit-data";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { ScarcityStrip, GoingCount, GettingTherePanel } from "@/components/events/EventInsights";
+import { TravelPlanner } from "@/components/events/TravelPlanner";
 import { getAccount } from "@/lib/auth";
+import { canScanEvent } from "@/lib/events-server";
 import { TicketButton } from "@/components/events/TicketModal";
 import { ShareButton } from "@/components/events/ShareButton";
 import { TrackView } from "@/components/analytics/TrackView";
@@ -37,11 +44,27 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const [e, account] = await Promise.all([getEvent(id), getAccount()]);
   if (!e) notFound();
 
-  const organiser = e.hub ?? e.business ?? null;
-
   const isCancelled = e.status === "cancelled";
   const isPostponed = e.status === "postponed";
+  const isLive = !isCancelled && !isPostponed;
+
+  const coords = e.lat != null && e.lng != null ? { lat: e.lat, lng: e.lng } : LERWICK_COORDS;
+  const [canScan, social, conditions] = await Promise.all([
+    account ? canScanEvent(id) : Promise.resolve(false),
+    isLive ? getEventSocialStats(id) : Promise.resolve({ goingCount: 0, bookedRecent: 0 }),
+    isLive ? getEventConditions(coords, e.starts_at) : Promise.resolve(null),
+  ]);
+
+  const organiser = e.hub ?? e.business ?? null;
   const urgentUpdate = e.updates.find((u) => u.is_urgent);
+  const scarcity = computeScarcity(e.ticket_types);
+  // Journey-home is anchored on the event's own area (from Lerwick out to the
+  // isles for a hub event; in to Lerwick for an outer event).
+  const eventArea = detectEventArea(e.locality, e.venue, e.lat, e.lng);
+  const eventStop = detectEventStop(e.locality, e.venue, eventArea);
+  // Default the planner's "my stop" to the user's profile home area, else Lerwick.
+  const homeArea = detectEventArea(account?.profile?.location_area, null, null, null);
+  const homeDefaultStop = defaultStopForArea(homeArea);
 
   const mapHref = e.formatted_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -90,6 +113,18 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </div>
       </section>
 
+      {/* Organiser check-in (only shown to whoever can scan this event) */}
+      {canScan && (
+        <div className="border-b border-line bg-navy/[0.04]">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3">
+            <p className="text-sm font-semibold text-ink">You&apos;re organising this event.</p>
+            <Link href={`/whats-on/${e.id}/check-in`} className="rounded-pill bg-navy px-4 py-2 text-sm font-bold text-paper transition hover:bg-navy-dark">
+              Check in attendees →
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Status / urgent banners */}
       {(isCancelled || isPostponed || urgentUpdate) && (
         <div className="mx-auto max-w-5xl px-5 pt-6">
@@ -118,6 +153,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       <div className="mx-auto grid max-w-5xl gap-10 px-5 py-12 lg:grid-cols-[1.6fr_1fr] lg:py-16">
         {/* Main */}
         <div>
+          {isLive && social.goingCount >= 3 ? (
+            <div className="mb-6">
+              <GoingCount count={social.goingCount} />
+            </div>
+          ) : null}
+
           {e.description ? (
             <div>
               <h2 className="font-display text-2xl font-bold">About this event</h2>
@@ -149,6 +190,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {e.age_restriction ? <InfoCard label="Age">{e.age_restriction}</InfoCard> : null}
             {e.accessibility_info ? <InfoCard label="Accessibility">{e.accessibility_info}</InfoCard> : null}
           </div>
+
+          {/* Getting there — Shetland context (ferry, weather, daylight) */}
+          {isLive && conditions ? (
+            <GettingTherePanel conditions={conditions} eventTime={fmtTime(e.starts_at)} />
+          ) : null}
+          {isLive && eventArea ? (
+            <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={e.starts_at} endsAt={e.ends_at} defaultStop={homeDefaultStop} />
+          ) : null}
 
           {/* Photo gallery */}
           {e.gallery_urls?.length ? (
@@ -199,6 +248,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           {(e.has_tickets || e.ticket_types.length > 0 || e.price_text) && !isCancelled && (
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
               <h3 className="font-display text-xl font-bold">Tickets</h3>
+              <div className="mt-4 empty:hidden">
+                <ScarcityStrip scarcity={scarcity} bookedRecent={social.bookedRecent} />
+              </div>
               {e.ticket_types.length > 0 ? (
                 <ul className="mt-4 space-y-3">
                   {e.ticket_types.map((t) => (

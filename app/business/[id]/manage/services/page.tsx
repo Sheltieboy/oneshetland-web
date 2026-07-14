@@ -5,7 +5,7 @@ import { tierMeets } from "@/lib/business-data";
 import { ServicesManager } from "@/components/business/ServicesManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Services · OneShetland" };
+export const metadata = { title: "Services" };
 
 export default async function ServicesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

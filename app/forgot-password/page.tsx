@@ -15,14 +15,16 @@ export default function ForgotPasswordPage() {
     setError(null);
     setBusy(true);
     const sb = createClient();
-    const { error } = await sb.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
-    });
+    // Use our own edge function so the reset email is a branded OneShetland email
+    // (via Postmark), not Supabase Auth's default unbranded one. It always
+    // succeeds and never reveals whether the account exists.
+    await sb.functions.invoke("request-password-reset", {
+      body: {
+        email: email.trim().toLowerCase(),
+        redirect_to: `${window.location.origin}/auth/callback?next=/reset-password`,
+      },
+    }).catch(() => {});
     setBusy(false);
-    if (error) {
-      setError(error.message);
-      return;
-    }
     setSent(true);
   }
 

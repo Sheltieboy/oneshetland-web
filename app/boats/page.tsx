@@ -7,7 +7,7 @@ import { BoatBuildMap } from "@/components/boats/BoatBuildMap";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Da Boats · OneShetland", description: "The Shetland fishing fleet, past and present — names, numbers, builders and the folk who knew them." };
+export const metadata = { title: "Da Boats", description: "The Shetland fishing fleet, past and present — names, numbers, builders and the folk who knew them." };
 
 const DECADES = ["1900s", "1910s", "1920s", "1930s", "1940s", "1950s", "1960s", "1970s", "1980s", "1990s", "2000s", "2010s", "2020s"];
 

@@ -3,7 +3,7 @@ import { getAccount } from "@/lib/auth";
 import { GuessDaWird } from "@/components/games/GuessDaWird";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Guess da Wird · OneShetland Games" };
+export const metadata = { title: "Guess da Wird · Games" };
 
 export default async function Page() {
   const account = await getAccount();

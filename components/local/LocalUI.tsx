@@ -54,7 +54,7 @@ export function BusinessCard({ b }: { b: Business }) {
             <img
               src={b.logo_url}
               alt=""
-              className="absolute -top-7 left-4 h-12 w-12 rounded-xl border-2 border-paper bg-paper object-cover shadow-sm"
+              className="absolute -top-7 left-4 h-12 w-12 rounded-xl border-2 border-paper bg-paper object-contain p-1 shadow-sm"
             />
           )}
           <div className={b.logo_url ? "mt-6" : ""}>

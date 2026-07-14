@@ -328,6 +328,53 @@ export async function getHubCampaigns(hubId: string, includeClosed = true): Prom
   }
 }
 
+/** A campaign with its owning hub's identity, for the cross-hub fundraising listing. */
+export type CampaignWithHub = HubCampaign & {
+  hub_name: string;
+  hub_slug: string | null;
+  hub_logo: string | null;
+  hub_color: string | null;
+  hub_is_charity: boolean;
+};
+
+/** Every active campaign across all hubs, newest first — powers /hubs/campaigns. */
+export async function getActiveCampaigns(limit = 60): Promise<CampaignWithHub[]> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("hub_campaigns")
+      .select(
+        "id, hub_id, title, story, goal_pence, raised_pence, donor_count, cover_url, status, ends_at, created_at, hub:hubs ( name, slug, logo_url, brand_color, is_charity )",
+      )
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    return ((data ?? []) as Record<string, unknown>[]).map((r) => {
+      const hub = r.hub as { name?: string; slug?: string; logo_url?: string; brand_color?: string; is_charity?: boolean } | null;
+      return {
+        id: r.id as string,
+        hub_id: r.hub_id as string,
+        title: r.title as string,
+        story: (r.story as string) ?? null,
+        goal_pence: (r.goal_pence as number) ?? 0,
+        raised_pence: (r.raised_pence as number) ?? 0,
+        donor_count: (r.donor_count as number) ?? 0,
+        cover_url: (r.cover_url as string) ?? null,
+        status: (r.status as "active" | "closed") ?? "active",
+        ends_at: (r.ends_at as string) ?? null,
+        created_at: r.created_at as string,
+        hub_name: hub?.name ?? "Community hub",
+        hub_slug: hub?.slug ?? null,
+        hub_logo: hub?.logo_url ?? null,
+        hub_color: hub?.brand_color ?? null,
+        hub_is_charity: hub?.is_charity ?? false,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /** The most recent active campaign for a hub, or null. */
 export async function getActiveCampaign(hubId: string): Promise<HubCampaign | null> {
   const list = await getHubCampaigns(hubId, false);

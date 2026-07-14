@@ -5,7 +5,7 @@ import { ShiftPostForm } from "@/components/jobs/ShiftPostForm";
 import { SHIFTS } from "@/components/jobs/JobsUI";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Post a shift · OneShetland" };
+export const metadata = { title: "Post a shift" };
 
 export default async function NewShiftPage() {
   const account = await getAccount();

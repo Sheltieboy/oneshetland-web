@@ -57,7 +57,7 @@ export function ConnectPayoutsButton({ accent = "#032f4c", connected, pending }:
   if (connected) {
     return (
       <div className="space-y-2">
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><span>✓</span><span>Bank connected — payouts active. You keep the delivery fee, less a small £1.50 service fee per delivery.</span></div>
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><span>✓</span><span>Bank connected — payouts active. You keep 100% of the delivery fee; the customer pays a £1.50 OneShetland service fee on top.</span></div>
         <button onClick={connect} disabled={busy} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50">{busy ? "Opening Stripe…" : "Open Stripe dashboard"}</button>
       </div>
     );

@@ -5,7 +5,7 @@ import { JOBS, EmptyState } from "@/components/jobs/JobsUI";
 import { JobApplicationRow } from "@/components/jobs/JobApplicationRow";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My job applications · OneShetland" };
+export const metadata = { title: "My job applications" };
 
 export default async function MyJobApplicationsPage() {
   const account = await getAccount();
@@ -13,7 +13,7 @@ export default async function MyJobApplicationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-      <Link href="/jobs" className="text-sm font-semibold text-ink-soft hover:text-ink">← Work</Link>
+      <Link href="/work" className="text-sm font-semibold text-ink-soft hover:text-ink">← My work</Link>
       <h1 className="mt-4 font-display text-4xl font-bold">My job applications</h1>
       <p className="mt-2 text-ink-soft">Track where each application is in the employer's pipeline.</p>
 

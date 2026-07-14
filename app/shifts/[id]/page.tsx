@@ -6,9 +6,10 @@ import {
   formatPay, formatDuration, formatShiftDate, shiftDisplayBusiness,
   URGENCY_CONFIG, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
-import { getMyShiftApplication } from "@/lib/jobs-data.server";
+import { getMyShiftApplication, getShiftManageApplications, getShiftForViewer } from "@/lib/jobs-data.server";
 import { SHIFTS } from "@/components/jobs/JobsUI";
 import { ShiftApplyPanel } from "@/components/jobs/ShiftApplyPanel";
+import { ShiftOwnerHub } from "@/components/jobs/ShiftOwnerHub";
 import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
@@ -16,20 +17,23 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const s = await getShift(id);
-  return { title: s ? `${s.title} · Shifts · OneShetland` : "Shift" };
+  return { title: s ? `${s.title} · Shifts` : "Shift" };
 }
 
 export default async function ShiftDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const shift = await getShift(id);
+  // Owner-aware read: the owner can still view their shift after cancelling
+  // (the anon getShift() would 404 on a cancelled shift).
+  const shift = await getShiftForViewer(id);
   if (!shift) notFound();
 
   const account = await getAccount();
-  const application = account ? await getMyShiftApplication(id, account.id) : null;
+  const isOwner = !!account && shift.employer_id === account.id;
+  const application = account && !isOwner ? await getMyShiftApplication(id, account.id) : null;
+  const ownerApps = isOwner ? await getShiftManageApplications(id) : [];
 
   const biz = shiftDisplayBusiness(shift);
   const urg = URGENCY_CONFIG[shift.urgency];
-  const isOwner = !!account && shift.employer_id === account.id;
   const spotsLeft = Math.max(0, shift.positions_total - shift.positions_filled);
 
   const facts = [
@@ -63,7 +67,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
         </div>
       </section>
 
-      <div className="mx-auto grid max-w-4xl gap-8 px-5 py-10 sm:py-12 lg:grid-cols-[1fr_300px]">
+      <div className={`mx-auto grid max-w-4xl gap-8 px-5 py-10 sm:py-12${isOwner ? "" : " lg:grid-cols-[1fr_300px]"}`}>
         <div className="space-y-8">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {facts.map((f) => (
@@ -91,28 +95,45 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
               </div>
             </section>
           )}
+
+          {isOwner && (
+            <ShiftOwnerHub
+              shift={{
+                id: shift.id, title: shift.title, status: shift.status,
+                positions_filled: shift.positions_filled, positions_total: shift.positions_total,
+                start_at: shift.start_at, end_at: shift.end_at, posted_as_business_id: shift.posted_as_business_id,
+                boosted_until: shift.boosted_until,
+              }}
+              applications={ownerApps.map((a) => ({
+                id: a.id, worker_id: a.worker_id, status: a.status, message: a.message,
+                check_in_status: a.check_in_status, checked_in_at: a.checked_in_at,
+                checked_out_at: a.checked_out_at, employer_confirmed_at: a.employer_confirmed_at,
+                workerName: a.worker?.display_name || a.worker?.full_name || "Applicant",
+                workerArea: a.worker?.location_area ?? null, memberSince: a.worker?.created_at ?? null,
+                bio: a.workerProfile?.bio ?? null, skills: a.workerProfile?.skills ?? null,
+                experience: a.workerProfile?.experience_summary ?? null,
+                rateMin: a.workerProfile?.hourly_rate_min ?? null, rateMax: a.workerProfile?.hourly_rate_max ?? null,
+                qualifications: a.workerProfile?.qualifications ?? null,
+              }))}
+            />
+          )}
         </div>
 
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          {isOwner ? (
-            <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
-              <p className="font-display font-bold text-ink">You posted this shift</p>
-              <Link href="/shifts/manage" className="mt-3 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: SHIFTS }}>
-                Manage shifts & applicants →
-              </Link>
-            </div>
-          ) : (
+        {!isOwner && (
+          <aside className="lg:sticky lg:top-24 lg:self-start">
             <ShiftApplyPanel
               shiftId={shift.id}
               isLoggedIn={!!account}
               startAt={shift.start_at}
+              endAt={shift.end_at}
               isFull={spotsLeft === 0}
               application={application ? {
                 id: application.id, status: application.status, check_in_status: application.check_in_status,
+                checked_in_at: application.checked_in_at, checked_out_at: application.checked_out_at,
               } : null}
             />
-          )}
-        </aside>
+          </aside>
+        )}
       </div>
     </>
   );

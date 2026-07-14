@@ -377,10 +377,29 @@ export async function updateHub(id: string, patch: Partial<HubInput>): Promise<v
 /** Upload a hub logo/cover to the public `hub-media` bucket. Returns the public URL. */
 export async function uploadHubMedia(hubId: string, kind: "logo" | "cover", file: File): Promise<string> {
   const sb = createClient();
+  // Upload via a direct REST POST with explicit apikey + bearer token — the
+  // supabase-js storage client can stall/fall back to anon (RLS then rejects the
+  // write), which was hanging the hub-create save. This mirrors the app's proven
+  // upload path in lib/image-upload.ts.
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error("Please sign in.");
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `${hubId}/${kind}/${Date.now()}.${ext}`;
-  const { error } = await sb.storage.from("hub-media").upload(path, file, { upsert: true, contentType: file.type });
-  if (error) throw error;
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/hub-media/${path}`, {
+    method: "POST",
+    headers: {
+      apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      Authorization: `Bearer ${session.access_token}`,
+      "x-upsert": "true",
+    },
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Image upload failed (${res.status}): ${text.slice(0, 160)}`);
+  }
   const { data } = sb.storage.from("hub-media").getPublicUrl(path);
   return data.publicUrl;
 }

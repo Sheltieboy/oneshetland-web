@@ -6,7 +6,7 @@ import { EmployerProfileForm } from "@/components/jobs/EmployerProfileForm";
 import { SHIFTS } from "@/components/jobs/JobsUI";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Business profile · OneShetland" };
+export const metadata = { title: "Business profile" };
 
 export default async function EmployerProfilePage() {
   const account = await getAccount();
@@ -16,7 +16,7 @@ export default async function EmployerProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href="/shifts/manage" className="text-sm font-semibold text-ink-soft hover:text-ink">← Manage shifts</Link>
+      <Link href="/work" className="text-sm font-semibold text-ink-soft hover:text-ink">← My work</Link>
       <div className="mt-6">
         <p className="text-xs font-bold uppercase tracking-widest" style={{ color: SHIFTS }}>OneShetland · Shifts</p>
         <h1 className="mt-1 font-display text-4xl font-bold">Business profile</h1>

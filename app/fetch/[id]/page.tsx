@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import {
-  FETCH, penceToGBP, getCategoryName, fmtDateTime, fmtTimeRange,
+  FETCH, penceToGBP, getCategoryName, fmtDateTime, fmtTimeRange, SERVICE_FEE_PENCE,
   type RequestStatus,
 } from "@/lib/fetch-data";
 import {
@@ -43,7 +43,11 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
   const isDelivered = req.status === "delivered";
   const baseFee = req.base_fee_pence;
   const waitFee = req.waiting_fee_pence ?? 0;
-  const totalFee = req.total_fee_pence ?? (baseFee ?? 0) + waitFee;
+  // The £1.50 service fee sits ON TOP of the driver's fee and must be shown all
+  // the way through — leaving it out here and only in the captured total is what
+  // made the price appear to jump on delivery.
+  const serviceFee = baseFee != null ? SERVICE_FEE_PENCE : 0;
+  const totalFee = req.total_fee_pence ?? (baseFee ?? 0) + serviceFee + waitFee;
 
   return (
     <>
@@ -102,7 +106,8 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
           <div className={"rounded-card border p-4 " + (isDelivered ? "border-green-300 bg-green-50" : "border-line bg-paper shadow-soft")}>
             <p className="text-xs font-bold uppercase tracking-widest text-ink-muted">{isDelivered ? "Payment charged" : "Payment"}</p>
             <div className="mt-2 space-y-1.5 text-sm">
-              <Row label="Delivery fee" value={penceToGBP(baseFee)} />
+              <Row label="Delivery fee (to your driver)" value={penceToGBP(baseFee)} />
+              <Row label="OneShetland service fee" value={penceToGBP(serviceFee)} />
               {waitFee > 0 && <Row label="Waiting fee" value={penceToGBP(waitFee)} />}
               <div className="my-1 h-px bg-line" />
               <Row label="Total" value={penceToGBP(totalFee)} bold />

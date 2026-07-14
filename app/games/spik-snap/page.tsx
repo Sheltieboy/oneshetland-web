@@ -3,7 +3,7 @@ import { getAccount } from "@/lib/auth";
 import { SpikSnap } from "@/components/games/SpikSnap";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Spik Snap · OneShetland Games" };
+export const metadata = { title: "Spik Snap · Games" };
 
 export default async function Page() {
   const account = await getAccount();

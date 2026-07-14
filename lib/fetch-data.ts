@@ -23,7 +23,20 @@ export const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => {
 
 /* ── Domain types ─────────────────────────────────────────────────────────── */
 
-export type RequestStatus = "pending" | "matched" | "collected" | "delivered" | "cancelled";
+export type RequestStatus = "pending" | "matched" | "collected" | "delivered" | "cancelled" | "expired";
+
+/** Does a driver's run cover this request? Region + category + timing (region
+ *  corridor is a future refinement; MVP matches same destination area). */
+export function runMatchesRequest(
+  run: { destination_region_id: string | null; categories_accepted: string[] | null; departure_start: string; status: string },
+  req: { destination_region_id: string | null; category_slug: string; needed_by: string | null },
+): boolean {
+  if (run.status !== "open") return false;
+  if (!run.destination_region_id || run.destination_region_id !== req.destination_region_id) return false;
+  if (!(run.categories_accepted ?? []).includes(req.category_slug)) return false;
+  if (req.needed_by && new Date(req.needed_by) < new Date(run.departure_start)) return false;
+  return true;
+}
 export type RunStatus = "open" | "full" | "completed" | "cancelled";
 export type DriverStatus = "not_applied" | "pending" | "approved" | "rejected" | "suspended";
 export type PaymentStatus = "unpaid" | "authorised" | "captured" | "refunded" | "failed";
@@ -38,11 +51,15 @@ export type DeliveryRequest = {
   pickup_notes: string | null;
   already_paid: boolean;
   ready_for_collection: boolean;
+  destination_region_id: string | null;
   destination_area: string | null;
   destination_address: string;
   contact_phone: string | null;
   delivery_notes: string | null;
   liability_acknowledged: boolean;
+  needed_by: string | null;
+  scheduling_mode: "asap" | "by" | "flexible" | null;
+  expires_at: string | null;
   status: RequestStatus;
   base_fee_pence: number | null;
   waiting_fee_pence: number | null;
@@ -54,6 +71,10 @@ export type DeliveryRequest = {
 export type Run = {
   id: string;
   driver_id: string;
+  origin_region_id: string | null;
+  destination_region_id: string | null;
+  origin_region: { name: string } | null;
+  destination_region: { name: string } | null;
   destination_area: string | null;
   departure_start: string;
   departure_end: string;
@@ -135,6 +156,7 @@ export const REQUEST_STATUS_PILL: Record<RequestStatus, Pill> = {
   collected: { label: "Out for delivery", bg: "#ECFEFF", text: "#0E7490" },
   delivered: { label: "Delivered", bg: "#DCFCE7", text: "#065F46" },
   cancelled: { label: "Cancelled", bg: "#FEE2E2", text: "#991B1B" },
+  expired: { label: "No driver found", bg: "#F1F5F9", text: "#475569" },
 };
 
 export const RUN_STATUS_PILL: Record<RunStatus, Pill> = {
@@ -202,12 +224,15 @@ export function extractPostcode(address: string): string | null {
   return m ? m[0].toUpperCase() : null;
 }
 
-/* ── Run note helpers (origin/destination are stored in notes) ────────────── */
+/* ── Run route helpers — read the region FKs, fall back to the legacy notes
+   blob for runs created before the rework. ──────────────────────────────── */
 
-export function runOrigin(run: Pick<Run, "notes">): string {
+export function runOrigin(run: { origin_region?: { name: string } | null; notes: string | null }): string {
+  if (run.origin_region?.name) return run.origin_region.name;
   return (run.notes ?? "").split("\n").find((l) => l.startsWith("Origin:"))?.replace("Origin: ", "").trim() || "Lerwick";
 }
-export function runDestination(run: Pick<Run, "notes" | "destination_area">): string {
+export function runDestination(run: { destination_region?: { name: string } | null; destination_area: string | null; notes: string | null }): string {
+  if (run.destination_region?.name) return run.destination_region.name;
   const fromNotes = (run.notes ?? "").split("\n").find((l) => l.startsWith("Destination:"))?.replace("Destination: ", "").trim();
   return fromNotes || run.destination_area || "—";
 }
@@ -246,11 +271,11 @@ export async function getLiveRuns(limit = 12): Promise<Run[]> {
   const sb = publicClient();
   return safe((async () => {
     const { data } = await sb.from("runs")
-      .select("id, driver_id, destination_area, departure_start, departure_end, categories_accepted, ferry_crossing, notes, status, created_at")
+      .select("id, driver_id, origin_region_id, destination_region_id, origin_region:origin_region_id(name), destination_region:destination_region_id(name), destination_area, departure_start, departure_end, categories_accepted, ferry_crossing, notes, status, created_at")
       .eq("status", "open")
       .gte("departure_end", new Date().toISOString())
       .order("departure_start", { ascending: true })
       .limit(limit);
-    return (data ?? []) as Run[];
+    return (data ?? []) as unknown as Run[];
   })(), []);
 }

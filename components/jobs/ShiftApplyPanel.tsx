@@ -3,15 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { hoursWorked } from "@/lib/jobs-data";
 
 const SHIFTS = "#e8a020";
 
-type App = { id: string; status: string; check_in_status: string | null } | null;
+type App = { id: string; status: string; check_in_status: string | null; checked_in_at?: string | null; checked_out_at?: string | null } | null;
 
 export function ShiftApplyPanel({
-  shiftId, isLoggedIn, startAt, isFull, application,
+  shiftId, isLoggedIn, startAt, endAt, isFull, application,
 }: {
-  shiftId: string; isLoggedIn: boolean; startAt: string; isFull: boolean; application: App;
+  shiftId: string; isLoggedIn: boolean; startAt: string; endAt: string; isFull: boolean; application: App;
 }) {
   const router = useRouter();
   const [app, setApp] = useState<App>(application);
@@ -26,7 +27,7 @@ export function ShiftApplyPanel({
     return (
       <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
         <p className="font-display font-bold text-ink">Available for this shift?</p>
-        <p className="mt-1 text-sm text-ink-soft">Sign in to register your interest.</p>
+        <p className="mt-1 text-sm text-ink-soft">Sign in to apply for this shift.</p>
         <a href={`/sign-in?next=/shifts/${shiftId}`} className="mt-4 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: SHIFTS }}>
           Sign in
         </a>
@@ -50,11 +51,14 @@ export function ShiftApplyPanel({
         .insert({ shift_id: shiftId, worker_id: user.id, message: message.trim() || null })
         .select("id, status, check_in_status").single();
       if (dbErr) throw dbErr;
+      // Notify the employer of the new application (was missing on web, so web
+      // applications reached the employer silently).
+      if (data?.id) c.functions.invoke("notify-shift-application", { body: { application_id: data.id } }).catch(() => {});
       setApp(data as App);
       setOpen(false);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not submit interest.");
+      setError(e instanceof Error ? e.message : "Could not send application.");
     } finally {
       setBusy(false);
     }
@@ -77,8 +81,11 @@ export function ShiftApplyPanel({
     setBusy(true);
     try {
       const stamp = status === "checked_in" ? { checked_in_at: new Date().toISOString() } : { checked_out_at: new Date().toISOString() };
-      await sb().from("shift_applications").update({ check_in_status: status, ...stamp }).eq("id", app.id);
-      setApp({ ...app, check_in_status: status });
+      const c = sb();
+      await c.from("shift_applications").update({ check_in_status: status, ...stamp }).eq("id", app.id);
+      // Tell the employer the worker checked in / out (was missing on web).
+      c.functions.invoke("notify-worker-checkin", { body: { application_id: app.id, event: status } }).catch(() => {});
+      setApp({ ...app, check_in_status: status, ...stamp });
       router.refresh();
     } finally { setBusy(false); }
   }
@@ -87,6 +94,9 @@ export function ShiftApplyPanel({
   if (app && app.status !== "withdrawn") {
     if (app.status === "accepted") {
       const canCheckIn = Date.now() >= new Date(startAt).getTime() - 2 * 3600_000;
+      const worked = (app.check_in_status === "checked_out" || app.check_in_status === "employer_confirmed")
+        ? hoursWorked({ checked_in_at: app.checked_in_at ?? null, checked_out_at: app.checked_out_at ?? null }, startAt, endAt)
+        : null;
       return (
         <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
           <p className="font-display font-bold" style={{ color: SHIFTS }}>✓ You're confirmed</p>
@@ -105,6 +115,7 @@ export function ShiftApplyPanel({
           ) : (
             <p className="mt-2 text-sm text-ink-soft">Check-in opens 2 hours before the shift starts.</p>
           )}
+          {worked && <p className="mt-2 text-sm font-semibold text-ink">{worked.label} worked{worked.actual ? "" : " (scheduled)"}</p>}
         </div>
       );
     }
@@ -119,10 +130,10 @@ export function ShiftApplyPanel({
     // pending
     return (
       <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
-        <p className="font-display font-bold" style={{ color: SHIFTS }}>Interest submitted</p>
+        <p className="font-display font-bold" style={{ color: SHIFTS }}>Application sent</p>
         <p className="mt-1 text-sm text-ink-soft">The employer will be in touch if you're selected.</p>
         <button onClick={withdraw} disabled={busy} className="mt-4 block w-full rounded-pill border border-line-strong px-4 py-2.5 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-40">
-          Withdraw interest
+          Withdraw application
         </button>
       </div>
     );
@@ -142,14 +153,14 @@ export function ShiftApplyPanel({
       <p className="font-display font-bold text-ink">Available for this shift?</p>
       {!open ? (
         <button onClick={() => setOpen(true)} className="mt-4 block w-full rounded-pill px-4 py-2.5 text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: SHIFTS }}>
-          Register interest
+          Apply for this shift
         </button>
       ) : (
         <div className="mt-4 space-y-3">
           <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} placeholder="Add a message (optional) — availability, relevant experience…" className="auth-input resize-none" />
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
           <button onClick={submit} disabled={busy} className="block w-full rounded-pill px-4 py-2.5 text-sm font-semibold text-paper disabled:opacity-40" style={{ background: SHIFTS }}>
-            {busy ? "Sending…" : "Submit interest"}
+            {busy ? "Sending…" : "Submit application"}
           </button>
           <button onClick={() => setOpen(false)} className="block w-full text-center text-xs font-semibold text-ink-muted hover:text-ink">Cancel</button>
         </div>

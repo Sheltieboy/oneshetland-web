@@ -5,7 +5,7 @@ import { tierMeets } from "@/lib/business-data";
 import { UnitItemsManager } from "@/components/business/UnitItemsManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Passes & packs · OneShetland" };
+export const metadata = { title: "Passes & packs" };
 
 export default async function PassesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -4,7 +4,7 @@ import { isBusinessOwner } from "@/lib/account-data.server";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My account · OneShetland" };
+export const metadata = { title: "My account" };
 
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
   const account = await getAccount();

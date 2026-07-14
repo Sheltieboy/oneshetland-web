@@ -5,7 +5,7 @@ import { fetchUserStats, fetchGameBreakdown, fetchMyRecentScores } from "@/lib/g
 import { GameArt } from "@/components/games/GameArt";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My game stats · OneShetland" };
+export const metadata = { title: "My game stats" };
 
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();

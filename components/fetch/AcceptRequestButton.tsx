@@ -8,10 +8,12 @@ import { FETCH, runDestination, fmtDateTime, type Run } from "@/lib/fetch-data";
 /** Driver "Accept this request" — mirrors the app: create a run if none, pick
  *  one if several, then match + pre-authorise the customer's card. */
 export function AcceptRequestButton({
-  requestId, destinationGuess, openRuns, disabled,
+  requestId, destinationGuess, destRegionId, categorySlug, openRuns, disabled,
 }: {
   requestId: string;
   destinationGuess: string;
+  destRegionId: string | null;
+  categorySlug: string;
   openRuns: Pick<Run, "id" | "notes" | "destination_area" | "departure_start">[];
   disabled?: boolean;
 }) {
@@ -47,14 +49,18 @@ export function AcceptRequestButton({
       if (!user) throw new Error("Please sign in.");
       const now = new Date();
       const end = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+      // Seed a REAL run from the request: its drop-off area + category. The
+      // driver can widen it and add more "along the way" requests afterwards.
       const { data: run, error: rErr } = await sb.from("runs").insert({
         driver_id: user.id,
+        destination_region_id: destRegionId,
+        destination_area: destinationGuess || null,
         departure_start: now.toISOString(),
         departure_end: end.toISOString(),
         status: "open",
         ferry_crossing: false,
-        categories_accepted: ["takeaway", "pharmacy", "small-parcel", "shop-collection", "supermarket-click-collect", "other"],
-        notes: `Origin: Lerwick\nDestination: ${destinationGuess}`,
+        categories_accepted: [categorySlug],
+        notes: null,
       }).select("id").single();
       if (rErr) throw rErr;
       await accept(run.id as string);
@@ -78,7 +84,7 @@ export function AcceptRequestButton({
         className="w-full rounded-pill py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-40"
         style={{ background: FETCH }}
       >
-        {busy ? "Accepting…" : "Accept this request"}
+        {busy ? "Accepting…" : openRuns.length === 0 ? "Start a run & take this" : "Accept this request"}
       </button>
       {picking && (
         <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-line bg-paper shadow-lift">

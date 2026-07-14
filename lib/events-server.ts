@@ -10,6 +10,34 @@ export type CheckInEvent = {
   locality: string | null;
 };
 
+/** Non-redirecting check: can the signed-in user check in attendees for this
+ *  event? Used to conditionally show the "Check in attendees" link. */
+export async function canScanEvent(eventId: string): Promise<boolean> {
+  const account = await getAccount();
+  if (!account) return false;
+  const sb = await createClient();
+  const { data: ev } = await sb
+    .from("events")
+    .select("organiser_user_id, organiser_business_id, organiser_hub_id")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (!ev) return false;
+  const owns = ev as Record<string, unknown>;
+  if (account.profile?.role === "admin") return true;
+  if (owns.organiser_user_id === account.id) return true;
+  if (owns.organiser_business_id) {
+    const { data: biz } = await sb
+      .from("local_businesses").select("owner_id")
+      .eq("id", owns.organiser_business_id as string).maybeSingle();
+    if ((biz as { owner_id?: string } | null)?.owner_id === account.id) return true;
+  }
+  if (owns.organiser_hub_id) {
+    const { data: isHubAdmin } = await sb.rpc("is_hub_admin", { p_hub: owns.organiser_hub_id, p_user: account.id });
+    if (isHubAdmin) return true;
+  }
+  return false;
+}
+
 /**
  * Gate a check-in route to someone authorised to scan tickets for an event.
  *

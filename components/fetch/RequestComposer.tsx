@@ -12,7 +12,19 @@ import { PlaceAutocomplete, type PickedPlace } from "@/components/fetch/PlaceAut
 
 const empty: PickedPlace = { name: "", address: "", lat: null, lng: null, postcode: null };
 
-export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; hasCard: boolean }) {
+type Region = { id: string; slug: string; name: string };
+type When = "asap" | "by" | "flexible";
+
+/** Turn the customer's chosen "when" into an expiry — if no driver takes it by
+ *  then, the request lapses instead of sitting pending forever. */
+function computeExpiry(when: When, neededBy: string): string {
+  const now = Date.now();
+  if (when === "by" && neededBy) return new Date(neededBy).toISOString();
+  if (when === "flexible") return new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString(); // a week
+  return new Date(now + 24 * 60 * 60 * 1000).toISOString(); // asap → 24h
+}
+
+export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: boolean; hasCard: boolean; regions: Region[] }) {
   const router = useRouter();
 
   const [categorySlug, setCategorySlug] = useState<string>("");
@@ -23,10 +35,16 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
   const [readyForCollection, setReadyForCollection] = useState(false);
   const [dest, setDest] = useState<PickedPlace>(empty);
   const [destText, setDestText] = useState("");
+  const [destRegionId, setDestRegionId] = useState("");
   const [destArea, setDestArea] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [deliveryNotes, setDeliveryNotes] = useState("");
+  const [when, setWhen] = useState<When>("asap");
+  const [neededBy, setNeededBy] = useState("");
   const [liability, setLiability] = useState(false);
+  // Manual postcodes — only needed when an address arrives without coords/postcode.
+  const [pickupPc, setPickupPc] = useState("");
+  const [destPc, setDestPc] = useState("");
 
   const [feePence, setFeePence] = useState<number | null>(null);
   const [miles, setMiles] = useState<number | null>(null);
@@ -82,8 +100,10 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
         setFeePence(f); setMiles(m);
         return;
       }
-      const pc1 = pickup.postcode || extractPostcode(pickupText);
-      const pc2 = dest.postcode || extractPostcode(destText);
+      const pc1 = pickup.postcode || extractPostcode(pickupText) || extractPostcode(pickupPc);
+      const pc2 = dest.postcode || extractPostcode(destText) || extractPostcode(destPc);
+      // No coords and no valid postcode → can't measure distance. Leave the fee
+      // unset (never silently undercharge); the UI asks for the missing postcode.
       if (!pc1 || !pc2) { setFeePence(null); setMiles(null); return; }
       setFeeLoading(true);
       try {
@@ -96,18 +116,29 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
         setFeePence(data.fee_pence ?? null);
         setMiles(data.distance_miles ?? null);
       } catch {
-        if (alive) { setFeePence(null); setFeeMsg("Pick both addresses from the suggestions to get a fee estimate."); }
+        if (alive) { setFeePence(null); setMiles(null); setFeeMsg("Couldn't work out the fee — check the postcode and try again."); }
       } finally {
         if (alive) setFeeLoading(false);
       }
     }
     void calc();
     return () => { alive = false; };
-  }, [pickup, dest, pickupText, destText]);
+  }, [pickup, dest, pickupText, destText, pickupPc, destPc]);
+
+  // The fee uses coords when BOTH ends have them (haversine), else postcodes for
+  // both (calculate-fee). So if we can't use coords-for-both, any end without a
+  // postcode needs one — including the "mixed" case (one has coords, one only a
+  // postcode), which otherwise silently produced no fee.
+  const bothHaveCoords = pickup.lat != null && pickup.lng != null && dest.lat != null && dest.lng != null;
+  const needPickupPc = !!pickup.name.trim() && !bothHaveCoords && !(pickup.postcode || extractPostcode(pickupText) || extractPostcode(pickupPc));
+  const needDestPc = !!(dest.address || destText).trim() && !bothHaveCoords && !(dest.postcode || extractPostcode(destText) || extractPostcode(destPc));
 
   const canSubmit = useMemo(
-    () => !!categorySlug && !!pickup.name.trim() && !!(dest.address || destText).trim() && !busy,
-    [categorySlug, pickup, dest, destText, busy],
+    () => !!categorySlug && !!pickup.name.trim() && !!(dest.address || destText).trim() && !!destRegionId && !busy
+      && feePence != null // must have a real, distance-based fee — no submitting without one
+      && (when !== "by" || !!neededBy)
+      && (!needsLiability || liability),
+    [categorySlug, pickup, dest, destText, destRegionId, feePence, when, neededBy, busy, needsLiability, liability],
   );
 
   async function submit() {
@@ -129,13 +160,16 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
         pickup_notes: pickupNotes.trim() || null,
         already_paid: alreadyPaid,
         ready_for_collection: readyForCollection,
-        destination_region_id: null,
+        destination_region_id: destRegionId,
         destination_area: destArea.trim() || null,
         destination_address: dest.address || destText,
         contact_phone: contactPhone.trim() || null,
         delivery_notes: deliveryNotes.trim() || null,
         liability_acknowledged: liability,
         base_fee_pence: feePence ?? null,
+        needed_by: when === "by" && neededBy ? new Date(neededBy).toISOString() : null,
+        scheduling_mode: when,
+        expires_at: computeExpiry(when, neededBy),
         status: "pending",
       }).select("id").single();
       if (insErr) throw insErr;
@@ -147,7 +181,7 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
             user_id: user.id,
             label: saveLabel.trim() || (destArea.trim() || "Saved address"),
             address: dest.address || destText,
-            postcode: dest.postcode || extractPostcode(dest.address || destText),
+            postcode: dest.postcode || extractPostcode(dest.address || destText) || extractPostcode(destPc) || null,
             delivery_instructions: deliveryNotes.trim() || null,
           });
         } catch { /* non-fatal — request already created */ }
@@ -242,8 +276,14 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
         <PlaceAutocomplete value={destText} placeholder="Your address"
           onChange={(t) => { setDestText(t); setDest((p) => ({ ...p, address: t })); }}
           onPick={(p) => { setDest(p); setDestText(p.address); }} />
+        <label className="mb-1 mt-3 block text-sm font-semibold text-ink-soft">Which area? <span className="font-normal text-ink-muted">— so we can match a driver heading your way</span></label>
+        <select value={destRegionId} onChange={(e) => setDestRegionId(e.target.value)}
+          className="w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none">
+          <option value="">Select area…</option>
+          {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+        </select>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
-          <input value={destArea} onChange={(e) => setDestArea(e.target.value)} placeholder="Area / village (optional)"
+          <input value={destArea} onChange={(e) => setDestArea(e.target.value)} placeholder="Village / more detail (optional)"
             className="w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint" />
           <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Contact phone (optional)" inputMode="tel"
             className="w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint" />
@@ -262,6 +302,56 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
           </div>
         )}
       </section>
+
+      {/* When */}
+      <section className="rounded-card border border-line bg-paper p-4 shadow-soft">
+        <h2 className="mb-1 font-display text-lg font-bold text-ink">When do you need it?</h2>
+        <p className="mb-3 text-xs text-ink-muted">A driver heading your way will pick it up — this just sets how long we keep looking.</p>
+        <div className="flex flex-wrap gap-2">
+          {([
+            { key: "asap", label: "As soon as possible" },
+            { key: "by", label: "By a certain time" },
+            { key: "flexible", label: "No rush" },
+          ] as { key: When; label: string }[]).map((o) => {
+            const on = when === o.key;
+            return (
+              <button key={o.key} type="button" onClick={() => setWhen(o.key)}
+                className="rounded-pill border px-4 py-1.5 text-sm font-semibold transition"
+                style={on ? { borderColor: FETCH, background: `${FETCH}1a`, color: FETCH } : { borderColor: "var(--color-line-strong)", color: "var(--color-ink-soft)" }}>
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+        {when === "by" && (
+          <input type="datetime-local" value={neededBy} onChange={(e) => setNeededBy(e.target.value)}
+            className="mt-3 w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none" />
+        )}
+      </section>
+
+      {/* Missing postcode — required so we can price on real distance */}
+      {(needPickupPc || needDestPc) && (
+        <section className="rounded-card border border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">We couldn&apos;t find a postcode to price this delivery</p>
+          <p className="mt-0.5 text-xs text-amber-900/80">Add the missing postcode so we can work out the distance-based fee.</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            {needPickupPc && (
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-amber-900">Pickup postcode</label>
+                <input value={pickupPc} onChange={(e) => setPickupPc(e.target.value.toUpperCase())} placeholder="e.g. ZE1 0AA"
+                  className="w-full rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-ink outline-none placeholder:text-ink-faint" />
+              </div>
+            )}
+            {needDestPc && (
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-amber-900">Delivery postcode</label>
+                <input value={destPc} onChange={(e) => setDestPc(e.target.value.toUpperCase())} placeholder="e.g. ZE2 9LA"
+                  className="w-full rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-ink outline-none placeholder:text-ink-faint" />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Fee estimate */}
       <section className="rounded-card border-2 p-4" style={{ borderColor: `${FETCH}55`, background: `${FETCH}0a` }}>
@@ -285,7 +375,7 @@ export function RequestComposer({ isLoggedIn, hasCard }: { isLoggedIn: boolean; 
             <p className="mt-2 text-xs text-ink-muted">Priced at 95p/mile with a £4.00 minimum. Your driver receives the full delivery fee; the service fee is OneShetland&apos;s share, added on top. Your card is pre-authorised when a driver accepts and only charged on delivery.</p>
           </>
         ) : (
-          <p className="mt-1 text-sm text-ink-muted">{feeMsg ?? "Choose both addresses to see your fee."}</p>
+          <p className="mt-1 text-sm text-ink-muted">{feeMsg ?? ((needPickupPc || needDestPc) ? "Add the postcode above to see your fee." : "Choose both addresses to see your fee.")}</p>
         )}
       </section>
 

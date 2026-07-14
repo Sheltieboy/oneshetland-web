@@ -7,7 +7,7 @@ import { JOBS, EmptyState } from "@/components/jobs/JobsUI";
 import { ApplicantPipeline } from "@/components/jobs/ApplicantPipeline";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Applicants · OneShetland" };
+export const metadata = { title: "Applicants" };
 
 export default async function ApplicantsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

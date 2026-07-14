@@ -10,7 +10,7 @@ import { tierMeets } from "@/lib/business-data";
 import { ScheduleManager } from "@/components/business/ScheduleManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Schedule · OneShetland" };
+export const metadata = { title: "Schedule" };
 
 export default async function SchedulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -4,7 +4,7 @@ import { getLocalFeed, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
 import { SafeImage } from "@/components/ui/SafeImage";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Local · OneShetland" };
+export const metadata = { title: "Local" };
 
 const LOCAL = "#7c3aed";
 const EVENTS_COLOR = "#d4921a";
@@ -136,77 +136,6 @@ export default async function LocalPage({
           ))}
         </section>
 
-        {/* ── Events ──────────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: EVENTS_COLOR }}>
-                {areaLabel ? `Events in ${areaLabel}` : "What's on"}
-              </p>
-              <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Upcoming events</h2>
-            </div>
-            <Link href="/whats-on" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
-              See all →
-            </Link>
-          </div>
-
-          {events.length === 0 ? (
-            <EmptySection
-              icon="📅"
-              title="No events listed yet"
-              body={areaLabel ? `Be the first to add an event in ${areaLabel}.` : "Check back soon — events are added regularly."}
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((ev) => (
-                <Link
-                  key={ev.id}
-                  href={`/whats-on/${ev.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
-                >
-                  {/* Cover */}
-                  <div className="relative h-36 bg-events/10 sm:h-40">
-                    {ev.cover_url ? (
-                      <SafeImage src={ev.cover_url} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <span className="text-5xl opacity-20">📅</span>
-                      </div>
-                    )}
-                    {/* Date badge */}
-                    <div className="absolute left-3 top-3 rounded-xl bg-white/95 px-2.5 py-1.5 shadow backdrop-blur-sm">
-                      <p className="text-center text-xs font-black uppercase tracking-wide leading-none" style={{ color: EVENTS_COLOR }}>
-                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { month: "short" })}
-                      </p>
-                      <p className="text-center text-xl font-black leading-tight text-ink">
-                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { day: "numeric" })}
-                      </p>
-                    </div>
-                    {/* Tickets pill */}
-                    {ev.has_tickets && (
-                      <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow"
-                        style={{ background: EVENTS_COLOR, color: "#fff" }}>
-                        {ev.price_text ?? "Get tickets"}
-                      </div>
-                    )}
-                  </div>
-                  {/* Body */}
-                  <div className="flex flex-1 flex-col p-4">
-                    <p className="font-display text-base font-bold leading-snug text-ink group-hover:text-events">
-                      {ev.title}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-muted">
-                      {fmtDate(ev.starts_at)} · {fmtTime(ev.starts_at)}
-                    </p>
-                    {ev.venue && (
-                      <p className="mt-0.5 text-xs text-ink-faint">{ev.venue}</p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
 
         {/* ── Offers & deals ──────────────────────────────────────────────── */}
         {offers.length > 0 && (
@@ -333,6 +262,77 @@ export default async function LocalPage({
                     )}
                     {b.locality && (
                       <p className="mt-1 text-xs text-ink-faint">📍 {b.locality}</p>
+                    )}
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+        {/* ── Events ──────────────────────────────────────────────────────── */}
+        <section>
+          <div className="flex items-center justify-between gap-4 mb-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: EVENTS_COLOR }}>
+                {areaLabel ? `Events in ${areaLabel}` : "What's on"}
+              </p>
+              <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Upcoming events</h2>
+            </div>
+            <Link href="/whats-on" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
+              See all →
+            </Link>
+          </div>
+
+          {events.length === 0 ? (
+            <EmptySection
+              icon="📅"
+              title="No events listed yet"
+              body={areaLabel ? `Be the first to add an event in ${areaLabel}.` : "Check back soon — events are added regularly."}
+            />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {events.map((ev) => (
+                <Link
+                  key={ev.id}
+                  href={`/whats-on/${ev.id}`}
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+                >
+                  {/* Cover */}
+                  <div className="relative h-36 bg-events/10 sm:h-40">
+                    {ev.cover_url ? (
+                      <SafeImage src={ev.cover_url} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center">
+                        <span className="text-5xl opacity-20">📅</span>
+                      </div>
+                    )}
+                    {/* Date badge */}
+                    <div className="absolute left-3 top-3 rounded-xl bg-white/95 px-2.5 py-1.5 shadow backdrop-blur-sm">
+                      <p className="text-center text-xs font-black uppercase tracking-wide leading-none" style={{ color: EVENTS_COLOR }}>
+                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { month: "short" })}
+                      </p>
+                      <p className="text-center text-xl font-black leading-tight text-ink">
+                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { day: "numeric" })}
+                      </p>
+                    </div>
+                    {/* Tickets pill */}
+                    {ev.has_tickets && (
+                      <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow"
+                        style={{ background: EVENTS_COLOR, color: "#fff" }}>
+                        {ev.price_text ?? "Get tickets"}
+                      </div>
+                    )}
+                  </div>
+                  {/* Body */}
+                  <div className="flex flex-1 flex-col p-4">
+                    <p className="font-display text-base font-bold leading-snug text-ink group-hover:text-events">
+                      {ev.title}
+                    </p>
+                    <p className="mt-1 text-sm text-ink-muted">
+                      {fmtDate(ev.starts_at)} · {fmtTime(ev.starts_at)}
+                    </p>
+                    {ev.venue && (
+                      <p className="mt-0.5 text-xs text-ink-faint">{ev.venue}</p>
                     )}
                   </div>
                 </Link>

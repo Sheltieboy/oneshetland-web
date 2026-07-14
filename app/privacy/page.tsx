@@ -1,6 +1,6 @@
 import { LegalLayout, L } from "@/components/site/LegalLayout";
 
-export const metadata = { title: "Privacy Policy · OneShetland" };
+export const metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
   return (

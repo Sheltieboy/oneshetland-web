@@ -3,11 +3,11 @@ import Link from "next/link";
 import { getAccount } from "@/lib/auth";
 import {
   FETCH, getCategoryName, getCategoryIcon, penceToGBP, runDestination,
-  type Run,
+  type Run, type DeliveryRequest,
 } from "@/lib/fetch-data";
 import {
   getDriverProfile, isApprovedDriver, isBankConnected,
-  getMyActiveRequests, getMyRuns, getOpenRequestsForDrivers, getMyActiveDeliveries,
+  getMyActiveRequests, getMyRuns, getDriverRequests, getMyActiveDeliveries,
 } from "@/lib/fetch-data.server";
 import {
   RequestCard, RunCard, RouteBlock, EmptyState, QuickLink, DriverStatusPill,
@@ -15,7 +15,7 @@ import {
 import { AcceptRequestButton } from "@/components/fetch/AcceptRequestButton";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Fetch · Community delivery · OneShetland" };
+export const metadata = { title: "Fetch · Community delivery" };
 
 export default async function FetchHub({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab } = await searchParams;
@@ -110,15 +110,40 @@ async function RequesterView({ userId }: { userId: string }) {
 
 /* ── Driver ───────────────────────────────────────────────────────────────── */
 
+function OpenReqCard({ r, openRuns, canAccept }: {
+  r: DeliveryRequest;
+  openRuns: { id: string; notes: string | null; destination_area: string | null; departure_start: string }[];
+  canAccept: boolean;
+}) {
+  return (
+    <div className="rounded-card border border-line bg-paper p-4 shadow-soft">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ color: FETCH }}>{getCategoryIcon(r.category_slug)} {getCategoryName(r.category_slug)}</span>
+        <div className="flex items-center gap-1.5">
+          {r.ready_for_collection && <span className="rounded-pill bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Ready now</span>}
+          {r.base_fee_pence != null
+            ? <span className="rounded-pill border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-extrabold text-green-700">{penceToGBP(r.base_fee_pence)}</span>
+            : <span className="rounded-pill border border-line bg-cream px-2.5 py-1 text-xs font-semibold text-ink-muted">Fee TBC</span>}
+        </div>
+      </div>
+      <RouteBlock req={r} />
+      {r.already_paid && <p className="mt-2 text-xs font-semibold text-green-700">✓ Already paid at collection</p>}
+      <div className="mt-3">
+        <AcceptRequestButton requestId={r.id} destinationGuess={r.destination_area || r.destination_address.split(",")[0] || "Unknown"} destRegionId={r.destination_region_id} categorySlug={r.category_slug} openRuns={openRuns} disabled={!canAccept} />
+      </div>
+    </div>
+  );
+}
+
 async function DriverView({ userId }: { userId: string }) {
   const driverProfile = await getDriverProfile(userId);
   const approved = isApprovedDriver(driverProfile);
   const bankOk = isBankConnected(driverProfile);
   const status = driverProfile?.driver_status ?? "not_applied";
 
-  const [runs, open, activeDeliveries] = approved
-    ? await Promise.all([getMyRuns(userId), getOpenRequestsForDrivers(), getMyActiveDeliveries(userId)])
-    : [[] as Run[], [] as Awaited<ReturnType<typeof getOpenRequestsForDrivers>>, [] as Awaited<ReturnType<typeof getMyActiveDeliveries>>];
+  const [runs, driverReqs, activeDeliveries] = approved
+    ? await Promise.all([getMyRuns(userId), getDriverRequests(userId), getMyActiveDeliveries(userId)])
+    : [[] as Run[], { matched: [], other: [], hasRuns: false } as Awaited<ReturnType<typeof getDriverRequests>>, [] as Awaited<ReturnType<typeof getMyActiveDeliveries>>];
 
   const openRuns = runs.filter((r) => r.status === "open").map((r) => ({ id: r.id, notes: r.notes, destination_area: r.destination_area, departure_start: r.departure_start }));
   const canAccept = approved && bankOk;
@@ -182,35 +207,29 @@ async function DriverView({ userId }: { userId: string }) {
         </section>
       )}
 
-      {/* Open requests */}
-      {approved && (
+      {/* Requests on your route */}
+      {approved && driverReqs.hasRuns && (
         <section>
-          <h2 className="mb-1 font-display text-2xl font-bold text-ink">Open requests {open.length > 0 && <span className="text-ink-faint">· {open.length}</span>}</h2>
-          <p className="mb-3 text-sm text-ink-muted">{canAccept ? "Accept a request to add it to one of your runs." : "Connect your bank account to start accepting requests."}</p>
-          {open.length === 0 ? (
-            <EmptyState icon="📥" title="No open requests" body="New delivery requests from customers will appear here." />
+          <h2 className="mb-1 font-display text-2xl font-bold text-ink">On your route {driverReqs.matched.length > 0 && <span className="text-ink-faint">· {driverReqs.matched.length}</span>}</h2>
+          <p className="mb-3 text-sm text-ink-muted">Requests heading the same way as one of your runs.</p>
+          {driverReqs.matched.length === 0 ? (
+            <EmptyState icon="🧭" title="Nothing on your route yet" body="When a request matches one of your runs' areas and categories, it shows here." />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {open.map((r) => (
-                <div key={r.id} className="rounded-card border border-line bg-paper p-4 shadow-soft">
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold uppercase tracking-wide" style={{ color: FETCH }}>{getCategoryIcon(r.category_slug)} {getCategoryName(r.category_slug)}</span>
-                    <div className="flex items-center gap-1.5">
-                      {r.ready_for_collection && <span className="rounded-pill bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-700">Ready now</span>}
-                      {r.base_fee_pence != null
-                        ? <span className="rounded-pill border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-extrabold text-green-700">{penceToGBP(r.base_fee_pence)}</span>
-                        : <span className="rounded-pill border border-line bg-cream px-2.5 py-1 text-xs font-semibold text-ink-muted">Fee TBC</span>}
-                    </div>
-                  </div>
-                  <RouteBlock req={r} />
-                  {r.already_paid && <p className="mt-2 text-xs font-semibold text-green-700">✓ Already paid at collection</p>}
-                  <div className="mt-3">
-                    <AcceptRequestButton requestId={r.id} destinationGuess={r.destination_area || r.destination_address.split(",")[0] || "Unknown"} openRuns={openRuns} disabled={!canAccept} />
-                  </div>
-                </div>
-              ))}
+              {driverReqs.matched.map((r) => <OpenReqCard key={r.id} r={r} openRuns={openRuns} canAccept={canAccept} />)}
             </div>
           )}
+        </section>
+      )}
+
+      {/* Other open requests — start a run to grab one */}
+      {approved && driverReqs.other.length > 0 && (
+        <section>
+          <h2 className="mb-1 font-display text-2xl font-bold text-ink">{driverReqs.hasRuns ? "Other open requests" : "Open requests"} <span className="text-ink-faint">· {driverReqs.other.length}</span></h2>
+          <p className="mb-3 text-sm text-ink-muted">{driverReqs.hasRuns ? "Not on your current runs — accepting one starts a new run to carry it." : canAccept ? "Accepting a request starts a run to carry it — then you can add more along the way." : "Connect your bank account to start accepting requests."}</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {driverReqs.other.map((r) => <OpenReqCard key={r.id} r={r} openRuns={openRuns} canAccept={canAccept} />)}
+          </div>
         </section>
       )}
 

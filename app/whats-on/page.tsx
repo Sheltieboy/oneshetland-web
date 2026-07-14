@@ -4,7 +4,7 @@ import {
   getUpcomingEvents,
   getEventsInMonth,
   isFreeListEvent,
-  EVENT_CATEGORIES,
+  getEventCategories,
   type DateRange,
   type EventListItem,
 } from "@/lib/events-data";
@@ -43,10 +43,11 @@ export default async function WhatsOnPage({
   // Highlights (featured + on-sale) are independent of the active filters —
   // fetched across all upcoming events, like the app's highlights row.
   const now = new Date();
-  const [pageEvents, highlights, monthEvents] = await Promise.all([
+  const [pageEvents, highlights, monthEvents, categories] = await Promise.all([
     getUpcomingEvents({ category, range, limit: PAGE_SIZE }),
     getUpcomingEvents({ limit: 60 }),
     calendar ? getEventsInMonth(now.getFullYear(), now.getMonth()) : Promise.resolve([] as EventListItem[]),
+    getEventCategories(),
   ]);
 
   const visible = freeOnly ? pageEvents.filter(isFreeListEvent) : pageEvents;
@@ -55,7 +56,10 @@ export default async function WhatsOnPage({
   const featured = highlights.filter((e) => e.is_featured).slice(0, 8);
   const onSale = highlights.filter((e) => e.has_tickets).slice(0, 12);
 
-  const showHighlights = !category && !freeOnly && !calendar;
+  // Only show the Featured / On-sale strips on the true default view — any active
+  // filter (category, date range, free-only, calendar) hides them, otherwise the
+  // all-time highlights contradict the filtered list.
+  const showHighlights = !category && !freeOnly && !calendar && range === "all";
 
   return (
     <>
@@ -93,7 +97,7 @@ export default async function WhatsOnPage({
           {/* Category — both modes */}
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <CategoryChips
-              categories={[...EVENT_CATEGORIES]}
+              categories={categories}
               active={category}
               range={range}
               freeOnly={freeOnly}

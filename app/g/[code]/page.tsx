@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ code: string }> }) {
   await params;
-  return { title: "You've got a gift · OneShetland" };
+  return { title: "You've got a gift" };
 }
 
 export default async function GiftClaimPage({ params }: { params: Promise<{ code: string }> }) {

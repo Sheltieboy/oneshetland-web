@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { MEMORIES } from "@/lib/memories-data";
 
-export function VoiceRecorder({ onRecorded }: { onRecorded: (blob: Blob, durationSec: number) => void }) {
+export function VoiceRecorder({ onRecorded }: { onRecorded: (blob: Blob, durationSec: number, mimeType: string) => void }) {
   const [state, setState] = useState<"idle" | "recording" | "done">("idle");
   const [secs, setSecs] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -21,10 +21,11 @@ export function VoiceRecorder({ onRecorded }: { onRecorded: (blob: Blob, duratio
       chunks.current = [];
       rec.ondataavailable = (e) => { if (e.data.size > 0) chunks.current.push(e.data); };
       rec.onstop = () => {
-        const blob = new Blob(chunks.current, { type: rec.mimeType || "audio/webm" });
+        const mimeType = rec.mimeType || "audio/webm";
+        const blob = new Blob(chunks.current, { type: mimeType });
         const dur = Math.round((Date.now() - startMs.current) / 1000);
         setPreviewUrl(URL.createObjectURL(blob));
-        onRecorded(blob, dur);
+        onRecorded(blob, dur, mimeType);
         stream.getTracks().forEach((t) => t.stop());
       };
       recRef.current = rec;

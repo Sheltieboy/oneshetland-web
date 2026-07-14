@@ -36,6 +36,7 @@ export type OpeningHours = Partial<
 export type Business = {
   id: string;
   name: string;
+  owner_id?: string | null;
   category: string | null;
   description: string | null;
   address: string | null;

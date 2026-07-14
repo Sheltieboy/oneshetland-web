@@ -1,6 +1,6 @@
 import { LegalLayout, L } from "@/components/site/LegalLayout";
 
-export const metadata = { title: "Terms of Service · OneShetland" };
+export const metadata = { title: "Terms of Service" };
 
 export default function TermsPage() {
   return (

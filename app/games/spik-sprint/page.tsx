@@ -3,7 +3,7 @@ import { getAccount } from "@/lib/auth";
 import { SpikSprint } from "@/components/games/SpikSprint";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Spik Sprint · OneShetland Games" };
+export const metadata = { title: "Spik Sprint · Games" };
 
 export default async function Page() {
   const account = await getAccount();

@@ -4,7 +4,7 @@ import { getMyManagedBusinesses, getBusinessAddons } from "@/lib/business-data.s
 import { BIZ, TIER_LABELS, tierMeets } from "@/lib/business-data";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Manage business · OneShetland" };
+export const metadata = { title: "Manage business" };
 
 type Tile = { href: string; icon: string; title: string; desc: string; locked?: boolean; built?: boolean };
 
@@ -56,6 +56,24 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           <p className="mt-0.5 text-sm font-semibold" style={{ color: BIZ }}>{TIER_LABELS[business.subscription_tier]} plan{business.is_verified ? " · Verified ✓" : ""}</p>
         </div>
       </div>
+
+      {!premium && (
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 p-5 shadow-soft" style={{ borderColor: `${BIZ}33`, background: `${BIZ}08` }}>
+          <div>
+            <p className="font-display text-lg font-bold text-ink">
+              {business.subscription_tier === "free" ? "Unlock more with Pro or Premium" : "Go Premium for the full toolkit"}
+            </p>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              {business.subscription_tier === "free"
+                ? "Add offers, a loyalty card, Local Wallet payments, bookings and a featured homepage spot."
+                : "Add in-app bookings, sell passes & tickets, and a featured spot on the home screen."}
+            </p>
+          </div>
+          <Link href={`${base}/billing`} className="shrink-0 rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft transition hover:brightness-110" style={{ background: BIZ }}>
+            {business.subscription_tier === "free" ? "See plans & upgrade" : "Upgrade to Premium"}
+          </Link>
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         {tiles.map((t) => {

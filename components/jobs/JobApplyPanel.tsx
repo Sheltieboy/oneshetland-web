@@ -25,6 +25,7 @@ export function JobApplyPanel({
   const [open, setOpen] = useState(false);
   const [cover, setCover] = useState("");
   const [busy, setBusy] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isLoggedIn) {
@@ -49,6 +50,24 @@ export function JobApplyPanel({
     } else {
       await sb.from("saved_jobs").insert({ user_id: user.id, job_id: jobId });
       setSaved(true);
+    }
+  }
+
+  // Best-effort AI cover-note draft — mirrors the app's ai-cover-letter invoke.
+  // Body: { job_id }, response: { cover_letter }. On any failure, leave the
+  // textarea editable and say nothing loud.
+  async function draftAi() {
+    setAiBusy(true);
+    try {
+      const sb = createClient();
+      const { data, error: fnErr } = await sb.functions.invoke("ai-cover-letter", { body: { job_id: jobId } });
+      if (fnErr) return;
+      const text = (data?.cover_letter as string) ?? "";
+      if (text) setCover(text);
+    } catch {
+      /* best-effort — leave the note as-is */
+    } finally {
+      setAiBusy(false);
     }
   }
 
@@ -104,6 +123,18 @@ export function JobApplyPanel({
         </button>
       ) : (
         <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-ink-muted">Cover note (optional)</span>
+            <button
+              type="button"
+              onClick={draftAi}
+              disabled={aiBusy}
+              className="inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-semibold disabled:opacity-40"
+              style={{ color: JOBS, background: `${JOBS}14` }}
+            >
+              {aiBusy ? "Drafting…" : "✨ Draft with AI"}
+            </button>
+          </div>
           <textarea
             value={cover}
             onChange={(e) => setCover(e.target.value)}

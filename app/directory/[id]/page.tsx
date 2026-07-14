@@ -54,6 +54,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
   const isLoggedIn = !!account;
   const signInHref = `/sign-in?next=/directory/${id}`;
+  const isOwner = !!account && !!b.owner_id && account.id === b.owner_id;
 
   // Tier gating — richer listings for higher subscription tiers. Only affects
   // what is DISPLAYED; a business always keeps everything its tier includes.
@@ -85,7 +86,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
-      <TrackView event="content_viewed" objectType="business" objectId={id} businessId={id} />
+      <TrackView event="content_viewed" objectType="business" objectId={b.id} businessId={b.id} />
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[34vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[40vh]" style={{ background: accent }}>
         {showCover && b.cover_url ? (
@@ -130,10 +131,27 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             {b.address && <p className="mt-1 text-paper/85">{b.address}</p>}
           </div>
           <div className="shrink-0 self-end pb-1">
-            <FollowButton businessId={id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+            <FollowButton businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
           </div>
         </div>
       </section>
+
+      {/* Owner-only upgrade hint (shown on your own lower-tier listing) */}
+      {isOwner && tier !== "premium" && (
+        <div className="border-b border-line" style={{ background: `${accent}0c` }}>
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <p className="text-sm text-ink-soft">
+              <span className="font-semibold text-ink">This is your listing.</span>{" "}
+              {tier === "free"
+                ? "Upgrade to add a cover photo, gallery, offers, loyalty and a featured spot."
+                : "Go Premium to add bookings, a gallery and a featured homepage spot."}
+            </p>
+            <Link href={`/business/${b.id}/manage/billing`} className="shrink-0 rounded-pill px-4 py-2 text-sm font-bold text-paper shadow-soft transition hover:brightness-110" style={{ background: accent }}>
+              See plans &amp; upgrade
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Add-on highlights */}
       {highlights.length > 0 && (
@@ -216,7 +234,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                     </p>
                   </>
                 )}
-                <LoyaltyProgress businessId={id} loyalty={loyalty} isLoggedIn={isLoggedIn} />
+                <LoyaltyProgress businessId={b.id} loyalty={loyalty} isLoggedIn={isLoggedIn} />
                 <p className="mt-4 text-sm text-paper/80">Collect your stamps and points in the OneShetland app.</p>
               </div>
             </section>
@@ -305,7 +323,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                 <ContactRow label="Address">
                   {b.address}
                   {mapHref && (
-                    <ContactLink objectType="business" objectId={id} businessId={id} method="directions" href={mapHref} target="_blank" rel="noreferrer" className="mt-1 block text-sm font-semibold text-local hover:underline">
+                    <ContactLink objectType="business" objectId={b.id} businessId={b.id} method="directions" href={mapHref} target="_blank" rel="noreferrer" className="mt-1 block text-sm font-semibold text-local hover:underline">
                       View on map →
                     </ContactLink>
                   )}
@@ -313,19 +331,19 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
               )}
               {b.phone && (
                 <ContactRow label="Phone">
-                  <ContactLink objectType="business" objectId={id} businessId={id} method="phone" href={`tel:${b.phone}`} className="font-medium text-ink hover:text-local">{b.phone}</ContactLink>
+                  <ContactLink objectType="business" objectId={b.id} businessId={b.id} method="phone" href={`tel:${b.phone}`} className="font-medium text-ink hover:text-local">{b.phone}</ContactLink>
                 </ContactRow>
               )}
               {showContacts && b.website && (
                 <ContactRow label="Website">
-                  <ContactLink objectType="business" objectId={id} businessId={id} method="website" href={b.website} target="_blank" rel="noreferrer" className="break-all font-medium text-ink hover:text-local">
+                  <ContactLink objectType="business" objectId={b.id} businessId={b.id} method="website" href={b.website} target="_blank" rel="noreferrer" className="break-all font-medium text-ink hover:text-local">
                     {b.website.replace(/^https?:\/\//, "")}
                   </ContactLink>
                 </ContactRow>
               )}
               {showContacts && b.email && (
                 <ContactRow label="Email">
-                  <ContactLink objectType="business" objectId={id} businessId={id} method="email" href={`mailto:${b.email}`} className="break-all font-medium text-ink hover:text-local">{b.email}</ContactLink>
+                  <ContactLink objectType="business" objectId={b.id} businessId={b.id} method="email" href={`mailto:${b.email}`} className="break-all font-medium text-ink hover:text-local">{b.email}</ContactLink>
                 </ContactRow>
               )}
             </dl>

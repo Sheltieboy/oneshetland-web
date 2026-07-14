@@ -11,14 +11,17 @@ function localInput(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function RunComposer({ canCreate }: { canCreate: boolean }) {
+type Region = { id: string; slug: string; name: string };
+
+export function RunComposer({ canCreate, regions }: { canCreate: boolean; regions: Region[] }) {
   const router = useRouter();
   const now = new Date();
   now.setMinutes(0, 0, 0); now.setHours(now.getHours() + 1);
   const later = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
-  const [origin, setOrigin] = useState("Lerwick");
-  const [destination, setDestination] = useState("");
+  const lerwick = regions.find((r) => r.slug === "lerwick" || r.name.toLowerCase() === "lerwick");
+  const [originRegionId, setOriginRegionId] = useState(lerwick?.id ?? "");
+  const [destRegionId, setDestRegionId] = useState("");
   const [destArea, setDestArea] = useState("");
   const [start, setStart] = useState(localInput(now));
   const [end, setEnd] = useState(localInput(later));
@@ -34,7 +37,7 @@ export function RunComposer({ canCreate }: { canCreate: boolean }) {
 
   async function submit() {
     setError(null);
-    if (!destination.trim()) { setError("Where are you heading? Add a destination."); return; }
+    if (!destRegionId) { setError("Where are you heading? Pick a destination area."); return; }
     if (cats.length === 0) { setError("Pick at least one category you can carry."); return; }
     if (new Date(end) <= new Date(start)) { setError("The latest time must be after the earliest time."); return; }
     setBusy(true);
@@ -44,14 +47,14 @@ export function RunComposer({ canCreate }: { canCreate: boolean }) {
       if (!user) throw new Error("Please sign in.");
       const { error: insErr } = await sb.from("runs").insert({
         driver_id: user.id,
-        origin_region_id: null,
-        destination_region_id: null,
+        origin_region_id: originRegionId || null,
+        destination_region_id: destRegionId,
         destination_area: destArea.trim() || null,
         departure_start: new Date(start).toISOString(),
         departure_end: new Date(end).toISOString(),
         categories_accepted: cats,
         ferry_crossing: ferry,
-        notes: [`Origin: ${origin.trim() || "Lerwick"}`, `Destination: ${destination.trim()}`, notes.trim()].filter(Boolean).join("\n"),
+        notes: notes.trim() || null,
         status: "open",
       });
       if (insErr) throw insErr;
@@ -78,10 +81,20 @@ export function RunComposer({ canCreate }: { canCreate: boolean }) {
   return (
     <div className="space-y-5">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Origin</label><input value={origin} onChange={(e) => setOrigin(e.target.value)} className={field} /></div>
-        <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Destination</label><input value={destination} onChange={(e) => setDestination(e.target.value)} placeholder="e.g. Brae, Yell, Scalloway" className={field} /></div>
+        <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Starting from</label>
+          <select value={originRegionId} onChange={(e) => setOriginRegionId(e.target.value)} className={field}>
+            <option value="">Select area…</option>
+            {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
+        <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Heading to</label>
+          <select value={destRegionId} onChange={(e) => setDestRegionId(e.target.value)} className={field}>
+            <option value="">Select area…</option>
+            {regions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
       </div>
-      <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Destination area / village (optional)</label><input value={destArea} onChange={(e) => setDestArea(e.target.value)} placeholder="e.g. Mid Yell" className={field} /></div>
+      <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Village / more detail (optional)</label><input value={destArea} onChange={(e) => setDestArea(e.target.value)} placeholder="e.g. Mid Yell" className={field} /></div>
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Earliest departure</label><input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={field} /></div>
         <div><label className="mb-1 block text-sm font-semibold text-ink-soft">Latest departure</label><input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={field} /></div>

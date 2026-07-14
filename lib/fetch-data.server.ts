@@ -6,15 +6,22 @@
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
-  safe,
+  safe, runMatchesRequest,
   type DeliveryRequest, type Run, type DriverProfile, type WaitingEvent, type DriverInfo,
 } from "@/lib/fetch-data";
 
 const REQUEST_COLS =
-  "id, customer_id, run_id, category_slug, pickup_name, pickup_location, pickup_notes, already_paid, ready_for_collection, destination_area, destination_address, contact_phone, delivery_notes, liability_acknowledged, status, base_fee_pence, waiting_fee_pence, total_fee_pence, payment_status, created_at";
+  "id, customer_id, run_id, category_slug, pickup_name, pickup_location, pickup_notes, already_paid, ready_for_collection, destination_region_id, destination_area, destination_address, contact_phone, delivery_notes, liability_acknowledged, needed_by, scheduling_mode, expires_at, status, base_fee_pence, waiting_fee_pence, total_fee_pence, payment_status, created_at";
 
 const RUN_COLS =
-  "id, driver_id, destination_area, departure_start, departure_end, categories_accepted, ferry_crossing, notes, status, created_at";
+  "id, driver_id, origin_region_id, destination_region_id, origin_region:origin_region_id(name), destination_region:destination_region_id(name), destination_area, departure_start, departure_end, categories_accepted, ferry_crossing, notes, status, created_at";
+
+/** Shetland regions (admin-managed), ordered for the run route pickers. */
+export async function getRegions(): Promise<{ id: string; slug: string; name: string }[]> {
+  const sb = await createServerClient();
+  const { data } = await sb.from("regions").select("id, slug, name").order("display_order", { ascending: true });
+  return data ?? [];
+}
 
 /* ── Driver profile ───────────────────────────────────────────────────────── */
 
@@ -53,7 +60,7 @@ export async function getMyPreviousRequests(userId: string): Promise<DeliveryReq
     const { data } = await sb.from("delivery_requests")
       .select(REQUEST_COLS)
       .eq("customer_id", userId)
-      .in("status", ["delivered", "cancelled"])
+      .in("status", ["delivered", "cancelled", "expired"])
       .order("created_at", { ascending: false })
       .limit(100);
     return (data ?? []) as DeliveryRequest[];
@@ -71,7 +78,9 @@ export async function getMyRuns(userId: string): Promise<Run[]> {
       .eq("driver_id", userId)
       .gte("departure_end", new Date().toISOString())
       .order("departure_start", { ascending: true });
-    return (data ?? []) as Run[];
+    // to-one region embeds come back as objects at runtime; the inferred type
+    // is an array, so route through unknown.
+    return (data ?? []) as unknown as Run[];
   })(), []);
 }
 
@@ -85,6 +94,22 @@ export async function getOpenRequestsForDrivers(): Promise<DeliveryRequest[]> {
       .order("created_at", { ascending: true });
     return (data ?? []) as DeliveryRequest[];
   })(), []);
+}
+
+/**
+ * Pending requests that fit THIS driver — matched to their open runs by area,
+ * category and timing, instead of the old global firehose. A driver with no
+ * open run yet sees everything, so they can start a run from a request.
+ * Returns { matched, all } so the UI can show relevant-first, then the rest.
+ */
+export async function getDriverRequests(userId: string): Promise<{ matched: DeliveryRequest[]; other: DeliveryRequest[]; hasRuns: boolean }> {
+  const [runs, all] = await Promise.all([getMyRuns(userId), getOpenRequestsForDrivers()]);
+  const openRuns = runs.filter((r) => r.status === "open");
+  if (openRuns.length === 0) return { matched: [], other: all, hasRuns: false };
+  const matched = all.filter((req) => openRuns.some((run) => runMatchesRequest(run, req)));
+  const matchedIds = new Set(matched.map((r) => r.id));
+  const other = all.filter((r) => !matchedIds.has(r.id));
+  return { matched, other, hasRuns: true };
 }
 
 /** Active deliveries matched/collected on the driver's own runs. */

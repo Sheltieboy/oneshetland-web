@@ -6,7 +6,7 @@ import { getBusinessEvent, getEventSalesStats } from "@/lib/events-manage";
 import { BusinessEventManage } from "@/components/business/BusinessEventManage";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Manage event · OneShetland" };
+export const metadata = { title: "Manage event" };
 
 export default async function ManageBusinessEventPage({ params }: { params: Promise<{ id: string; eventId: string }> }) {
   const { id, eventId } = await params;

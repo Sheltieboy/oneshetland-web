@@ -1,25 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
-import { getEmployerShifts, getEmployerShiftApplications } from "@/lib/jobs-data.server";
+import { getEmployerShifts } from "@/lib/jobs-data.server";
 import { SHIFTS, EmptyState } from "@/components/jobs/JobsUI";
 import { EmployerShiftManager } from "@/components/jobs/EmployerShiftManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Manage shifts · OneShetland" };
+export const metadata = { title: "Manage shifts" };
 
 export default async function ManageShiftsPage() {
   const account = await getAccount();
   if (!account) redirect("/sign-in?next=/shifts/manage");
 
-  const [shifts, applications] = await Promise.all([
-    getEmployerShifts(account.id),
-    getEmployerShiftApplications(account.id),
-  ]);
+  const shifts = await getEmployerShifts(account.id);
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-10 sm:py-14">
-      <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-ink-soft hover:text-ink">← Shifts</Link>
+      <Link href="/work" className="text-sm font-semibold text-ink-soft hover:text-ink">← My work</Link>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-4xl font-bold">Manage shifts</h1>
         <Link href="/work-profile/employer" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">Business profile</Link>
@@ -36,12 +33,6 @@ export default async function ManageShiftsPage() {
               positions_filled: s.positions_filled, positions_total: s.positions_total,
               pending_count: s.pending_count, total_apps: s.total_apps, checked_out_count: s.checked_out_count,
               posted_as_business_id: s.posted_as_business_id, boosted_until: s.boosted_until,
-            }))}
-            applications={applications.map((a) => ({
-              id: a.id, shift_id: a.shift_id, message: a.message,
-              shiftTitle: a.shift?.title ?? "Shift", shiftStart: a.shift?.start_at ?? null,
-              workerName: a.worker?.full_name ?? "Worker", workerArea: a.worker?.location_area ?? null,
-              bio: a.workerProfile?.bio ?? null, skills: a.workerProfile?.skills ?? null,
             }))}
           />
         )}

@@ -7,7 +7,7 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { publicClient } from "@/lib/supabase/public";
 import {
-  safe, hydrateShifts,
+  safe, hydrateShifts, JOB_SELECT,
   type Job, type JobApplication, type WorkerProfile,
   type Shift, type ShiftApplication,
 } from "@/lib/jobs-data";
@@ -22,11 +22,35 @@ export async function getSavedJobIds(): Promise<Set<string>> {
   return new Set((data ?? []).map((r: { job_id: string }) => r.job_id));
 }
 
+/** Full Job rows the current user has bookmarked, most-recently-saved first. */
+export async function getSavedJobs(): Promise<Job[]> {
+  const sb = await createServerClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return [];
+  return safe((async () => {
+    const { data: saved } = await sb.from("saved_jobs")
+      .select("job_id, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    const rows = (saved ?? []) as { job_id: string; created_at: string }[];
+    if (!rows.length) return [];
+    const ids = rows.map((r) => r.job_id);
+    // Hydrate the same way as getJobs so JobCard renders identically.
+    const { data } = await sb.from("jobs").select(JOB_SELECT).in("id", ids);
+    const jobs = (data ?? []) as unknown as Job[];
+    // Preserve saved-order (created_at desc) — the `.in()` query loses it.
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    return jobs.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  })(), []);
+}
+
 export async function hasAppliedToJob(jobId: string, userId: string): Promise<boolean> {
   const sb = await createServerClient();
+  // Exclude withdrawn — a withdrawn application should let the worker re-apply,
+  // so the job must show "Apply" again (not "View application").
   const { count } = await sb.from("job_applications")
     .select("id", { count: "exact", head: true })
-    .eq("job_id", jobId).eq("applicant_id", userId);
+    .eq("job_id", jobId).eq("applicant_id", userId).neq("status", "withdrawn");
   return (count ?? 0) > 0;
 }
 
@@ -44,11 +68,17 @@ export async function getMyJobApplications(userId: string): Promise<JobApplicati
 export async function getJobApplicants(jobId: string): Promise<JobApplication[]> {
   const sb = await createServerClient();
   return safe((async () => {
-    const { data } = await sb.from("job_applications")
-      .select("*, applicant:profiles!job_applications_applicant_id_fkey(id,full_name,avatar_url)")
+    const { data } = await sb.from("job_applications").select("*")
       .eq("job_id", jobId)
       .order("applied_at", { ascending: false });
-    return (data ?? []) as unknown as JobApplication[];
+    const apps = (data ?? []) as (JobApplication & { applicant_id: string })[];
+    if (!apps.length) return [];
+    // Resolve applicant names via the RPC — profiles' RLS hides them from the
+    // embedded join otherwise (the "Unknown" bug). Public fields only.
+    const ids = [...new Set(apps.map((a) => a.applicant_id).filter(Boolean))];
+    const { data: people } = await sb.rpc("get_applicant_public", { p_worker_ids: ids });
+    const pMap = Object.fromEntries(((people ?? []) as { id: string }[]).map((p) => [p.id, p]));
+    return apps.map((a) => ({ ...a, applicant: pMap[a.applicant_id] ?? null })) as unknown as JobApplication[];
   })(), []);
 }
 
@@ -109,6 +139,27 @@ export async function getShiftWorkerProfile(userId: string): Promise<ShiftWorker
   })(), null);
 }
 
+export type ShiftAlert = {
+  user_id: string;
+  is_active: boolean | null;
+  categories: string[] | null;
+  urgency: string[] | null;
+  min_pay: number | null;
+};
+
+/** The user's shift-alert preferences (one row per user). */
+export async function getShiftAlert(userId: string): Promise<ShiftAlert | null> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb
+      .from("shift_alerts")
+      .select("user_id, is_active, categories, urgency, min_pay")
+      .eq("user_id", userId)
+      .maybeSingle();
+    return (data ?? null) as ShiftAlert | null;
+  })(), null);
+}
+
 /** Local businesses owned by the user — for the "post as" picker. */
 export async function getMyBusinesses(userId: string): Promise<{ id: string; name: string; logo_url: string | null }[]> {
   const sb = await createServerClient();
@@ -121,6 +172,23 @@ export async function getMyBusinesses(userId: string): Promise<{ id: string; nam
 }
 
 /* ── Shifts (authed) ─────────────────────────────────────────────────────── */
+
+/**
+ * Read one shift for the current viewer via the AUTHED client, so RLS applies
+ * both policies as a union: the owner ("employer manages own shifts") can see
+ * their shift at ANY status — including `cancelled` — while everyone else only
+ * sees public ones ("open shifts visible to all" = open/filled/completed).
+ * getShift() uses the ANON client, so a cancelled shift 404s even for its owner.
+ */
+export async function getShiftForViewer(id: string): Promise<Shift | null> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.from("shifts").select("*").eq("id", id).maybeSingle();
+    if (!data) return null;
+    const [hydrated] = await hydrateShifts(sb, [data as Shift]);
+    return hydrated;
+  })(), null);
+}
 
 export async function getMyShiftApplication(shiftId: string, workerId: string): Promise<ShiftApplication | null> {
   const sb = await createServerClient();
@@ -174,9 +242,42 @@ export async function getEmployerShifts(employerId: string): Promise<(Shift & { 
 
 export type EmployerShiftApplication = ShiftApplication & {
   shift?: { id: string; title: string; start_at: string } | null;
-  worker?: { id: string; full_name: string | null; avatar_url: string | null; location_area: string | null; created_at: string } | null;
+  worker?: { id: string; display_name: string | null; full_name: string | null; avatar_url: string | null; location_area: string | null; created_at: string } | null;
   workerProfile?: { bio: string | null; experience_summary: string | null; skills: string[] | null; hourly_rate_min: number | null; hourly_rate_max: number | null; qualifications: string[] | null } | null;
 };
+
+/**
+ * Owner-scoped, single-shift application feed for the shift-detail hub.
+ * Unlike getEmployerShiftApplications (pending only, across all shifts) this
+ * returns EVERY non-withdrawn application for one shift — pending AND accepted —
+ * carrying the check-in fields so the employer can see who's confirmed, who has
+ * clocked in / out. RLS ("employer sees applications for their shifts") already
+ * scopes this to the caller's own shifts; we don't trust the shiftId blindly.
+ */
+export async function getShiftManageApplications(shiftId: string): Promise<EmployerShiftApplication[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data: apps } = await sb.from("shift_applications").select("*")
+      .eq("shift_id", shiftId).neq("status", "withdrawn").order("created_at", { ascending: false });
+    const appList = (apps ?? []) as ShiftApplication[];
+    if (!appList.length) return [];
+    const workerIds = [...new Set(appList.map(a => a.worker_id))];
+    const [{ data: profiles }, { data: wp }] = await Promise.all([
+      sb.rpc("get_applicant_public", { p_worker_ids: workerIds }),
+      sb.from("worker_profiles").select("user_id, bio:summary, experience_summary, skills, hourly_rate_min, hourly_rate_max, qualifications").in("user_id", workerIds),
+    ]);
+    type WRow = NonNullable<EmployerShiftApplication["worker"]>;
+    type WPRow = NonNullable<EmployerShiftApplication["workerProfile"]> & { user_id: string };
+    const pMap = Object.fromEntries(((profiles ?? []) as WRow[]).map((p) => [p.id, p]));
+    const wpMap = Object.fromEntries(((wp ?? []) as WPRow[]).map((p) => [p.user_id, p]));
+    return appList.map((a): EmployerShiftApplication => ({
+      ...a,
+      shift: null,
+      worker: pMap[a.worker_id] ?? null,
+      workerProfile: wpMap[a.worker_id] ?? null,
+    }));
+  })(), []);
+}
 
 export async function getEmployerShiftApplications(employerId: string): Promise<EmployerShiftApplication[]> {
   const sb = await createServerClient();
@@ -191,7 +292,9 @@ export async function getEmployerShiftApplications(employerId: string): Promise<
     if (!appList.length) return [];
     const workerIds = [...new Set(appList.map(a => a.worker_id))];
     const [{ data: profiles }, { data: wp }] = await Promise.all([
-      sb.from("profiles").select("id, full_name, avatar_url, location_area, created_at").in("id", workerIds),
+      // Via the SECURITY DEFINER RPC — profiles' own-row-only RLS would otherwise
+      // hide applicants from the employer (the "Unknown" bug). Public fields only.
+      sb.rpc("get_applicant_public", { p_worker_ids: workerIds }),
       sb.from("worker_profiles").select("user_id, bio:summary, experience_summary, skills, hourly_rate_min, hourly_rate_max, qualifications").in("user_id", workerIds),
     ]);
     type WRow = NonNullable<EmployerShiftApplication["worker"]>;

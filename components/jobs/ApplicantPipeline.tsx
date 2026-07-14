@@ -44,7 +44,7 @@ export function ApplicantPipeline({ applicants }: { applicants: JobApplication[]
       <div className="space-y-3">
         {visible.map((a) => {
           const snap = (a.profile_snapshot ?? {}) as { headline?: string; summary?: string; skills?: string[]; qualifications?: string[]; willing_to_relocate?: boolean };
-          const name = a.applicant?.full_name ?? "Applicant";
+          const name = a.applicant?.display_name || a.applicant?.full_name || "Applicant";
           const idx = PIPELINE_STAGES.indexOf(a.status);
           const open = openId === a.id;
           const closed = a.status === "hired" || a.status === "declined" || a.status === "withdrawn";

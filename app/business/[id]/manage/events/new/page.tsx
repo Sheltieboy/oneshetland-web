@@ -4,7 +4,7 @@ import { BIZ } from "@/lib/business-data";
 import { BusinessEventForm } from "@/components/business/BusinessEventForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "New event · OneShetland" };
+export const metadata = { title: "New event" };
 
 export default async function NewBusinessEventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

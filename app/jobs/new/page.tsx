@@ -6,7 +6,7 @@ import { JobPostForm } from "@/components/jobs/JobPostForm";
 import { JOBS } from "@/components/jobs/JobsUI";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Post a job · OneShetland" };
+export const metadata = { title: "Post a job" };
 
 export default async function NewJobPage({ searchParams }: { searchParams: Promise<{ jobId?: string }> }) {
   const { jobId } = await searchParams;

@@ -14,6 +14,7 @@ type AdminEvent = {
   category?: string | null;
   price_text?: string | null;
   hub_visibility?: string | null;
+  calendar_approved?: boolean | null;
   status?: string | null;
   has_tickets?: boolean;
   ticket_url?: string | null;
@@ -27,7 +28,7 @@ const TICKET_MODES: { key: TicketMode; label: string; hint: string }[] = [
 ];
 
 const VIS = [
-  { key: "islands", label: "Islands-wide", hint: "Show on the main What's On calendar" },
+  { key: "islands", label: "Islands-wide", hint: "Submit to the main What's On calendar (shows once approved)" },
   { key: "hub", label: "Hub page only", hint: "Only on your hub page" },
   { key: "members", label: "Members only", hint: "Only your members can see it" },
 ] as const;
@@ -38,7 +39,9 @@ function eventBadge(ev: AdminEvent): { label: string; bg: string; color: string 
   switch (ev.hub_visibility) {
     case "members": return { label: "Members only",       bg: "#F3E8FF", color: "#6D28D9" };
     case "hub":     return { label: "Hub page",           bg: "#E0F2FE", color: "#0369A1" };
-    case "islands": return { label: "Islands-wide",       bg: "#DCFCE7", color: "#15803D" };
+    case "islands": return ev.calendar_approved
+      ? { label: "Islands-wide",                bg: "#DCFCE7", color: "#15803D" }
+      : { label: "Islands-wide · pending review", bg: "#FEF3C7", color: "#92400E" };
     default:        return { label: "Published",          bg: "#DCFCE7", color: "#15803D" };
   }
 }
@@ -49,7 +52,7 @@ function toLocal(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function EventsManager({ hubId, events, accent }: { hubId: string; events: AdminEvent[]; accent: string }) {
+export function EventsManager({ hubId, events, accent, hubVerified = false }: { hubId: string; events: AdminEvent[]; accent: string; hubVerified?: boolean }) {
   const router = useRouter();
 
   // Create form state
@@ -204,6 +207,11 @@ export function EventsManager({ hubId, events, accent }: { hubId: string; events
             ))}
           </div>
           <p className="mt-1 text-xs text-ink-muted">{VIS.find((v) => v.key === visibility)?.hint}</p>
+          {visibility === "islands" && !hubVerified && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Your hub isn&apos;t verified yet, so islands-wide events need a quick OK from the OneShetland team before they appear on the main What&apos;s On calendar. It&apos;ll show on your hub page in the meantime.
+            </p>
+          )}
         </div>
         <label className="block text-sm font-semibold text-ink">Cover image (optional)
           <input type="file" accept="image/*" onChange={(e) => setCoverFile(e.target.files?.[0] ?? null)} className="mt-1 block text-sm text-ink-soft" />

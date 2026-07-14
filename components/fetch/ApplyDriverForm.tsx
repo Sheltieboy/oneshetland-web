@@ -50,7 +50,7 @@ export function ApplyDriverForm() {
         <ul className="mt-2 space-y-1 text-sm text-blue-900/90">
           <li>🚗 Create runs when you&apos;re already travelling somewhere</li>
           <li>📦 Collect goods from Lerwick for customers along your route</li>
-          <li>💷 Earn a fair contribution for each delivery — you keep 100% during launch</li>
+          <li>💷 Keep 100% of every delivery fee — the customer pays a small £1.50 OneShetland service fee on top</li>
           <li>🕒 You choose when and where — no obligations</li>
         </ul>
         <p className="mt-2 text-xs text-blue-700">Goods only. No alcohol, tobacco, vapes, cash or passengers.</p>

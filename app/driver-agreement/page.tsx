@@ -1,6 +1,6 @@
 import { LegalLayout, L } from "@/components/site/LegalLayout";
 
-export const metadata = { title: "Driver Agreement · OneShetland" };
+export const metadata = { title: "Driver Agreement" };
 
 export default function DriverAgreementPage() {
   return (
@@ -20,7 +20,7 @@ export default function DriverAgreementPage() {
       </L>
 
       <L h="4. Payment">
-        <p>You receive the delivery fee for each completed delivery, less OneShetland&rsquo;s service fee (currently £1.50 per delivery) and card-processing costs. Payouts are made to your connected Stripe account, typically within a few working days. You&rsquo;re responsible for declaring this income.</p>
+        <p>You receive 100% of the delivery fee for each completed delivery. OneShetland&rsquo;s service fee (currently £1.50 per delivery) is paid separately by the customer, on top of your fee — it is not deducted from your earnings. Payouts are made to your connected Stripe account, typically within a few working days. You&rsquo;re responsible for declaring this income.</p>
       </L>
 
       <L h="5. What you can carry">

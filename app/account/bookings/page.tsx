@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { BookingsClient } from "./BookingsClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My bookings · OneShetland" };
+export const metadata = { title: "My bookings" };
 
 export default async function BookingsPage() {
   const account = await getAccount();

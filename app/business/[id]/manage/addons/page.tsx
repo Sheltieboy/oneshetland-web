@@ -4,7 +4,7 @@ import { getBusinessAddons } from "@/lib/business-data.server";
 import { AddonsManager } from "@/components/business/AddonsManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Add-ons & features · OneShetland" };
+export const metadata = { title: "Add-ons & features" };
 
 export default async function AddonsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

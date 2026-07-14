@@ -2,7 +2,7 @@ import { getAccount } from "@/lib/auth";
 import { SecurityForm } from "@/components/account/SecurityForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Security · OneShetland" };
+export const metadata = { title: "Security" };
 
 export default async function Page() {
   const account = (await getAccount())!;

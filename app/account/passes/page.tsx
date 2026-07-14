@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { PassesClient } from "./PassesClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Passes & vouchers · OneShetland" };
+export const metadata = { title: "Passes & vouchers" };
 
 export default async function PassesPage() {
   const account = await getAccount();

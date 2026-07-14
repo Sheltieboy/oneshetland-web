@@ -7,7 +7,7 @@ import { WalletManager } from "@/components/business/WalletManager";
 import { TillCode } from "@/components/business/TillCode";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Local Wallet · OneShetland" };
+export const metadata = { title: "Local Wallet" };
 
 export default async function WalletPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

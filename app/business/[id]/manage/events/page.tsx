@@ -4,7 +4,7 @@ import { BIZ } from "@/lib/business-data";
 import { getBusinessEvents } from "@/lib/events-manage";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Events · OneShetland" };
+export const metadata = { title: "Events" };
 
 const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   draft:     { label: "Draft",     bg: "#E2E8F0", color: "#475569" },

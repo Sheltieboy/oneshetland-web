@@ -4,7 +4,7 @@ import { getBusinessAnalytics } from "@/lib/analytics-business.server";
 import { AnalyticsUnlock } from "@/components/business/AnalyticsUnlock";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Analytics · OneShetland" };
+export const metadata = { title: "Analytics" };
 
 const gbp = (p: number) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format((p ?? 0) / 100);
 const num = (n: number) => new Intl.NumberFormat("en-GB").format(n ?? 0);

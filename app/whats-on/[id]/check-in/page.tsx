@@ -6,7 +6,7 @@ import { CheckInTool } from "@/components/events/CheckInTool";
 import type { ScannerStats } from "@/lib/events-client";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Check in · OneShetland" };
+export const metadata = { title: "Check in" };
 
 export default async function CheckInPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -4,7 +4,7 @@ import { getBusinessAddons } from "@/lib/business-data.server";
 import { BillingManager } from "@/components/business/BillingManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Plan, payments & payouts · OneShetland" };
+export const metadata = { title: "Plan, payments & payouts" };
 
 export default async function BillingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -4,7 +4,7 @@ import { getAlertAccess, getBusinessAlerts } from "@/lib/business-data.server";
 import { AlertsManager } from "@/components/business/AlertsManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Urgent alerts · OneShetland" };
+export const metadata = { title: "Urgent alerts" };
 
 export default async function AlertsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

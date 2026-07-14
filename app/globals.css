@@ -103,3 +103,18 @@
 .auth-input::placeholder {
   color: var(--color-ink-faint);
 }
+
+/* ── Ticket "you're in!" celebration ─────────────────────────────────────── */
+@keyframes ticket-pop {
+  0%   { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  60%  { transform: scale(1.12) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); }
+}
+@keyframes ticket-confetti-fall {
+  0%   { transform: translateY(-12vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+@keyframes ticket-fade-inout {
+  0%, 100% { opacity: 0; }
+  8%, 82%  { opacity: 1; }
+}

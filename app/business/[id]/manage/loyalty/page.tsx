@@ -7,7 +7,7 @@ import { LoyaltyManager } from "@/components/business/LoyaltyManager";
 import { TillCode } from "@/components/business/TillCode";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Loyalty programme · OneShetland" };
+export const metadata = { title: "Loyalty programme" };
 
 export default async function LoyaltyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

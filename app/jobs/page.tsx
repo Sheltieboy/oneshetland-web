@@ -7,7 +7,7 @@ import { JobCard, ShiftCard, EmptyState, JOBS, SHIFTS } from "@/components/jobs/
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Work · Jobs & Shifts · OneShetland" };
+export const metadata = { title: "Work" };
 
 export default async function WorkHubPage({
   searchParams,
@@ -99,12 +99,6 @@ export default async function WorkHubPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
-        <div className="mb-8 grid gap-3 sm:grid-cols-3">
-          <QuickLink href="/work-profile" icon="📄" label="My profile & CV" accent={accent} />
-          <QuickLink href={isShifts ? "/shifts/applications" : "/jobs/applications"} icon="📋" label={isShifts ? "My shift applications" : "My job applications"} accent={accent} />
-          <QuickLink href={isShifts ? "/shifts/new" : "/jobs/new"} icon={isShifts ? "⚡" : "➕"} label={isShifts ? "Post a shift" : "Post a job"} accent={accent} primary />
-        </div>
-
         {isShifts ? (
           visibleShifts.length === 0 ? (
             <EmptyState icon="⚡" title="No shifts right now" body="Nothing matches just now — check back soon, new shifts are posted throughout the day." cta={{ label: "Post a shift", href: "/shifts/new", color: SHIFTS }} />
@@ -134,14 +128,5 @@ export default async function WorkHubPage({
         </div>
       </div>
     </>
-  );
-}
-
-function QuickLink({ href, icon, label, accent, primary }: { href: string; icon: string; label: string; accent: string; primary?: boolean }) {
-  return (
-    <Link href={href} className="flex items-center gap-3 rounded-card border bg-paper px-4 py-3.5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift" style={{ borderColor: primary ? `${accent}55` : "var(--color-line)" }}>
-      <span className="grid h-9 w-9 place-items-center rounded-lg text-lg" style={{ background: `${accent}1a` }}>{icon}</span>
-      <span className="text-sm font-bold text-ink">{label}</span>
-    </Link>
   );
 }

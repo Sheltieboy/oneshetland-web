@@ -42,7 +42,7 @@ export function ConnectBankPanel({ alreadyComplete, pending }: { alreadyComplete
       <div className="rounded-card border border-green-300 bg-green-50 p-5 text-center">
         <div className="text-4xl">✅</div>
         <p className="mt-2 font-display text-xl font-bold text-ink">Bank account connected</p>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">You&apos;re set up for payouts. Earnings land in your bank within 2 working days of each delivery — you keep 100% during the community launch.</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-ink-soft">You&apos;re set up for payouts. Earnings land in your bank within 2 working days of each delivery — you keep 100% of the delivery fee.</p>
         <a href="/fetch?tab=driver" className="mt-4 inline-block rounded-pill px-5 py-2.5 text-sm font-semibold text-white" style={{ background: FETCH }}>Back to driver dashboard →</a>
       </div>
     );
@@ -77,7 +77,7 @@ export function ConnectBankPanel({ alreadyComplete, pending }: { alreadyComplete
       ) : (
         <button onClick={connect} disabled={busy} className="w-full rounded-pill py-3 font-semibold text-white transition hover:brightness-110 disabled:opacity-40" style={{ background: FETCH }}>{busy ? "Opening Stripe…" : "Connect bank account"}</button>
       )}
-      <p className="text-center text-xs text-ink-faint">OneShetland takes no platform fee during the community launch — you receive the full delivery fee for every completed run.</p>
+      <p className="text-center text-xs text-ink-faint">You keep the full delivery fee for every completed run. OneShetland&rsquo;s only charge is a £1.50 service fee, paid by the customer on top.</p>
     </div>
   );
 }

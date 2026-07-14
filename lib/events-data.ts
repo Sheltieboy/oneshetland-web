@@ -117,6 +117,68 @@ export function ticketTypeRemaining(t: TicketType): number | null {
   return t.quantity_available === null ? null : Math.max(0, t.quantity_available - t.quantity_sold);
 }
 
+export interface EventScarcity {
+  /** true only when there is a real, capped allocation to measure against. */
+  measurable: boolean;
+  totalCap: number;
+  totalSold: number;
+  remaining: number;
+  /** 0..100, rounded. */
+  pctSold: number;
+  soldOut: boolean;
+  /** ≥65% sold — the honest "selling fast" threshold. */
+  sellingFast: boolean;
+  /** true when the (capped) allocation is nearly gone. */
+  almostGone: boolean;
+}
+
+/**
+ * Aggregate scarcity across an event's capped, active ticket types. Uncapped
+ * tiers are ignored (we can't measure "% gone" without a cap). Honest data only.
+ */
+export function computeScarcity(ticketTypes: TicketType[]): EventScarcity {
+  const capped = ticketTypes.filter((t) => t.is_active && t.quantity_available !== null);
+  const none: EventScarcity = {
+    measurable: false, totalCap: 0, totalSold: 0, remaining: 0,
+    pctSold: 0, soldOut: false, sellingFast: false, almostGone: false,
+  };
+  if (capped.length === 0) return none;
+  const totalCap = capped.reduce((n, t) => n + (t.quantity_available ?? 0), 0);
+  const totalSold = capped.reduce((n, t) => n + Math.min(t.quantity_sold, t.quantity_available ?? 0), 0);
+  if (totalCap <= 0) return none;
+  const remaining = Math.max(0, totalCap - totalSold);
+  const pctSold = Math.round((totalSold / totalCap) * 100);
+  return {
+    measurable: true,
+    totalCap,
+    totalSold,
+    remaining,
+    pctSold,
+    soldOut: remaining === 0,
+    sellingFast: pctSold >= 65 && remaining > 0,
+    almostGone: remaining > 0 && remaining <= 10,
+  };
+}
+
+export interface EventSocialStats {
+  /** Valid + used tickets issued for this event. */
+  goingCount: number;
+  /** Tickets booked in the last 24h — powers the urgency line. */
+  bookedRecent: number;
+}
+
+/** Public aggregate stats (counts only, no PII) via the get_event_social_stats RPC. */
+export async function getEventSocialStats(eventId: string): Promise<EventSocialStats> {
+  const sb = publicClient();
+  const { data, error } = await sb.rpc("get_event_social_stats", { p_event_id: eventId });
+  if (error || !data) return { goingCount: 0, bookedRecent: 0 };
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    goingCount: Number(row?.going_count ?? 0),
+    bookedRecent: Number(row?.booked_recent ?? 0),
+  };
+}
+
 /* ── Pricing helpers (mirror the app's events-api) ─────────────────────────── */
 
 /** Lowest paid (>0) active ticket price in pence, or null when none. */
@@ -158,9 +220,13 @@ function rangeTo(range: DateRange): string | undefined {
   if (range === "today") {
     d.setHours(23, 59, 59, 999);
   } else if (range === "week") {
-    d.setDate(d.getDate() + 7);
+    // End of the current week (through Sunday) — a calendar week, not "next 7 days".
+    const daysToSunday = (7 - d.getDay()) % 7;
+    d.setDate(d.getDate() + daysToSunday);
+    d.setHours(23, 59, 59, 999);
   } else if (range === "month") {
-    d.setDate(d.getDate() + 30);
+    // End of the current calendar month — so "This month" (July) excludes August.
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
   }
   return d.toISOString();
 }

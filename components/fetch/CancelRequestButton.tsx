@@ -17,10 +17,17 @@ export function CancelRequestButton({ requestId, isMatched }: { requestId: strin
     setBusy(true); setError(null);
     try {
       const sb = createClient();
-      const { error: e } = await sb.from("delivery_requests").update({ status: "cancelled" }).eq("id", requestId);
-      if (e) throw e;
       if (isMatched) {
+        // A driver already accepted → cancel-payment releases the card
+        // pre-authorisation hold, then marks the request cancelled.
+        const { data, error: e } = await sb.functions.invoke("cancel-payment", { body: { request_id: requestId } });
+        if (e) throw e;
+        if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
         try { await sb.functions.invoke("notify-drivers", { body: { request_id: requestId, event: "cancelled" } }); } catch { /* non-fatal */ }
+      } else {
+        // Not yet matched → no hold to release.
+        const { error: e } = await sb.from("delivery_requests").update({ status: "cancelled" }).eq("id", requestId);
+        if (e) throw e;
       }
       router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not cancel."); } finally { setBusy(false); }

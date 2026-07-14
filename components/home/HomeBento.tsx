@@ -190,7 +190,7 @@ export async function HomeBento({ data, game, content }: { data: HomeData; game:
 
         {/* ── Fundraisers — each row carries a live progress bar ───────── */}
         {campaigns.length > 0 && (
-          <ListCard eyebrow="Chip in" accent={ACCENT.work} href="/hubs" className="lg:col-span-2">
+          <ListCard eyebrow="Chip in" accent={ACCENT.work} href="/hubs/campaigns" className="lg:col-span-2">
             <ul className="mt-3 space-y-2.5">
               {campaigns.slice(0, 2).map((c) => {
                 const pct = c.goal_pence > 0 ? Math.min(100, Math.round((c.raised_pence / c.goal_pence) * 100)) : 0;
@@ -240,7 +240,7 @@ export async function HomeBento({ data, game, content }: { data: HomeData; game:
 
         {/* ── Work — jobs & shifts (taller list) ────────────────────── */}
         {work.length > 0 && (
-          <ListCard eyebrow="Work in Shetland" accent={ACCENT.work} href="/jobs" className="lg:col-span-2">
+          <ListCard eyebrow="Work" accent={ACCENT.work} href="/jobs" className="lg:col-span-2">
             <ul className="mt-3 space-y-2.5">
               {work.slice(0, 2).map((w) => (
                 <li key={w.id}>

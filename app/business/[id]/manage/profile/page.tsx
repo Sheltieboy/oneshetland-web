@@ -3,7 +3,7 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { ProfileManager } from "@/components/business/ProfileManager";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Profile & branding · OneShetland" };
+export const metadata = { title: "Profile & branding" };
 
 export default async function ProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

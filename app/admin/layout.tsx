@@ -3,7 +3,7 @@ import { requireAdmin, getAdminStats } from "@/lib/admin-data.server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Admin · OneShetland" };
+export const metadata = { title: "Admin" };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireAdmin();

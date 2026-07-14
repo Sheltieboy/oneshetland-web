@@ -253,13 +253,19 @@ export function TicketModal({
               {ticketCount} ticket{ticketCount !== 1 ? "s" : ""} for <span className="font-semibold text-ink">{eventTitle}</span>.
             </p>
             <p className="mt-1 text-sm text-ink-muted">
-              Your tickets are in the OneShetland app — open the app to view them.
+              Saved to your account — show the code at the door.
             </p>
           </div>
+          <a
+            href="/account/tickets"
+            className="block w-full rounded-pill py-3 text-center font-semibold text-paper transition hover:brightness-95"
+            style={{ background: EVENTS }}
+          >
+            View my tickets
+          </a>
           <button
             onClick={handleClose}
-            className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95"
-            style={{ background: EVENTS }}
+            className="w-full rounded-pill border border-line-strong py-3 font-semibold text-ink-soft transition hover:bg-sand"
           >
             Done
           </button>

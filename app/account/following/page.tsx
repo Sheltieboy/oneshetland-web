@@ -4,7 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { FollowingClient } from "./FollowingClient";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Following · OneShetland" };
+export const metadata = { title: "Following" };
 
 export default async function FollowingPage() {
   const account = await getAccount();

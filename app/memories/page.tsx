@@ -5,7 +5,7 @@ import { MemoryMap } from "@/components/memories/MemoryMap";
 import { MemoryCard } from "@/components/memories/MemoriesUI";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Auld Stories · OneShetland", description: "A living map of the islands — pin a place, tell its story, leave a photo or a voice note." };
+export const metadata = { title: "Aald Stories", description: "A living map of the islands — pin a place, tell its story, leave a photo or a voice note." };
 
 export default async function MemoriesPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
   const { q } = await searchParams;
@@ -20,7 +20,7 @@ export default async function MemoriesPage({ searchParams }: { searchParams: Pro
         <div className="absolute inset-0" style={{ background: `linear-gradient(to top, ${MEMORIES}f2, ${MEMORIES}99 55%, ${MEMORIES}40)` }} />
         <div className="relative mx-auto max-w-6xl px-5 py-12 sm:py-16">
           <p className="text-xs font-bold uppercase tracking-widest text-paper/80">OneShetland</p>
-          <h1 className="mt-2 font-display text-5xl font-bold sm:text-6xl">Auld Stories</h1>
+          <h1 className="mt-2 font-display text-5xl font-bold sm:text-6xl">Aald Stories</h1>
           <p className="mt-3 max-w-xl text-lg text-paper/90">A living map of the islands — pin a place, tell its story, leave a photo or a voice note.</p>
           <Link href="/memories/new" className="mt-5 inline-block rounded-pill bg-white px-6 py-3 font-semibold shadow-soft transition hover:brightness-95" style={{ color: MEMORIES }}>+ Add a story</Link>
         </div>
