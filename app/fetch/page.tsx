@@ -211,7 +211,10 @@ async function DriverView({ userId }: { userId: string }) {
       {approved && driverReqs.hasRuns && (
         <section>
           <h2 className="mb-1 font-display text-2xl font-bold text-ink">On your route {driverReqs.matched.length > 0 && <span className="text-ink-faint">· {driverReqs.matched.length}</span>}</h2>
-          <p className="mb-3 text-sm text-ink-muted">Requests heading the same way as one of your runs.</p>
+          <p className="mb-3 text-sm text-ink-muted">
+            Fill your run with deliveries heading the same way.
+            {driverReqs.matched.length > 0 && <> <b className="text-ink">{penceToGBP(driverReqs.matched.reduce((s, r) => s + (r.base_fee_pence ?? 0), 0))}</b> in fees to add.</>}
+          </p>
           {driverReqs.matched.length === 0 ? (
             <EmptyState icon="🧭" title="Nothing on your route yet" body="When a request matches one of your runs' areas and categories, it shows here." />
           ) : (

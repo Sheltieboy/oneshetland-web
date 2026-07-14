@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  FETCH, DELIVERY_CATEGORIES, estimateFee, extractPostcode, penceToGBP, SERVICE_FEE_PENCE,
+  FETCH, DELIVERY_CATEGORIES, estimateFee, extractPostcode, penceToGBP, SERVICE_FEE_PENCE, fmtDateTime,
   type SavedAddress,
 } from "@/lib/fetch-data";
 import { PlaceAutocomplete, type PickedPlace } from "@/components/fetch/PlaceAutocomplete";
@@ -45,6 +45,10 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
   // Manual postcodes — only needed when an address arrives without coords/postcode.
   const [pickupPc, setPickupPc] = useState("");
   const [destPc, setDestPc] = useState("");
+  // "Catch a run" — open runs already heading to the drop-off area.
+  const [matchingRuns, setMatchingRuns] = useState<{ id: string; origin_region_id: string | null; destination_region_id: string | null; departure_start: string }[]>([]);
+  const [caughtRunId, setCaughtRunId] = useState("");
+  const regionName = (rid: string | null) => regions.find((r) => r.id === rid)?.name ?? "";
 
   const [feePence, setFeePence] = useState<number | null>(null);
   const [miles, setMiles] = useState<number | null>(null);
@@ -125,6 +129,29 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
     return () => { alive = false; };
   }, [pickup, dest, pickupText, destText, pickupPc, destPc]);
 
+  // Find open runs already heading to the chosen area (right category + timing).
+  useEffect(() => {
+    if (!destRegionId || !categorySlug) { setMatchingRuns([]); setCaughtRunId(""); return; }
+    let alive = true;
+    (async () => {
+      try {
+        const sb = createClient();
+        const { data } = await sb.from("runs")
+          .select("id, origin_region_id, destination_region_id, departure_start, departure_end, categories_accepted")
+          .eq("status", "open").eq("destination_region_id", destRegionId)
+          .gte("departure_end", new Date().toISOString())
+          .order("departure_start", { ascending: true });
+        if (!alive) return;
+        const nb = when === "by" && neededBy ? new Date(neededBy) : null;
+        const runs = ((data ?? []) as { id: string; origin_region_id: string | null; destination_region_id: string | null; departure_start: string; categories_accepted: string[] | null }[])
+          .filter((r) => (r.categories_accepted ?? []).includes(categorySlug) && (!nb || nb >= new Date(r.departure_start)));
+        setMatchingRuns(runs);
+        setCaughtRunId((cur) => (runs.some((r) => r.id === cur) ? cur : ""));
+      } catch { if (alive) setMatchingRuns([]); }
+    })();
+    return () => { alive = false; };
+  }, [destRegionId, categorySlug, when, neededBy]);
+
   // The fee uses coords when BOTH ends have them (haversine), else postcodes for
   // both (calculate-fee). So if we can't use coords-for-both, any end without a
   // postcode needs one — including the "mixed" case (one has coords, one only a
@@ -154,6 +181,7 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
       if (!user) throw new Error("Please sign in.");
       const { data: inserted, error: insErr } = await sb.from("delivery_requests").insert({
         customer_id: user.id,
+        run_id: caughtRunId || null,
         category_slug: categorySlug,
         pickup_name: pickup.name || pickupText,
         pickup_location: pickup.address || pickupText,
@@ -328,6 +356,31 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
             className="mt-3 w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none" />
         )}
       </section>
+
+      {/* Catch a run — open runs already heading to the drop-off area */}
+      {matchingRuns.length > 0 && (
+        <section className="rounded-card border p-4 shadow-soft" style={{ borderColor: `${FETCH}44` }}>
+          <h2 className="mb-1 font-display text-lg font-bold text-ink">Catch a run</h2>
+          <p className="mb-3 text-xs text-ink-muted">A driver&apos;s already heading to {regionName(destRegionId)} — attach to their trip for a faster match. Optional.</p>
+          <div className="space-y-2">
+            {matchingRuns.map((r) => {
+              const on = caughtRunId === r.id;
+              return (
+                <button key={r.id} type="button" onClick={() => setCaughtRunId(on ? "" : r.id)}
+                  className="flex w-full items-center justify-between rounded-xl border px-3 py-2.5 text-left transition"
+                  style={on ? { borderColor: FETCH, background: `${FETCH}12` } : { borderColor: "var(--color-line)" }}>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-ink">{regionName(r.origin_region_id) || "Lerwick"} → {regionName(r.destination_region_id)}</span>
+                    <span className="block text-xs text-ink-muted">{fmtDateTime(r.departure_start)}</span>
+                  </span>
+                  <span className="shrink-0 text-sm font-bold" style={{ color: on ? FETCH : "var(--color-ink-faint)" }}>{on ? "✓ On this run" : "Catch it"}</span>
+                </button>
+              );
+            })}
+          </div>
+          {caughtRunId && <p className="mt-2 text-xs text-ink-muted">You&apos;ll be attached to this run — the driver confirms and your card is authorised then.</p>}
+        </section>
+      )}
 
       {/* Missing postcode — required so we can price on real distance */}
       {(needPickupPc || needDestPc) && (

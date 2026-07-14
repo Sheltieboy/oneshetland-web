@@ -13,6 +13,7 @@ import { RequestLive } from "@/components/fetch/RequestLive";
 import { DriverActions } from "@/components/fetch/DriverActions";
 import { CustomerWaitingPanel } from "@/components/fetch/CustomerWaitingPanel";
 import { CancelRequestButton } from "@/components/fetch/CancelRequestButton";
+import { ExtendRequestButton } from "@/components/fetch/ExtendRequestButton";
 
 export const dynamic = "force-dynamic";
 
@@ -137,6 +138,10 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
           )}
         </div>
 
+        {/* Keep looking (requester only, while still waiting for a driver) */}
+        {isOwner && req.status === "pending" && (
+          <ExtendRequestButton requestId={id} />
+        )}
         {/* Cancel (requester only, before collection) */}
         {isOwner && (req.status === "pending" || req.status === "matched") && (
           <CancelRequestButton requestId={id} isMatched={req.status === "matched"} />
