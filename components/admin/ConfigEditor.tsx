@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
+import { useNotify } from "@/components/ui/ConfirmProvider";
 
 type Row = { key: string; value: string | null; description: string | null; category: string | null };
 
 export function ConfigEditor({ rows }: { rows: Row[] }) {
   const router = useRouter();
+  const notify = useNotify();
   const [vals, setVals] = useState<Record<string, string>>(Object.fromEntries(rows.map((r) => [r.key, r.value ?? ""])));
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
@@ -42,7 +44,7 @@ export function ConfigEditor({ rows }: { rows: Row[] }) {
         { key, value: newValue.trim(), category: "Other", updated_by: user?.id ?? null },
         { onConflict: "key" },
       );
-      if (error) { window.alert(`Could not save key: ${error.message}`); return; }
+      if (error) { notify({ title: "Couldn't save key", body: error.message, tone: "error" }); return; }
       setNewKey(""); setNewValue("");
       router.refresh();
     } finally { setAdding(false); }

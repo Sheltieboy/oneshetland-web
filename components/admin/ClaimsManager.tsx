@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
+import { useNotify } from "@/components/ui/ConfirmProvider";
 
 type Row = {
   id: string; status: string; contact_name: string | null; contact_email: string | null; contact_phone: string | null;
@@ -14,6 +15,7 @@ const TONE: Record<string, "amber" | "green" | "red" | "gray"> = { pending: "amb
 
 export function ClaimsManager({ rows }: { rows: Row[] }) {
   const router = useRouter();
+  const notify = useNotify();
   const [list, setList] = useState(rows);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
       if (error) throw error;
       sb.functions.invoke("notify-claim", { body: { claim_id: r.id, outcome: "approved" } }).catch(() => {});
       patch(r.id, "approved");
-    } catch (e) { alert(e instanceof Error ? e.message : "Could not approve."); } finally { setBusy(null); }
+    } catch (e) { notify({ title: "Couldn't approve", body: e instanceof Error ? e.message : "Could not approve.", tone: "error" }); } finally { setBusy(null); }
   }
   async function reject(r: Row) {
     setBusy(r.id);

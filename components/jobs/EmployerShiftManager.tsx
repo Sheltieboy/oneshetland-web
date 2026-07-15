@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { formatShiftDate } from "@/lib/jobs-data";
 import { ShiftBoostModal } from "@/components/jobs/ShiftBoostModal";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const SHIFTS = "#e8a020";
 
@@ -18,6 +19,7 @@ type ManagedShift = {
 
 export function EmployerShiftManager({ shifts }: { shifts: ManagedShift[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [shiftList, setShiftList] = useState(shifts);
   const [busy, setBusy] = useState<string | null>(null);
   const [boostShift, setBoostShift] = useState<ManagedShift | null>(null);
@@ -37,7 +39,7 @@ export function EmployerShiftManager({ shifts }: { shifts: ManagedShift[] }) {
   }
 
   async function complete(id: string) {
-    if (!window.confirm("Mark this shift complete? The worker will be confirmed and notified.")) return;
+    if (!(await confirm({ title: "Mark shift complete?", body: "The worker will be confirmed and notified.", confirmLabel: "Mark complete" }))) return;
     setBusy(id);
     try {
       const c = sb();

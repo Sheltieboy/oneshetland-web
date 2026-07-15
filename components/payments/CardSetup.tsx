@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { createClient } from "@/lib/supabase/client";
 import { getStripe } from "@/lib/stripe";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 /**
  * Central payment-card setup. Saves a card to the user's profile-level Stripe
@@ -14,6 +15,7 @@ import { getStripe } from "@/lib/stripe";
  */
 export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?: string; hasCard: boolean; businessId?: string }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +23,7 @@ export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   async function removeCard() {
-    if (!window.confirm("Remove your saved card? You can add one again any time.")) return;
+    if (!(await confirm({ title: "Remove saved card?", body: "You can add one again any time.", confirmLabel: "Remove card", danger: true }))) return;
     setRemoving(true); setRemoveError(null);
     try {
       const sb = createClient();

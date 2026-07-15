@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { BIZ } from "@/lib/business-data";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   fetchBusinessServices,
   createService,
@@ -53,6 +54,7 @@ function toForm(s: BookService): FormState {
 }
 
 export function ServicesManager({ businessId }: { businessId: string }) {
+  const confirm = useConfirm();
   const [services, setServices] = useState<BookService[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorId, setEditorId] = useState<string | "new" | null>(null);
@@ -142,7 +144,7 @@ export function ServicesManager({ businessId }: { businessId: string }) {
   }
 
   async function remove(s: BookService) {
-    if (!confirm(`Remove "${s.name}"? It won't appear to new customers. Existing bookings stay as-is.`)) return;
+    if (!(await confirm({ title: `Remove "${s.name}"?`, body: "It won't appear to new customers. Existing bookings stay as-is.", confirmLabel: "Remove", danger: true }))) return;
     setError(null);
     try {
       await deleteService(s.id);

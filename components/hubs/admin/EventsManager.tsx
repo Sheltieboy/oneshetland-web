@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHubEvent, updateHubEvent, deleteEvent, uploadHubMedia, type TicketMode, type WebTicketType } from "@/lib/hubs-client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 type AdminEvent = {
   id: string;
@@ -54,6 +55,7 @@ function toLocal(iso: string): string {
 
 export function EventsManager({ hubId, events, accent, hubVerified = false }: { hubId: string; events: AdminEvent[]; accent: string; hubVerified?: boolean }) {
   const router = useRouter();
+  const confirm = useConfirm();
 
   // Create form state
   const [title, setTitle] = useState("");
@@ -164,7 +166,7 @@ export function EventsManager({ hubId, events, accent, hubVerified = false }: { 
   }
 
   async function cancel(id: string) {
-    if (!confirm("Cancel this event? Members will still see it marked as cancelled.")) return;
+    if (!(await confirm({ title: "Cancel this event?", body: "Members will still see it marked as cancelled.", confirmLabel: "Cancel event", danger: true }))) return;
     try {
       await updateHubEvent(id, { status: "cancelled" });
       router.refresh();

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CancelRunButton } from "./CancelRunButton";
 import {
   FETCH, getCategoryIcon, penceToGBP,
   REQUEST_STATUS_PILL, RUN_STATUS_PILL, DRIVER_STATUS_PILL,
@@ -95,6 +96,11 @@ export function RunCard({ run }: { run: Run }) {
           {(run.categories_accepted ?? []).slice(0, 5).map((c) => (
             <span key={c} className="rounded-pill border border-line bg-cream px-2 py-0.5 text-xs text-ink-soft">{getCategoryName(c)}</span>
           ))}
+        </div>
+      )}
+      {run.status === "open" && (
+        <div className="mt-3 flex justify-end border-t border-line pt-2">
+          <CancelRunButton runId={run.id} />
         </div>
       )}
     </div>

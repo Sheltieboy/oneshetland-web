@@ -3,17 +3,23 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 /** Requester cancel (allowed while pending or matched). Notifies the driver if matched. */
 export function CancelRequestButton({ requestId, isMatched }: { requestId: string; isMatched: boolean }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function cancel() {
-    if (!confirm(isMatched
-      ? "A driver has already accepted this. They'll be notified. Cancel anyway?"
-      : "Cancel this request? No driver will be sent.")) return;
+    if (!(await confirm({
+      title: "Cancel this request?",
+      body: isMatched
+        ? "A driver has already accepted this. They'll be notified. Cancel anyway?"
+        : "No driver will be sent.",
+      confirmLabel: "Cancel request", danger: true,
+    }))) return;
     setBusy(true); setError(null);
     try {
       const sb = createClient();

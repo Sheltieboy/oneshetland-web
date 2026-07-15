@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getAccount, accountName } from "@/lib/auth";
 import { getFetchStatusSummary } from "@/lib/fetch-data.server";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 
 const fraunces = Fraunces({
@@ -66,9 +67,11 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-cream text-ink">
         <AnalyticsProvider />
         <ConsentBanner />
-        <SiteHeader user={user} fetchStatus={fetchStatus} />
-        <main className="flex-1">{children}</main>
-        <SiteFooter />
+        <ConfirmProvider>
+          <SiteHeader user={user} fetchStatus={fetchStatus} />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </ConfirmProvider>
       </body>
     </html>
   );

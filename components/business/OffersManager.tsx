@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { BIZ, formatOfferDiscount, daysRemaining, type DiscountType, type LocalOffer } from "@/lib/business-data";
 import { deactivateOffer } from "@/lib/business-client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 export function OffersManager({ businessId, offers }: { businessId: string; offers: LocalOffer[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +35,7 @@ export function OffersManager({ businessId, offers }: { businessId: string; offe
   }
 
   async function remove(id: string) {
-    if (!confirm("End this offer?")) return;
+    if (!(await confirm({ title: "End this offer?", body: "It will stop showing to customers.", confirmLabel: "End offer", danger: true }))) return;
     try { await deactivateOffer(id); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Could not update."); }
   }
 

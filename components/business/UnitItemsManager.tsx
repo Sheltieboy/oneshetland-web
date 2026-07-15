@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { BIZ } from "@/lib/business-data";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   fetchBusinessUnitItems,
   createUnitItem,
@@ -52,6 +53,7 @@ function toForm(i: BookUnitItem): FormState {
 }
 
 export function UnitItemsManager({ businessId }: { businessId: string }) {
+  const confirm = useConfirm();
   const [items, setItems] = useState<BookUnitItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorId, setEditorId] = useState<string | "new" | null>(null);
@@ -139,7 +141,7 @@ export function UnitItemsManager({ businessId }: { businessId: string }) {
   }
 
   async function remove(i: BookUnitItem) {
-    if (!confirm(`Remove "${i.name}"? It won't appear to new customers. Existing purchases stay as-is.`)) return;
+    if (!(await confirm({ title: `Remove "${i.name}"?`, body: "It won't appear to new customers. Existing purchases stay as-is.", confirmLabel: "Remove", danger: true }))) return;
     setError(null);
     try {
       await deleteUnitItem(i.id);

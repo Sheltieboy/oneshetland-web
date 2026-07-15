@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { CONTRACT_LABELS, formatJobPay, type JobStatus } from "@/lib/jobs-data";
 import type { BusinessJob } from "@/lib/jobs-data.server";
 import { JOBS } from "@/components/jobs/JobsUI";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 function statusTone(s: JobStatus, hidden: boolean): { label: string; color: string; bg: string } {
   if (hidden) return { label: "Hidden", color: "#475569", bg: "#E2E8F0" };
@@ -21,11 +22,12 @@ function fmtDate(iso: string): string {
 
 export function BusinessJobsManager({ jobs }: { jobs: BusinessJob[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function setStatus(job: BusinessJob, next: JobStatus, confirmMsg?: string) {
-    if (confirmMsg && !confirm(confirmMsg)) return;
+    if (confirmMsg && !(await confirm({ title: "Are you sure?", body: confirmMsg, confirmLabel: "Confirm", danger: true }))) return;
     setError(null);
     setBusyId(job.id);
     try {

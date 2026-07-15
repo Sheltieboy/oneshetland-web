@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 type Row = { id: string; slug: string; name: string; display_order: number };
 const slugify = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export function RegionsManager({ rows }: { rows: Row[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [list, setList] = useState(rows);
   const [name, setName] = useState("");
   const [order, setOrder] = useState("");
@@ -27,7 +29,7 @@ export function RegionsManager({ rows }: { rows: Row[] }) {
     } finally { setBusy(false); }
   }
   async function remove(id: string) {
-    if (!confirm("Delete this region? Existing data referencing it may be affected.")) return;
+    if (!(await confirm({ title: "Delete this region?", body: "Existing data referencing it may be affected.", confirmLabel: "Delete", danger: true }))) return;
     setBusy(true);
     try { await createClient().from("regions").delete().eq("id", id); setList((l) => l.filter((r) => r.id !== id)); router.refresh(); }
     finally { setBusy(false); }

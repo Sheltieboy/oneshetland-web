@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/lib/events-data";
 import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
 import { setEventStatus, postEventUpdate } from "@/lib/events-manage-client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const STATUS_CFG: Record<EventStatus, { label: string; bg: string; color: string }> = {
   draft:     { label: "Draft",     bg: "#E2E8F0", color: "#475569" },
@@ -30,6 +31,7 @@ export function BusinessEventManage({
   stats: EventSalesStats;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const base = `/business/${businessId}/manage/events`;
 
   const [statusBusy, setStatusBusy] = useState(false);
@@ -48,7 +50,7 @@ export function BusinessEventManage({
   const [uError, setUError] = useState<string | null>(null);
 
   async function changeStatus(next: EventStatus, confirmMsg?: string) {
-    if (confirmMsg && !confirm(confirmMsg)) return;
+    if (confirmMsg && !(await confirm({ title: "Are you sure?", body: confirmMsg, confirmLabel: "Confirm", danger: true }))) return;
     setStatusBusy(true);
     try {
       await setEventStatus(event.id, next);

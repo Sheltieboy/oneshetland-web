@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
+import { useNotify } from "@/components/ui/ConfirmProvider";
 
 type Row = {
   id: string;
@@ -35,6 +36,7 @@ function fmtDate(s: string) {
 
 export function ReportsManager({ rows }: { rows: Row[] }) {
   const router = useRouter();
+  const notify = useNotify();
   const [list, setList] = useState(rows);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -52,7 +54,7 @@ export function ReportsManager({ rows }: { rows: Row[] }) {
       setList((l) => l.map((x) => (x.id === r.id ? { ...x, status, reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() } : x)));
       router.refresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not update report.");
+      notify({ title: "Couldn't update", body: e instanceof Error ? e.message : "Could not update report.", tone: "error" });
     } finally {
       setBusy(null);
     }

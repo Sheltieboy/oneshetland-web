@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { ContentActions } from "@/components/moderation/ContentActions";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { type VesselComment, COMMENT_SUBJECTS, commentSubjectLabel, BOATS } from "@/lib/boats-data";
 
 function rel(iso: string): string {
@@ -18,6 +19,7 @@ const COMMUNITY_SOURCE_ID = "00000000-0000-4000-8000-0000000da404";
 
 export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { vesselId: string; comments: VesselComment[]; isLoggedIn: boolean; userId: string | null }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [subject, setSubject] = useState("general");
   const [body, setBody] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -102,7 +104,7 @@ export function BoatDiscussion({ vesselId, comments, isLoggedIn, userId }: { ves
   }
 
   async function del(id: string) {
-    if (!confirm("Delete your comment?")) return;
+    if (!(await confirm({ title: "Delete comment?", body: "This removes your comment from the discussion.", confirmLabel: "Delete", danger: true }))) return;
     await createClient().from("vessel_comments").delete().eq("id", id);
     router.refresh();
   }

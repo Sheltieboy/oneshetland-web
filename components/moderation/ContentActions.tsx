@@ -25,6 +25,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import {
   reportContent, blockUser, REPORT_REASONS, type ReportContentType,
 } from "@/lib/moderation";
@@ -46,6 +47,8 @@ export function ContentActions({
   onBlocked?: (authorId: string) => void;
   accent?: string;
 }) {
+  const confirm = useConfirm();
+  const notify = useNotify();
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState<string | null>(null);
   const [details, setDetails] = useState("");
@@ -76,12 +79,12 @@ export function ContentActions({
 
   async function confirmBlock() {
     if (!authorId) return;
-    if (!confirm(`Block ${who}?\n\nYou won't see ${who}'s comments or posts anywhere in OneShetland.`)) return;
+    if (!(await confirm({ title: `Block ${who}?`, body: `You won't see ${who}'s comments or posts anywhere in OneShetland.`, confirmLabel: "Block", danger: true }))) return;
     try {
       await blockUser(authorId);
       onBlocked?.(authorId);
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Could not block this user.");
+      notify({ title: "Couldn't block", body: e instanceof Error ? e.message : "Could not block this user.", tone: "error" });
     }
   }
 

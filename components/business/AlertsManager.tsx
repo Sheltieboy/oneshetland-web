@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { BIZ, ALERT_COLORS, type AlertType, type AlertAccess, type PartnerAlert } from "@/lib/business-data";
 import { requestAlertAccess, createAlertAddonIntent, sendAlert, cancelAlert, forceExpireAlert } from "@/lib/business-client";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const DURATIONS: { label: string; hours: number | null }[] = [
   { label: "1h", hours: 1 }, { label: "2h", hours: 2 }, { label: "4h", hours: 4 },
@@ -15,6 +16,7 @@ export function AlertsManager({ businessId, businessName, access, alerts }: {
   businessId: string; businessName: string; access: AlertAccess | null; alerts: PartnerAlert[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [type, setType] = useState<AlertType>("info");
@@ -56,7 +58,7 @@ export function AlertsManager({ businessId, businessName, access, alerts }: {
   }
   async function cancel(id: string) { try { await cancelAlert(id); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Failed."); } }
   async function forceEnd(id: string) {
-    if (!confirm("End this live alert now? It will be removed from the app immediately.")) return;
+    if (!(await confirm({ title: "End this live alert?", body: "It will be removed from the app immediately.", confirmLabel: "End alert", danger: true }))) return;
     setBusy(id); setError(null);
     try { await forceExpireAlert(id); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Failed."); } finally { setBusy(null); }
   }

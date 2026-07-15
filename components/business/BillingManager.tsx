@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   BIZ, TIER_LABELS, TIER_PRICE, PLAN_FEATURES, ADDON_META, PREMIUM_ADDON_KEYS, EXTRA_ADDON_MONTHLY_PENCE,
   tierMeets, isOnBoost, NFC_TILE_URL_PREFIX,
@@ -17,6 +18,7 @@ import {
 
 export function BillingManager({ business, addons = [] }: { business: ManagedBusiness; addons?: BusinessAddon[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const b = business;
   const tier = b.subscription_tier;
   // Enabled premium add-ons → the first is included, each extra is £10/mo.
@@ -54,7 +56,7 @@ export function BillingManager({ business, addons = [] }: { business: ManagedBus
       if (b.stripe_subscription_id && !isOnBoost(b)) {
         // Existing subscriber → prorated change on the saved card.
         const preview = await previewSubscriptionChange(b.id, target);
-        if (!preview.noChange && !confirm(`Switch to ${TIER_LABELS[target]}? You'll be charged about £${(preview.previewAmountPence / 100).toFixed(2)} now (prorated).`)) { setBusy(null); return; }
+        if (!preview.noChange && !(await confirm({ title: `Switch to ${TIER_LABELS[target]}?`, body: `You'll be charged about £${(preview.previewAmountPence / 100).toFixed(2)} now (prorated).`, confirmLabel: "Switch plan" }))) { setBusy(null); return; }
         await applySubscriptionChange(b.id, target);
         router.refresh();
       } else {

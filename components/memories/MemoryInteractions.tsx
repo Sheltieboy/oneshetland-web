@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { REACTIONS, type ReactionKind, type MemoryComment, authorName, MEMORIES } from "@/lib/memories-data";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 function rel(iso: string) {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -16,6 +17,7 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
   comments: MemoryComment[]; isLoggedIn: boolean; userId: string | null; isAuthor: boolean;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [react, setReact] = useState<Partial<Record<ReactionKind, number>>>(counts);
   const [myReacts, setMyReacts] = useState<ReactionKind[]>(mine);
   const [list, setList] = useState(comments);
@@ -53,7 +55,7 @@ export function MemoryInteractions({ memoryId, counts, mine, comments, isLoggedI
     setList((l) => l.filter((c) => c.id !== id)); router.refresh();
   }
   async function deleteMemory() {
-    if (!confirm("Delete this story for good?")) return;
+    if (!(await confirm({ title: "Delete this story?", body: "This permanently removes the story for good.", confirmLabel: "Delete", danger: true }))) return;
     await createClient().from("memories").delete().eq("id", memoryId);
     router.push("/memories");
   }

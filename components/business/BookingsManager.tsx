@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
 import { setAcceptsBookings } from "@/lib/business-client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   fetchBusinessBookings,
   updateBookingStatus,
@@ -28,6 +29,7 @@ function fmtDateTime(iso: string): string {
 
 export function BookingsManager({ business, servicesCount }: { business: ManagedBusiness; servicesCount: number }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,7 +112,7 @@ export function BookingsManager({ business, servicesCount }: { business: Managed
             >Mark no-show</button>
             <button
               type="button" disabled={isActing}
-              onClick={() => { if (confirm("Cancel this booking? The customer will be notified.")) act(b.id, () => cancelBookingAsOwner(b.id)); }}
+              onClick={async () => { if (await confirm({ title: "Cancel this booking?", body: "The customer will be notified.", confirmLabel: "Cancel booking", danger: true })) act(b.id, () => cancelBookingAsOwner(b.id)); }}
               className="rounded-pill border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
             >Cancel</button>
           </div>

@@ -21,6 +21,7 @@ import {
   suggestImagePinAnswer, deletePinSuggestion, acceptImagePinSuggestion,
 } from "@/lib/memory-pins";
 import { authorName, MEMORIES, type MemoryImagePin } from "@/lib/memories-data";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 
 export function MemoryPhotoPins({
   mediaId, url, caption, initialPins, isAuthor, isLoggedIn, userId, memoryId,
@@ -29,6 +30,8 @@ export function MemoryPhotoPins({
   initialPins: MemoryImagePin[];
   isAuthor: boolean; isLoggedIn: boolean; userId: string | null; memoryId: string;
 }) {
+  const confirm = useConfirm();
+  const notify = useNotify();
   const [pins, setPins] = useState<MemoryImagePin[]>(initialPins);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [pending, setPending] = useState<{ x: number; y: number } | null>(null);
@@ -57,7 +60,7 @@ export function MemoryPhotoPins({
       setPins((p) => [...p, { ...created, suggestions: [] }]);
       setPending(null); setPrompt("");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not save pin.");
+      notify({ title: "Couldn't save pin", body: err instanceof Error ? err.message : "Could not save pin.", tone: "error" });
     } finally { setBusy(false); }
   }
 
@@ -69,19 +72,19 @@ export function MemoryPhotoPins({
       setPins((ps) => ps.map((p) => p.id === pin.id ? { ...updated, suggestions: p.suggestions } : p));
       setActiveId(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not save.");
+      notify({ title: "Couldn't save", body: err instanceof Error ? err.message : "Could not save.", tone: "error" });
     } finally { setBusy(false); }
   }
 
   async function onDelete(pin: MemoryImagePin) {
-    if (!confirm("Remove this pin? This deletes the question, not the photo.")) return;
+    if (!(await confirm({ title: "Remove this pin?", body: "This deletes the question, not the photo.", confirmLabel: "Remove", danger: true }))) return;
     setBusy(true);
     try {
       await deleteImagePin(pin.id);
       setPins((ps) => ps.filter((p) => p.id !== pin.id));
       setActiveId(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not remove.");
+      notify({ title: "Couldn't remove", body: err instanceof Error ? err.message : "Could not remove.", tone: "error" });
     } finally { setBusy(false); }
   }
 
@@ -92,7 +95,7 @@ export function MemoryPhotoPins({
       const s = await suggestImagePinAnswer({ pinId: pin.id, suggesterId: userId, answer });
       setPins((ps) => ps.map((p) => p.id === pin.id ? { ...p, suggestions: [...(p.suggestions ?? []), s] } : p));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not suggest.");
+      notify({ title: "Couldn't suggest", body: err instanceof Error ? err.message : "Could not suggest.", tone: "error" });
     } finally { setBusy(false); }
   }
 
@@ -102,7 +105,7 @@ export function MemoryPhotoPins({
       await deletePinSuggestion(suggestionId);
       setPins((ps) => ps.map((p) => p.id === pin.id ? { ...p, suggestions: (p.suggestions ?? []).filter((s) => s.id !== suggestionId) } : p));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not withdraw.");
+      notify({ title: "Couldn't withdraw", body: err instanceof Error ? err.message : "Could not withdraw.", tone: "error" });
     } finally { setBusy(false); }
   }
 
@@ -116,7 +119,7 @@ export function MemoryPhotoPins({
       } : p));
       setActiveId(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not accept.");
+      notify({ title: "Couldn't accept", body: err instanceof Error ? err.message : "Could not accept.", tone: "error" });
     } finally { setBusy(false); }
   }
 

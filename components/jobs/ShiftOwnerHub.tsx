@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { hoursWorked } from "@/lib/jobs-data";
 import { ShiftBoostModal } from "@/components/jobs/ShiftBoostModal";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const SHIFTS = "#e8a020";
 
@@ -37,6 +38,7 @@ function checkInState(a: HubApplication): { text: string; bg: string; color: str
 
 export function ShiftOwnerHub({ shift, applications }: { shift: HubShift; applications: HubApplication[] }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [apps, setApps] = useState(applications);
   const [s, setS] = useState(shift);
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,8 +60,8 @@ export function ShiftOwnerHub({ shift, applications }: { shift: HubShift; applic
 
   async function decide(app: HubApplication, status: "accepted" | "rejected") {
     const ok = status === "accepted"
-      ? window.confirm(`Accept ${app.workerName} for "${s.title}"? They'll be notified.`)
-      : window.confirm(`Decline ${app.workerName}'s application?`);
+      ? await confirm({ title: `Accept ${app.workerName}?`, body: `They'll be booked for "${s.title}" and notified.`, confirmLabel: "Accept" })
+      : await confirm({ title: `Decline ${app.workerName}?`, body: "They'll be notified their application wasn't successful.", confirmLabel: "Decline", danger: true });
     if (!ok) return;
     setBusy(app.id);
     try {
@@ -94,7 +96,7 @@ export function ShiftOwnerHub({ shift, applications }: { shift: HubShift; applic
   }
 
   async function complete() {
-    if (!window.confirm("Mark this shift complete? Your crew will be confirmed and notified.")) return;
+    if (!(await confirm({ title: "Mark shift complete?", body: "Your crew will be confirmed and notified.", confirmLabel: "Mark complete" }))) return;
     setBusy("complete");
     try {
       const c = sb();
@@ -108,7 +110,7 @@ export function ShiftOwnerHub({ shift, applications }: { shift: HubShift; applic
   }
 
   async function cancelShift() {
-    if (!window.confirm("Cancel this shift? Anyone still in play will be told it's off.")) return;
+    if (!(await confirm({ title: "Cancel this shift?", body: "Anyone still in play will be told it's off.", confirmLabel: "Cancel shift", danger: true }))) return;
     setBusy("cancel");
     try {
       const c = sb();

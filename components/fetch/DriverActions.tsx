@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   FETCH, calcWaitingFee, penceToGBP, WAIT_GRACE_SECS, WAIT_MAX_PENCE,
   type DeliveryRequest, type WaitingEvent,
@@ -18,6 +19,7 @@ function fmtClock(secs: number): string {
  *  Mirrors the app: arrive → collected (waiting fee) → delivered (capture). */
 export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; waitingEvent: WaitingEvent | null }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -67,7 +69,7 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
   }
 
   async function delivered() {
-    if (!confirm("Confirm you've delivered the item? The customer's card will be charged now.")) return;
+    if (!(await confirm({ title: "Mark as delivered?", body: "Confirm you've delivered the item? The customer's card will be charged now.", confirmLabel: "Yes, delivered" }))) return;
     setBusy(true); setError(null);
     try {
       const sb = createClient();
