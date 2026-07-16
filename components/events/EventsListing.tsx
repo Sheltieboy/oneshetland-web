@@ -372,90 +372,154 @@ function MonthCalendar({ monthEvents }: { monthEvents: EventListItem[] }) {
   const monthLabel = first.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   const selectedEvents = selected ? byDay[selected] ?? [] : [];
   const todayKey = dayKey(now);
+  const selectedLabel = selectedEvents.length
+    ? new Date(selectedEvents[0].starts_at).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })
+    : "";
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
-      <div>
-        <div className="mb-4 flex items-center justify-between">
-          <button
-            onClick={() => changeMonth(-1)}
-            className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
-            aria-label="Previous month"
-          >
-            ‹
-          </button>
-          <h2 className="font-display text-2xl font-bold">{monthLabel}</h2>
-          <button
-            onClick={() => changeMonth(1)}
-            className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
-            aria-label="Next month"
-          >
-            ›
-          </button>
-        </div>
-        <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold text-ink-muted">
-          {WEEKDAYS.map((w) => (
-            <div key={w} className="pb-1">
-              {w}
-            </div>
-          ))}
-        </div>
-        <div className="mt-1 grid grid-cols-7 gap-1.5">
-          {cells.map((c, i) => {
-            if (!c) return <div key={i} className="aspect-square rounded-lg" />;
-            const k = dayKey(c);
-            const count = byDay[k]?.length ?? 0;
-            const isSel = selected === k;
-            const isToday = k === todayKey;
-            return (
-              <button
-                key={i}
-                onClick={() => setSelected(count > 0 ? k : null)}
-                disabled={count === 0}
-                className={
-                  "relative flex aspect-square flex-col items-center justify-center rounded-lg border text-sm transition " +
-                  (isSel
-                    ? "border-transparent text-paper"
-                    : count > 0
-                      ? "border-line bg-paper font-semibold hover:bg-sand"
-                      : "border-transparent text-ink-faint") +
-                  (isToday && !isSel ? " ring-1 ring-events" : "")
-                }
-                style={isSel ? { background: EVENTS } : undefined}
-              >
-                <span>{c.getDate()}</span>
-                {count > 0 && (
-                  <span
-                    className={"mt-0.5 h-1.5 w-1.5 rounded-full " + (isSel ? "bg-paper" : "")}
-                    style={isSel ? undefined : { background: EVENTS }}
-                  />
-                )}
-              </button>
-            );
-          })}
-        </div>
-        {loading && <p className="mt-4 text-center text-sm text-ink-muted">Loading…</p>}
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <button
+          onClick={() => changeMonth(-1)}
+          className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+          aria-label="Previous month"
+        >
+          ‹
+        </button>
+        <h2 className="font-display text-2xl font-bold">{monthLabel}</h2>
+        <button
+          onClick={() => changeMonth(1)}
+          className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+          aria-label="Next month"
+        >
+          ›
+        </button>
       </div>
 
-      <div className="lg:border-l lg:border-line lg:pl-8">
-        <h3 className="mb-4 font-display text-lg font-bold">
-          {selected
-            ? `${selectedEvents.length} event${selectedEvents.length === 1 ? "" : "s"}`
-            : "Pick a day"}
-        </h3>
-        {selectedEvents.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            {selected ? "Nothing on this day." : "Tap a highlighted date to see what's on."}
-          </p>
-        ) : (
-          <div className="space-y-3">
+      <div className="grid grid-cols-7 gap-1.5 text-center text-xs font-semibold uppercase tracking-wide text-ink-muted">
+        {WEEKDAYS.map((w) => (
+          <div key={w} className="pb-1">
+            {w}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-1 grid grid-cols-7 gap-1.5">
+        {cells.map((c, i) => {
+          if (!c) return <div key={i} className="rounded-lg" />;
+          const k = dayKey(c);
+          const dayEvents = byDay[k] ?? [];
+          const count = dayEvents.length;
+          const isSel = selected === k;
+          const isToday = k === todayKey;
+          return (
+            <div
+              key={i}
+              className={
+                "flex min-h-[62px] flex-col rounded-lg border p-1 transition md:min-h-[132px] " +
+                (isSel ? "border-events ring-1 ring-events " : "border-line ") +
+                (count > 0 ? "bg-paper" : "bg-paper/40")
+              }
+            >
+              <button
+                onClick={() => setSelected(count > 0 ? k : null)}
+                disabled={count === 0}
+                className="flex items-center justify-between px-0.5 disabled:cursor-default"
+                aria-label={count > 0 ? `${count} event${count === 1 ? "" : "s"} on ${c.getDate()}` : undefined}
+              >
+                <span
+                  className={
+                    "grid h-6 w-6 place-items-center rounded-full text-xs font-semibold " +
+                    (isToday ? "text-paper" : count > 0 ? "text-ink" : "text-ink-faint")
+                  }
+                  style={isToday ? { background: EVENTS } : undefined}
+                >
+                  {c.getDate()}
+                </span>
+                {count > 0 && (
+                  <span className="h-1.5 w-1.5 rounded-full md:hidden" style={{ background: EVENTS }} />
+                )}
+              </button>
+
+              {count > 0 && (
+                <div className="mt-1 hidden flex-1 space-y-1 md:block">
+                  {dayEvents.slice(0, 3).map((e) => (
+                    <DayChip key={e.id} e={e} />
+                  ))}
+                  {count > 3 && (
+                    <button
+                      onClick={() => setSelected(k)}
+                      className="w-full rounded px-1 text-left text-[11px] font-semibold text-ink-muted transition hover:text-ink"
+                    >
+                      +{count - 3} more
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {loading && <p className="mt-4 text-center text-sm text-ink-muted">Loading…</p>}
+
+      {/* Selected-day detail: full-width strip below the grid. On phones this is
+          the primary way to read a day; on desktop it expands a day's full list
+          (incl. days with more events than fit in the cell). */}
+      {selected && selectedEvents.length > 0 && (
+        <div className="mt-8 border-t border-line pt-6">
+          <h3 className="mb-4 font-display text-lg font-bold">
+            {selectedLabel}
+            <span className="ml-2 text-sm font-normal text-ink-muted">
+              {selectedEvents.length} event{selectedEvents.length === 1 ? "" : "s"}
+            </span>
+          </h3>
+          <div className="grid gap-3 lg:grid-cols-2">
             {selectedEvents.map((e) => (
               <EventRow key={e.id} e={e} />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/* One event inside a calendar day cell (desktop). Whole chip links to the event;
+   ticketed events carry a compact price tag, free ones a "Free" tag. */
+function DayChip({ e }: { e: EventListItem }) {
+  const label = priceLabel(e);
+  const free = label === "Free";
+  const ticketed = e.has_tickets && !!label && !free;
+  const shortPrice = ticketed ? label!.replace(/^From /, "").replace(/\.00$/, "") : null;
+  return (
+    <Link
+      href={`/whats-on/${e.id}`}
+      title={e.title}
+      className="flex gap-1.5 rounded-md border-l-[3px] p-1 transition hover:brightness-95"
+      style={{ borderColor: EVENTS, background: "rgba(212,146,26,0.07)" }}
+    >
+      {e.cover_url && (
+        <span className="h-9 w-9 shrink-0 overflow-hidden rounded bg-events/10">
+          <SafeImage src={e.cover_url} className="h-full w-full object-cover" fallback={<CalFallback size={14} />} />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[11px] font-semibold leading-tight text-ink">
+          <span style={{ color: EVENTS }}>{fmtTime(e.starts_at)}</span> {e.title}
+        </span>
+        {(ticketed || free) && (
+          <span
+            className={
+              "mt-1 inline-flex items-center gap-0.5 rounded px-1 py-px text-[10px] font-bold " +
+              (free ? "bg-emerald-100 text-emerald-700" : "")
+            }
+            style={free ? undefined : { background: "rgba(212,146,26,0.16)", color: EVENTS }}
+          >
+            {free ? "Free" : `🎟 ${shortPrice}`}
+          </span>
+        )}
+      </span>
+    </Link>
   );
 }
 

@@ -19,7 +19,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
 
   return (
     <header className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
           <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
@@ -29,12 +29,12 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-0.5 xl:flex">
           {PRIMARY_NAV.map((s) => (
             <Link
               key={s.key}
               href={s.href}
-              className="rounded-pill px-3.5 py-2 text-[0.95rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
+              className="whitespace-nowrap rounded-pill px-3 py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
             >
               {s.label}
             </Link>
@@ -45,7 +45,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
                 type="button"
                 onClick={() => setMore((m) => !m)}
                 aria-expanded={more}
-                className="flex items-center gap-1 rounded-pill px-3.5 py-2 text-[0.95rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
+                className="flex items-center gap-1 whitespace-nowrap rounded-pill px-3 py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
               >
                 More
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={"transition-transform " + (more ? "rotate-180" : "")}>
@@ -78,7 +78,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
         <div className="flex items-center gap-2">
           <Link
             href="/business"
-            className="hidden rounded-pill px-3.5 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-sand hover:text-ink lg:inline-flex"
+            className="hidden whitespace-nowrap rounded-pill px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-sand hover:text-ink xl:inline-flex"
           >
             For businesses
           </Link>
@@ -135,7 +135,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             aria-label="Menu"
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
-            className="grid h-10 w-10 place-items-center rounded-pill border border-line-strong text-navy md:hidden"
+            className="grid h-10 w-10 place-items-center rounded-pill border border-line-strong text-navy xl:hidden"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               {open ? (
@@ -157,7 +157,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
 
       {/* Mobile menu */}
       {open && (
-        <nav className="border-t border-line/70 bg-cream px-5 py-3 md:hidden">
+        <nav className="border-t border-line/70 bg-cream px-5 py-3 xl:hidden">
           <div className="flex flex-col">
             {[...PRIMARY_NAV, ...MORE_NAV].map((s) => (
               <Link

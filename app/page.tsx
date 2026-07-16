@@ -11,6 +11,8 @@ import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
 import { ForYou } from "@/components/home/ForYou";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
+import { getEventsInMonth } from "@/lib/events-data";
+import { GAMES, fetchLeaderboardWithTrend, type GameId } from "@/lib/games-data";
 
 // Live community content — always fetch fresh for now.
 export const dynamic = "force-dynamic";
@@ -23,7 +25,8 @@ const QUICK_CHIPS = [
 ];
 
 export default async function Home() {
-  const [data, heroImage, personal, today, homeContent, account] = await Promise.all([
+  const now = new Date();
+  const [data, heroImage, personal, today, homeContent, account, monthEvents] = await Promise.all([
     getHomeData(),
     getHeroImage(),
     getHomePersonal(),
@@ -32,8 +35,15 @@ export default async function Home() {
     getTodaySnapshot().catch(() => null),
     getHomeContent(),
     getAccount(),
+    getEventsInMonth(now.getFullYear(), now.getMonth()).catch(() => []),
   ]);
   const game = getTodaysGame();
+
+  // Top-5 leaderboard for whichever game is featured on the tile today.
+  const featuredGameId = (Object.values(GAMES).find((g) => g.href === game.href)?.id) as GameId | undefined;
+  const gameLeaders = featuredGameId
+    ? await fetchLeaderboardWithTrend(featuredGameId, 5).catch(() => [])
+    : [];
 
   // Personalised "For you" strip — signed-in users only. Never throws.
   const forYou = account ? await getForYou(account.id).catch(() => []) : [];
@@ -107,7 +117,7 @@ export default async function Home() {
       )}
 
       {/* ── Bento — the live homepage mosaic ─────────────────────────────── */}
-      <HomeBento data={data} game={game} content={homeContent} />
+      <HomeBento data={data} game={game} content={homeContent} monthEvents={monthEvents} gameLeaders={gameLeaders} />
 
       {/* ── Browse-everything grid ───────────────────────────────────────── */}
       <SectionGrid />

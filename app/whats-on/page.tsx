@@ -107,7 +107,7 @@ export default async function WhatsOnPage({
         </div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-5 py-12 sm:py-14">
+      <div className={`mx-auto px-5 py-12 sm:py-14 ${calendar ? "max-w-7xl" : "max-w-6xl"}`}>
         {calendar ? (
           <EventsBrowser
             mode="calendar"

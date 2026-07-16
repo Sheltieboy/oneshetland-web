@@ -11,6 +11,9 @@ import {
   offerBadge,
 } from "@/lib/home-data";
 import { type GamePrompt } from "@/lib/home-extras";
+import { type EventListItem } from "@/lib/events-data";
+import { type LeaderboardTrendRow } from "@/lib/games-data";
+import { BentoCalendarTile } from "@/components/home/BentoCalendarTile";
 
 /* The three editable promo tiles are managed in the admin control centre
    (/admin/homepage) and stored in the `home_content` table — see buildPromo().
@@ -65,7 +68,7 @@ function PhotoScrim() {
   );
 }
 
-export async function HomeBento({ data, game, content }: { data: HomeData; game: GamePrompt; content: HomeContent | null }) {
+export async function HomeBento({ data, game, content, monthEvents = [], gameLeaders = [] }: { data: HomeData; game: GamePrompt; content: HomeContent | null; monthEvents?: EventListItem[]; gameLeaders?: LeaderboardTrendRow[] }) {
   const promo = buildPromo(content);
   // When a ship is in port TODAY the cruise tile is escalated above the other
   // equal-weight tiles — mirrors the app's CruiseTodayCard "in port today" accent.
@@ -87,6 +90,24 @@ export async function HomeBento({ data, game, content }: { data: HomeData; game:
   return (
     <section className="mx-auto max-w-6xl px-5 py-10">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:auto-rows-[200px] lg:grid-flow-dense lg:grid-cols-4">
+
+        {/* ── Featured event — big What's On hero (top-left) ────────── */}
+        {featured && (
+          <Link
+            href={`/whats-on/${featured.id}`}
+            className="group relative flex overflow-hidden rounded-2xl border border-line bg-events/10 shadow-soft transition hover:shadow-lift sm:col-span-2 lg:col-start-1 lg:col-span-2 lg:row-span-2"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <SafeImage src={featured.cover_url || "/heroes/events.jpg"} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" fallback={<img src="/heroes/events.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />} />
+            <PhotoScrim />
+            <div className="relative mt-auto p-5 text-paper">
+              <span className="inline-block rounded-pill bg-paper/95 px-3 py-1 text-xs font-bold text-events">{formatEventDate(featured.starts_at)}</span>
+              <h3 className={`mt-3 font-display text-2xl font-bold leading-tight ${TSHADOW}`}>{featured.title}</h3>
+              <p className={`mt-1 text-sm text-white/90 ${TSHADOW}`}>{formatEventTime(featured.starts_at)}{featured.venue ? ` · ${featured.venue}` : ""}</p>
+            </div>
+            <Eyebrow className={`absolute left-5 top-5 !text-white/95 ${TSHADOW}`}>What&apos;s on</Eyebrow>
+          </Link>
+        )}
 
         {/* ── Editable welcome copy ─────────────────────────────────── */}
         <PromoCopyTile p={promo.welcome} className="lg:col-span-2" />
@@ -111,26 +132,11 @@ export async function HomeBento({ data, game, content }: { data: HomeData; game:
           <CruiseTodayCard className="h-full lg:col-span-2 lg:row-span-2" />
         )}
 
-        {/* ── Featured event — big, with cover image ────────────────── */}
-        {featured && (
-          <Link
-            href={`/whats-on/${featured.id}`}
-            className="group relative flex overflow-hidden rounded-2xl border border-line bg-events/10 shadow-soft transition hover:shadow-lift sm:col-span-2 lg:col-span-2 lg:row-span-2"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <SafeImage src={featured.cover_url || "/heroes/events.jpg"} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" fallback={<img src="/heroes/events.jpg" alt="" className="absolute inset-0 h-full w-full object-cover" />} />
-            <PhotoScrim />
-            <div className="relative mt-auto p-5 text-paper">
-              <span className="inline-block rounded-pill bg-paper/95 px-3 py-1 text-xs font-bold text-events">{formatEventDate(featured.starts_at)}</span>
-              <h3 className={`mt-3 font-display text-2xl font-bold leading-tight ${TSHADOW}`}>{featured.title}</h3>
-              <p className={`mt-1 text-sm text-white/90 ${TSHADOW}`}>{formatEventTime(featured.starts_at)}{featured.venue ? ` · ${featured.venue}` : ""}</p>
-            </div>
-            <Eyebrow className={`absolute left-5 top-5 !text-white/95 ${TSHADOW}`}>What&apos;s on</Eyebrow>
-          </Link>
-        )}
+        {/* ── What's on this month — compact calendar ───────────────── */}
+        <BentoCalendarTile monthEvents={monthEvents} className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
 
         {/* ── Today's game — self-contained tile ────────────────────── */}
-        <GamePromptCard game={game} className="h-full lg:col-span-2" />
+        <GamePromptCard game={game} leaders={gameLeaders} className="h-full lg:col-span-2" />
 
         {/* ── Spik o' da day ────────────────────────────────────────── */}
         {spik && (
@@ -326,28 +332,60 @@ function PublisherDot({ name, color }: { name?: string | null; color?: string | 
   return <span className="text-[9px] font-bold leading-none" style={{ color: color || "#0e6ea6" }}>{(name ?? "?").charAt(0).toUpperCase()}</span>;
 }
 
-function GamePromptCard({ game, className = "" }: { game: GamePrompt; className?: string }) {
+function TrendIcon({ trend }: { trend: LeaderboardTrendRow["trend"] }) {
+  if (trend === "up") return <span aria-label="Moving up" title="Up" className="text-[11px] leading-none text-white">▲</span>;
+  if (trend === "down") return <span aria-label="Moving down" title="Down" className="text-[11px] leading-none text-rose-200">▼</span>;
+  return <span aria-label="No change" title="No change" className="text-[11px] leading-none text-white/45">–</span>;
+}
+
+function GamePromptCard({ game, leaders = [], className = "" }: { game: GamePrompt; leaders?: LeaderboardTrendRow[]; className?: string }) {
+  const hasBoard = leaders.length > 0;
   return (
     <Link
       href={game.href}
-      className={`group flex items-center gap-4 overflow-hidden rounded-2xl p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift hover:brightness-[1.07] ${className}`}
+      className={`group flex flex-col gap-4 overflow-hidden rounded-2xl p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift hover:brightness-[1.05] lg:flex-row lg:items-center ${className}`}
       style={{ background: "var(--color-games)" }}
     >
-      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-white">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </span>
-      <div className="min-w-0 flex-1 text-white">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-white/80">Today&apos;s game</p>
-        <h3 className="font-display text-xl font-bold">{game.title}</h3>
-        <p className="truncate text-sm text-white/85">{game.sub}</p>
+      {/* Left — game identity */}
+      <div className="flex min-w-0 flex-1 items-center gap-4">
+        <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-white/20 text-white">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        </span>
+        <div className="min-w-0 text-white">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-white/80">Today&apos;s game</p>
+          <h3 className="font-display text-xl font-bold">{game.title}</h3>
+          <p className="truncate text-sm text-white/85">{game.sub}</p>
+        </div>
+        {!hasBoard && (
+          <span className="ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-games transition group-hover:translate-x-0.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </span>
+        )}
       </div>
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-games transition group-hover:translate-x-0.5">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </span>
+
+      {/* Right — top-5 leaderboard */}
+      {hasBoard && (
+        <div className="flex flex-col rounded-xl bg-white/10 p-3 lg:w-[46%] lg:max-w-[300px] lg:shrink-0 lg:self-stretch">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-white/85">Top 5 in Shetland</p>
+            <span className="text-[10px] font-medium text-white/60">this week</span>
+          </div>
+          <ol className="mt-2 flex flex-1 flex-col justify-between gap-1">
+            {leaders.map((r) => (
+              <li key={r.user_id} className="flex items-center gap-2.5 text-white">
+                <span className="w-4 shrink-0 text-center text-xs font-extrabold text-white/70">{r.rank}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold">{r.games_handle || "Anonymous"}</span>
+                <span className="shrink-0 text-sm font-bold tabular-nums">{r.best_score}</span>
+                <span className="w-3 shrink-0 text-center"><TrendIcon trend={r.trend} /></span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </Link>
   );
 }

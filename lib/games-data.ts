@@ -92,6 +92,81 @@ export async function fetchTopScores(gameId: GameId, period: "today" | "week" | 
   } catch { return []; }
 }
 
+export type LeaderTrend = "up" | "down" | "same";
+export interface LeaderboardTrendRow {
+  rank: number;
+  user_id: string;
+  games_handle: string | null;
+  best_score: number;
+  trend: LeaderTrend;
+}
+
+/** Best score per user for a game, ordered into a ranking, with a movement
+ *  indicator vs the ranking as it stood `sinceDays` ago (default a week).
+ *  Public read; safe to call from a server component. Never throws. */
+export async function fetchLeaderboardWithTrend(
+  gameId: GameId,
+  limit = 5,
+  sinceDays = 7,
+): Promise<LeaderboardTrendRow[]> {
+  const sb = publicClient();
+  try {
+    // Best score per user across the top score rows (all-time = current ranking).
+    const { data: nowData } = await sb
+      .from("games_scores")
+      .select("user_id, score, played_at")
+      .eq("game_id", gameId)
+      .order("score", { ascending: false })
+      .order("played_at", { ascending: true })
+      .limit(300);
+    const bestNow = new Map<string, number>();
+    for (const r of (nowData ?? []) as { user_id: string; score: number }[]) {
+      if (!bestNow.has(r.user_id) || r.score > bestNow.get(r.user_id)!) bestNow.set(r.user_id, r.score);
+    }
+    const current = [...bestNow.entries()].sort((a, b) => b[1] - a[1]);
+    if (!current.length) return [];
+
+    // Ranking as of `sinceDays` ago — best score per user among plays before the
+    // cutoff. Empty when the board didn't exist yet → everyone shows "same".
+    const cutoff = new Date(Date.now() - sinceDays * 86_400_000).toISOString();
+    const { data: prevData } = await sb
+      .from("games_scores")
+      .select("user_id, score")
+      .eq("game_id", gameId)
+      .lte("played_at", cutoff)
+      .order("score", { ascending: false })
+      .limit(300);
+    const bestPrev = new Map<string, number>();
+    for (const r of (prevData ?? []) as { user_id: string; score: number }[]) {
+      if (!bestPrev.has(r.user_id) || r.score > bestPrev.get(r.user_id)!) bestPrev.set(r.user_id, r.score);
+    }
+    const prevRank = new Map<string, number>();
+    [...bestPrev.entries()].sort((a, b) => b[1] - a[1]).forEach(([uid], i) => prevRank.set(uid, i + 1));
+    const hadHistory = prevRank.size > 0;
+
+    const top = current.slice(0, limit);
+    const ids = top.map(([uid]) => uid);
+    const { data: profiles } = await sb.from("profiles").select("id, games_handle").in("id", ids);
+    const handles = Object.fromEntries(
+      ((profiles ?? []) as { id: string; games_handle: string | null }[]).map((p) => [p.id, p.games_handle]),
+    );
+
+    return top.map(([uid, score], i) => {
+      const currRank = i + 1;
+      let trend: LeaderTrend = "same";
+      if (hadHistory) {
+        const pr = prevRank.get(uid);
+        if (pr == null) trend = "up";            // new to the board
+        else if (pr > currRank) trend = "up";
+        else if (pr < currRank) trend = "down";
+      }
+      return { rank: currRank, user_id: uid, games_handle: handles[uid] ?? null, best_score: score, trend };
+    });
+  } catch {
+    return [];
+  }
+}
+
 /* ── Spik word pool + question generators (Sprint / Snap) ─────────────────── */
 
 export interface SpikGameWord { id: number; word: string; meaning: string; pronunciation?: string | null }
