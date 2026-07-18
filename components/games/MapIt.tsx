@@ -11,6 +11,7 @@ import {
 } from "@/lib/map-it";
 import { submitScore } from "@/lib/games-score";
 import { Burst, Rain } from "@/components/games/Confetti";
+import { GameIntro } from "@/components/games/GameIntro";
 
 const ACCENT = "#0E8FAC";
 const SEA = "#b2daf7"; // matches the SVG's own sea fill so the canvas backdrop reads seamlessly
@@ -326,13 +327,22 @@ export function MapIt({ userId }: { userId: string | null }) {
 
   if (phase === "intro") {
     return (
-      <div className="mx-auto max-w-md px-5 py-10 text-center">
-        <h2 className="font-display text-3xl font-bold text-ink">Map It</h2>
-        <p className="mt-1 text-sm font-semibold" style={{ color: ACCENT }}>{formatDateLabel(todayKey())}</p>
-        <p className="mx-auto mt-3 max-w-sm text-ink-soft">You'll be given {ROUNDS_PER_DAY} Shetland places. Tap the map where you think each one is — the closer your pin, the more points. Three stars for a bullseye.</p>
-        <button onClick={startDaily} className="mt-6 rounded-pill px-8 py-3 font-semibold text-paper transition hover:brightness-95" style={{ background: ACCENT }}>Start today's round</button>
-        {!userId && <p className="mt-3 text-xs text-ink-muted">Playing as a guest — <a href="/sign-in?next=/games/map-it" className="underline">sign in</a> to save scores.</p>}
-      </div>
+      <GameIntro
+        id="map_it"
+        accent={ACCENT}
+        title="Map It"
+        subtitle={formatDateLabel(todayKey())}
+        description={`${ROUNDS_PER_DAY} Shetland places, one map. See how well you know da isles.`}
+        howTo={[
+          "You'll be given a Shetland place name",
+          "Tap the map where you think it is",
+          "The closer your pin, the more points — three stars for a bullseye",
+        ]}
+        onStart={startDaily}
+        ctaLabel="Start today's round"
+        userId={userId}
+        signInPath="/games/map-it"
+      />
     );
   }
 

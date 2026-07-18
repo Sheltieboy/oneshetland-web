@@ -5,6 +5,7 @@ import Link from "next/link";
 import { loadSpikGameWords, makeSprintQuestion, type SpikGameWord } from "@/lib/games-data";
 import { submitScore } from "@/lib/games-score";
 import { Burst, Rain, PopNumber } from "@/components/games/Confetti";
+import { GameIntro } from "@/components/games/GameIntro";
 
 const ACCENT = "#059669";
 type Phase = "loading" | "ready" | "playing" | "done";
@@ -75,14 +76,20 @@ export function SpikSprint({ userId }: { userId: string | null }) {
 
   if (phase === "ready") {
     return (
-      <Centered>
-        <div className="rounded-card border border-line bg-paper p-8 text-center shadow-soft">
-          <h2 className="font-display text-3xl font-bold text-ink">Spik Sprint</h2>
-          <p className="mx-auto mt-2 max-w-sm text-ink-soft">Tap the Shetland wird that matches the meaning. As many as you can in 60 seconds. Wrong answers cost 2 seconds.</p>
-          <button onClick={start} className="mt-6 rounded-pill px-8 py-3 font-semibold text-paper transition hover:brightness-95" style={{ background: ACCENT }}>Start</button>
-          {!userId && <p className="mt-3 text-xs text-ink-muted">Playing as a guest — <a href="/sign-in?next=/games/spik-sprint" className="underline">sign in</a> to save scores.</p>}
-        </div>
-      </Centered>
+      <GameIntro
+        id="spik_sprint"
+        accent={ACCENT}
+        title="Spik Sprint"
+        description="How many Shetland wirds can you match in 60 seconds?"
+        howTo={[
+          "You'll see a meaning and four wirds",
+          "Tap the wird that matches",
+          "Score as many as you can in 60 seconds — wrong answers cost 2 seconds",
+        ]}
+        onStart={start}
+        userId={userId}
+        signInPath="/games/spik-sprint"
+      />
     );
   }
 

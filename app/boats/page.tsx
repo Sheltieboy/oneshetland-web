@@ -5,6 +5,7 @@ import { BoatsSortableList } from "@/components/boats/BoatsSortableList";
 import { BoatsSavedRecent } from "@/components/boats/BoatsSavedRecent";
 import { BoatBuildMap } from "@/components/boats/BoatBuildMap";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
+import { BoatsSearchBar } from "@/components/boats/BoatsSearchBar";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Da Boats", description: "The Shetland fishing fleet, past and present — names, numbers, builders and the folk who knew them." };
@@ -50,10 +51,7 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
       {/* Sticky search + filters */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
-          <form action="/boats" method="get" className="mb-3 flex gap-2">
-            <input name="q" defaultValue={q ?? ""} placeholder="Search by name or number — e.g. Brilliant, LK123…" className="w-full rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint" />
-            <button type="submit" className="rounded-pill px-5 py-2.5 font-semibold text-white" style={{ background: BOATS }}>Search</button>
-          </form>
+          <BoatsSearchBar q={q ?? ""} decade={decade} photos={photos} builder={builder} accent={BOATS} />
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {chip("All", decadeHref(), !decade)}
             {DECADES.map((d) => chip(d, decadeHref(d.slice(0, 4)), decade === d.slice(0, 4)))}

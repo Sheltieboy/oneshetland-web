@@ -1,0 +1,76 @@
+<!--
+  OneShetland — Supabase "Confirm signup" email template
+  ------------------------------------------------------
+  Paste the HTML below into: Supabase → Authentication → Email Templates →
+  "Confirm signup" → Message body (HTML).
+
+  Suggested Subject: Confirm your OneShetland account
+
+  It mirrors the branded transactional emails (navy header, teal eyebrow,
+  white body, grey footer) sent by the send-email edge function, so the
+  sign-up email no longer looks like the default unbranded Supabase one.
+
+  {{ .ConfirmationURL }} is Supabase's variable for the confirm link — leave
+  it exactly as-is. For the link to land correctly, the Site URL and Redirect
+  URLs must be configured (see the auth URL configuration).
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Confirm your OneShetland account</title>
+</head>
+<body style="margin:0;padding:0;background:#F0F2F5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0F2F5;padding:32px 16px">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#032F4C;padding:24px 32px;border-radius:12px 12px 0 0">
+            <p style="margin:0;color:#12B3D6;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase">ONESHETLAND</p>
+            <p style="margin:4px 0 0;color:#fff;font-size:20px;font-weight:800">Confirm your email</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="background:#ffffff;padding:32px;color:#0F1C26;font-size:15px;line-height:24px">
+            <p style="margin:0 0 16px">Welcome to OneShetland — everything Shetland, in one place.</p>
+            <p style="margin:0 0 24px">Tap the button below to confirm your email address and finish setting up your account.</p>
+
+            <table cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+              <tr>
+                <td align="center" style="border-radius:999px;background:#032F4C">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 32px;color:#ffffff;font-size:16px;font-weight:700;text-decoration:none;border-radius:999px">
+                    Confirm my email
+                  </a>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin:0 0 8px;color:#6B7280;font-size:13px">Or paste this link into your browser:</p>
+            <p style="margin:0 0 24px;font-size:13px;word-break:break-all">
+              <a href="{{ .ConfirmationURL }}" style="color:#12B3D6">{{ .ConfirmationURL }}</a>
+            </p>
+
+            <p style="margin:0;color:#6B7280;font-size:13px">If you didn&rsquo;t create a OneShetland account, you can safely ignore this email.</p>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#F9FAFB;padding:24px 32px;border-top:1px solid #E5E9EF;border-radius:0 0 12px 12px;font-size:14px;color:#374151;line-height:22px">
+            <p style="margin:0"><strong>OneShetland</strong></p>
+            <p style="margin:4px 0 0;color:#6B7280;font-size:13px">Everything Shetland, in one place &mdash; built for the islands, by the islands.</p>
+            <p style="margin:16px 0 0;color:#9CA3AF;font-size:12px">a Darren Fullerton Consultancy Ltd platform</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
