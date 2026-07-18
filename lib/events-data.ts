@@ -363,20 +363,28 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
 }
 
 /* ── Date helpers + grouping ──────────────────────────────────────────────── */
+// Always format in Shetland's own timezone. Without this, these run in the
+// runtime's local zone — UTC on the (Netlify) server, the viewer's zone in the
+// browser — so a client component renders a different string on the server than
+// on hydration (an event at 19:00 becomes "20:00" during BST), which is a
+// guaranteed React hydration mismatch. Pinning the zone also means times read
+// correctly for a viewer outside the UK.
+const SHETLAND_TZ = "Europe/London";
+
 export function fmtDay(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", timeZone: SHETLAND_TZ });
 }
 export function fmtMonthShort(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { month: "short" }).toUpperCase();
+  return new Date(iso).toLocaleDateString("en-GB", { month: "short", timeZone: SHETLAND_TZ }).toUpperCase();
 }
 export function fmtWeekday(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short" });
+  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", timeZone: SHETLAND_TZ });
 }
 export function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", timeZone: SHETLAND_TZ });
 }
 export function fmtFullDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  return new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: SHETLAND_TZ });
 }
 export function fmtLongDateTime(iso: string) {
   return new Date(iso).toLocaleDateString("en-GB", {
@@ -385,6 +393,7 @@ export function fmtLongDateTime(iso: string) {
     month: "long",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: SHETLAND_TZ,
   });
 }
 

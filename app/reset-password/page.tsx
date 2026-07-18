@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logCompliance } from "@/lib/compliance";
@@ -12,6 +13,43 @@ export default function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  // Gate the form on a real recovery session. We may land here three ways:
+  //  - via /auth/callback which already exchanged the code (session set), or
+  //  - directly with a PKCE `?code=` in the URL (exchange it here), or
+  //  - directly with the tokens in the URL hash (the browser client picks these
+  //    up automatically and emits PASSWORD_RECOVERY).
+  const [status, setStatus] = useState<"checking" | "ready" | "invalid">("checking");
+
+  useEffect(() => {
+    const sb = createClient();
+    let active = true;
+
+    const sub = sb.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (event === "PASSWORD_RECOVERY" || session) setStatus("ready");
+    });
+
+    (async () => {
+      // If we arrived with a PKCE code, turn it into a session, then tidy the URL.
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+      if (code) {
+        await sb.auth.exchangeCodeForSession(code).catch(() => {});
+        url.searchParams.delete("code");
+        window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+      }
+      // Give the client a moment to consume any hash tokens, then check.
+      const { data } = await sb.auth.getSession();
+      if (!active) return;
+      setStatus((s) => (s === "ready" || data.session ? "ready" : "invalid"));
+    })();
+
+    return () => {
+      active = false;
+      sub.data.subscription.unsubscribe();
+    };
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +81,22 @@ export default function ResetPasswordPage() {
       <div className="rounded-xl border border-line bg-paper p-8 shadow-soft sm:p-10">
         <p className="eyebrow text-teal">Reset password</p>
         <h1 className="mt-2 font-display text-4xl font-bold text-navy">Choose a new password</h1>
-        {done ? (
+
+        {status === "checking" ? (
+          <p className="mt-4 text-ink-soft">Checking your reset link…</p>
+        ) : status === "invalid" ? (
+          <>
+            <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 font-medium text-rose-700">
+              This reset link is invalid or has expired.
+            </p>
+            <Link
+              href="/forgot-password"
+              className="mt-6 inline-block rounded-pill bg-navy px-6 py-3 font-semibold text-paper hover:bg-navy-dark"
+            >
+              Request a new link
+            </Link>
+          </>
+        ) : done ? (
           <p className="mt-4 rounded-lg bg-emerald-50 px-4 py-3 font-medium text-emerald-700">
             Password updated — taking you to your account…
           </p>
