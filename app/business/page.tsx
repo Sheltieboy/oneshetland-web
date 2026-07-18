@@ -328,13 +328,15 @@ export default function BusinessLandingPage() {
                   </ul>
 
                   <Link
-                    href="/directory/new"
+                    href={tier === "free" ? "/directory/new" : `/directory/new?plan=${tier}`}
                     className={`mt-6 rounded-pill px-5 py-3 text-center text-base font-bold transition ${featured ? "text-paper hover:brightness-110" : "border text-ink hover:bg-sand"}`}
                     style={featured ? { background: LOCAL } : { borderColor: "var(--color-line-strong)" }}
                   >
                     {PLAN_CTA[tier]}
                   </Link>
-                  <p className="mt-2 text-center text-xs text-ink-muted">Upgrade anytime from your dashboard.</p>
+                  <p className="mt-2 text-center text-xs text-ink-muted">
+                    {tier === "free" ? "Upgrade anytime from your dashboard." : "Create your listing, then pay — cancel anytime."}
+                  </p>
                 </div>
               );
             })}

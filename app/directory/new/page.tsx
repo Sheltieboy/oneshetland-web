@@ -7,8 +7,15 @@ export const metadata = { title: "Add your business · Directory" };
 
 const DIR = "#4f46e5";
 
-export default async function NewBusinessPage() {
+export default async function NewBusinessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plan?: string }>;
+}) {
   const account = await getAccount();
+  const { plan: planRaw } = await searchParams;
+  // Carried from a paid CTA on /business so we can send them to checkout after.
+  const plan = planRaw === "pro" || planRaw === "premium" ? planRaw : null;
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
@@ -26,10 +33,15 @@ export default async function NewBusinessPage() {
         <p className="mt-3 text-lg text-ink-soft">
           Free to list. Reach everyone in Shetland with your business, offers, events and services.
         </p>
+        {plan && (
+          <p className="mt-4 rounded-lg border px-4 py-3 text-sm font-medium" style={{ borderColor: DIR + "40", background: DIR + "10", color: DIR }}>
+            You&apos;re signing up for <strong>{plan === "pro" ? "Pro" : "Premium"}</strong>. Create your listing first — we&apos;ll take you straight to checkout.
+          </p>
+        )}
       </div>
 
       <div className="mt-8">
-        <BusinessCreateForm isLoggedIn={!!account} />
+        <BusinessCreateForm isLoggedIn={!!account} plan={plan} />
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3 text-center">

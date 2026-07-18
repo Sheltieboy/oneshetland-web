@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
@@ -16,7 +16,7 @@ import {
   createBillingPortalLink, requestNfcTile,
 } from "@/lib/business-client";
 
-export function BillingManager({ business, addons = [] }: { business: ManagedBusiness; addons?: BusinessAddon[] }) {
+export function BillingManager({ business, addons = [], intentTier }: { business: ManagedBusiness; addons?: BusinessAddon[]; intentTier?: "pro" | "premium" }) {
   const router = useRouter();
   const confirm = useConfirm();
   const b = business;
@@ -30,6 +30,17 @@ export function BillingManager({ business, addons = [] }: { business: ManagedBus
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function fail(e: unknown) { setError(e instanceof Error ? e.message : "Something went wrong."); setBusy(null); }
+
+  // Arrived from a paid CTA (e.g. "Choose Premium" → create listing → here):
+  // open that tier's checkout straight away so they can pay in one flow, unless
+  // they're already on that tier or higher.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStarted.current || !intentTier || tierMeets(tier, intentTier)) return;
+    autoStarted.current = true;
+    void upgrade(intentTier);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intentTier]);
 
   /* Toggles */
   async function toggle(field: "use_business_payment" | "use_business_payout", value: boolean) {

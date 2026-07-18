@@ -7,7 +7,13 @@ import { CATEGORIES } from "@/lib/local-data";
 
 const DIR = "#4f46e5";
 
-export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
+export function BusinessCreateForm({
+  isLoggedIn,
+  plan = null,
+}: {
+  isLoggedIn: boolean;
+  plan?: "pro" | "premium" | null;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
@@ -26,7 +32,7 @@ export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
         <p className="font-display text-xl font-bold">Sign in to add your business</p>
         <p className="mt-2 text-ink-soft">You need a free OneShetland account to create a listing.</p>
         <a
-          href="/sign-in?next=/directory/new"
+          href={`/sign-in?next=${encodeURIComponent(`/directory/new${plan ? `?plan=${plan}` : ""}`)}`}
           className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-paper transition hover:brightness-95"
           style={{ background: DIR }}
         >
@@ -63,7 +69,10 @@ export function BusinessCreateForm({ isLoggedIn }: { isLoggedIn: boolean }) {
         subscription_tier: "free",
       }).select("id, slug").single();
       if (dbErr) throw dbErr;
-      router.push(`/directory/${data.slug ?? data.id}`);
+      // A paid plan was chosen on the way in → go straight to checkout for it,
+      // rather than the public listing, so they can pay there and then.
+      if (plan) router.push(`/business/${data.id}/manage/billing?plan=${plan}`);
+      else router.push(`/directory/${data.slug ?? data.id}`);
     } catch (e) {
       // Supabase PostgrestError isn't an Error instance — surface its real
       // message/details so the actual reason shows instead of a generic string.
