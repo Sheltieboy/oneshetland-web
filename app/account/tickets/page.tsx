@@ -31,8 +31,12 @@ export default async function MyTicketsPage() {
   const sb = await createClient();
   const { data } = await sb
     .from("event_tickets")
+    // Only PAID tickets belong in "My tickets". Unpaid rows are created with
+    // status 'pending_payment' the moment checkout starts; without this filter a
+    // customer who backs out before paying still saw the tickets as theirs.
     .select("id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, venue), ticket_type:event_ticket_types(name)")
     .eq("holder_id", account.id)
+    .in("status", ["valid", "used"])
     .order("created_at", { ascending: false });
 
   const tickets = (data ?? []) as unknown as TicketRow[];
