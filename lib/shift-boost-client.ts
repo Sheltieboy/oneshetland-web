@@ -65,10 +65,13 @@ export async function startShiftBoost(
 
 export async function confirmShiftBoost(
   shiftId: string,
+  paymentIntentId: string,
 ): Promise<{ ok: boolean; boosted_until: string; notified: number }> {
   const sb = createClient();
+  // payment_intent_id is REQUIRED: confirm-boost verifies the £2.99 payment with
+  // Stripe before featuring the shift, so pass the id from startShiftBoost.
   const { data, error } = await sb.functions.invoke("confirm-boost", {
-    body: { shift_id: shiftId },
+    body: { shift_id: shiftId, payment_intent_id: paymentIntentId },
   });
   if (error) return invokeError(error);
   return data;

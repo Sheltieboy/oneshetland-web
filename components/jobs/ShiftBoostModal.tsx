@@ -59,8 +59,13 @@ export function ShiftBoostModal({
 
   const canWallet = walletPence != null && walletPence >= PRICE_PENCE;
 
-  async function finishBoost() {
-    const res = await confirmShiftBoost(shiftId);
+  async function finishBoost(pid?: string) {
+    // confirm-boost now verifies the payment, so it needs the PaymentIntent id:
+    // the off-session path passes it in; the card-form path derives it from the
+    // clientSecret (`pi_XXX_secret_YYY` → `pi_XXX`).
+    const paymentIntentId = pid ?? (clientSecret ? clientSecret.split("_secret")[0] : null);
+    if (!paymentIntentId) { setError("Couldn't confirm the payment. Please try again."); return; }
+    const res = await confirmShiftBoost(shiftId, paymentIntentId);
     onBoosted(res.boosted_until);
     setStep("done");
     router.refresh();
@@ -78,7 +83,7 @@ export function ShiftBoostModal({
         businessId: businessId ?? undefined,
       });
       if ("charged" in res) {
-        await finishBoost();
+        await finishBoost(res.payment_intent_id);
         return;
       }
       setClientSecret(res.clientSecret);
