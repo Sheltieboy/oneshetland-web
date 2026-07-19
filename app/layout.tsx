@@ -8,6 +8,7 @@ import { getFetchStatusSummary } from "@/lib/fetch-data.server";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
+import { PrelaunchNotice } from "@/components/site/PrelaunchNotice";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -67,6 +68,7 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-cream text-ink">
         <AnalyticsProvider />
         <ConsentBanner />
+        <PrelaunchNotice />
         <ConfirmProvider>
           <SiteHeader user={user} fetchStatus={fetchStatus} />
           <main className="flex-1">{children}</main>
