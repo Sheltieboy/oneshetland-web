@@ -44,7 +44,12 @@ export default async function BoatsPage({ searchParams }: { searchParams: Promis
           <p className="text-xs font-bold uppercase tracking-widest text-paper/80">OneShetland</p>
           <h1 className="mt-2 font-display text-5xl font-bold sm:text-6xl">Da Boats</h1>
           <p className="mt-3 max-w-xl text-lg text-paper/90">The Shetland fishing fleet, past and present — names, numbers, builders and the folk who knew them.</p>
-          <p className="mt-4 inline-block rounded-pill bg-white/15 px-3 py-1 text-sm font-semibold">{stats.total.toLocaleString()} vessels recorded</p>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <span className="inline-block rounded-pill bg-white/15 px-3 py-1 text-sm font-semibold">{stats.total.toLocaleString()} vessels recorded</span>
+            <Link href="/boats/add" className="inline-flex items-center gap-2 rounded-pill bg-paper px-4 py-2 text-sm font-semibold shadow-soft transition hover:brightness-95" style={{ color: BOATS }}>
+              ＋ Add a boat
+            </Link>
+          </div>
         </div>
       </section>
 

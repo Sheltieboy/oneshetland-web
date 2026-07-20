@@ -46,11 +46,11 @@ async function count(table: string, build?: (q: any) => any): Promise<number> {
 export interface AdminStats {
   users: number; pendingDrivers: number; openRequests: number; activeRuns: number;
   pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number; openReports: number;
-  pendingVesselPhotos: number;
+  pendingVesselPhotos: number; pendingVesselSubmissions: number;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos] = await Promise.all([
+  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions] = await Promise.all([
     count("profiles"),
     count("driver_profiles", (q) => q.eq("driver_status", "pending")),
     count("delivery_requests", (q) => q.eq("status", "pending")),
@@ -61,8 +61,9 @@ export async function getAdminStats(): Promise<AdminStats> {
     count("events", (q) => q.not("organiser_hub_id", "is", null).eq("calendar_approved", false)),
     count("content_reports", (q) => q.eq("status", "open")),
     count("media_assets", (q) => q.eq("approval_status", "pending")),
+    count("vessel_submissions", (q) => q.eq("submission_status", "pending")),
   ]);
-  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos };
+  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions };
 }
 
 /* ── Helper: attach profiles by id ───────────────────────────────────────── */
@@ -189,6 +190,20 @@ export async function getSpikWordVariations(status: "pending" | "approved" | "re
       .select("id, word_id, region_name, variant_spelling, pronunciation, word_audio_url, sentence_text, sentence_audio_url, contributor_name, show_name, status, created_at, word:spik_dictionary(word)")
       .order("created_at", { ascending: false }).limit(300);
     if (status !== "all") q = q.eq("status", status);
+    const { data } = await q;
+    return (data ?? []) as Record<string, unknown>[];
+  })(), [] as Record<string, unknown>[]);
+}
+
+/* ── Da Boats: new-boat submissions ──────────────────────────────────────── */
+
+export async function getVesselSubmissions(status: "pending" | "approved" | "rejected" | "all" = "pending") {
+  return safe((async () => {
+    const sb = await createServerClient();
+    let q = sb.from("vessel_submissions")
+      .select("id, canonical_name, primary_lk_number, built_year, builder, yard_number, hull_material, country_of_build, status, former_names, registration_note, identity_notes, possible_duplicate_id, submitter_name, show_name, submission_status, published_vessel_id, created_at")
+      .order("created_at", { ascending: false }).limit(300);
+    if (status !== "all") q = q.eq("submission_status", status);
     const { data } = await q;
     return (data ?? []) as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);
