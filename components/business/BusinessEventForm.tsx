@@ -301,6 +301,11 @@ export function BusinessEventForm({
             </p>
           )}
         </div>
+        {aiDone && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            {PEERIE.spark} {PEERIE.name} filled this from your description — please double-check the venue is right, and search &amp; select it above so it&apos;s pinned on the map for attendees.
+          </p>
+        )}
         <input value={locality} onChange={(e) => setLocality(e.target.value)} placeholder="Area (e.g. Lerwick)" className={inputCls} />
       </section>
 
