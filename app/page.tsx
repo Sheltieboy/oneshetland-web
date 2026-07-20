@@ -70,8 +70,7 @@ export default async function Home() {
         <div className="relative mx-auto grid max-w-6xl items-center gap-9 px-5 py-14 sm:py-16 md:grid-cols-[1fr_minmax(300px,360px)] md:gap-10 lg:gap-12 lg:py-20">
           {/* Left — wordmark message + chips */}
           <div>
-            <p className="eyebrow text-paper [text-shadow:_0_1px_4px_rgb(0_0_0_/_55%)]">For aa the isles</p>
-            <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.03] text-paper [text-shadow:_0_2px_12px_rgb(0_0_0_/_55%)] sm:text-5xl lg:text-6xl">
+            <h1 className="font-display text-[2.5rem] font-bold leading-[1.03] text-paper [text-shadow:_0_2px_12px_rgb(0_0_0_/_55%)] sm:text-5xl lg:text-6xl">
               Everything Shetland,
               <br />
               in one place.
