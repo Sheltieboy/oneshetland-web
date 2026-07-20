@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { EVENT_CATEGORIES } from "@/lib/events-data";
+import { AiGlow } from "@/components/ai/AiGlow";
+import { PEERIE, RING_COLOURS } from "@/lib/peerie";
 import { PlaceAutocomplete, type PickedPlace } from "@/components/fetch/PlaceAutocomplete";
 import {
   createBusinessEvent, updateBusinessEvent, uploadEventCover,
@@ -76,6 +78,56 @@ export function BusinessEventForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Peerie Bot: describe-your-event → auto-fill ──────────────────────────
+  const [aiText, setAiText] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiDone, setAiDone] = useState(false);
+
+  async function runPeerie() {
+    if (!aiText.trim()) return;
+    setAiError(null); setAiDone(false); setAiBusy(true);
+    try {
+      const res = await fetch("/api/ai/parse-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: aiText }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d?.error || "Peerie Bot couldn't read that.");
+
+      if (d.title) setTitle(d.title);
+      if (d.description) setDescription(d.description);
+      if (d.category && (EVENT_CATEGORIES as readonly string[]).includes(d.category)) setCategory(d.category);
+      if (d.starts_at) setStartsAt(d.starts_at);
+      if (d.ends_at) setEndsAt(d.ends_at);
+      if (d.doors_open_at) setDoorsAt(d.doors_open_at);
+      if (d.venue) { setVenue(d.venue); setAddress(d.venue); }
+      if (d.area) setLocality(d.area);
+      if (d.age_restriction && (AGE_RESTRICTIONS as readonly string[]).includes(d.age_restriction)) setAgeRestr(d.age_restriction);
+      if (d.contact_info) setContactInfo(d.contact_info);
+      if (d.notes) setEventNotes(d.notes);
+
+      if (Array.isArray(d.tickets) && d.tickets.length > 0) {
+        setTicketMode("oneshetland");
+        setTicketTypes(d.tickets.map((t: { name?: string; price_gbp?: number }) => ({
+          name: t.name ?? "",
+          price_pence: Math.max(0, Math.round((t.price_gbp ?? 0) * 100)),
+          quantity_available: null,
+        })));
+      } else if (d.ticket_mode === "external" && d.ticket_url) {
+        setTicketMode("external"); setTicketUrl(d.ticket_url);
+      } else if (d.ticket_mode) {
+        setTicketMode(d.ticket_mode);
+      }
+      setAiDone(true);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   function onPick(p: PickedPlace) {
     setVenue(p.name);
     setAddress(p.address);
@@ -148,6 +200,38 @@ export function BusinessEventForm({
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); submit(true); }} className="space-y-6">
+      {/* Peerie Bot — describe the event in plain English, AI fills the form */}
+      <AiGlow active={aiBusy}>
+        <section className="space-y-3 rounded-xl border border-line bg-paper p-5 shadow-soft">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full text-sm text-paper shadow-soft"
+              style={{ background: `conic-gradient(${RING_COLOURS.join(", ")}, ${RING_COLOURS[0]})` }}>{PEERIE.spark}</span>
+            <div>
+              <h2 className="font-display text-lg font-bold leading-none">{PEERIE.name}</h2>
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{PEERIE.role}</span>
+            </div>
+            <span className="ml-1 rounded-pill bg-ink/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-muted">{PEERIE.tag}</span>
+          </div>
+          <p className="text-sm text-ink-soft">
+            Describe your event in plain English and {PEERIE.name} will fill in the form below — check and tweak anything before you publish.
+          </p>
+          <textarea value={aiText} onChange={(e) => setAiText(e.target.value)} rows={4}
+            placeholder={"e.g. I'm running an event in Mareel on Saturday 23rd August — a music gig with Band X from 7pm, ending at midnight. Selling tickets via OneShetland: General £10, Early access £15, Under 18 £8."}
+            className={inputCls} />
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={runPeerie} disabled={aiBusy || !aiText.trim()}
+              className="rounded-pill px-5 py-2.5 font-semibold text-paper shadow-soft transition hover:brightness-95 disabled:opacity-50"
+              style={{ background: accent }}>
+              {aiBusy ? `${PEERIE.name} is working…` : `${PEERIE.spark} Fill in with ${PEERIE.name}`}
+            </button>
+            {aiDone && !aiBusy && <span className="text-sm font-semibold text-emerald-600">Filled in below — have a look ✓</span>}
+          </div>
+          {aiError && <p className="text-sm font-medium text-rose-600">{aiError}</p>}
+        </section>
+      </AiGlow>
+
+      {/* Everything Peerie Bot fills — its border glows while it works */}
+      <AiGlow active={aiBusy} className="block space-y-6">
       {/* Cover */}
       <section className="space-y-2 rounded-xl border border-line bg-paper p-5 shadow-soft">
         <h2 className="font-display text-lg font-bold">Cover image</h2>
@@ -288,6 +372,7 @@ export function BusinessEventForm({
         <input value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="Contact info (email or phone)" className={inputCls} />
         <textarea value={eventNotes} onChange={(e) => setEventNotes(e.target.value)} placeholder="Additional notes for attendees…" rows={3} className={inputCls} />
       </section>
+      </AiGlow>
 
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 

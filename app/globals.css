@@ -133,3 +133,54 @@
   0%, 100% { opacity: 0; }
   8%, 82%  { opacity: 1; }
 }
+
+/* ── Peerie Bot "working" glow ─────────────────────────────────────────────
+   A multicoloured wave in the OneShetland ring colours that flows around the
+   border of whatever the AI is acting on. Two layers: a crisp masked ring
+   (::before) and a soft blurred bleed (::after), both rotating a conic gradient
+   via the registered --ai-angle custom property. Inert until .is-active.        */
+@property --ai-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes ai-glow-spin { to { --ai-angle: 360deg; } }
+@keyframes ai-glow-breathe { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
+
+.ai-glow { position: relative; border-radius: 16px; }
+
+.ai-glow.is-active::before,
+.ai-glow.is-active::after {
+  content: "";
+  position: absolute;
+  border-radius: inherit;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--ai-angle),
+    #12B3D6, #7C3AED, #E8A020, #10B981, #E0722A, #4F46E5, #EC4899, #12B3D6
+  );
+  animation: ai-glow-spin 3.2s linear infinite;
+}
+/* Crisp ring: fill a 2px band by XOR-masking the padding box out of the border box. */
+.ai-glow.is-active::before {
+  inset: -2px;
+  padding: 2px;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  z-index: 2;
+}
+/* Soft outer bleed. */
+.ai-glow.is-active::after {
+  inset: -7px;
+  filter: blur(15px);
+  opacity: 0.6;
+  z-index: 0;
+  animation: ai-glow-spin 3.2s linear infinite, ai-glow-breathe 1.8s ease-in-out infinite;
+}
+.ai-glow.is-active > * { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-glow.is-active::before,
+  .ai-glow.is-active::after { animation: none; }
+}
