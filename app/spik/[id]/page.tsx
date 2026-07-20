@@ -81,7 +81,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
   // Group approved variations by region, preserving the region-sorted order.
   const byRegion = new Map<string, SpikVariation[]>();
   for (const v of variations) {
-    const key = v.region_name || "Ither";
+    const key = v.region_name || "Other";
     (byRegion.get(key) ?? byRegion.set(key, []).get(key)!).push(v);
   }
 
@@ -227,7 +227,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
             <div>
               <p className="eyebrow text-ink-muted">Local variations</p>
               <p className="mt-1 text-sm text-ink-soft">
-                How &ldquo;{w.word}&rdquo; is said an spelled roond different pairts o Shetland.
+                How &ldquo;{w.word}&rdquo; is spelled and said in different parts of Shetland.
               </p>
             </div>
             <Link
@@ -241,7 +241,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
 
           {byRegion.size === 0 ? (
             <p className="mt-4 rounded-lg border border-dashed border-line bg-cream/40 p-5 text-center text-sm text-ink-muted">
-              Nae local variations yet. Div you say it differently whaur you&apos;re fae? Be the first tae add yours.
+              No local variations yet. Say it differently where you&apos;re from? Be the first to add yours.
             </p>
           ) : (
             <div className="mt-5 space-y-6">

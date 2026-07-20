@@ -166,7 +166,7 @@ export function AddVariationForm({
       {/* Region — required */}
       <div className="rounded-xl border-2 bg-paper p-5 shadow-soft" style={{ borderColor: SPIK_COLOR }}>
         <label className="font-display text-lg font-bold" htmlFor="region">
-          Whaur in Shetland? <span style={{ color: SPIK_COLOR }}>*</span>
+          Where in Shetland? <span style={{ color: SPIK_COLOR }}>*</span>
         </label>
         <p className="mt-1 text-sm text-ink-muted">The part of Shetland this spelling / pronunciation is from.</p>
         {regions.length === 0 ? (
@@ -184,7 +184,7 @@ export function AddVariationForm({
       {/* Spelling + written pronunciation */}
       <div className="rounded-xl border border-line bg-paper p-5 shadow-soft">
         <label className="font-semibold text-ink" htmlFor="spelling">Local spelling</label>
-        <p className="mt-0.5 text-xs text-ink-muted">How &ldquo;{word}&rdquo; is spelled whaur you&apos;re fae (leave blank if it&apos;s the same).</p>
+        <p className="mt-0.5 text-xs text-ink-muted">How &ldquo;{word}&rdquo; is spelled where you&apos;re from (leave blank if it&apos;s the same).</p>
         <input id="spelling" value={spelling} onChange={(e) => setSpelling(e.target.value)} placeholder={word} className={inputCls + " mt-3 text-lg"} />
         <label className="mt-4 block font-semibold text-ink" htmlFor="pron">Pronunciation <span className="text-xs font-normal text-ink-faint">· optional</span></label>
         <p className="mt-0.5 text-xs text-ink-muted">Written out, e.g. AHB-er (caps = stressed syllable).</p>
@@ -194,7 +194,7 @@ export function AddVariationForm({
       {/* Audio: the word */}
       <AudioInput
         label="Hear the word"
-        hint="Record yourself saying the word the wey you say it, or upload a clip."
+        hint="Record yourself saying the word the way you say it, or upload a clip."
         value={wordAudio}
         onChange={setWordAudio}
       />
