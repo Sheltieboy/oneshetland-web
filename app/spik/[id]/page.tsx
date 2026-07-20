@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getWord, stripHtml, SUGGEST_FIELDS, SPIK_COLOR } from "@/lib/spik-data";
+import { getWord, getWordVariations, stripHtml, SUGGEST_FIELDS, SPIK_COLOR, type SpikVariation } from "@/lib/spik-data";
 import { SuggestModal } from "@/components/spik/SuggestModal";
 import { TrackView } from "@/components/analytics/TrackView";
 
@@ -36,10 +36,54 @@ function SnapshotTile({ value, label }: { value: string; label: string }) {
   );
 }
 
+function VariationCard({ v }: { v: SpikVariation }) {
+  const spelling = stripHtml(v.variant_spelling);
+  const pron = stripHtml(v.pronunciation);
+  const sentence = stripHtml(v.sentence_text);
+  return (
+    <div className="rounded-xl border border-line bg-cream/40 p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div className="flex items-baseline gap-2">
+          {spelling && <span className="font-display text-xl font-bold text-ink">{spelling}</span>}
+          {pron && <span className="text-sm text-ink-faint">/{pron}/</span>}
+        </div>
+        {v.show_name && v.contributor_name && (
+          <span className="text-xs text-ink-muted">— {stripHtml(v.contributor_name)}</span>
+        )}
+      </div>
+      {v.word_audio_url && (
+        <div className="mt-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">The word</p>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls src={v.word_audio_url} className="mt-1 w-full" />
+        </div>
+      )}
+      {sentence && (
+        <blockquote className="mt-3 border-l-4 pl-3 text-sm italic text-ink-soft" style={{ borderColor: SPIK_COLOR }}>
+          “{sentence}”
+        </blockquote>
+      )}
+      {v.sentence_audio_url && (
+        <div className="mt-2">
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <audio controls src={v.sentence_audio_url} className="mt-1 w-full" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default async function WordPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const w = await getWord(id);
   if (!w) notFound();
+  const variations = await getWordVariations(w.id);
+  // Group approved variations by region, preserving the region-sorted order.
+  const byRegion = new Map<string, SpikVariation[]>();
+  for (const v of variations) {
+    const key = v.region_name || "Ither";
+    (byRegion.get(key) ?? byRegion.set(key, []).get(key)!).push(v);
+  }
 
   const shortMeaning = stripHtml(w.short_meaning);
   const fullMeaning = stripHtml(w.spik_meaning);
@@ -176,6 +220,46 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
             <audio controls src={w.audio_url} className="mt-2 w-full" />
           </div>
         )}
+
+        {/* Local variations — regional spellings + contributor audio */}
+        <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="eyebrow text-ink-muted">Local variations</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                How &ldquo;{w.word}&rdquo; is said an spelled roond different pairts o Shetland.
+              </p>
+            </div>
+            <Link
+              href={`/spik/${w.id}/add-variation`}
+              className="shrink-0 rounded-pill px-4 py-2 text-sm font-semibold text-paper transition hover:brightness-95"
+              style={{ background: SPIK_COLOR }}
+            >
+              ＋ Add your version
+            </Link>
+          </div>
+
+          {byRegion.size === 0 ? (
+            <p className="mt-4 rounded-lg border border-dashed border-line bg-cream/40 p-5 text-center text-sm text-ink-muted">
+              Nae local variations yet. Div you say it differently whaur you&apos;re fae? Be the first tae add yours.
+            </p>
+          ) : (
+            <div className="mt-5 space-y-6">
+              {[...byRegion.entries()].map(([region, vs]) => (
+                <div key={region}>
+                  <h3 className="flex items-center gap-2 font-display text-lg font-bold text-ink">
+                    <span aria-hidden>📍</span> {region}
+                  </h3>
+                  <div className="mt-3 space-y-3">
+                    {vs.map((v) => (
+                      <VariationCard key={v.id} v={v} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Make a suggestion (opens a modal) */}
         <SuggestModal wordId={w.id} word={w.word} pos={w.part_of_speech} current={current} />

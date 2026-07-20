@@ -198,6 +198,42 @@ export async function getRandomWordId(): Promise<number | null> {
   }
 }
 
+/* ── Local variations (regional spellings + contributor audio) ──────────────── */
+
+export type SpikVariation = {
+  id: string;
+  word_id: number;
+  region_id: string | null;
+  region_name: string;
+  variant_spelling: string | null;
+  pronunciation: string | null;
+  word_audio_url: string | null;
+  sentence_text: string | null;
+  sentence_audio_url: string | null;
+  contributor_name: string | null;
+  show_name: boolean;
+  created_at: string;
+};
+
+/** Approved local variations for a word, oldest first, grouped by region in the UI. */
+export async function getWordVariations(wordId: number): Promise<SpikVariation[]> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("spik_word_variations")
+      .select(
+        "id, word_id, region_id, region_name, variant_spelling, pronunciation, word_audio_url, sentence_text, sentence_audio_url, contributor_name, show_name, created_at",
+      )
+      .eq("word_id", wordId)
+      .eq("status", "approved")
+      .order("region_name", { ascending: true })
+      .order("created_at", { ascending: true });
+    return (data ?? []) as unknown as SpikVariation[];
+  } catch {
+    return [];
+  }
+}
+
 /* ── Community suggestions ───────────────────────────────────────────────────
  * Mirrors the app's spik-suggest flow: one row per changed field in
  * `spik_suggestions`, status 'pending', reviewed in WordPress. */
