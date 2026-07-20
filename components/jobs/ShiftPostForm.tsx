@@ -7,6 +7,9 @@ import {
   SHIFT_CATEGORY_LABELS, SHIFT_PAY_TYPES, SHIFT_REQUIREMENTS, URGENCY_CONFIG,
   type PayType, type Urgency,
 } from "@/lib/jobs-data";
+import { PeerieFill } from "@/components/ai/PeerieFill";
+import { AiGlow } from "@/components/ai/AiGlow";
+import { PEERIE } from "@/lib/peerie";
 
 const SHIFTS = "#e8a020";
 type Biz = { id: string; name: string; logo_url: string | null };
@@ -28,6 +31,27 @@ export function ShiftPostForm({ isLoggedIn, businesses, defaultName }: { isLogge
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Peerie Bot fill
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiDone, setAiDone] = useState(false);
+
+  function applyPeerie(d: Record<string, unknown>) {
+    const str = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : "");
+    if (str("title")) setTitle(str("title"));
+    const cat = str("category"); if (cat && SHIFT_CATEGORY_LABELS[cat]) setCategory(cat);
+    if (str("location")) setLocation(str("location"));
+    if (str("starts_at")) setStartAt(str("starts_at"));
+    if (str("ends_at")) setEndAt(str("ends_at"));
+    const pt = str("pay_type"); if (pt && SHIFT_PAY_TYPES.some((p) => p.value === pt)) setPayType(pt as PayType);
+    const amt = d["pay_amount"]; if (typeof amt === "number" && amt > 0) setPayAmount(String(amt));
+    const pos = d["positions"]; if (typeof pos === "number" && Number.isInteger(pos) && pos >= 1) setPositions(Math.min(5, pos));
+    const urg = str("urgency"); if (urg && urg in URGENCY_CONFIG) setUrgency(urg as Urgency);
+    const reqs = d["requirements"];
+    if (Array.isArray(reqs)) setRequirements(reqs.filter((r): r is string => typeof r === "string" && (SHIFT_REQUIREMENTS as readonly string[]).includes(r)));
+    if (str("description")) setDescription(str("description"));
+    setAiDone(true);
+  }
 
   if (!isLoggedIn) {
     return (
@@ -94,7 +118,16 @@ export function ShiftPostForm({ isLoggedIn, businesses, defaultName }: { isLogge
   const pillStyle = (on: boolean) => on ? { background: SHIFTS, borderColor: SHIFTS } : undefined;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-card border border-line bg-paper p-6 shadow-soft sm:p-8">
+    <div className="space-y-6">
+      <PeerieFill
+        endpoint="/api/ai/parse-shift"
+        accent={SHIFTS}
+        placeholder="e.g. I need 2 bar staff this Saturday 6pm–1am, £12/hour at The Lounge in Lerwick. Must be over 18."
+        onFill={applyPeerie}
+        onBusyChange={setAiBusy}
+      />
+      <AiGlow active={aiBusy}>
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-card border border-line bg-paper p-6 shadow-soft sm:p-8">
       {/* Employer */}
       <div>
         <p className="mb-2 text-sm font-semibold text-ink">Posting as</p>
@@ -128,6 +161,11 @@ export function ShiftPostForm({ isLoggedIn, businesses, defaultName }: { isLogge
       <div>
         <label className="block text-sm font-semibold text-ink">Location <span className="text-rose-500">*</span></label>
         <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Lerwick, Scalloway harbour" className="auth-input mt-1.5" required />
+        {aiDone && (
+          <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            {PEERIE.spark} {PEERIE.name} filled this from your description — please double-check the location, times and pay are right before posting.
+          </p>
+        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -191,5 +229,7 @@ export function ShiftPostForm({ isLoggedIn, businesses, defaultName }: { isLogge
         {busy ? "Posting…" : "Post shift"}
       </button>
     </form>
+      </AiGlow>
+    </div>
   );
 }
