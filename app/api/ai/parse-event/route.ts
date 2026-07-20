@@ -17,31 +17,34 @@ export const dynamic = "force-dynamic";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"];
 
+// Structured-outputs schema. Absence is represented with "" (empty string) and
+// [] rather than null — the validator rejects union types like ["string","null"]
+// alongside an enum. The client treats empty values as "leave that field".
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    title: { type: ["string", "null"], description: "Short, punchy event title." },
+    title: { type: "string", description: "Short, punchy event title. \"\" if not derivable." },
     description: {
-      type: ["string", "null"],
-      description: "An appealing 2–3 sentence description written from ONLY the facts given. Do not invent lineup, prices, or details not provided.",
+      type: "string",
+      description: "An appealing 2–3 sentence description written from ONLY the facts given. Do not invent lineup, prices, or details not provided. \"\" if nothing to say.",
     },
-    category: { type: ["string", "null"], enum: [...EVENT_CATEGORIES, null] },
-    starts_at: { type: ["string", "null"], description: "Local Shetland start, format YYYY-MM-DDTHH:mm (24h), or null." },
-    ends_at: { type: ["string", "null"], description: "Local end in the same format, or null. Must be after starts_at — a midnight/early-hours end is the FOLLOWING day." },
-    doors_open_at: { type: ["string", "null"], description: "Local doors-open time in the same format, or null." },
-    venue: { type: ["string", "null"], description: "Venue name if named (e.g. Mareel), else null." },
-    area: { type: ["string", "null"], description: "Town/area if given (e.g. Lerwick), else null." },
+    category: { type: "string", enum: [...EVENT_CATEGORIES, ""], description: "Best-fit category, or \"\" if unclear." },
+    starts_at: { type: "string", description: "Local Shetland start, format YYYY-MM-DDTHH:mm (24h), or \"\"." },
+    ends_at: { type: "string", description: "Local end in the same format, or \"\". Must be after starts_at — a midnight/early-hours end is the FOLLOWING day." },
+    doors_open_at: { type: "string", description: "Local doors-open time in the same format, or \"\"." },
+    venue: { type: "string", description: "Venue name if named (e.g. Mareel), else \"\"." },
+    area: { type: "string", description: "Town/area if given (e.g. Lerwick), else \"\"." },
     age_restriction: {
-      type: ["string", "null"],
-      enum: [...AGE_RESTRICTIONS, null],
-      description: "Only if an age policy for ENTRY is stated. An under-18 ticket type is NOT an age restriction — leave null.",
+      type: "string",
+      enum: [...AGE_RESTRICTIONS],
+      description: "Entry age policy; \"All ages\" if none stated. An under-18 TICKET type is NOT an age restriction.",
     },
-    ticket_mode: { type: ["string", "null"], enum: ["none", "oneshetland", "external", null] },
-    ticket_url: { type: ["string", "null"], description: "External ticket URL if they link their own site, else null." },
+    ticket_mode: { type: "string", enum: ["none", "oneshetland", "external"], description: "\"oneshetland\" if selling via the platform; \"external\" if linking their own site; else \"none\"." },
+    ticket_url: { type: "string", description: "External ticket URL if they link their own site, else \"\"." },
     tickets: {
       type: "array",
-      description: "One entry per ticket type when selling via OneShetland. Empty if none/free/external.",
+      description: "One entry per ticket type when selling via OneShetland. [] if none/free/external.",
       items: {
         type: "object",
         additionalProperties: false,
@@ -52,8 +55,8 @@ const SCHEMA = {
         required: ["name", "price_gbp"],
       },
     },
-    contact_info: { type: ["string", "null"], description: "Contact email/phone if given, else null." },
-    notes: { type: ["string", "null"], description: "Any extra practical notes for attendees, else null." },
+    contact_info: { type: "string", description: "Contact email/phone if given, else \"\"." },
+    notes: { type: "string", description: "Any extra practical notes for attendees, else \"\"." },
   },
   required: [
     "title", "description", "category", "starts_at", "ends_at", "doors_open_at",
@@ -86,7 +89,7 @@ export async function POST(request: Request) {
   const system =
     `You are Peerie Bot, the OneShetland assistant. Extract structured event details from an organiser's plain-English description and fill the New Event form.\n` +
     `Today is ${weekday} ${todayISO} (Europe/London, Shetland time). Resolve relative dates against today; a date with no year is the NEXT future occurrence. Times are local 24h wall-clock in the format YYYY-MM-DDTHH:mm.\n` +
-    `Rules: only use facts stated by the organiser — never invent a lineup, prices, venue, or times. Leave anything not mentioned as null (or [] for tickets). Write the description to read well and sell the event, using only the given facts. If they say they sell tickets via OneShetland, set ticket_mode "oneshetland" and list each ticket type with its price in pounds. "Midnight"/"12am" as an end time is the following day.`;
+    `Rules: only use facts stated by the organiser — never invent a lineup, prices, venue, or times. Leave anything not mentioned as an empty string "" (or [] for tickets), and age_restriction as "All ages" unless an entry age policy is stated. Write the description to read well and sell the event, using only the given facts. If they say they sell tickets via OneShetland, set ticket_mode "oneshetland" and list each ticket type with its price in pounds. "Midnight"/"12am" as an end time is the following day.`;
 
   try {
     const client = new Anthropic({ apiKey });
