@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { searchVessels, vesselDisplayTitle, BOATS, type VesselSearchRow } from "@/lib/boats-data";
 
@@ -19,6 +20,7 @@ const HULL_OPTIONS: [string, string][] = [
 ];
 
 export function AddBoatForm() {
+  const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = still checking
   const [name, setName] = useState("");
   const [lk, setLk] = useState("");
   const [builtYear, setBuiltYear] = useState("");
@@ -40,6 +42,14 @@ export function AddBoatForm() {
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      const nm = (data.user?.user_metadata?.display_name as string) || (data.user?.user_metadata?.full_name as string) || "";
+      if (nm) setSubmitterName(nm);
+    });
+  }, []);
 
   // Live duplicate search on the name / reg — the main safeguard against adding
   // a renamed boat as a second hull.
@@ -69,7 +79,8 @@ export function AddBoatForm() {
     setStatus("saving");
     try {
       const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { user: u } } = await sb.auth.getUser();
+      if (!u) { setStatus("error"); setError("Please sign in and try again."); return; }
       const { error: insErr } = await sb.from("vessel_submissions").insert({
         canonical_name: name.trim(),
         primary_lk_number: lk.trim() || null,
@@ -82,7 +93,7 @@ export function AddBoatForm() {
         former_names: formerNames.trim() || null,
         identity_notes: notes.trim() || null,
         possible_duplicate_id: dupeId,
-        submitter_id: user?.id ?? null,
+        submitter_id: u.id,
         submitter_name: submitterName.trim() || null,
         show_name: showName,
         submission_status: "pending",
@@ -93,6 +104,24 @@ export function AddBoatForm() {
       setStatus("error");
       setError("Something went wrong — please try again in a moment.");
     }
+  }
+
+  if (user === undefined) {
+    return <div className="rounded-xl border border-line bg-paper p-8 text-center text-ink-muted shadow-soft">Loading…</div>;
+  }
+
+  if (user === null) {
+    return (
+      <div className="rounded-xl border border-line bg-paper p-8 text-center shadow-soft">
+        <h2 className="font-display text-xl font-bold text-ink">Sign in to add a boat</h2>
+        <p className="mx-auto mt-2 max-w-md text-ink-soft">
+          Adding a boat needs an account, so we can credit you and keep the fleet record trustworthy.
+        </p>
+        <Link href="/sign-in?next=/boats/add" className="mt-6 inline-block rounded-pill px-5 py-3 font-semibold text-paper" style={{ background: BOATS }}>
+          Sign in to continue
+        </Link>
+      </div>
+    );
   }
 
   if (status === "done") {

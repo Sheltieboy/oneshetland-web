@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { SUGGEST_FIELDS, SPIK_COLOR } from "@/lib/spik-data";
 
@@ -9,15 +10,25 @@ import { SUGGEST_FIELDS, SPIK_COLOR } from "@/lib/spik-data";
  * AddWordForm — submit a brand-new Shetland word to Spik. Captures the headword
  * plus every attribute a dictionary entry can have (reusing SUGGEST_FIELDS), and
  * lands it in spik_word_submissions as 'pending'. An admin approves it in
- * Control Centre, which publishes it live to the dictionary.
+ * Control Centre, which publishes it live to the dictionary. Signed-in only —
+ * reliable attribution and less junk to moderate.
  */
 export function AddWordForm() {
+  const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = still checking
   const [word, setWord] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitterName, setSubmitterName] = useState("");
   const [showName, setShowName] = useState(true);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      const nm = (data.user?.user_metadata?.display_name as string) || (data.user?.user_metadata?.full_name as string) || "";
+      if (nm) setSubmitterName(nm);
+    });
+  }, []);
 
   const set = (name: string, val: string) => setValues((p) => ({ ...p, [name]: val }));
 
@@ -29,10 +40,11 @@ export function AddWordForm() {
     setStatus("saving");
     try {
       const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
+      const { data: { user: u } } = await sb.auth.getUser();
+      if (!u) { setStatus("error"); setError("Please sign in and try again."); return; }
       const row: Record<string, unknown> = {
         word: word.trim(),
-        submitter_id: user?.id ?? null,
+        submitter_id: u.id,
         submitter_name: submitterName.trim() || null,
         show_name: showName,
         status: "pending",
@@ -49,6 +61,24 @@ export function AddWordForm() {
       setStatus("error");
       setError("Something went wrong — please try again in a moment.");
     }
+  }
+
+  if (user === undefined) {
+    return <div className="rounded-xl border border-line bg-paper p-8 text-center text-ink-muted shadow-soft">Loading…</div>;
+  }
+
+  if (user === null) {
+    return (
+      <div className="rounded-xl border border-line bg-paper p-8 text-center shadow-soft">
+        <h2 className="font-display text-xl font-bold text-ink">Sign in to add a word</h2>
+        <p className="mx-auto mt-2 max-w-md text-ink-soft">
+          Adding a word needs an account, so we can credit you and keep the dictionary trustworthy.
+        </p>
+        <Link href="/sign-in?next=/spik/add" className="mt-6 inline-block rounded-pill px-5 py-3 font-semibold text-paper" style={{ background: SPIK_COLOR }}>
+          Sign in to continue
+        </Link>
+      </div>
+    );
   }
 
   if (status === "done") {
