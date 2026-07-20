@@ -132,7 +132,7 @@ export function JobApplyPanel({
               className="inline-flex items-center gap-1 rounded-pill px-3 py-1 text-xs font-semibold disabled:opacity-40"
               style={{ color: JOBS, background: `${JOBS}14` }}
             >
-              {aiBusy ? "Drafting…" : "✨ Draft with AI"}
+              {aiBusy ? "Peerie Bot is drafting…" : "✨ Draft with Peerie Bot"}
             </button>
           </div>
           <textarea
