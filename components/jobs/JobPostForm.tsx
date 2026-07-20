@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { JOB_CATEGORIES, CONTRACT_LABELS, REMOTE_LABELS, type ContractType, type RemoteMode, type PayPeriod } from "@/lib/jobs-data";
+import { PeerieFill } from "@/components/ai/PeerieFill";
+import { AiGlow } from "@/components/ai/AiGlow";
+import { PEERIE } from "@/lib/peerie";
 
 const JOBS = "#2a8b5c";
 
@@ -42,6 +45,37 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
   const [applyEmail, setApplyEmail] = useState(existing?.apply_email ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Peerie Bot fill
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiDone, setAiDone] = useState(false);
+
+  function applyPeerie(d: Record<string, unknown>) {
+    const str = (k: string) => (typeof d[k] === "string" ? (d[k] as string) : "");
+    const num = (k: string) => (typeof d[k] === "number" ? (d[k] as number) : 0);
+    const bool = (k: string) => d[k] === true;
+    if (str("title")) setTitle(str("title"));
+    if (str("description")) setDescription(str("description"));
+    const cat = str("category"); if (cat && (JOB_CATEGORIES as readonly string[]).includes(cat)) setCategory(cat);
+    const ct = str("contract_type"); if (ct && ct in CONTRACT_LABELS) setContract(ct as ContractType);
+    const rm = str("remote_mode"); if (rm && rm in REMOTE_LABELS) setRemote(rm as RemoteMode);
+    if (str("location")) setLocation(str("location"));
+    const hidden = bool("pay_hidden");
+    setPayHidden(hidden);
+    if (hidden) {
+      if (str("pay_text")) setPayText(str("pay_text"));
+    } else {
+      if (num("pay_min") > 0) setPayMin(String(num("pay_min")));
+      if (num("pay_max") > 0) setPayMax(String(num("pay_max")));
+      const pp = str("pay_period"); if (pp && (PERIODS as string[]).includes(pp)) setPayPeriod(pp as PayPeriod);
+    }
+    if (bool("relocation_support")) setRelocation(true);
+    if (bool("housing_available")) setHousing(true);
+    if (bool("is_seasonal")) { setSeasonal(true); if (str("season_label")) setSeasonLabel(str("season_label")); }
+    if (str("apply_url")) setApplyUrl(str("apply_url"));
+    if (str("apply_email")) setApplyEmail(str("apply_email"));
+    setAiDone(true);
+  }
 
   if (!isLoggedIn) {
     return (
@@ -113,7 +147,18 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
   const pillStyle = (on: boolean) => on ? { background: JOBS, borderColor: JOBS } : undefined;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-card border border-line bg-paper p-6 shadow-soft sm:p-8">
+    <div className="space-y-6">
+      {!existing && (
+        <PeerieFill
+          endpoint="/api/ai/parse-job"
+          accent={JOBS}
+          placeholder="e.g. We're hiring a full-time Sous Chef at the Scalloway Hotel, £28–32k a year, on-site. Some evenings and weekends. Housing can be arranged for the right person."
+          onFill={applyPeerie}
+          onBusyChange={setAiBusy}
+        />
+      )}
+      <AiGlow active={aiBusy}>
+      <form onSubmit={handleSubmit} className="space-y-6 rounded-card border border-line bg-paper p-6 shadow-soft sm:p-8">
       {businesses.length > 1 && (
         <div>
           <p className="mb-2 text-sm font-semibold text-ink">Posting as</p>
@@ -166,6 +211,11 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
       <div>
         <label className="block text-sm font-semibold text-ink">Location</label>
         <input value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Lerwick, Yell, Scalloway" className="auth-input mt-1.5" />
+        {aiDone && (
+          <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+            {PEERIE.spark} {PEERIE.name} filled this from your description — please read it over, especially pay and location, before posting.
+          </p>
+        )}
       </div>
 
       {/* Pay */}
@@ -230,5 +280,7 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
         {busy ? "Saving…" : existing ? "Save changes" : "Post job"}
       </button>
     </form>
+      </AiGlow>
+    </div>
   );
 }
