@@ -108,14 +108,6 @@ export async function POST(request: Request) {
     return Response.json(data);
   } catch (e) {
     console.error("[parse-event] Peerie Bot error:", e);
-    // `detail` is a temporary diagnostic (not shown in the UI) so we can read
-    // the real Anthropic error via the public endpoint. Remove once fixed.
-    const detail =
-      e instanceof Anthropic.APIError
-        ? `${e.status} ${e.name}: ${e.message}`
-        : e instanceof Error
-          ? `${e.name}: ${e.message}`
-          : String(e);
-    return Response.json({ error: "Peerie Bot had a hiccup — please try again.", detail }, { status: 502 });
+    return Response.json({ error: "Peerie Bot had a hiccup — please try again." }, { status: 502 });
   }
 }
