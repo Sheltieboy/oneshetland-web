@@ -170,6 +170,18 @@ export async function getSpikSuggestions(status: "pending" | "reviewed" | "all" 
   })(), [] as Record<string, unknown>[]);
 }
 
+export async function getSpikWordSubmissions(status: "pending" | "approved" | "rejected" | "all" = "pending") {
+  return safe((async () => {
+    const sb = await createServerClient();
+    let q = sb.from("spik_word_submissions")
+      .select("id, word, alternate_spelling, pronunciation, short_meaning, spik_meaning, example_sentence, part_of_speech, category, usage_level, era, tone, origin, notes, submitter_name, show_name, status, published_word_id, created_at")
+      .order("created_at", { ascending: false }).limit(300);
+    if (status !== "all") q = q.eq("status", status);
+    const { data } = await q;
+    return (data ?? []) as Record<string, unknown>[];
+  })(), [] as Record<string, unknown>[]);
+}
+
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
 
 export async function getAlertRequests() {

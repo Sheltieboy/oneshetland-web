@@ -86,6 +86,13 @@ export default async function SpikPage({
             The living Shetland dialect dictionary — thousands of wirds, with
             meanings, pronunciations and examples.
           </p>
+          <Link
+            href="/spik/add"
+            className="mt-5 inline-flex items-center gap-2 rounded-pill bg-paper px-5 py-2.5 font-semibold shadow-soft transition hover:brightness-95"
+            style={{ color: SPIK_COLOR }}
+          >
+            ＋ Add a wird
+          </Link>
         </div>
       </section>
 
