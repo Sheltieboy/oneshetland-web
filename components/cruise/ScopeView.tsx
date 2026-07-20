@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { baro, fmtDateShort, fmtTime } from "@/lib/cruise-shared";
+import { shipImageUrl } from "@/lib/cruise-ship-images";
 import type { ScopeData, CruiseHomeCard } from "@/lib/cruise-data";
 import { SeasonMap } from "@/components/cruise/SeasonMap";
 
@@ -131,9 +132,9 @@ export function ScopeView({
                       return (
                         <li key={v.id}>
                           <Link href={`/cruise/visit/${v.id}`} className="flex items-center gap-3 rounded-xl border border-line bg-paper p-2.5 shadow-soft transition-colors hover:bg-sand/40">
-                            {v.ship?.image_url ? (
+                            {shipImageUrl(v.ship) ? (
                               // eslint-disable-next-line @next/next/no-img-element
-                              <img src={v.ship.image_url} alt={name} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                              <img src={shipImageUrl(v.ship)!} alt={name} className="h-14 w-14 shrink-0 rounded-lg object-cover" />
                             ) : (
                               <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg text-lg" style={{ background: b.tint, color: b.color }}>⚓</span>
                             )}

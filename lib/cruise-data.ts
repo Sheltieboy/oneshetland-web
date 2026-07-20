@@ -2,6 +2,7 @@ import { publicClient } from "./supabase/public";
 import type { Barometer } from "./cruise-shared";
 import { portCoord, type Origin } from "./cruise-stats";
 import { scopeRange, datesBetween, londonToday, type CruiseScope } from "./cruise-shared";
+import { shipImageUrl } from "./cruise-ship-images";
 
 export type CruiseShip = {
   id: string;
@@ -86,7 +87,7 @@ export async function getUpcomingDaysRich(limit = 40): Promise<CruiseDayRich[]> 
       .in("visit_date", dates)
       .neq("status", "cancelled");
     for (const v of (data ?? []) as unknown as { visit_date: string; est_pax: number | null; ship: { name: string | null; image_url: string | null } | null }[]) {
-      const img = v.ship?.image_url;
+      const img = shipImageUrl(v.ship);
       if (!img) continue;
       const pax = v.est_pax ?? 0;
       if (!lead[v.visit_date] || pax > lead[v.visit_date].pax) lead[v.visit_date] = { pax, img, name: v.ship?.name ?? null };
@@ -207,7 +208,7 @@ export async function getCruiseHomeCard(): Promise<CruiseHomeCard | null> {
     const visits: CruiseHomeVisit[] = rows.map((v) => ({
       id: v.id,
       name: v.ship?.name ?? "Ship",
-      image: v.ship?.image_url ?? null,
+      image: shipImageUrl(v.ship),
       line: v.ship?.cruise_line ?? null,
       arrival: v.arrival_at,
       departure: v.departure_at,
@@ -283,7 +284,7 @@ export async function getScopeData(from: string, to: string): Promise<ScopeData>
     // Lead image per day (highest-pax ship that has a photo).
     const lead: Record<string, { pax: number; img: string; name: string | null }> = {};
     for (const v of visits) {
-      const img = v.ship?.image_url;
+      const img = shipImageUrl(v.ship);
       if (!img || !v.visit_date) continue;
       const pax = v.est_pax ?? 0;
       if (!lead[v.visit_date] || pax > lead[v.visit_date].pax) lead[v.visit_date] = { pax, img, name: v.ship?.name ?? null };

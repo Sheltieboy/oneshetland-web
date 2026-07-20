@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCruiseVisit, getDaySummary } from "@/lib/cruise-data";
+import { shipImageUrl } from "@/lib/cruise-ship-images";
 import { baro, fmtTime, fmtDateLong, fmtDateShort, hoursAshore, ashorePlan, trackUrl, CRUISE_ACCENT } from "@/lib/cruise-shared";
 import { RouteMap } from "@/components/cruise/RouteMap";
 import { routePoints, getShipOtherCalls } from "@/lib/cruise-stats";
@@ -50,9 +51,9 @@ export default async function CruiseVisitPage({ params }: { params: Promise<{ id
 
       {/* Photo */}
       <div className="relative mt-3 aspect-[16/9] overflow-hidden rounded-2xl border border-line bg-sand shadow-soft">
-        {v.ship?.image_url ? (
+        {shipImageUrl(v.ship) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={v.ship.image_url} alt={name} className="h-full w-full object-cover" />
+          <img src={shipImageUrl(v.ship)!} alt={name} className="h-full w-full object-cover" />
         ) : (
           <div className="grid h-full w-full place-items-center text-5xl text-ink-faint">⚓</div>
         )}

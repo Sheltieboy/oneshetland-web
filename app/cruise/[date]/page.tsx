@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCruiseDay } from "@/lib/cruise-data";
+import { shipImageUrl } from "@/lib/cruise-ship-images";
 import { baro, fmtTime, fmtDateLong, hoursAshore, peakWindow, CRUISE_ACCENT } from "@/lib/cruise-shared";
 import { DayTimeline } from "@/components/cruise/DayTimeline";
 
@@ -91,9 +92,9 @@ export default async function CruiseDayPage({ params }: { params: Promise<{ date
             return (
               <li key={v.id}>
                 <Link href={`/cruise/visit/${v.id}`} className="flex min-w-0 items-center gap-3 rounded-2xl border border-line bg-paper p-3 shadow-soft transition-colors hover:bg-sand/40">
-                  {v.ship?.image_url ? (
+                  {shipImageUrl(v.ship) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={v.ship.image_url} alt={name} className="h-16 w-16 shrink-0 rounded-xl object-cover sm:h-20 sm:w-20" />
+                    <img src={shipImageUrl(v.ship)!} alt={name} className="h-16 w-16 shrink-0 rounded-xl object-cover sm:h-20 sm:w-20" />
                   ) : (
                     <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-sand text-ink-faint sm:h-20 sm:w-20">⚓</div>
                   )}
