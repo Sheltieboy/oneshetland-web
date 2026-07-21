@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
 import { fetchMyLoyaltyCards, isRewardReady, type LoyaltyCard } from "@/lib/loyalty-data";
+import { getMyMemberCode } from "@/lib/member-card-client";
 import { addLoyaltyCardToAppleWallet } from "@/lib/apple-wallet-client";
 import { addLoyaltyCardToGoogleWallet } from "@/lib/google-wallet-client";
 
@@ -37,6 +39,7 @@ export function LoyaltyClient() {
 
   return (
     <div className="space-y-4">
+      <MemberCard />
       {error && (
         <p className="rounded-card border border-line bg-paper px-4 py-3 text-sm text-rose-600">{error}</p>
       )}
@@ -145,6 +148,30 @@ function AppleWalletButton({ cardId }: { cardId: string }) {
         {busy === "google" ? "Preparing…" : "Add to Google Wallet"}
       </button>
       {err && <p className="w-full text-xs text-rose-600">{err}</p>}
+    </div>
+  );
+}
+
+function MemberCard() {
+  const [code, setCode] = useState<string | null>(null);
+  useEffect(() => { getMyMemberCode().then(setCode).catch(() => setCode(null)); }, []);
+  return (
+    <div
+      className="overflow-hidden rounded-card p-5 text-paper shadow-soft"
+      style={{ background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 60%, #0ea5e9 100%)" }}
+    >
+      <span className="inline-block rounded-pill bg-paper/20 px-2.5 py-1 text-[11px] font-bold tracking-wide">SHOP LOCAL SHETLAND</span>
+      <div className="mt-3 flex items-center gap-4">
+        <div className="shrink-0 rounded-xl bg-white p-2.5">
+          {code ? <QRCodeSVG value={code} size={96} /> : <div className="h-24 w-24 animate-pulse rounded bg-black/10" />}
+        </div>
+        <div className="min-w-0">
+          <p className="font-display text-lg font-bold leading-tight">Your loyalty card</p>
+          <p className="mt-0.5 text-sm text-paper/90">One card for every shop. Show this at the till to collect or redeem.</p>
+          <p className="mt-2 text-[11px] font-bold tracking-widest text-paper/80">OR GIVE CODE</p>
+          <p className="font-display text-2xl font-bold tracking-[0.25em]">{code ?? "—"}</p>
+        </div>
+      </div>
     </div>
   );
 }

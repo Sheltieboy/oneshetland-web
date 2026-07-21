@@ -4,6 +4,7 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { getLoyaltyProgram, getBusinessCode } from "@/lib/business-data.server";
 import { tierMeets } from "@/lib/business-data";
 import { LoyaltyManager } from "@/components/business/LoyaltyManager";
+import { LoyaltyTill } from "@/components/business/LoyaltyTill";
 import { TillCode } from "@/components/business/TillCode";
 import { RedeemVerify } from "@/components/business/RedeemVerify";
 import { BIZ } from "@/lib/business-data";
@@ -25,6 +26,11 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
       <h1 className="mt-3 mb-2 font-display text-3xl font-bold sm:text-4xl">Loyalty programme</h1>
       <p className="mb-6 text-ink-soft">Reward regulars with stamps or points.</p>
       <LoyaltyManager businessId={business.id} program={program} />
+
+      {/* The one-card till — scan/enter the customer's member code and act. */}
+      <div className="mt-8">
+        <LoyaltyTill businessId={business.id} accent={BIZ} />
+      </div>
 
       {/* Stamp a customer — they read this rotating code and enter it in their app
           to collect a stamp / redeem a reward. Mirrors the app's stamp scanner
