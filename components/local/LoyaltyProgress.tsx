@@ -41,6 +41,18 @@ export function LoyaltyProgress({
   const per = (loyalty as unknown as { points_for_pound?: number }).points_for_pound ?? 100;
   const pointsSpendable = loyalty.type === "points" ? Math.floor((card.points_balance ?? 0) / per) * per : 0;
 
+  // "Almost there" nudge — the single biggest driver of repeat visits.
+  const stampsLeft = needed - stamps;
+  const pointsToNext = per - ((card.points_balance ?? 0) % per);
+  const nudge =
+    loyalty.type === "points"
+      ? pointsSpendable < per && (card.points_balance ?? 0) > 0
+        ? `✨ Just ${pointsToNext} more ${pointsToNext === 1 ? "point" : "points"} for £1 off`
+        : null
+      : !rewardReady && stampsLeft > 0 && stampsLeft <= 2
+        ? `✨ Just ${stampsLeft} more ${stampsLeft === 1 ? "stamp" : "stamps"}${loyalty.stamp_reward ? ` for ${loyalty.stamp_reward}` : " to your reward"}!`
+        : null;
+
   return (
     <div className="mt-4 rounded-xl border border-paper/30 bg-black/10 p-4">
       <p className="text-sm font-semibold text-paper/90">Your progress</p>
@@ -79,6 +91,9 @@ export function LoyaltyProgress({
             ))}
           </div>
         </>
+      )}
+      {nudge && (
+        <p className="mt-3 rounded-lg bg-paper/20 px-3 py-2 text-sm font-semibold text-paper">{nudge}</p>
       )}
       {rewardReady && (
         <button

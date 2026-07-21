@@ -14,6 +14,10 @@ function fmtDate(iso: string): string {
 
 function PassCard({ pass }: { pass: MyPass }) {
   const expiresLabel = pass.expires_at ? `Expires ${fmtDate(pass.expires_at)}` : "No expiry";
+  const daysToExpiry = pass.expires_at
+    ? Math.ceil((new Date(pass.expires_at).getTime() - Date.now()) / 86_400_000)
+    : null;
+  const expiringSoon = daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
   const [redeeming, setRedeeming] = useState(false);
   const [usesLeft, setUsesLeft] = useState(pass.uses_remaining);
 
@@ -34,6 +38,11 @@ function PassCard({ pass }: { pass: MyPass }) {
           </div>
           {pass.business_name && <p className="text-sm text-ink-muted">{pass.business_name}</p>}
         </div>
+        {expiringSoon && usesLeft > 0 && (
+          <span className="shrink-0 rounded-pill bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+            {daysToExpiry === 0 ? "Expires today" : `${daysToExpiry}d left`}
+          </span>
+        )}
       </div>
 
       <div className="mt-3 flex items-center gap-4 rounded-card bg-sand px-4 py-3">
