@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
  * Fetch a "Save to Google Wallet" link for a loyalty card from the
  * google-wallet-pass edge function and open it. Works on Android and desktop.
  */
-export async function addLoyaltyCardToGoogleWallet(cardId: string): Promise<void> {
+export async function addToGoogleWallet(): Promise<void> {
   const sb = createClient();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) throw new Error("Please sign in first.");
@@ -19,7 +19,7 @@ export async function addLoyaltyCardToGoogleWallet(cardId: string): Promise<void
       apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ card_id: cardId }),
+    body: JSON.stringify({}),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok || !body?.saveUrl) throw new Error(body?.error ?? "Could not create your Wallet pass.");

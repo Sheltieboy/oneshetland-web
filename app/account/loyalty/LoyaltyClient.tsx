@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { fetchMyLoyaltyCards, isRewardReady, type LoyaltyCard } from "@/lib/loyalty-data";
 import { getMyMemberCode } from "@/lib/member-card-client";
-import { addLoyaltyCardToAppleWallet } from "@/lib/apple-wallet-client";
-import { addLoyaltyCardToGoogleWallet } from "@/lib/google-wallet-client";
+import { addToAppleWallet } from "@/lib/apple-wallet-client";
+import { addToGoogleWallet } from "@/lib/google-wallet-client";
 
 const LOCAL = "#7c3aed";
 
@@ -121,33 +121,31 @@ function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
       {card.program?.stamp_reward && (
         <p className="mt-3 text-sm italic text-ink-soft">{card.program.stamp_reward}</p>
       )}
-
-      <AppleWalletButton cardId={card.id} />
     </li>
   );
 }
 
-function AppleWalletButton({ cardId }: { cardId: string }) {
+function WalletButtons() {
   const [busy, setBusy] = useState<null | "apple" | "google">(null);
   const [err, setErr] = useState<string | null>(null);
   const run = async (which: "apple" | "google") => {
     setErr(null); setBusy(which);
     try {
-      if (which === "apple") await addLoyaltyCardToAppleWallet(cardId);
-      else await addLoyaltyCardToGoogleWallet(cardId);
+      if (which === "apple") await addToAppleWallet();
+      else await addToGoogleWallet();
     } catch (e) { setErr(e instanceof Error ? e.message : "Could not add the pass."); }
     finally { setBusy(null); }
   };
-  const cls = "inline-flex items-center gap-2 rounded-lg border border-ink bg-ink px-3.5 py-2 text-xs font-bold text-paper transition hover:brightness-110 disabled:opacity-50";
+  const cls = "inline-flex items-center gap-2 rounded-lg bg-black/25 px-3.5 py-2 text-xs font-bold text-paper transition hover:bg-black/35 disabled:opacity-50";
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
+    <div className="mt-4 flex flex-wrap gap-2">
       <button onClick={() => run("apple")} disabled={busy !== null} className={cls}>
         {busy === "apple" ? "Preparing…" : " Add to Apple Wallet"}
       </button>
       <button onClick={() => run("google")} disabled={busy !== null} className={cls}>
         {busy === "google" ? "Preparing…" : "Add to Google Wallet"}
       </button>
-      {err && <p className="w-full text-xs text-rose-600">{err}</p>}
+      {err && <p className="w-full text-xs text-rose-200">{err}</p>}
     </div>
   );
 }
@@ -172,6 +170,7 @@ function MemberCard() {
           <p className="font-display text-2xl font-bold tracking-[0.25em]">{code ?? "—"}</p>
         </div>
       </div>
+      <WalletButtons />
     </div>
   );
 }

@@ -7,13 +7,13 @@ import { createClient } from "@/lib/supabase/client";
  * function and hand it to the browser. On iOS Safari a .pkpass opens the
  * "Add to Apple Wallet" sheet; on desktop it downloads.
  */
-export async function addLoyaltyCardToAppleWallet(cardId: string): Promise<void> {
+export async function addToAppleWallet(): Promise<void> {
   const sb = createClient();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) throw new Error("Please sign in first.");
 
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const res = await fetch(`${base}/functions/v1/apple-wallet-pass?card_id=${encodeURIComponent(cardId)}`, {
+  const res = await fetch(`${base}/functions/v1/apple-wallet-pass`, {
     headers: {
       Authorization: `Bearer ${session.access_token}`,
       apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
