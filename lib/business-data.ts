@@ -120,6 +120,7 @@ export type LocalOffer = {
 export type LoyaltyProgram = {
   id: string; business_id: string; type: "stamps" | "points";
   stamps_required: number | null; stamp_reward: string | null;
+  reward_tiers: { stamps: number; reward: string }[] | null;
   points_per_pound: number | null; points_for_pound: number | null; is_active: boolean;
 };
 export type WalletReceipt = {

@@ -77,6 +77,8 @@ export type Loyalty = {
   type: string;
   stamps_required: number | null;
   stamp_reward: string | null;
+  /** Reward ladder (accumulate model). null/empty = single-reward mode. */
+  reward_tiers: { stamps: number; reward: string }[] | null;
   points_per_pound: number | null;
   points_for_pound: number | null;
 };
@@ -445,7 +447,7 @@ export async function getBusinessExtras(
     safe(
       sb
         .from("local_loyalty_programs")
-        .select("type, stamps_required, stamp_reward, points_per_pound, points_for_pound")
+        .select("type, stamps_required, stamp_reward, reward_tiers, points_per_pound, points_for_pound")
         .eq("business_id", businessId)
         .eq("is_active", true)
         .maybeSingle()

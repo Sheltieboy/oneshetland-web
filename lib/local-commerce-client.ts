@@ -217,6 +217,7 @@ export interface MyLoyaltyCard {
   id: string;
   stamps_collected: number;
   points_balance: number;
+  tiers_redeemed_upto: number;
 }
 
 export async function fetchMyLoyaltyCard(businessId: string): Promise<MyLoyaltyCard | null> {
@@ -225,7 +226,7 @@ export async function fetchMyLoyaltyCard(businessId: string): Promise<MyLoyaltyC
   if (!auth.user) return null;
   const { data } = await sb
     .from("local_loyalty_cards")
-    .select("id, stamps_collected, points_balance")
+    .select("id, stamps_collected, points_balance, tiers_redeemed_upto")
     .eq("user_id", auth.user.id)
     .eq("business_id", businessId)
     .maybeSingle();

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchMyLoyaltyCard, type MyLoyaltyCard } from "@/lib/local-commerce-client";
 import { RedeemDialog } from "@/components/local/RedeemDialog";
+import { ladderState } from "@/lib/loyalty-ladder";
 import type { Loyalty } from "@/lib/local-data";
 
 /**
@@ -35,14 +36,16 @@ export function LoyaltyProgress({
 
   if (!card) return null;
 
-  const needed = loyalty.stamps_required ?? 10;
+  const ladder = ladderState(loyalty.reward_tiers, card.stamps_collected ?? 0, card.tiers_redeemed_upto ?? 0);
+  const needed = ladder ? ladder.top : loyalty.stamps_required ?? 10;
   const stamps = Math.min(card.stamps_collected ?? 0, needed);
-  const rewardReady = loyalty.type !== "points" && (card.stamps_collected ?? 0) >= needed;
+  const rewardReady = loyalty.type !== "points" && (ladder ? !!ladder.ready : (card.stamps_collected ?? 0) >= needed);
   const per = (loyalty as unknown as { points_for_pound?: number }).points_for_pound ?? 100;
   const pointsSpendable = loyalty.type === "points" ? Math.floor((card.points_balance ?? 0) / per) * per : 0;
 
   // "Almost there" nudge — the single biggest driver of repeat visits.
   const stampsLeft = needed - stamps;
+  const nextReward = ladder?.next?.reward ?? loyalty.stamp_reward;
   const pointsToNext = per - ((card.points_balance ?? 0) % per);
   const nudge =
     loyalty.type === "points"
@@ -50,7 +53,7 @@ export function LoyaltyProgress({
         ? `✨ Just ${pointsToNext} more ${pointsToNext === 1 ? "point" : "points"} for £1 off`
         : null
       : !rewardReady && stampsLeft > 0 && stampsLeft <= 2
-        ? `✨ Just ${stampsLeft} more ${stampsLeft === 1 ? "stamp" : "stamps"}${loyalty.stamp_reward ? ` for ${loyalty.stamp_reward}` : " to your reward"}!`
+        ? `✨ Just ${stampsLeft} more ${stampsLeft === 1 ? "stamp" : "stamps"}${nextReward ? ` for ${nextReward}` : " to your reward"}!`
         : null;
 
   return (
@@ -90,6 +93,29 @@ export function LoyaltyProgress({
               </span>
             ))}
           </div>
+          {ladder && (
+            <ul className="mt-3 space-y-2">
+              {ladder.tiers.map((t) => {
+                const claimed = (card.tiers_redeemed_upto ?? 0) >= t.stamps;
+                const isReady = ladder.ready?.stamps === t.stamps;
+                const toGo = t.stamps - (card.stamps_collected ?? 0);
+                return (
+                  <li key={t.stamps} className="flex items-center gap-2.5">
+                    <span
+                      className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold"
+                      style={claimed || isReady ? { background: "#fff", color: "rgba(0,0,0,0.6)" } : { border: "2px solid rgba(255,255,255,0.6)", color: "#fff" }}
+                    >
+                      {claimed ? "✓" : "★"}
+                    </span>
+                    <span className={"flex-1 truncate text-sm font-semibold text-paper" + (claimed ? " line-through opacity-70" : "")}>{t.reward}</span>
+                    <span className="shrink-0 text-xs font-bold text-paper/80">
+                      {claimed ? "Claimed" : isReady ? "Ready" : `${t.stamps} stamps${toGo > 0 ? ` · ${toGo} to go` : ""}`}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </>
       )}
       {nudge && (
@@ -100,7 +126,7 @@ export function LoyaltyProgress({
           onClick={() => setRedeeming({ kind: "reward" })}
           className="mt-3 block w-full rounded-pill bg-paper py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
         >
-          🎉 Redeem your reward
+          🎉 Redeem {ladder?.ready ? ladder.ready.reward : "your reward"}
         </button>
       )}
       <Link
@@ -118,9 +144,16 @@ export function LoyaltyProgress({
           onClose={() => setRedeeming(null)}
           onDone={() => setCard((c) => {
             if (!c) return c;
-            return redeeming.kind === "reward"
-              ? { ...c, stamps_collected: 0 }
-              : { ...c, points_balance: Math.max(0, (c.points_balance ?? 0) - (redeeming.amount ?? 0)) };
+            if (redeeming.kind !== "reward") {
+              return { ...c, points_balance: Math.max(0, (c.points_balance ?? 0) - (redeeming.amount ?? 0)) };
+            }
+            // Ladder: claiming a non-top rung bumps the high-water mark; the top rung resets the card.
+            if (ladder?.ready) {
+              return ladder.ready.stamps === ladder.top
+                ? { ...c, stamps_collected: 0, tiers_redeemed_upto: 0 }
+                : { ...c, tiers_redeemed_upto: ladder.ready.stamps };
+            }
+            return { ...c, stamps_collected: 0 };
           })}
         />
       )}

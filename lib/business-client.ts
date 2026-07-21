@@ -86,6 +86,7 @@ export async function deactivateOffer(offerId: string): Promise<void> {
 
 export async function upsertLoyaltyProgram(businessId: string, input: {
   type: "stamps" | "points"; stamps_required?: number | null; stamp_reward?: string | null;
+  reward_tiers?: { stamps: number; reward: string }[] | null;
   points_per_pound?: number | null; points_for_pound?: number | null;
 }): Promise<void> {
   const sb = createClient();
