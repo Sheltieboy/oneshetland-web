@@ -5,6 +5,8 @@ import { getLoyaltyProgram, getBusinessCode } from "@/lib/business-data.server";
 import { tierMeets } from "@/lib/business-data";
 import { LoyaltyManager } from "@/components/business/LoyaltyManager";
 import { TillCode } from "@/components/business/TillCode";
+import { RedeemVerify } from "@/components/business/RedeemVerify";
+import { BIZ } from "@/lib/business-data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Loyalty programme" };
@@ -34,6 +36,12 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
           Show this code at the till. Customers enter it in the OneShetland app to collect a stamp.
         </p>
         <TillCode businessId={business.id} initial={code} />
+      </div>
+
+      {/* Confirm a redemption — staff enter the customer's code to redeem an
+          offer, stamp reward or pass (the staff-verified backbone). */}
+      <div className="mt-8">
+        <RedeemVerify accent={BIZ} />
       </div>
     </div>
   );

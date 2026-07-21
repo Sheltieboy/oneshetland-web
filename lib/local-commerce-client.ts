@@ -214,6 +214,7 @@ export async function claimGift(code: string): Promise<GiftClaimResult> {
    Table: local_loyalty_cards (user_id, business_id, stamps_collected, points_balance). */
 
 export interface MyLoyaltyCard {
+  id: string;
   stamps_collected: number;
   points_balance: number;
 }
@@ -224,7 +225,7 @@ export async function fetchMyLoyaltyCard(businessId: string): Promise<MyLoyaltyC
   if (!auth.user) return null;
   const { data } = await sb
     .from("local_loyalty_cards")
-    .select("stamps_collected, points_balance")
+    .select("id, stamps_collected, points_balance")
     .eq("user_id", auth.user.id)
     .eq("business_id", businessId)
     .maybeSingle();

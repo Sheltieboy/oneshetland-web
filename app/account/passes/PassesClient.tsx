@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { gbp } from "@/lib/stripe";
 import { fetchMyPasses, type MyPass } from "@/lib/passes-data";
+import { RedeemDialog } from "@/components/local/RedeemDialog";
 
 const LOCAL = "#7c3aed";
 
@@ -13,6 +14,8 @@ function fmtDate(iso: string): string {
 
 function PassCard({ pass }: { pass: MyPass }) {
   const expiresLabel = pass.expires_at ? `Expires ${fmtDate(pass.expires_at)}` : "No expiry";
+  const [redeeming, setRedeeming] = useState(false);
+  const [usesLeft, setUsesLeft] = useState(pass.uses_remaining);
 
   return (
     <li className="rounded-card border border-line bg-paper p-4 shadow-soft">
@@ -35,8 +38,8 @@ function PassCard({ pass }: { pass: MyPass }) {
 
       <div className="mt-3 flex items-center gap-4 rounded-card bg-sand px-4 py-3">
         <div className="flex-1">
-          <p className="font-display text-2xl font-bold text-ink">{pass.uses_remaining}</p>
-          <p className="text-xs font-semibold text-ink-muted">{pass.uses_remaining === 1 ? "use left" : "uses left"}</p>
+          <p className="font-display text-2xl font-bold text-ink">{usesLeft}</p>
+          <p className="text-xs font-semibold text-ink-muted">{usesLeft === 1 ? "use left" : "uses left"}</p>
         </div>
         <div className="h-8 w-px bg-line" />
         <div className="flex-1">
@@ -44,6 +47,25 @@ function PassCard({ pass }: { pass: MyPass }) {
           <p className="text-xs font-semibold text-ink-muted">{gbp(pass.paid_amount_pence)} paid</p>
         </div>
       </div>
+
+      {usesLeft > 0 && (
+        <button
+          onClick={() => setRedeeming(true)}
+          className="mt-3 block w-full rounded-pill py-2.5 text-sm font-semibold text-paper transition hover:brightness-95"
+          style={{ background: LOCAL }}
+        >
+          Use at till
+        </button>
+      )}
+      {redeeming && (
+        <RedeemDialog
+          kind="pass"
+          refId={pass.id}
+          accent={LOCAL}
+          onClose={() => setRedeeming(false)}
+          onDone={() => setUsesLeft((n) => Math.max(0, n - 1))}
+        />
+      )}
     </li>
   );
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { fetchMyLoyaltyCard, type MyLoyaltyCard } from "@/lib/local-commerce-client";
+import { RedeemDialog } from "@/components/local/RedeemDialog";
 import type { Loyalty } from "@/lib/local-data";
 
 /**
@@ -21,6 +22,7 @@ export function LoyaltyProgress({
   isLoggedIn: boolean;
 }) {
   const [card, setCard] = useState<MyLoyaltyCard | null>(null);
+  const [redeeming, setRedeeming] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -35,6 +37,7 @@ export function LoyaltyProgress({
 
   const needed = loyalty.stamps_required ?? 10;
   const stamps = Math.min(card.stamps_collected ?? 0, needed);
+  const rewardReady = loyalty.type !== "points" && (card.stamps_collected ?? 0) >= needed;
 
   return (
     <div className="mt-4 rounded-xl border border-paper/30 bg-black/10 p-4">
@@ -65,12 +68,29 @@ export function LoyaltyProgress({
           </div>
         </>
       )}
+      {rewardReady && (
+        <button
+          onClick={() => setRedeeming(true)}
+          className="mt-3 block w-full rounded-pill bg-paper py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
+        >
+          🎉 Redeem your reward
+        </button>
+      )}
       <Link
         href="/account/loyalty"
         className="mt-3 inline-block text-sm font-semibold text-paper underline-offset-2 hover:underline"
       >
         View my loyalty cards →
       </Link>
+      {redeeming && (
+        <RedeemDialog
+          kind="reward"
+          refId={card.id}
+          accent="#4F46E5"
+          onClose={() => setRedeeming(false)}
+          onDone={() => setCard((c) => (c ? { ...c, stamps_collected: 0 } : c))}
+        />
+      )}
     </div>
   );
 }

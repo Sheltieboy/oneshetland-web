@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { offerBadge, type Offer } from "@/lib/local-data";
-import { claimOffer, fetchMyRedeemedOfferIds } from "@/lib/local-commerce-client";
+import { fetchMyRedeemedOfferIds } from "@/lib/local-commerce-client";
+import { RedeemDialog } from "@/components/local/RedeemDialog";
 
 export function OfferClaimList({
   offers,
@@ -17,8 +18,7 @@ export function OfferClaimList({
   signInHref: string;
 }) {
   const [claimed, setClaimed] = useState<Set<string>>(new Set());
-  const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [redeeming, setRedeeming] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -27,19 +27,17 @@ export function OfferClaimList({
     return () => { live = false; };
   }, [isLoggedIn]);
 
-  async function claim(id: string) {
-    setBusy(id); setError(null);
-    try {
-      await claimOffer(id);
-      setClaimed((prev) => new Set(prev).add(id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not claim this offer.");
-    } finally { setBusy(null); }
-  }
-
   return (
     <div className="mt-5 space-y-3">
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+      {redeeming && (
+        <RedeemDialog
+          kind="offer"
+          refId={redeeming}
+          accent={accent}
+          onClose={() => setRedeeming(null)}
+          onDone={() => setClaimed((prev) => new Set(prev).add(redeeming))}
+        />
+      )}
       {offers.map((o) => {
         const isClaimed = claimed.has(o.id);
         return (
@@ -57,12 +55,11 @@ export function OfferClaimList({
               <span className="shrink-0 self-center rounded-pill bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">✓ Claimed</span>
             ) : (
               <button
-                onClick={() => claim(o.id)}
-                disabled={busy === o.id}
-                className="shrink-0 self-center rounded-pill px-4 py-2 text-sm font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
+                onClick={() => setRedeeming(o.id)}
+                className="shrink-0 self-center rounded-pill px-4 py-2 text-sm font-semibold text-paper transition hover:brightness-95"
                 style={{ background: accent }}
               >
-                {busy === o.id ? "Claiming…" : "Claim"}
+                Redeem
               </button>
             )}
           </div>
