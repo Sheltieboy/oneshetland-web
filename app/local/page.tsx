@@ -136,6 +136,24 @@ export default async function LocalPage({
           ))}
         </section>
 
+        {/* ── Shop Local Shetland — loyalty hub ─────────────────────────────── */}
+        <Link
+          href="/loyalty"
+          className="group flex items-center gap-4 overflow-hidden rounded-2xl p-5 text-white shadow-soft transition hover:shadow-lift sm:p-6"
+          style={{ background: `linear-gradient(135deg, ${LOCAL} 0%, #4f46e5 55%, #0ea5e9 100%)` }}
+        >
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/20 text-2xl">⭐️</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display text-lg font-bold sm:text-xl">Shop Local Shetland</span>
+            <span className="mt-0.5 block text-sm text-white/90">
+              One card for every shop — collect stamps, earn points and grab deals across the isles.
+            </span>
+          </span>
+          <span className="shrink-0 rounded-full bg-white/20 px-4 py-2 text-sm font-bold transition group-hover:bg-white/30">
+            Explore →
+          </span>
+        </Link>
+
 
         {/* ── Offers & deals ──────────────────────────────────────────────── */}
         {offers.length > 0 && (

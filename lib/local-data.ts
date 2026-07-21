@@ -182,6 +182,66 @@ export async function getActiveOffers(limit = 6): Promise<Offer[]> {
   }
 }
 
+/* ── Shop Local Shetland — the island-wide loyalty hub ────────────────────────
+   Every business running an active stamp or points programme, for the public
+   showcase page. Anon-readable; the customer-facing front door to the whole
+   scheme (parity: the app's loyalty tab lists the same programmes). */
+
+export type LoyaltyBiz = {
+  business: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    category: string | null;
+    slug: string | null;
+    brand_color: string | null;
+    address: string | null;
+  };
+  program: {
+    type: string;
+    stamps_required: number | null;
+    stamp_reward: string | null;
+    points_per_pound: number | null;
+    points_for_pound: number | null;
+  };
+};
+
+export async function getLoyaltyBusinesses(limit = 120): Promise<LoyaltyBiz[]> {
+  const sb = publicClient();
+  try {
+    const { data: progs } = await sb
+      .from("local_loyalty_programs")
+      .select("business_id, type, stamps_required, stamp_reward, points_per_pound, points_for_pound")
+      .eq("is_active", true)
+      .limit(limit);
+    const rows = (progs ?? []) as (LoyaltyBiz["program"] & { business_id: string })[];
+    if (rows.length === 0) return [];
+    const ids = [...new Set(rows.map((p) => p.business_id))];
+    const { data: biz } = await sb
+      .from("local_businesses")
+      .select("id, name, logo_url, category, slug, brand_color, address")
+      .eq("is_active", true)
+      .in("id", ids);
+    const map = Object.fromEntries(
+      ((biz ?? []) as LoyaltyBiz["business"][]).map((b) => [b.id, b]),
+    );
+    return rows
+      .filter((p) => map[p.business_id])
+      .map((p) => ({
+        business: map[p.business_id],
+        program: {
+          type: p.type,
+          stamps_required: p.stamps_required,
+          stamp_reward: p.stamp_reward,
+          points_per_pound: p.points_per_pound,
+          points_for_pound: p.points_for_pound,
+        },
+      }));
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Genuinely featured businesses (active pro/premium subscribers) — no backfill,
  * so the Directory "Featured" row only ever shows businesses that pay for it.
