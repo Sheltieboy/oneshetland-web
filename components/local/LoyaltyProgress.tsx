@@ -22,7 +22,7 @@ export function LoyaltyProgress({
   isLoggedIn: boolean;
 }) {
   const [card, setCard] = useState<MyLoyaltyCard | null>(null);
-  const [redeeming, setRedeeming] = useState(false);
+  const [redeeming, setRedeeming] = useState<{ kind: "reward" | "points"; amount?: number } | null>(null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -38,14 +38,26 @@ export function LoyaltyProgress({
   const needed = loyalty.stamps_required ?? 10;
   const stamps = Math.min(card.stamps_collected ?? 0, needed);
   const rewardReady = loyalty.type !== "points" && (card.stamps_collected ?? 0) >= needed;
+  const per = (loyalty as unknown as { points_for_pound?: number }).points_for_pound ?? 100;
+  const pointsSpendable = loyalty.type === "points" ? Math.floor((card.points_balance ?? 0) / per) * per : 0;
 
   return (
     <div className="mt-4 rounded-xl border border-paper/30 bg-black/10 p-4">
       <p className="text-sm font-semibold text-paper/90">Your progress</p>
       {loyalty.type === "points" ? (
-        <p className="mt-1 font-display text-2xl font-bold text-paper">
-          {card.points_balance ?? 0} <span className="text-base font-semibold text-paper/80">points</span>
-        </p>
+        <>
+          <p className="mt-1 font-display text-2xl font-bold text-paper">
+            {card.points_balance ?? 0} <span className="text-base font-semibold text-paper/80">points</span>
+          </p>
+          {pointsSpendable >= per && (
+            <button
+              onClick={() => setRedeeming({ kind: "points", amount: pointsSpendable })}
+              className="mt-3 block w-full rounded-pill bg-paper py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
+            >
+              Redeem £{(pointsSpendable / per).toFixed(pointsSpendable % per === 0 ? 0 : 2)} off
+            </button>
+          )}
+        </>
       ) : (
         <>
           <p className="mt-1 font-display text-2xl font-bold text-paper">
@@ -70,7 +82,7 @@ export function LoyaltyProgress({
       )}
       {rewardReady && (
         <button
-          onClick={() => setRedeeming(true)}
+          onClick={() => setRedeeming({ kind: "reward" })}
           className="mt-3 block w-full rounded-pill bg-paper py-2.5 text-sm font-bold text-ink transition hover:brightness-95"
         >
           🎉 Redeem your reward
@@ -84,11 +96,17 @@ export function LoyaltyProgress({
       </Link>
       {redeeming && (
         <RedeemDialog
-          kind="reward"
+          kind={redeeming.kind}
           refId={card.id}
+          amount={redeeming.amount}
           accent="#4F46E5"
-          onClose={() => setRedeeming(false)}
-          onDone={() => setCard((c) => (c ? { ...c, stamps_collected: 0 } : c))}
+          onClose={() => setRedeeming(null)}
+          onDone={() => setCard((c) => {
+            if (!c) return c;
+            return redeeming.kind === "reward"
+              ? { ...c, stamps_collected: 0 }
+              : { ...c, points_balance: Math.max(0, (c.points_balance ?? 0) - (redeeming.amount ?? 0)) };
+          })}
         />
       )}
     </div>
