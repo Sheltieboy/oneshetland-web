@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchMyLoyaltyCards, isRewardReady, type LoyaltyCard } from "@/lib/loyalty-data";
 import { addLoyaltyCardToAppleWallet } from "@/lib/apple-wallet-client";
+import { addLoyaltyCardToGoogleWallet } from "@/lib/google-wallet-client";
 
 const LOCAL = "#7c3aed";
 
@@ -124,23 +125,26 @@ function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
 }
 
 function AppleWalletButton({ cardId }: { cardId: string }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<null | "apple" | "google">(null);
   const [err, setErr] = useState<string | null>(null);
+  const run = async (which: "apple" | "google") => {
+    setErr(null); setBusy(which);
+    try {
+      if (which === "apple") await addLoyaltyCardToAppleWallet(cardId);
+      else await addLoyaltyCardToGoogleWallet(cardId);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not add the pass."); }
+    finally { setBusy(null); }
+  };
+  const cls = "inline-flex items-center gap-2 rounded-lg border border-ink bg-ink px-3.5 py-2 text-xs font-bold text-paper transition hover:brightness-110 disabled:opacity-50";
   return (
-    <div className="mt-3">
-      <button
-        onClick={async () => {
-          setErr(null); setBusy(true);
-          try { await addLoyaltyCardToAppleWallet(cardId); }
-          catch (e) { setErr(e instanceof Error ? e.message : "Could not add the pass."); }
-          finally { setBusy(false); }
-        }}
-        disabled={busy}
-        className="inline-flex items-center gap-2 rounded-lg border border-ink bg-ink px-3.5 py-2 text-xs font-bold text-paper transition hover:brightness-110 disabled:opacity-50"
-      >
-        {busy ? "Preparing…" : " Add to Apple Wallet"}
+    <div className="mt-3 flex flex-wrap gap-2">
+      <button onClick={() => run("apple")} disabled={busy !== null} className={cls}>
+        {busy === "apple" ? "Preparing…" : " Add to Apple Wallet"}
       </button>
-      {err && <p className="mt-1 text-xs text-rose-600">{err}</p>}
+      <button onClick={() => run("google")} disabled={busy !== null} className={cls}>
+        {busy === "google" ? "Preparing…" : "Add to Google Wallet"}
+      </button>
+      {err && <p className="w-full text-xs text-rose-600">{err}</p>}
     </div>
   );
 }
