@@ -24,6 +24,7 @@ export default async function AccountOverview() {
     { href: "/account/tickets", title: "My tickets", desc: "Event tickets you've bought" },
     { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, ready to claim" },
     { href: "/account/loyalty", title: "Loyalty cards", desc: "Your stamps and points at local businesses" },
+    { href: "/account/referrals", title: "Invite friends", desc: "Give £5, get £5 when a friend joins and spends" },
     { href: "/account/memberships", title: "Memberships", desc: "Your digital hub membership cards" },
     { href: "/account/following", title: "Following", desc: "Businesses you follow" },
     { href: "/account/hubs", title: "My hubs", desc: "Groups and committees you run or belong to" },
