@@ -165,8 +165,8 @@ export default async function LocalPage({
                 </p>
                 <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Offers &amp; deals</h2>
               </div>
-              <Link href="/directory" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
-                See all →
+              <Link href="/loyalty" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
+                All deals & rewards →
               </Link>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
