@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { fetchMyLoyaltyCards, isRewardReady, type LoyaltyCard } from "@/lib/loyalty-data";
+import { addLoyaltyCardToAppleWallet } from "@/lib/apple-wallet-client";
 
 const LOCAL = "#7c3aed";
 
@@ -116,6 +117,30 @@ function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
       {card.program?.stamp_reward && (
         <p className="mt-3 text-sm italic text-ink-soft">{card.program.stamp_reward}</p>
       )}
+
+      <AppleWalletButton cardId={card.id} />
     </li>
+  );
+}
+
+function AppleWalletButton({ cardId }: { cardId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <div className="mt-3">
+      <button
+        onClick={async () => {
+          setErr(null); setBusy(true);
+          try { await addLoyaltyCardToAppleWallet(cardId); }
+          catch (e) { setErr(e instanceof Error ? e.message : "Could not add the pass."); }
+          finally { setBusy(false); }
+        }}
+        disabled={busy}
+        className="inline-flex items-center gap-2 rounded-lg border border-ink bg-ink px-3.5 py-2 text-xs font-bold text-paper transition hover:brightness-110 disabled:opacity-50"
+      >
+        {busy ? "Preparing…" : " Add to Apple Wallet"}
+      </button>
+      {err && <p className="mt-1 text-xs text-rose-600">{err}</p>}
+    </div>
   );
 }
