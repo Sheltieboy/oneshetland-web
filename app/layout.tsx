@@ -9,6 +9,7 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { PrelaunchNotice } from "@/components/site/PrelaunchNotice";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -32,6 +33,7 @@ export const metadata: Metadata = {
   description:
     "What's on, local businesses, the fishing fleet, the Shetland dialect, community hubs, jobs and more — one warm home for the islands.",
   metadataBase: new URL("https://oneshetland.com"),
+  alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     siteName: "OneShetland",
@@ -66,6 +68,37 @@ export default async function RootLayout({
       className={`${fraunces.variable} ${inter.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-cream text-ink">
+        <JsonLd
+          data={[
+            {
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              "@id": "https://oneshetland.com/#org",
+              name: "OneShetland",
+              url: "https://oneshetland.com",
+              logo: "https://oneshetland.com/icon.png",
+              description:
+                "Everything Shetland in one place — what's on, local businesses, the fishing fleet, the Shetland dialect, community hubs and jobs.",
+              areaServed: { "@type": "Place", name: "Shetland Islands, Scotland" },
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              "@id": "https://oneshetland.com/#website",
+              name: "OneShetland",
+              url: "https://oneshetland.com",
+              publisher: { "@id": "https://oneshetland.com/#org" },
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate: "https://oneshetland.com/directory?q={search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            },
+          ]}
+        />
         <AnalyticsProvider />
         <ConsentBanner />
         <PrelaunchNotice />
