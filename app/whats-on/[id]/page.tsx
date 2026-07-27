@@ -24,6 +24,8 @@ import { TicketButton } from "@/components/events/TicketModal";
 import { ShareButton } from "@/components/events/ShareButton";
 import { TrackView } from "@/components/analytics/TrackView";
 import { TicketLink } from "@/components/analytics/TicketLink";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { eventSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +78,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
+      <JsonLd data={[eventSchema(e), breadcrumbSchema([{ name: "What's On", path: "/whats-on" }, { name: e.title, path: `/whats-on/${e.id}` }])]} />
       <TrackView event="content_viewed" objectType="event" objectId={id} />
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[44vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[52vh]" style={{ background: EVENTS }}>

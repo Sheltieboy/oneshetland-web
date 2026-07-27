@@ -10,6 +10,8 @@ import { BoatProfile } from "@/components/boats/BoatProfile";
 import { BoatDiscussion } from "@/components/boats/BoatDiscussion";
 import { BoatDetailActions } from "@/components/boats/BoatDetailActions";
 import { TrackView } from "@/components/analytics/TrackView";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { vesselSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,10 @@ export default async function BoatDetail({ params }: { params: Promise<{ id: str
 
   return (
     <>
+      <JsonLd data={[
+        vesselSchema({ id, name: vesselDisplayTitle(profile.vessel), description: "", image: hero?.image_url || hero?.thumbnail_url || null }),
+        breadcrumbSchema([{ name: "Da Boats", path: "/boats" }, { name: vesselDisplayTitle(profile.vessel), path: `/boats/${id}` }]),
+      ]} />
       <TrackView event="content_viewed" objectType="vessel" objectId={id} />
       {/* Hero */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: BOATS }}>

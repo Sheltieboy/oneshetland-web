@@ -20,6 +20,8 @@ import { HubMembershipPanel } from "@/components/hubs/HubMembershipPanel";
 import { DirectoryButton, CampaignSidebar } from "@/components/hubs/HubSidebarActions";
 import { TrackView } from "@/components/analytics/TrackView";
 import { ContactLink } from "@/components/analytics/ContactLink";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { hubSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
 
   return (
     <>
+      <JsonLd data={[hubSchema(hub), breadcrumbSchema([{ name: "Hubs", path: "/hubs" }, { name: hub.name, path: `/hubs/${hub.id}` }])]} />
       <TrackView event="content_viewed" objectType="hub" objectId={id} hubId={id} />
       {/* Branded hero */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: accent }}>

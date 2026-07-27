@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getWord, getWordVariations, stripHtml, SUGGEST_FIELDS, SPIK_COLOR, type SpikVariation } from "@/lib/spik-data";
 import { SuggestModal } from "@/components/spik/SuggestModal";
 import { TrackView } from "@/components/analytics/TrackView";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { wordSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +102,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
+      <JsonLd data={[wordSchema(w), breadcrumbSchema([{ name: "Spik", path: "/spik" }, { name: w.word, path: `/spik/${w.id}` }])]} />
       <TrackView event="content_viewed" objectType="spik_word" objectId={id} />
       {/* Header band */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: SPIK_COLOR }}>

@@ -20,6 +20,8 @@ import { FollowButton } from "@/components/local/FollowButton";
 import { LoyaltyProgress } from "@/components/local/LoyaltyProgress";
 import { BusinessLocationMap } from "@/components/local/BusinessLocationMap";
 import { tierUnlocks } from "@/lib/listing-tiers";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { businessSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +88,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
 
   return (
     <>
+      <JsonLd data={[businessSchema(b), breadcrumbSchema([{ name: "Directory", path: "/directory" }, { name: b.name, path: `/directory/${b.slug || b.id}` }])]} />
       <TrackView event="content_viewed" objectType="business" objectId={b.id} businessId={b.id} />
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[34vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[40vh]" style={{ background: accent }}>
