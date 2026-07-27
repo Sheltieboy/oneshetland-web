@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/redirect";
@@ -44,6 +45,10 @@ function SignInInner() {
   return (
     <section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-16">
       <div className="rounded-xl border border-line bg-paper p-8 shadow-soft sm:p-10">
+        <Link href="/" className="mb-6 flex items-center justify-center gap-2.5" aria-label="OneShetland home">
+          <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={36} height={36} unoptimized className="h-9 w-9" />
+          <span className="font-display text-xl font-bold text-navy">OneShetland</span>
+        </Link>
         <p className="eyebrow text-teal">Welcome back</p>
         <h1 className="mt-2 font-display text-4xl font-bold text-navy">Sign in</h1>
         <p className="mt-3 text-ink-soft">
@@ -96,7 +101,9 @@ function SignInInner() {
         </p>
       </div>
       <p className="mt-5 px-4 text-center text-xs text-ink-muted">
-        Members must be 18 or over.
+        Members must be 18 or over. By signing in you agree to our{" "}
+        <Link href="/terms" className="underline hover:text-ink">Terms</Link> and{" "}
+        <Link href="/privacy" className="underline hover:text-ink">Privacy Policy</Link>.
       </p>
     </section>
   );
