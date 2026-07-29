@@ -16,7 +16,14 @@ export const PILLARS: { key: Pillar; label: string; color: string; sectionHref: 
 ];
 export const pillarMeta = (p: string) => PILLARS.find((x) => x.key === p) ?? PILLARS[5];
 
-export interface LinkedEntity { type: "business" | "word" | "event" | "vessel" | "hub"; id: string; label?: string }
+export interface LinkedEntity {
+  type: "business" | "word" | "event" | "vessel" | "hub";
+  id: string;
+  label?: string;
+  /** The canonical, best-SEO URL for this entity (e.g. /spik/mirry-begyit).
+   *  Always link via this so we never point at a 301-hopping numeric URL. */
+  href?: string;
+}
 
 export interface Article {
   id: string;

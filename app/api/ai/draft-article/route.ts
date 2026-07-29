@@ -74,13 +74,17 @@ export async function POST(request: Request) {
     const block = resp.content.find((b) => b.type === "text") as { text: string } | undefined;
     if (!block) return Response.json({ error: "Peerie Bot couldn't draft that — try again." }, { status: 502 });
     const draft = JSON.parse(block.text);
+    const slugPath = `/spik/${facts.slug}`;
+    // Safety net: if the model linked the numeric id, rewrite to the slug URL.
+    const body = String(draft.body ?? "").replaceAll(`/spik/${facts.id}`, slugPath);
 
     return Response.json({
       ...draft,
+      body,
       slug: slugify(draft.slug || draft.title),
       pillar: "dialect",
-      linked_entities: [{ type: "word", id: String(facts.id), label: String(facts.word) }],
-      source: { recipe: "spik_word", word: facts.word, word_id: facts.id },
+      linked_entities: [{ type: "word", id: String(facts.id), label: String(facts.word), href: slugPath }],
+      source: { recipe: "spik_word", word: facts.word, word_id: facts.id, word_slug: facts.slug },
     });
   } catch (e) {
     console.error("[draft-article] Peerie Bot error:", e);
