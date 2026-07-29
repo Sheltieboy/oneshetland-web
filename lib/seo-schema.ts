@@ -114,6 +114,26 @@ export function hubSchema(h: {
   });
 }
 
+export function articleSchema(a: {
+  slug: string; title: string; excerpt: string | null; hero_url: string | null;
+  author: string; publish_at: string | null; updated_at: string;
+}): Obj {
+  const url = `${BASE}/almanac/${a.slug}`;
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: a.title,
+    description: a.excerpt || undefined,
+    image: a.hero_url || undefined,
+    url,
+    datePublished: a.publish_at || undefined,
+    dateModified: a.updated_at || undefined,
+    author: { "@type": "Organization", name: a.author || "OneShetland", url: BASE },
+    publisher: { "@id": `${BASE}/#org` },
+    isPartOf: { "@type": "Blog", name: "The Shetland Almanac", url: `${BASE}/almanac` },
+  });
+}
+
 /** Lightweight schema for a vessel (no exact schema.org type fits a fishing boat). */
 export function vesselSchema(v: { id: string; name: string; description: string; image: string | null }): Obj {
   return clean({

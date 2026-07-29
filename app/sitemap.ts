@@ -19,6 +19,7 @@ const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequen
   { path: "/hubs", freq: "weekly", priority: 0.7 },
   { path: "/jobs", freq: "daily", priority: 0.7 },
   { path: "/games", freq: "weekly", priority: 0.6 },
+  { path: "/almanac", freq: "daily", priority: 0.8 },
   { path: "/business", freq: "monthly", priority: 0.6 },
   { path: "/terms", freq: "yearly", priority: 0.2 },
   { path: "/privacy", freq: "yearly", priority: 0.2 },
@@ -44,12 +45,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: s.priority,
   }));
 
-  const [biz, events, words, boats, hubs] = await Promise.all([
+  const [biz, events, words, boats, hubs, articles] = await Promise.all([
     rows("local_businesses", "id, slug, is_active"),
     rows("events", "id"),
     rows("spik_dictionary", "id"),
     rows("vessels", "id"),
     rows("hubs", "id"),
+    rows("content_articles", "slug, status, publish_at"),
   ]);
 
   for (const b of biz) {
@@ -60,6 +62,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const w of words) out.push({ url: `${BASE}/spik/${w.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const v of boats) out.push({ url: `${BASE}/boats/${v.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const h of hubs) out.push({ url: `${BASE}/hubs/${h.id}`, lastModified: now, changeFrequency: "weekly", priority: 0.5 });
+  for (const a of articles) {
+    const live = (a.status === "published" || a.status === "scheduled") && a.publish_at && new Date(a.publish_at as string) <= now;
+    if (live && a.slug) out.push({ url: `${BASE}/almanac/${a.slug}`, lastModified: new Date(a.publish_at as string), changeFrequency: "monthly", priority: 0.7 });
+  }
 
   return out;
 }

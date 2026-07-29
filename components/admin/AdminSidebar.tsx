@@ -17,6 +17,9 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/alerts", label: "Alerts", badgeKey: "pendingAlerts" },
     { href: "/admin/spik", label: "Spik suggestions", badgeKey: "pendingSpik" },
   ] },
+  { group: "Content", items: [
+    { href: "/admin/almanac", label: "The Almanac" },
+  ] },
   { group: "Platform", items: [
     { href: "/admin/homepage", label: "Homepage" },
     { href: "/admin/compliance", label: "Compliance log" },
