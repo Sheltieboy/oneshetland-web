@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TicketsRealtime } from "@/components/account/TicketsRealtime";
+import { TicketQR } from "@/components/account/TicketQR";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My tickets" };
@@ -87,6 +88,7 @@ export default async function MyTicketsPage() {
                         {t.attendee_name && <p className="text-xs text-ink-muted">{t.attendee_name}</p>}
                       </div>
                       <div className="flex items-center gap-3">
+                        {t.backup_code && !used && <TicketQR code={t.backup_code} />}
                         {t.backup_code && (
                           <span className="rounded-lg bg-paper px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-ink shadow-sm">{t.backup_code}</span>
                         )}
