@@ -144,7 +144,7 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
         ) : rows.length === 0 ? (
           <p className="p-8 text-center text-sm text-ink-muted">No transactions in this period.</p>
         ) : (
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-ink-faint">
                 <th className="px-4 py-3 font-bold">Date</th>
@@ -152,6 +152,7 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
                 <th className="px-4 py-3 font-bold">Customer</th>
                 <th className="px-4 py-3 text-right font-bold">Gross</th>
                 <th className="px-4 py-3 text-right font-bold">Fee</th>
+                <th className="px-4 py-3 text-right font-bold">Cashback</th>
                 <th className="px-4 py-3 text-right font-bold">Net</th>
               </tr>
             </thead>
@@ -166,6 +167,7 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
                   <td className="px-4 py-3 text-ink-soft">{r.counterparty}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink">{gbp(r.gross_pence)}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.fee_pence ? `− ${gbp(r.fee_pence)}` : "—"}</td>
+                  <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.cashback_pence ? `− ${gbp(r.cashback_pence)}` : "—"}</td>
                   <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (r.direction === "out" ? "text-rose-600" : "text-emerald-700")}>
                     {r.direction === "out" ? `− ${gbp(r.gross_pence)}` : gbp(r.net_pence)}
                   </td>
