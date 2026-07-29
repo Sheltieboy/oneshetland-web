@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/site/SiteFooter";
 import { getAccount, accountName } from "@/lib/auth";
 import { getFetchStatusSummary } from "@/lib/fetch-data.server";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
+import { ChargeApprovalListener } from "@/components/wallet/ChargeApprovalListener";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { PrelaunchNotice } from "@/components/site/PrelaunchNotice";
@@ -100,6 +101,7 @@ export default async function RootLayout({
           ]}
         />
         <AnalyticsProvider />
+        <ChargeApprovalListener />
         <ConsentBanner />
         <PrelaunchNotice />
         <ConfirmProvider>

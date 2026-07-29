@@ -139,19 +139,29 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
         </div>
       </section>
 
-      {/* Owner-only upgrade hint (shown on your own lower-tier listing) */}
-      {isOwner && tier !== "premium" && (
+      {/* Owner-only bar — always gives you a way into managing your business,
+          plus an upgrade nudge on lower tiers. */}
+      {isOwner && (
         <div className="border-b border-line" style={{ background: `${accent}0c` }}>
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
             <p className="text-sm text-ink-soft">
               <span className="font-semibold text-ink">This is your listing.</span>{" "}
               {tier === "free"
                 ? "Upgrade to add a cover photo, gallery, offers, loyalty and a featured spot."
-                : "Go Premium to add bookings, a gallery and a featured homepage spot."}
+                : tier !== "premium"
+                  ? "Go Premium to add bookings, a gallery and a featured homepage spot."
+                  : "Manage your listing, sales and money."}
             </p>
-            <Link href={`/business/${b.id}/manage/billing`} className="shrink-0 rounded-pill px-4 py-2 text-sm font-bold text-paper shadow-soft transition hover:brightness-110" style={{ background: accent }}>
-              See plans &amp; upgrade
-            </Link>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              {tier !== "premium" && (
+                <Link href={`/business/${b.id}/manage/billing`} className="rounded-pill border px-4 py-2 text-sm font-bold transition hover:bg-sand" style={{ borderColor: accent, color: accent }}>
+                  See plans &amp; upgrade
+                </Link>
+              )}
+              <Link href={`/business/${b.id}/manage`} className="rounded-pill px-4 py-2 text-sm font-bold text-paper shadow-soft transition hover:brightness-110" style={{ background: accent }}>
+                Manage business →
+              </Link>
+            </div>
           </div>
         </div>
       )}

@@ -10,6 +10,40 @@ function invokeError(error: { message: string; context?: { json?: () => Promise<
   })();
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** True only for the transient "the request never left the browser" failure — a
+ *  network hiccup / edge-function cold-start blip. NOT a real HTTP error (a
+ *  decline, 402, 500 …), which must surface immediately, never be retried. */
+function isTransientFetchError(error: unknown): boolean {
+  if (!error) return false;
+  const name = (error as { name?: string }).name;
+  const msg = (error as { message?: string }).message ?? "";
+  return name === "FunctionsFetchError" || /failed to send a request/i.test(msg);
+}
+
+/**
+ * invoke() with a quiet retry on the transient send-failure only, so a one-off
+ * cold-start blip retries itself invisibly instead of showing the user a scary
+ * error. ONLY use for calls that are safe to repeat: idempotent confirm-* grants
+ * (dedupe on the PaymentIntent id) or charges protected by a Stripe
+ * Idempotency-Key (wallet top-up). Never wrap a non-idempotent wallet debit.
+ */
+async function invokeSafeRetry(
+  name: string,
+  options: { body: Record<string, unknown> },
+  attempts = 3,
+): Promise<{ data: unknown; error: unknown }> {
+  const sb = createClient();
+  let last: { data: unknown; error: unknown } = { data: null, error: null };
+  for (let i = 0; i < attempts; i++) {
+    last = await sb.functions.invoke(name, options);
+    if (!isTransientFetchError(last.error)) return last;   // success or a real error → stop
+    if (i < attempts - 1) await sleep(300 * (i + 1));       // 300ms, 600ms backoff
+  }
+  return last;
+}
+
 /* ── Buy a pass / unit ────────────────────────────────────────────────────────
    create-unit-purchase-intent → { charged } (saved card) | { clientSecret } (card form)
    confirm-unit-purchase ← keyed by unit_item_id (NOT order_id)                       */
@@ -31,12 +65,12 @@ export async function confirmUnitPurchase(
   unitItemId: string,
   paymentIntentId: string,
 ): Promise<{ ok: boolean; purchase_id: string; uses_remaining: number; expires_at: string | null }> {
-  const sb = createClient();
-  const { data, error } = await sb.functions.invoke("confirm-unit-purchase", {
+  // Safe to retry: idempotent on the PaymentIntent id (unique purchase row).
+  const { data, error } = await invokeSafeRetry("confirm-unit-purchase", {
     body: { unit_item_id: unitItemId, payment_intent_id: paymentIntentId },
   });
-  if (error) return invokeError(error);
-  return data;
+  if (error) return invokeError(error as { message: string });
+  return data as { ok: boolean; purchase_id: string; uses_remaining: number; expires_at: string | null };
 }
 
 /* ── Send a gift (unit or service) ────────────────────────────────────────────
@@ -82,12 +116,12 @@ export async function confirmGift(
   giftId: string,
   paymentIntentId: string,
 ): Promise<{ ok: boolean; gift_id: string; code: string; claim_url?: string; email_sent?: boolean }> {
-  const sb = createClient();
-  const { data, error } = await sb.functions.invoke("confirm-gift", {
+  // Safe to retry: idempotent on the gift's status (a sent gift stays sent).
+  const { data, error } = await invokeSafeRetry("confirm-gift", {
     body: { gift_id: giftId, payment_intent_id: paymentIntentId },
   });
-  if (error) return invokeError(error);
-  return data;
+  if (error) return invokeError(error as { message: string });
+  return data as { ok: boolean; gift_id: string; code: string; claim_url?: string; email_sent?: boolean };
 }
 
 /* ── Top up wallet ────────────────────────────────────────────────────────────
@@ -99,21 +133,22 @@ export type WalletTopUpStart =
   | { clientSecret: string; payment_intent_id: string };
 
 export async function startWalletTopUp(amountPence: number, useSavedCard = true): Promise<WalletTopUpStart> {
-  const sb = createClient();
-  const { data, error } = await sb.functions.invoke("local-wallet-topup-intent", {
+  // Safe to retry: the off-session charge carries a Stripe Idempotency-Key, so a
+  // retried request returns the SAME PaymentIntent — never a second charge.
+  const { data, error } = await invokeSafeRetry("local-wallet-topup-intent", {
     body: { amount_pence: amountPence, use_saved_card: useSavedCard },
   });
-  if (error) return invokeError(error);
+  if (error) return invokeError(error as { message: string });
   return data as WalletTopUpStart;
 }
 
 export async function confirmWalletTopUp(paymentIntentId: string): Promise<{ balance_pence: number }> {
-  const sb = createClient();
-  const { data, error } = await sb.functions.invoke("local-wallet-confirm-topup", {
+  // Safe to retry: idempotent on the PaymentIntent id (unique ledger row).
+  const { data, error } = await invokeSafeRetry("local-wallet-confirm-topup", {
     body: { payment_intent_id: paymentIntentId },
   });
-  if (error) return invokeError(error);
-  return data;
+  if (error) return invokeError(error as { message: string });
+  return data as { balance_pence: number };
 }
 
 /* ── Wallet balance + pay-from-wallet ──────────────────────────────────────────

@@ -114,8 +114,10 @@ function CardForm({ accent, businessId, onCancel }: { accent: string; businessId
         setError(e instanceof Error ? e.message : "Card saved but could not be confirmed. Please try again.");
         return;
       }
-      router.refresh();
-      return; // leave spinner; page re-renders with card on file
+      setBusy(false);
+      onCancel();       // close the form; parent re-renders showing the card on file
+      router.refresh(); // refresh server data so hasCard flips to true
+      return;
     }
     setBusy(false); setError("Card was not saved. Please try again.");
   }

@@ -25,6 +25,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
     { href: `${base}/offers`, icon: "🏷️", title: "Offers", desc: "Time-limited deals", locked: !pro, built: true },
     { href: `${base}/loyalty`, icon: "📇", title: "Loyalty programme", desc: "Stamps or points", locked: !pro, built: true },
     { href: `${base}/wallet`, icon: "💷", title: "Local Wallet", desc: "Accept payments, cashback, receipts", locked: !pro, built: true },
+    { href: `${base}/transactions`, icon: "📒", title: "Money & transactions", desc: "Full statement · export for accounts", built: true },
     { href: `${base}/alerts`, icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland", built: true },
     { href: `${base}/bookings`, icon: "📅", title: "Bookings", desc: "Incoming appointments", locked: !premium, built: true },
     { href: `${base}/services`, icon: "✂️", title: "Services", desc: "What people can book", locked: !premium, built: true },

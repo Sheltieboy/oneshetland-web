@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { tillLookup, tillAction, type TillLookup } from "@/lib/member-card-client";
+import { useEffect, useRef, useState } from "react";
+import { tillLookup, tillAction, createChargeRequest, getChargeStatus, type TillLookup } from "@/lib/member-card-client";
 
 /**
  * LoyaltyTill — staff enter (or scan into the box) a customer's ONE member code,
@@ -14,6 +14,31 @@ export function LoyaltyTill({ businessId, accent }: { businessId: string; accent
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ ok: boolean; text: string } | null>(null);
+  // Charge-by-scan: amount to request + the live status while we wait for the customer.
+  const [chargeAmount, setChargeAmount] = useState("");
+  const [charge, setCharge] = useState<{ requestId: string; amountPence: number; status: string } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll the pending charge until the customer approves / declines / it lapses.
+  useEffect(() => {
+    if (!charge || (charge.status !== "pending" && charge.status !== "charging")) return;
+    pollRef.current = setInterval(async () => {
+      const s = await getChargeStatus(charge.requestId).catch(() => null);
+      if (s && s !== charge.status) setCharge((c) => (c ? { ...c, status: s } : c));
+    }, 2000);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [charge]);
+
+  async function requestCharge() {
+    const pence = Math.round(parseFloat(chargeAmount) * 100);
+    if (!(pence >= 50)) { setToast({ ok: false, text: "Enter at least £0.50" }); return; }
+    setBusy(true); setToast(null);
+    try {
+      const r = await createChargeRequest(code.toUpperCase().trim(), pence, businessId);
+      setCharge({ requestId: r.request_id, amountPence: r.amount_pence, status: "pending" });
+    } catch (e) { setToast({ ok: false, text: e instanceof Error ? e.message : "Could not start the charge" }); }
+    finally { setBusy(false); }
+  }
 
   async function lookup() {
     const c = code.toUpperCase().trim();
@@ -34,7 +59,7 @@ export function LoyaltyTill({ businessId, accent }: { businessId: string; accent
     finally { setBusy(false); }
   }
 
-  function reset() { setData(null); setCode(""); setAmount(""); setToast(null); }
+  function reset() { setData(null); setCode(""); setAmount(""); setToast(null); setChargeAmount(""); setCharge(null); }
 
   const program = data?.program;
   const card = data?.card;
@@ -91,6 +116,41 @@ export function LoyaltyTill({ businessId, accent }: { businessId: string; accent
           {data.offers.filter((o) => !o.claimed).map((o) => (
             <button key={o.id} onClick={() => act("redeem_offer", { offerId: o.id })} disabled={busy} className={btn} style={{ background: "#d97706" }}>Apply offer: {o.title} ({o.badge})</button>
           ))}
+
+          {/* ── Charge by scan ─────────────────────────────────────────────── */}
+          <div className="mt-1 rounded-xl border border-dashed border-line bg-cream/40 p-3">
+            {!charge ? (
+              <>
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-faint">Take a wallet payment</p>
+                <div className="flex gap-2">
+                  <div className="flex items-center rounded-lg border border-line bg-paper px-3">
+                    <span className="text-sm font-bold text-ink">£</span>
+                    <input value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0.00" aria-label="Amount to charge in pounds" className="w-24 bg-transparent px-2 py-2.5 text-sm font-bold text-ink outline-none" />
+                  </div>
+                  <button onClick={requestCharge} disabled={busy || !(parseFloat(chargeAmount) > 0)} className={btn} style={{ background: "#0e7490" }}>
+                    {busy ? "…" : `Request £${(parseFloat(chargeAmount) > 0 ? parseFloat(chargeAmount) : 0).toFixed(2)}`}
+                  </button>
+                </div>
+                <p className="mt-1.5 text-xs text-ink-faint">The customer approves it on their own phone before you&apos;re paid.</p>
+              </>
+            ) : (
+              <div className="text-center">
+                {(charge.status === "pending" || charge.status === "charging") && (
+                  <p className="text-sm font-semibold text-ink-soft">
+                    <span className="mr-1 inline-block animate-pulse">⏳</span>
+                    Waiting for {data.customer.name} to approve £{(charge.amountPence / 100).toFixed(2)}…
+                  </p>
+                )}
+                {charge.status === "paid" && <p className="text-sm font-bold text-emerald-600">✓ Paid £{(charge.amountPence / 100).toFixed(2)}</p>}
+                {charge.status === "declined" && <p className="text-sm font-bold text-rose-600">Customer declined</p>}
+                {charge.status === "expired" && <p className="text-sm font-bold text-amber-600">Request expired — try again</p>}
+                {charge.status === "failed" && <p className="text-sm font-bold text-rose-600">Payment failed (they&apos;ve not been charged)</p>}
+                <button onClick={() => setCharge(null)} className="mt-2 text-xs font-bold text-ink-soft hover:text-ink">
+                  {charge.status === "pending" || charge.status === "charging" ? "Cancel" : "New charge"}
+                </button>
+              </div>
+            )}
+          </div>
 
           <button onClick={reset} className="w-full py-2 text-sm font-bold text-ink-soft hover:text-ink">Next customer</button>
         </div>
