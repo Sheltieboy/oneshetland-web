@@ -286,7 +286,7 @@ function WordCard({ w }: { w: SpikListItem }) {
   return (
     <li>
       <Link
-        href={`/spik/${w.id}`}
+        href={`/spik/${w.slug || w.id}`}
         className="group block h-full rounded-xl border border-line bg-paper p-4 shadow-soft transition hover:border-spik hover:shadow-md"
       >
         <div className="flex items-baseline gap-2">

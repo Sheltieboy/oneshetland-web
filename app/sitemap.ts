@@ -48,7 +48,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [biz, events, words, boats, hubs, articles] = await Promise.all([
     rows("local_businesses", "id, slug, is_active"),
     rows("events", "id"),
-    rows("spik_dictionary", "id"),
+    rows("spik_dictionary", "id, slug"),
     rows("vessels", "id"),
     rows("hubs", "id"),
     rows("content_articles", "slug, status, publish_at"),
@@ -59,7 +59,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     out.push({ url: `${BASE}/directory/${(b.slug as string) || b.id}`, lastModified: now, changeFrequency: "weekly", priority: 0.6 });
   }
   for (const e of events) out.push({ url: `${BASE}/whats-on/${e.id}`, lastModified: now, changeFrequency: "daily", priority: 0.6 });
-  for (const w of words) out.push({ url: `${BASE}/spik/${w.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
+  for (const w of words) out.push({ url: `${BASE}/spik/${w.slug || w.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const v of boats) out.push({ url: `${BASE}/boats/${v.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const h of hubs) out.push({ url: `${BASE}/hubs/${h.id}`, lastModified: now, changeFrequency: "weekly", priority: 0.5 });
   for (const a of articles) {

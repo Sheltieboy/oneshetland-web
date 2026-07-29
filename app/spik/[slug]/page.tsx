@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getWord, getWordVariations, stripHtml, SUGGEST_FIELDS, SPIK_COLOR, type SpikVariation } from "@/lib/spik-data";
+import { notFound, permanentRedirect } from "next/navigation";
+import { getWord, getWordBySlug, getWordVariations, stripHtml, SUGGEST_FIELDS, SPIK_COLOR, type SpikVariation, type SpikWord } from "@/lib/spik-data";
 import { SuggestModal } from "@/components/spik/SuggestModal";
 import { TrackView } from "@/components/analytics/TrackView";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -8,14 +8,15 @@ import { wordSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const w = await getWord(id);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const w = (await getWordBySlug(slug)) ?? (/^\d+$/.test(slug) ? await getWord(slug) : null);
   if (!w) return { title: "Wird" };
   const meaning = stripHtml(w.short_meaning);
   return {
     title: `${w.word} — Spik`,
     description: meaning || `${w.word} in the Shetland dialect dictionary.`,
+    alternates: { canonical: `/spik/${w.slug || w.id}` },
   };
 }
 
@@ -75,9 +76,15 @@ function VariationCard({ v }: { v: SpikVariation }) {
   );
 }
 
-export default async function WordPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const w = await getWord(id);
+export default async function WordPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  let w: SpikWord | null = await getWordBySlug(slug);
+  // Old numeric URL (/spik/12539) → 301 to the word slug.
+  if (!w && /^\d+$/.test(slug)) {
+    const byId = await getWord(slug);
+    if (byId?.slug) permanentRedirect(`/spik/${byId.slug}`);
+    w = byId;
+  }
   if (!w) notFound();
   const variations = await getWordVariations(w.id);
   // Group approved variations by region, preserving the region-sorted order.
@@ -102,8 +109,8 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
 
   return (
     <>
-      <JsonLd data={[wordSchema(w), breadcrumbSchema([{ name: "Spik", path: "/spik" }, { name: w.word, path: `/spik/${w.id}` }])]} />
-      <TrackView event="content_viewed" objectType="spik_word" objectId={id} />
+      <JsonLd data={[wordSchema(w), breadcrumbSchema([{ name: "Spik", path: "/spik" }, { name: w.word, path: `/spik/${w.slug || w.id}` }])]} />
+      <TrackView event="content_viewed" objectType="spik_word" objectId={String(w.id)} />
       {/* Header band */}
       <section className="relative isolate overflow-hidden text-paper" style={{ background: SPIK_COLOR }}>
         <div
@@ -234,7 +241,7 @@ export default async function WordPage({ params }: { params: Promise<{ id: strin
               </p>
             </div>
             <Link
-              href={`/spik/${w.id}/add-variation`}
+              href={`/spik/${w.slug || w.id}/add-variation`}
               className="shrink-0 rounded-pill px-4 py-2 text-sm font-semibold text-paper transition hover:brightness-95"
               style={{ background: SPIK_COLOR }}
             >

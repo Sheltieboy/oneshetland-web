@@ -12,21 +12,22 @@ export const dynamic = "force-dynamic";
 export default async function SpikWordRedirect({ params }: { params: Promise<{ word: string }> }) {
   const { word } = await params;
   const term = decodeURIComponent(word).trim();
-  let id: string | number | null = null;
+  let target: string | null = null;
   if (term) {
     try {
       const { data } = await publicClient()
         .from("spik_dictionary")
-        .select("id")
+        .select("id, slug")
         .ilike("word", term)
         .limit(1)
         .maybeSingle();
-      id = (data as { id: string | number } | null)?.id ?? null;
+      const row = data as { id: string | number; slug: string | null } | null;
+      if (row) target = row.slug || String(row.id);
     } catch {
       /* fall through to the index */
     }
   }
   // permanentRedirect throws internally, so it MUST run outside the try/catch.
-  if (id != null) permanentRedirect(`/spik/${id}`);
+  if (target) permanentRedirect(`/spik/${target}`);
   permanentRedirect("/spik");
 }

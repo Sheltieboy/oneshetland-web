@@ -9,6 +9,7 @@ export const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 export type SpikWord = {
   id: number;
+  slug: string | null;
   word: string;
   first_letter: string | null;
   alternate_spelling: string | null;
@@ -31,11 +32,16 @@ export type SpikWord = {
 
 export type SpikListItem = Pick<
   SpikWord,
-  "id" | "word" | "part_of_speech" | "short_meaning" | "pronunciation" | "example_sentence"
+  "id" | "slug" | "word" | "part_of_speech" | "short_meaning" | "pronunciation" | "example_sentence"
 >;
 
 const LIST_COLS =
-  "id, word, part_of_speech, short_meaning, pronunciation, example_sentence";
+  "id, slug, word, part_of_speech, short_meaning, pronunciation, example_sentence";
+
+/** Build the public URL for a word — slug when available, id as a safe fallback. */
+export function spikHref(w: { slug?: string | null; id: number }): string {
+  return `/spik/${w.slug || w.id}`;
+}
 
 /** Words whose first letter matches, A–Z. */
 export async function getWordsByLetter(letter: string): Promise<SpikListItem[]> {
@@ -82,6 +88,17 @@ export async function getWord(id: string): Promise<SpikWord | null> {
       .select("*")
       .eq("id", numId)
       .maybeSingle();
+    return (data ?? null) as SpikWord | null;
+  } catch {
+    return null;
+  }
+}
+
+/** A single word by its slug (the primary public lookup for /spik/[slug]). */
+export async function getWordBySlug(slug: string): Promise<SpikWord | null> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb.from("spik_dictionary").select("*").eq("slug", slug).maybeSingle();
     return (data ?? null) as SpikWord | null;
   } catch {
     return null;
@@ -176,8 +193,8 @@ export async function getSpikStats(): Promise<SpikStats> {
   }
 }
 
-/** A random word id, for "Surprise me". */
-export async function getRandomWordId(): Promise<number | null> {
+/** A random word's slug (falling back to id), for "Surprise me". */
+export async function getRandomWordSlug(): Promise<string | null> {
   const sb = publicClient();
   try {
     const { count } = await sb
@@ -188,11 +205,11 @@ export async function getRandomWordId(): Promise<number | null> {
     const offset = Math.floor(Math.random() * count);
     const { data } = await sb
       .from("spik_dictionary")
-      .select("id")
+      .select("id, slug")
       .order("id", { ascending: true })
       .range(offset, offset);
-    const row = (data ?? [])[0] as { id: number } | undefined;
-    return row?.id ?? null;
+    const row = (data ?? [])[0] as { id: number; slug: string | null } | undefined;
+    return row ? (row.slug || String(row.id)) : null;
   } catch {
     return null;
   }

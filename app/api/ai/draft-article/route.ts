@@ -20,7 +20,7 @@ const SCHEMA = {
     title: { type: "string", description: "Engaging, SEO-friendly headline, e.g. 'Gansey: the Shetland word for a hand-knitted jumper'." },
     slug: { type: "string", description: "URL slug, lowercase words separated by hyphens, derived from the title. No leading/trailing hyphen." },
     excerpt: { type: "string", description: "One-sentence standfirst that sells the read." },
-    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, a bullet list where useful. Ground everything ONLY in the facts provided — do not invent origins, dates, or meanings. Weave in the meaning, how/when it's used, the example, and where it sits in the dialect. Include the markdown link [<word>](/spik/<id>) once, and a link to the full dictionary [Spik dictionary](/spik)." },
+    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, a bullet list where useful. Ground everything ONLY in the facts provided — do not invent origins, dates, or meanings. Weave in the meaning, how/when it's used, the example, and where it sits in the dialect. Include the markdown link [<word>](/spik/<slug>) once (use the exact slug given), and a link to the full dictionary [Spik dictionary](/spik)." },
     seo_title: { type: "string", description: "≤60 char title-tag." },
     seo_description: { type: "string", description: "≤155 char meta description." },
   },
@@ -53,13 +53,13 @@ export async function POST(request: Request) {
   const facts = {
     word: row.word, part_of_speech: row.part_of_speech, short_meaning: row.short_meaning,
     spik_meaning: row.spik_meaning, example_sentence: row.example_sentence, origin: row.origin,
-    era: row.era, tone: row.tone, category: row.category, id: row.id,
+    era: row.era, tone: row.tone, category: row.category, id: row.id, slug: row.slug || row.id,
   };
 
   const system =
     "You are Peerie Bot, OneShetland's writer. Write a warm, accurate Almanac article about ONE Shetland dialect word for a general audience (locals and visitors). " +
     "Use ONLY the facts supplied — never invent an etymology, meaning, date, or usage. If a fact isn't given, don't state it. British English. Do not use the word 'delve'. " +
-    `The word's dictionary page is /spik/${facts.id}. Keep it engaging and genuinely informative.`;
+    `The word's dictionary page is /spik/${facts.slug}. Keep it engaging and genuinely informative.`;
 
   try {
     const client = new Anthropic({ apiKey });

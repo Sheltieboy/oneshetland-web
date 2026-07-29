@@ -84,14 +84,14 @@ export function eventSchema(e: {
 }
 
 export function wordSchema(w: {
-  id: number; word: string; short_meaning: string | null; spik_meaning: string | null; part_of_speech: string | null;
+  id: number; slug?: string | null; word: string; short_meaning: string | null; spik_meaning: string | null; part_of_speech: string | null;
 }): Obj {
   return clean({
     "@context": "https://schema.org",
     "@type": "DefinedTerm",
     name: w.word,
     description: stripTags(w.spik_meaning || w.short_meaning) || undefined,
-    url: `${BASE}/spik/${w.id}`,
+    url: `${BASE}/spik/${w.slug || w.id}`,
     inDefinedTermSet: { "@type": "DefinedTermSet", name: "Spik — the Shetland dialect dictionary", url: `${BASE}/spik` },
   });
 }
