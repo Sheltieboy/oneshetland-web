@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PILLARS, type Article } from "@/lib/almanac-data";
 import { saveArticle, deleteArticle, type ArticleInput } from "@/lib/almanac-actions";
+import { AiGlow } from "@/components/ai/AiGlow";
+import { PEERIE, RING_COLOURS } from "@/lib/peerie";
 
 const field = "w-full rounded-lg border border-line bg-white px-3 py-2 text-ink outline-none focus:border-teal";
 const label = "mb-1 block text-sm font-semibold text-ink-soft";
@@ -65,20 +67,34 @@ export function ArticleEditor({ article }: { article: Article | null }) {
 
   return (
     <div className="space-y-5">
-      {/* Peerie Bot */}
-      <div className="rounded-card border border-teal/40 bg-teal/5 p-4">
-        <p className="font-display font-bold text-navy">✨ Draft with Peerie Bot</p>
-        <p className="mt-0.5 text-sm text-ink-soft">Generate a Shetland dialect-word article from the dictionary. Leave blank for a surprise word.</p>
-        <div className="mt-3 flex gap-2">
-          <input className={field + " max-w-xs"} placeholder="A word (optional), e.g. gansey" value={word} onChange={(e) => setWord(e.target.value)} />
-          <button onClick={draftWithAI} disabled={busy === "ai"} className="shrink-0 rounded-pill bg-teal px-5 py-2 text-sm font-bold text-white transition hover:brightness-95 disabled:opacity-50">
-            {busy === "ai" ? "Writing…" : "Draft it"}
-          </button>
-        </div>
-      </div>
+      {/* Peerie Bot — same identity + working-glow as the rest of the app */}
+      <AiGlow active={busy === "ai"}>
+        <section className="space-y-3 rounded-card border border-line bg-paper p-5 shadow-soft">
+          <div className="flex items-center gap-2">
+            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-full text-sm text-paper shadow-soft"
+              style={{ background: `conic-gradient(${RING_COLOURS.join(", ")}, ${RING_COLOURS[0]})` }}>{PEERIE.spark}</span>
+            <div>
+              <h2 className="font-display text-lg font-bold leading-none">{PEERIE.name}</h2>
+              <span className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{PEERIE.role}</span>
+            </div>
+            <span className="ml-1 rounded-pill bg-ink/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink-muted">{PEERIE.tag}</span>
+          </div>
+          <p className="text-sm text-ink-soft">
+            Draft a Shetland dialect-word article from your dictionary — leave the word blank for a surprise. Review and tweak anything before you publish.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input className={field + " max-w-xs"} placeholder="A word (optional), e.g. gansey" value={word} onChange={(e) => setWord(e.target.value)} disabled={busy === "ai"} />
+            <button type="button" onClick={draftWithAI} disabled={busy === "ai"}
+              className="shrink-0 rounded-pill px-5 py-2.5 font-semibold text-paper shadow-soft transition hover:brightness-95 disabled:opacity-50" style={{ background: "#2a8b5c" }}>
+              {busy === "ai" ? `${PEERIE.name} is working…` : `${PEERIE.spark} Draft it with ${PEERIE.name}`}
+            </button>
+          </div>
+        </section>
+      </AiGlow>
 
       {msg && <p className={"rounded-lg px-3 py-2 text-sm font-semibold " + (msg.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>{msg.text}</p>}
 
+      <AiGlow active={busy === "ai"} className="block">
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><label className={label}>Title</label><input className={field} value={f.title} onChange={(e) => set("title", e.target.value)} /></div>
         <div><label className={label}>Slug</label><input className={field} value={f.slug} onChange={(e) => set("slug", e.target.value)} /></div>
@@ -94,6 +110,7 @@ export function ArticleEditor({ article }: { article: Article | null }) {
         <div><label className={label}>SEO description</label><input className={field} value={f.seo_description ?? ""} onChange={(e) => set("seo_description", e.target.value)} /></div>
         <div><label className={label}>Publish date/time</label><input type="datetime-local" className={field} value={f.publish_at ?? ""} onChange={(e) => set("publish_at", e.target.value)} /></div>
       </div>
+      </AiGlow>
 
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
         <button onClick={() => save("draft")} disabled={busy === "save"} className="rounded-pill border border-line-strong px-5 py-2 text-sm font-bold text-ink-soft hover:bg-sand disabled:opacity-50">Save draft</button>
