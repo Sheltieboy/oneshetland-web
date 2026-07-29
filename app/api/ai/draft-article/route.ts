@@ -20,7 +20,7 @@ const SCHEMA = {
     title: { type: "string", description: "Engaging, SEO-friendly headline, e.g. 'Gansey: the Shetland word for a hand-knitted jumper'." },
     slug: { type: "string", description: "URL slug, lowercase words separated by hyphens, derived from the title. No leading/trailing hyphen." },
     excerpt: { type: "string", description: "One-sentence standfirst that sells the read." },
-    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, and a bullet list where useful. Ground everything ONLY in the facts provided — never invent origins, dates, or meanings. Cover the meaning, how and when the word is used, the example sentence, and where it sits in the dialect. EXACTLY ONCE, link the word to its dictionary page as a real Markdown link: the link text is the actual word and the URL is the exact slug path from the facts — e.g. if the word is \"gansey\" and slug \"gansey\", write [gansey](/spik/gansey). Also link the phrase 'Spik dictionary' to /spik. IMPORTANT: use the real word and slug values — never output literal placeholder text like <word> or <slug> or angle brackets." },
+    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, and a bullet list where useful. Ground everything ONLY in the facts provided — never invent origins, dates, or meanings. Cover the meaning, how and when the word is used, the example sentence, and where it sits in the dialect. LINKS: (1) EXACTLY ONCE, link the word to its own dictionary page as a real Markdown link whose text is the actual word and whose URL is the exact slug path from the facts — e.g. word \"gansey\", slug \"gansey\" → [gansey](/spik/gansey). (2) You MAY add AT MOST ONE further internal link, woven naturally into the prose, to a genuinely relevant word from the provided relatedWords list, using that word's given slug — but ONLY if it fits naturally; if none fit, add no second link. Add NO other links. Never link a word that isn't in the facts or relatedWords, never invent a URL, and never output literal placeholders like <word> or <slug>." },
     seo_title: { type: "string", description: "≤60 char title-tag." },
     seo_description: { type: "string", description: "≤155 char meta description." },
   },
@@ -56,6 +56,17 @@ export async function POST(request: Request) {
     era: row.era, tone: row.tone, category: row.category, id: row.id, slug: row.slug || row.id,
   };
 
+  // Candidates for ONE natural contextual internal link — real words with real
+  // slugs, so the model can only ever link to a page that exists.
+  let relatedWords: { word: unknown; slug: unknown }[] = [];
+  try {
+    let rq = sb.from("spik_dictionary").select("word, slug").neq("id", row.id).not("slug", "is", null).limit(8);
+    if (row.category) rq = rq.eq("category", row.category);
+    else if (row.first_letter) rq = rq.eq("first_letter", row.first_letter);
+    const { data } = await rq;
+    relatedWords = (data ?? []).map((r: Record<string, unknown>) => ({ word: r.word, slug: r.slug }));
+  } catch { /* related links are optional */ }
+
   const system =
     "You are Peerie Bot, OneShetland's writer. Write a warm, accurate Almanac article about ONE Shetland dialect word for a general audience (locals and visitors). " +
     "Use ONLY the facts supplied — never invent an etymology, meaning, date, or usage. If a fact isn't given, don't state it. British English. Do not use the word 'delve'. " +
@@ -69,7 +80,7 @@ export async function POST(request: Request) {
       thinking: { type: "adaptive" },
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       system,
-      messages: [{ role: "user", content: `Write the article from these dictionary facts (JSON):\n${JSON.stringify(facts, null, 2)}` }],
+      messages: [{ role: "user", content: `Write the article from these dictionary facts (JSON):\n${JSON.stringify(facts, null, 2)}\n\nrelatedWords (optional — link AT MOST ONE, only if it fits naturally; use its slug):\n${JSON.stringify(relatedWords, null, 2)}` }],
     });
     const block = resp.content.find((b) => b.type === "text") as { text: string } | undefined;
     if (!block) return Response.json({ error: "Peerie Bot couldn't draft that — try again." }, { status: 502 });
