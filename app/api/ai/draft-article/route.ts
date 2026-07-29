@@ -20,7 +20,7 @@ const SCHEMA = {
     title: { type: "string", description: "Engaging, SEO-friendly headline, e.g. 'Gansey: the Shetland word for a hand-knitted jumper'." },
     slug: { type: "string", description: "URL slug, lowercase words separated by hyphens, derived from the title. No leading/trailing hyphen." },
     excerpt: { type: "string", description: "One-sentence standfirst that sells the read." },
-    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, a bullet list where useful. Ground everything ONLY in the facts provided — do not invent origins, dates, or meanings. Weave in the meaning, how/when it's used, the example, and where it sits in the dialect. Include the markdown link [<word>](/spik/<slug>) once (use the exact slug given), and a link to the full dictionary [Spik dictionary](/spik)." },
+    body: { type: "string", description: "600–900 word article in Markdown. Use ## subheadings, short paragraphs, and a bullet list where useful. Ground everything ONLY in the facts provided — never invent origins, dates, or meanings. Cover the meaning, how and when the word is used, the example sentence, and where it sits in the dialect. EXACTLY ONCE, link the word to its dictionary page as a real Markdown link: the link text is the actual word and the URL is the exact slug path from the facts — e.g. if the word is \"gansey\" and slug \"gansey\", write [gansey](/spik/gansey). Also link the phrase 'Spik dictionary' to /spik. IMPORTANT: use the real word and slug values — never output literal placeholder text like <word> or <slug> or angle brackets." },
     seo_title: { type: "string", description: "≤60 char title-tag." },
     seo_description: { type: "string", description: "≤155 char meta description." },
   },
@@ -75,8 +75,12 @@ export async function POST(request: Request) {
     if (!block) return Response.json({ error: "Peerie Bot couldn't draft that — try again." }, { status: 502 });
     const draft = JSON.parse(block.text);
     const slugPath = `/spik/${facts.slug}`;
-    // Safety net: if the model linked the numeric id, rewrite to the slug URL.
-    const body = String(draft.body ?? "").replaceAll(`/spik/${facts.id}`, slugPath);
+    // Safety net: substitute any leaked placeholder tokens and fix a numeric link.
+    const body = String(draft.body ?? "")
+      .replaceAll("/spik/<slug>", slugPath)
+      .replaceAll("<slug>", String(facts.slug))
+      .replaceAll("<word>", String(facts.word))
+      .replaceAll(`/spik/${facts.id}`, slugPath);
 
     return Response.json({
       ...draft,
