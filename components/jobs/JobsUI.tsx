@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   type Job, type Shift,
   formatJobPay, CONTRACT_LABELS, REMOTE_LABELS,
-  formatPay, formatDuration, formatShiftDate, shiftDisplayBusiness,
+  formatPay, formatDuration, formatShiftDate, shiftDisplayBusiness, jobDisplayBusiness,
   URGENCY_CONFIG, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
 
@@ -37,22 +37,22 @@ function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?
 }
 
 export function JobCard({ job }: { job: Job }) {
-  const biz = job.business;
-  const name = biz?.name ?? "Employer";
+  const disp = jobDisplayBusiness(job);
+  const name = disp.name;
   return (
     <Link
       href={`/jobs/${job.id}`}
       className="group flex flex-col gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
       <div className="flex items-start gap-3">
-        <Logo url={biz?.logo_url ?? null} name={name} accent={JOBS} />
+        <Logo url={disp.logo_url} name={name} accent={JOBS} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <h3 className="truncate font-display text-lg font-bold leading-tight text-ink group-hover:underline">{job.title}</h3>
             {job.is_featured && <span className="shrink-0 text-xs" style={{ color: JOBS }} title="Featured">★</span>}
           </div>
           <p className="mt-0.5 truncate text-sm text-ink-muted">
-            {name}{biz?.is_verified ? " ✓" : ""}{job.location ? ` · ${job.location}` : ""}
+            {name}{disp.is_verified ? " ✓" : ""}{job.location ? ` · ${job.location}` : ""}
           </p>
         </div>
       </div>
@@ -69,6 +69,7 @@ export function JobCard({ job }: { job: Job }) {
         {job.is_seasonal && <Chip>Seasonal</Chip>}
         {job.relocation_support && <Chip tone="jobs">Relocation</Chip>}
         {job.housing_available && <Chip tone="jobs">Housing</Chip>}
+        {job.source_label && <Chip>{job.source_label}</Chip>}
       </div>
     </Link>
   );

@@ -33,8 +33,12 @@ export type JobBusiness = {
 
 export type Job = {
   id: string;
-  employer_id: string;
+  employer_id: string | null;
   posted_as_business_id: string | null;
+  source: string | null;
+  source_label: string | null;
+  external_employer_name: string | null;
+  external_employer_logo_url: string | null;
   title: string;
   description: string | null;
   category: string | null;
@@ -283,6 +287,21 @@ export function formatShiftDate(startAt: string): string {
   const d = new Date(startAt);
   return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
     + " · " + d.toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
+/** Employer name/logo for a job: OneShetland business, else the external
+ *  (syndicated) employer, else a generic fallback. Mirrors shiftDisplayBusiness. */
+export function jobDisplayBusiness(
+  j: Pick<Job, "business" | "external_employer_name" | "external_employer_logo_url">,
+): { name: string; logo_url: string | null; is_verified: boolean } {
+  if (j.business) return { name: j.business.name, logo_url: j.business.logo_url, is_verified: j.business.is_verified };
+  if (j.external_employer_name) return { name: j.external_employer_name, logo_url: j.external_employer_logo_url ?? null, is_verified: false };
+  return { name: "Employer", logo_url: null, is_verified: false };
+}
+
+/** True for syndicated listings that apply out to an external board (no in-app apply). */
+export function isExternalJob(j: Pick<Job, "source">): boolean {
+  return !!j.source;
 }
 
 export function shiftDisplayBusiness(s: Shift): { name: string; logo_url: string | null; is_verified: boolean } {

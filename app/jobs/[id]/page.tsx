@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAccount } from "@/lib/auth";
-import { getJob, formatJobPay, CONTRACT_LABELS, REMOTE_LABELS } from "@/lib/jobs-data";
+import { getJob, formatJobPay, CONTRACT_LABELS, REMOTE_LABELS, jobDisplayBusiness, isExternalJob } from "@/lib/jobs-data";
 import { hasAppliedToJob, getSavedJobIds, getWorkerProfile } from "@/lib/jobs-data.server";
 import { JOBS } from "@/components/jobs/JobsUI";
 import { JobApplyPanel } from "@/components/jobs/JobApplyPanel";
@@ -25,8 +25,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     ? await Promise.all([hasAppliedToJob(id, account.id), getSavedJobIds(), getWorkerProfile(account.id)])
     : [false, new Set<string>(), null];
 
-  const biz = job.business;
-  const isOwner = !!account && job.employer_id === account.id;
+  const disp = jobDisplayBusiness(job);
+  const external = isExternalJob(job);
+  const isOwner = !external && !!account && job.employer_id === account.id;
 
   const facts: { label: string; value: string }[] = [
     { label: "Pay", value: formatJobPay(job) },
@@ -49,14 +50,15 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           <Link href="/jobs" className="text-sm font-semibold text-white/80 hover:text-white">← Jobs</Link>
           <div className="mt-4 flex items-start gap-4">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/30 bg-white/10">
-              {biz?.logo_url
-                ? <img src={biz.logo_url} alt="" className="h-full w-full object-cover" />
-                : <div className="grid h-full w-full place-items-center font-display text-2xl font-bold text-white">{(biz?.name ?? "?").slice(0, 1)}</div>}
+              {disp.logo_url
+                ? <img src={disp.logo_url} alt="" className="h-full w-full object-contain bg-white" />
+                : <div className="grid h-full w-full place-items-center font-display text-2xl font-bold text-white">{disp.name.slice(0, 1)}</div>}
             </div>
             <div className="min-w-0">
               {job.is_featured && <span className="inline-block rounded-pill bg-white/20 px-2.5 py-0.5 text-xs font-bold text-white">★ Featured</span>}
               <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">{job.title}</h1>
-              <p className="mt-1 text-white/85">{biz?.name ?? "Employer"}{biz?.is_verified ? " ✓" : ""}{job.location ? ` · ${job.location}` : ""}</p>
+              <p className="mt-1 text-white/85">{disp.name}{disp.is_verified ? " ✓" : ""}{job.location ? ` · ${job.location}` : ""}</p>
+              {job.source_label && <p className="mt-0.5 text-xs font-medium text-white/70">Listed {job.source_label}</p>}
             </div>
           </div>
         </div>
@@ -83,7 +85,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           )}
 
           {/* Other ways to apply */}
-          {(job.apply_url || job.apply_email) && (
+          {!external && (job.apply_url || job.apply_email) && (
             <section className="rounded-card border border-line bg-paper p-5 shadow-soft">
               <h2 className="font-display text-lg font-bold text-ink">Other ways to apply</h2>
               <div className="mt-3 flex flex-wrap gap-3">
@@ -96,7 +98,23 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
 
         {/* Apply panel */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          {isOwner ? (
+          {external ? (
+            <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
+              <p className="font-display font-bold text-ink">Apply for this job</p>
+              <p className="mt-1 text-sm text-ink-muted">
+                This role is advertised by {disp.name}. Applications are handled on their official site.
+              </p>
+              {job.apply_url && (
+                <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: JOBS }}>
+                  Apply on the official site ↗
+                </a>
+              )}
+              {job.expires_at && (
+                <p className="mt-3 text-xs text-ink-muted">Closing date: {new Date(job.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
+              )}
+              {job.source_label && <p className="mt-1 text-xs text-ink-muted">Listed {job.source_label}.</p>}
+            </div>
+          ) : isOwner ? (
             <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
               <p className="font-display font-bold text-ink">You posted this job</p>
               <Link href={`/jobs/${job.id}/applicants`} className="mt-3 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: JOBS }}>
