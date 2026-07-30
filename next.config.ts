@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       { source: "/proposal", destination: "/proposal.html" },
-      { source: "/shetland-points", destination: "/shetland-points.html" },
+      { source: "/merk-points", destination: "/merk-points.html" },
     ];
   },
 };
