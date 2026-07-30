@@ -23,6 +23,8 @@ export default function robots(): MetadataRoute.Robots {
         "/g/", // one-time gift claim links
         "/proposal", // unlisted partnership proposal — private, not for search
         "/proposal.html",
+        "/shetland-points", // unlisted concept note — private, not for search
+        "/shetland-points.html",
       ],
     },
     sitemap: `${BASE}/sitemap.xml`,

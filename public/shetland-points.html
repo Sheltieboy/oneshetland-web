@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneShetland — Shetland Points</title>
+<meta name="description" content="Shetland Points: an island-wide loyalty concept where shopping local earns rewards funded by Shetland's community trusts. A concept note for the council and trusts.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪙</text></svg>">
+<style>
+  :root {
+    --paper: #e9eeee; --surface: #ffffff; --surface-2: #f4f7f6;
+    --ink: #10242c; --ink-soft: #45585e; --ink-mute: #74868b;
+    --line: rgba(16,36,44,0.13); --navy: #0b2836; --navy-2: #081e29;
+    --gold: #c98a1f; --gold-bright: #e6ac48; --teal: #2c8479;
+    --on-navy: #eef3f3; --on-navy-soft: #a9c0c6;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --wrap: 980px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; font-size: 17px; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 28px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); margin: 0; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; line-height: 1.1; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; }
+
+  .hero { position: relative; overflow: hidden; background: var(--navy); color: var(--on-navy); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: -40%; height: 80%; background: radial-gradient(ellipse 70% 100% at 50% 100%, rgba(201,138,31,0.28), rgba(201,138,31,0.05) 45%, transparent 70%); pointer-events: none; }
+  .hero .wrap { position: relative; z-index: 1; padding-top: 60px; padding-bottom: 68px; }
+  .brandline { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .brandlink { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+  .mark { width: 34px; height: 34px; flex: none; }
+  .hero-watermark { position: absolute; top: -70px; right: -90px; width: 460px; height: 460px; opacity: 0.06; pointer-events: none; z-index: 0; }
+  .brandname { font-family: var(--serif); font-size: 21px; font-weight: 600; letter-spacing: 0.01em; }
+  .coord { margin-left: auto; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-navy-soft); font-variant-numeric: tabular-nums; }
+  .hero h1 { font-size: clamp(34px, 6vw, 58px); color: #fff; max-width: 15ch; }
+  .hero .lede { margin-top: 22px; font-size: clamp(17px, 2.2vw, 20px); color: var(--on-navy-soft); max-width: 60ch; line-height: 1.55; }
+  .hero .tag { margin-top: 8px; font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--gold-bright); }
+  .madein { margin-top: 34px; font-size: 13px; color: var(--on-navy-soft); letter-spacing: 0.02em; }
+
+  section { padding: 62px 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 30px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: clamp(24px, 3.6vw, 33px); }
+  .sec-head .num { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .rule { height: 2px; background: linear-gradient(90deg, var(--gold), transparent); border: 0; margin: 0 0 30px; max-width: 64px; }
+
+  .opportunity p { font-size: clamp(19px, 2.6vw, 23px); font-family: var(--serif); line-height: 1.5; color: var(--ink); max-width: 42ch; }
+  .opportunity .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: start; }
+  .opportunity .side { color: var(--ink-soft); font-size: 16px; line-height: 1.65; }
+  .opportunity .side strong { color: var(--ink); font-weight: 600; }
+
+  .pillars { background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .cell { background: var(--surface); padding: 22px 22px 24px; }
+  .cell .k { display: flex; align-items: center; gap: 9px; }
+  .cell .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .cell h3 { font-family: var(--sans); font-size: 15px; font-weight: 600; letter-spacing: 0; }
+  .cell p { margin-top: 7px; font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+
+  .flow .grid { grid-template-columns: repeat(3, 1fr); }
+  .flow .cell { padding: 26px 24px 28px; }
+  .flow .step { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--gold); line-height: 1; }
+  .flow .cell h3 { margin-top: 12px; font-family: var(--serif); font-size: 20px; }
+  .flow .cell p { margin-top: 10px; font-size: 15px; }
+
+  .outcomes .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px 24px 26px; }
+  .card .lead { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 12px; }
+  .card .lead .idx { font-size: 13px; color: var(--gold); font-family: var(--sans); font-weight: 700; letter-spacing: 0.08em; }
+  .card p { margin-top: 10px; color: var(--ink-soft); font-size: 15.5px; line-height: 1.6; }
+
+  .grows { background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .growcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .growcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 24px; }
+  .growcard > h3 { font-family: var(--sans); font-size: 16px; font-weight: 600; letter-spacing: 0; }
+  .growcard .nn { margin-top: 12px; }
+  .growcard .nn p { font-size: 14.5px; color: var(--ink-soft); line-height: 1.55; }
+
+  .ask { background: var(--navy); color: var(--on-navy); position: relative; overflow: hidden; }
+  .ask::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 90% at 90% 0%, rgba(201,138,31,0.18), transparent 60%); pointer-events: none; }
+  .ask .wrap { position: relative; z-index: 1; }
+  .ask h2 { color: #fff; font-size: clamp(24px, 3.6vw, 33px); }
+  .ask .num { color: var(--gold-bright); }
+  .ask .intro { margin-top: 14px; color: var(--on-navy-soft); max-width: 60ch; font-size: 17px; }
+  .asklist { margin: 30px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; overflow: hidden; }
+  .asklist li { background: var(--navy-2); padding: 20px 22px; }
+  .asklist .t { font-weight: 600; color: #fff; font-size: 15.5px; }
+  .asklist .d { margin-top: 6px; color: var(--on-navy-soft); font-size: 14px; line-height: 1.55; }
+
+  .contact { background: var(--navy-2); color: var(--on-navy); border-top: 1px solid rgba(255,255,255,0.07); }
+  .contact .wrap { padding: 40px 28px 46px; display: flex; flex-wrap: wrap; align-items: center; gap: 24px 40px; }
+  .contact .cta { font-family: var(--serif); font-size: clamp(20px, 3vw, 26px); color: #fff; max-width: 18ch; }
+  .contact .details { margin-left: auto; font-size: 15px; line-height: 1.9; color: var(--on-navy-soft); }
+  .contact .details b { color: #fff; font-weight: 600; }
+  .contact .details a { color: #fff; text-decoration: none; }
+  .contact .details .ph { color: var(--gold-bright); }
+
+  .pdfbtn { position: fixed; right: 20px; bottom: 20px; z-index: 20; background: var(--gold); color: #1c1204; border: 0; border-radius: 999px; padding: 12px 20px; font-family: var(--sans); font-size: 14px; font-weight: 700; letter-spacing: 0.01em; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+  .pdfbtn:hover { filter: brightness(1.05); }
+  .pdfbtn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  @media (max-width: 720px) {
+    body { font-size: 16px; }
+    .opportunity .cols { grid-template-columns: 1fr; gap: 24px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .flow .grid { grid-template-columns: 1fr; }
+    .outcomes .cards { grid-template-columns: 1fr; }
+    .growcards { grid-template-columns: 1fr; }
+    .asklist { grid-template-columns: 1fr; }
+    .contact .details { margin-left: 0; }
+  }
+  @media (max-width: 440px) { .grid { grid-template-columns: 1fr; } }
+
+  @media print {
+    .pdfbtn { display: none; }
+    body { font-size: 12pt; }
+    section { padding: 26px 0; }
+    .hero, .ask, .contact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .card, .growcard, .cell, .asklist li, .sec-head { break-inside: avoid; }
+    section, .pillars, .grows { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <img class="hero-watermark" src="/brand/logo-mark-keyed.png" alt="" aria-hidden="true" />
+  <div class="wrap">
+    <div class="brandline">
+      <a class="brandlink" href="/">
+        <img class="mark" src="/brand/logo-mark-keyed.png" alt="" />
+        <span class="brandname">OneShetland</span>
+      </a>
+      <span class="coord">60° North</span>
+    </div>
+    <p class="eyebrow">A community concept</p>
+    <h1>Shop local. Earn a stake in Shetland's shared life.</h1>
+    <p class="lede"><strong style="color:#fff;font-weight:600">Shetland Points</strong> is a simple idea: earn a point for every pound spent with a local business, and redeem them for the things that make island life richer — a swim, a film, a museum visit, a bus fare. Funded not by shops, but by the community bodies whose very purpose is to help folk take part.</p>
+    <p class="tag">Spend local — and Shetland gives back.</p>
+    <p class="madein">A concept note · OneShetland · Darren Fullerton Consultancy Ltd</p>
+  </div>
+</header>
+
+<section class="opportunity">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <hr class="rule"/>
+        <p>An island-wide loyalty scheme where shopping local earns you a share of Shetland's shared life — and no business ever pays for another's reward.</p>
+      </div>
+      <div class="side">
+        <p>Ordinary loyalty keeps you coming back to <em>one</em> shop. Shetland Points does something bigger: it rewards spending local <strong>anywhere</strong> in the isles, and pays that reward out through the pools, museums, cinemas and buses the community already runs.</p>
+        <p style="margin-top:14px">It's a concept — but it runs on loyalty rails OneShetland has <strong>already built and tested</strong>: a member card, a points engine, and Gift-Aided community donations. What's needed to make it real isn't new technology; it's one or two willing reward partners.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pillars flow">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">How it works</span><h2>Three simple moves</h2></div>
+    <div class="grid">
+      <div class="cell">
+        <div class="step">1</div>
+        <h3>Earn</h3>
+        <p>Shoppers earn one Shetland Point for every £1 spent with a participating local business. Issuing a point costs the shop nothing — so every firm, however small or remote, can join for free.</p>
+      </div>
+      <div class="cell">
+        <div class="step">2</div>
+        <h3>Fund</h3>
+        <p>Community partners — the council and Shetland's trusts — back the rewards. Not as charity, but because getting folk swimming, into the museum, on the bus is exactly what they exist to do.</p>
+      </div>
+      <div class="cell">
+        <div class="step">3</div>
+        <h3>Redeem</h3>
+        <p>Points unlock real island experiences at those partners' venues. Loyalty stops being <em>money off at a till</em> and becomes <em>a stake in island life</em>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="rewards">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">The rewards</span><h2>What points could unlock</h2></div>
+    <div class="grid">
+      <div class="cell"><div class="k"><span class="dot" style="background:#1f6feb"></span><h3>A swim at the pool</h3></div><p>Shetland Recreational Trust — an active island is the whole point.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#0e6e8c"></span><h3>A fitness or class pass</h3></div><p>Recreational Trust — filling leisure centres all year round.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#1e3a8a"></span><h3>Museum &amp; heritage entry</h3></div><p>Amenity Trust — connecting folk with island heritage.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#7c3aed"></span><h3>A film or a show</h3></div><p>Shetland Arts — seats filled at Mareel and the Garrison.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#2c8479"></span><h3>Bus &amp; ferry credit</h3></div><p>Council / ZetTrans — getting more people onto public transport.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#2a8b5c"></span><h3>Kids' clubs &amp; lessons</h3></div><p>Council services — holiday programmes and swimming lessons.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#c98a1f"></span><h3>Give it to a good cause</h3></div><p>OneShetland Hubs — points become a Gift-Aided local donation.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#12b3d6"></span><h3>Gala &amp; event tickets</h3></div><p>Community councils — a stake in the events that bring folk together.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#d4921a"></span><h3>A seasonal treat</h3></div><p>A wellbeing fund — a wee warm-drink lift when it's needed most.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="outcomes grows">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">Why it's fair</span><h2>Nobody loses</h2></div>
+    <div class="cards">
+      <div class="card"><div class="lead"><span class="idx">✕</span>The trap we avoid</div><p>In a shop-only points scheme, whoever <em>honours</em> a point loses margin for a reward its rivals handed out. The popular shops end up subsidising everyone else — and quietly pull out. That's why those schemes collapse.</p></div>
+      <div class="card"><div class="lead"><span class="idx">✓</span>Why this is different</div><p>Here the reward is honoured by a community partner whose mission <em>is</em> participation — a swim, a film, a visit. Honouring a point is the very thing they exist to do. Businesses only ever <em>issue</em> points, for free. No business subsidises another.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="practical">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">The practical side</span><h2>Built to be safe and simple</h2></div>
+    <div class="growcards">
+      <div class="growcard">
+        <h3>Points, not cash</h3>
+        <div class="nn"><p>Points can't be withdrawn or swapped for money — so it's a loyalty scheme, not stored value, and stays clear of the e-money rules a cash wallet would raise.</p></div>
+      </div>
+      <div class="growcard">
+        <h3>No runaway cost</h3>
+        <div class="nn"><p>Points can expire and be capped, and the funding partner sets a budgeted pot and a simple rate — so the cost is always known, never open-ended.</p></div>
+      </div>
+      <div class="growcard">
+        <h3>The rails already exist</h3>
+        <div class="nn"><p>OneShetland already runs a points engine, a member card and Gift-Aided donations. This is an extension we can pilot quickly — not a build from scratch.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ask">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">The ask</span><h2>How we'd start — small and measured</h2></div>
+    <p class="intro">Shetland Points doesn't need every partner at once. It needs one willing reward partner and a focused pilot. If it works, it grows.</p>
+    <ul class="asklist">
+      <li><span class="t">A short conversation</span><span class="d">Half an hour to walk through the idea and see where our aims meet.</span></li>
+      <li><span class="t">Pick one flagship reward</span><span class="d">A single, recognisable prize — say a swim, or museum entry — to launch with.</span></li>
+      <li><span class="t">Agree a simple rate</span><span class="d">How many points unlock it — for example, 250 points for a swim.</span></li>
+      <li><span class="t">Budget a capped pot</span><span class="d">A small, measurable amount to fund the trial, with no open-ended liability.</span></li>
+      <li><span class="t">Run a pilot</span><span class="d">One facility or one town, over a season, measured together.</span></li>
+      <li><span class="t">Grow with partners</span><span class="d">Add trusts and rewards once the first pilot has proven itself.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer class="contact">
+  <div class="wrap">
+    <div class="cta">Shop local, and Shetland gives back.</div>
+    <div class="details">
+      <div><b>Darren Fullerton</b> · Darren Fullerton Consultancy Ltd</div>
+      <div><b>oneshetland.com</b></div>
+      <div><a href="mailto:darren@oneshetland.com">darren@oneshetland.com</a> · <span class="ph">07717 306993</span></div>
+    </div>
+  </div>
+</footer>
+
+<button class="pdfbtn" onclick="window.print()" aria-label="Save this concept as a PDF">Save as PDF</button>
+
+</body>
+</html>
