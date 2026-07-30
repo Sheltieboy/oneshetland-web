@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneShetland — Partnership Proposal</title>
+<meta name="description" content="OneShetland: a community super-app for the islands. A partnership proposal for a development partner and Shetland Islands Council.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>">
+<style>
+  :root {
+    --paper: #e9eeee; --surface: #ffffff; --surface-2: #f4f7f6;
+    --ink: #10242c; --ink-soft: #45585e; --ink-mute: #74868b;
+    --line: rgba(16,36,44,0.13); --navy: #0b2836; --navy-2: #081e29;
+    --gold: #c98a1f; --gold-bright: #e6ac48; --teal: #2c8479;
+    --on-navy: #eef3f3; --on-navy-soft: #a9c0c6;
+    --serif: Georgia, "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --wrap: 980px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); line-height: 1.6; -webkit-font-smoothing: antialiased; font-size: 17px; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 28px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); margin: 0; }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; line-height: 1.1; margin: 0; }
+  p { margin: 0; }
+  a { color: inherit; }
+
+  .hero { position: relative; overflow: hidden; background: var(--navy); color: var(--on-navy); border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: -40%; height: 80%; background: radial-gradient(ellipse 70% 100% at 50% 100%, rgba(201,138,31,0.28), rgba(201,138,31,0.05) 45%, transparent 70%); pointer-events: none; }
+  .hero .wrap { position: relative; z-index: 1; padding-top: 60px; padding-bottom: 68px; }
+  .brandline { display: flex; align-items: center; gap: 12px; margin-bottom: 40px; }
+  .brandlink { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+  .mark { width: 34px; height: 34px; flex: none; }
+  .brandname { font-family: var(--serif); font-size: 21px; font-weight: 600; letter-spacing: 0.01em; }
+  .coord { margin-left: auto; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--on-navy-soft); font-variant-numeric: tabular-nums; }
+  .hero h1 { font-size: clamp(34px, 6vw, 58px); color: #fff; max-width: 16ch; }
+  .hero .lede { margin-top: 22px; font-size: clamp(17px, 2.2vw, 20px); color: var(--on-navy-soft); max-width: 60ch; line-height: 1.55; }
+  .hero .tag { margin-top: 8px; font-family: var(--serif); font-style: italic; font-size: 18px; color: var(--gold-bright); }
+  .madein { margin-top: 34px; font-size: 13px; color: var(--on-navy-soft); letter-spacing: 0.02em; }
+
+  section { padding: 62px 0; }
+  .sec-head { display: flex; align-items: baseline; gap: 16px; margin-bottom: 30px; flex-wrap: wrap; }
+  .sec-head h2 { font-size: clamp(24px, 3.6vw, 33px); }
+  .sec-head .num { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold); font-weight: 600; }
+  .rule { height: 2px; background: linear-gradient(90deg, var(--gold), transparent); border: 0; margin: 0 0 30px; max-width: 64px; }
+
+  .opportunity p { font-size: clamp(19px, 2.6vw, 23px); font-family: var(--serif); line-height: 1.5; color: var(--ink); max-width: 40ch; }
+  .opportunity .cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: start; }
+  .opportunity .side { color: var(--ink-soft); font-size: 16px; line-height: 1.65; }
+  .opportunity .side strong { color: var(--ink); font-weight: 600; }
+
+  .pillars { background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .cell { background: var(--surface); padding: 22px 22px 24px; }
+  .cell .k { display: flex; align-items: center; gap: 9px; }
+  .cell .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .cell h3 { font-family: var(--sans); font-size: 15px; font-weight: 600; letter-spacing: 0; }
+  .cell p { margin-top: 7px; font-size: 14px; color: var(--ink-soft); line-height: 1.5; }
+
+  .outcomes .cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 24px 24px 26px; }
+  .card .lead { font-family: var(--serif); font-size: 20px; font-weight: 600; color: var(--ink); display: flex; align-items: baseline; gap: 12px; }
+  .card .lead .idx { font-size: 13px; color: var(--gold); font-family: var(--sans); font-weight: 700; letter-spacing: 0.08em; }
+  .card p { margin-top: 10px; color: var(--ink-soft); font-size: 15.5px; line-height: 1.6; }
+
+  .proof { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .proof .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+  .stat .big { font-family: var(--serif); font-size: 30px; font-weight: 600; color: var(--ink); line-height: 1; }
+  .stat .lab { margin-top: 8px; font-size: 13.5px; color: var(--ink-soft); line-height: 1.45; }
+  .tryit { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; }
+  .tryit .t { font-size: 14px; color: var(--ink-soft); }
+  .tryit a { font-weight: 600; color: var(--teal); text-decoration: none; border-bottom: 1px solid rgba(44,132,121,0.4); }
+  .proof .caveat { margin-top: 20px; font-size: 13px; color: var(--ink-mute); }
+
+  .grows { background: var(--surface-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .growcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .growcard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 24px; }
+  .growcard > h3 { font-family: var(--sans); font-size: 16px; font-weight: 600; letter-spacing: 0; }
+  .growcard .nn { margin-top: 14px; }
+  .growcard .nn .lbl { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+  .growcard .nn p { margin-top: 4px; font-size: 14.5px; color: var(--ink-soft); line-height: 1.55; }
+
+  .ask { background: var(--navy); color: var(--on-navy); position: relative; overflow: hidden; }
+  .ask::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse 60% 90% at 90% 0%, rgba(201,138,31,0.18), transparent 60%); pointer-events: none; }
+  .ask .wrap { position: relative; z-index: 1; }
+  .ask h2 { color: #fff; font-size: clamp(24px, 3.6vw, 33px); }
+  .ask .num { color: var(--gold-bright); }
+  .ask .intro { margin-top: 14px; color: var(--on-navy-soft); max-width: 58ch; font-size: 17px; }
+  .asklist { margin: 30px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; overflow: hidden; }
+  .asklist li { background: var(--navy-2); padding: 20px 22px; }
+  .asklist .t { font-weight: 600; color: #fff; font-size: 15.5px; }
+  .asklist .d { margin-top: 6px; color: var(--on-navy-soft); font-size: 14px; line-height: 1.55; }
+
+  .contact { background: var(--navy-2); color: var(--on-navy); border-top: 1px solid rgba(255,255,255,0.07); }
+  .contact .wrap { padding: 40px 28px 46px; display: flex; flex-wrap: wrap; align-items: center; gap: 24px 40px; }
+  .contact .cta { font-family: var(--serif); font-size: clamp(20px, 3vw, 26px); color: #fff; max-width: 18ch; }
+  .contact .details { margin-left: auto; font-size: 15px; line-height: 1.9; color: var(--on-navy-soft); }
+  .contact .details b { color: #fff; font-weight: 600; }
+  .contact .details a { color: #fff; text-decoration: none; }
+  .contact .details .ph { color: var(--gold-bright); }
+
+  .pdfbtn { position: fixed; right: 20px; bottom: 20px; z-index: 20; background: var(--gold); color: #1c1204; border: 0; border-radius: 999px; padding: 12px 20px; font-family: var(--sans); font-size: 14px; font-weight: 700; letter-spacing: 0.01em; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+  .pdfbtn:hover { filter: brightness(1.05); }
+  .pdfbtn:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+
+  @media (max-width: 720px) {
+    body { font-size: 16px; }
+    .opportunity .cols { grid-template-columns: 1fr; gap: 24px; }
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .outcomes .cards { grid-template-columns: 1fr; }
+    .proof .row { grid-template-columns: repeat(2, 1fr); gap: 24px 20px; }
+    .growcards { grid-template-columns: 1fr; }
+    .asklist { grid-template-columns: 1fr; }
+    .contact .details { margin-left: 0; }
+  }
+  @media (max-width: 440px) { .grid { grid-template-columns: 1fr; } }
+
+  @media print {
+    .pdfbtn { display: none; }
+    body { font-size: 12pt; }
+    section { padding: 26px 0; }
+    .hero, .ask, .contact { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .card, .growcard, .cell, .asklist li, .stat, .sec-head { break-inside: avoid; }
+    section, .pillars, .proof, .grows { break-inside: avoid-page; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="brandline">
+      <a class="brandlink" href="/">
+        <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+          <circle cx="20" cy="20" r="18" fill="none" stroke="#e6ac48" stroke-width="2"/>
+          <path d="M9 24 C 15 9, 25 9, 31 24" fill="none" stroke="#e6ac48" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="20" cy="22" r="3.2" fill="#e6ac48"/>
+        </svg>
+        <span class="brandname">OneShetland</span>
+      </a>
+      <span class="coord">60° North</span>
+    </div>
+    <p class="eyebrow">A partnership proposal</p>
+    <h1>Keeping Shetland's money, community and business in Shetland.</h1>
+    <p class="lede">OneShetland is a community super-app for the islands — a single digital home for local businesses, events, payments, loyalty, delivery, jobs, dialect and heritage. Live on the web, and coming to iPhone and Android.</p>
+    <p class="tag">Everything Shetland, in one place — built for the islands, by the islands.</p>
+    <p class="madein">Made in Shetland · Darren Fullerton Consultancy Ltd · oneshetland.com</p>
+  </div>
+</header>
+
+<section class="opportunity">
+  <div class="wrap">
+    <div class="cols">
+      <div>
+        <hr class="rule"/>
+        <p>National apps take Shetland's spend, attention and data off the islands. OneShetland puts a digital high street and community hub in every resident's — and every visitor's — pocket, and keeps it here.</p>
+      </div>
+      <div class="side">
+        <p>Shetland's businesses and communities are small, dispersed, and underserved by platforms built for cities. Getting online is costly; getting found is harder; the money that flows through a card machine mostly leaves.</p>
+        <p style="margin-top:14px">OneShetland is the alternative that's <strong>owned in Shetland and reinvested in Shetland</strong> — one place where people find local, spend local, and stay connected to island life, and where every business has a free storefront and affordable tools.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pillars">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">What it is</span><h2>One app, the whole of island life</h2></div>
+    <div class="grid">
+      <div class="cell"><div class="k"><span class="dot" style="background:#7c3aed"></span><h3>Local &amp; Directory</h3></div><p>Every Shetland business, free to list — profiles, offers, bookings and enquiries.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#c98a1f"></span><h3>Local Wallet &amp; loyalty</h3></div><p>One member card to pay local, earn stamps and cashback. A digital Shop Local Shetland.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#d4921a"></span><h3>What's On</h3></div><p>Every island event in one place — with a built-in journey planner across the ferries.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#2c8479"></span><h3>Fetch</h3></div><p>Local delivery and errands — island logistics that keep small firms trading.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#1f6feb"></span><h3>Work</h3></div><p>Jobs and shifts matching island employers with island workers.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#2a8b5c"></span><h3>Hubs</h3></div><p>Community groups — notices, memberships, events and donations with Gift Aid.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#12b3d6"></span><h3>Spik</h3></div><p>The Shetland dialect dictionary, built and improved by the community.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#1e3a8a"></span><h3>Auld Stories &amp; Da Boats</h3></div><p>Island heritage and vessels — remembered, mapped and shared.</p></div>
+      <div class="cell"><div class="k"><span class="dot" style="background:#0e6e8c"></span><h3>Cruise &amp; Games</h3></div><p>Welcome cruise visitors to local businesses; playful ways to learn Shetland.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="outcomes">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">Why it matters</span><h2>What it does for Shetland</h2></div>
+    <div class="cards">
+      <div class="card"><div class="lead"><span class="idx">01</span>Keeps money in Shetland</div><p>A local wallet, loyalty and cashback give residents and visitors a reason to spend with island businesses — and keep the margin here rather than with a national platform.</p></div>
+      <div class="card"><div class="lead"><span class="idx">02</span>Every business online, affordably</div><p>A free listing and low-cost tools bring the smallest, most remote firms into the digital high street — real digital inclusion, not a barrier.</p></div>
+      <div class="card"><div class="lead"><span class="idx">03</span>Stronger, connected communities</div><p>Hubs, notices and events knit dispersed communities together, while Spik and Auld Stories keep Shetland's dialect and heritage alive for the next generation.</p></div>
+      <div class="card"><div class="lead"><span class="idx">04</span>Answers island challenges</div><p>Local delivery, local hiring, a warm welcome for cruise visitors — plus first-party insight into how the island economy actually moves.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="proof">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">It's real</span><h2>Built, tested, and Shetland-owned</h2></div>
+    <div class="row">
+      <div class="stat"><div class="big">Live</div><div class="lab">Web platform up now; iPhone &amp; Android in test flight</div></div>
+      <div class="stat"><div class="big">15</div><div class="lab">Connected sections, from directory to dialect</div></div>
+      <div class="stat"><div class="big">£</div><div class="lab">Real local payments, loyalty and payouts — built and tested end-to-end</div></div>
+      <div class="stat"><div class="big">100%</div><div class="lab">Owned and run in Shetland; reinvested in Shetland</div></div>
+    </div>
+    <div class="tryit">
+      <span class="t">See it for yourself:</span>
+      <a href="https://oneshetland.com">try it on the web</a>
+      <a href="https://testflight.apple.com/join/VJaf3d3t">try the iPhone beta →</a>
+    </div>
+    <p class="caveat">Public launch date: to be confirmed.</p>
+  </div>
+</section>
+
+<section class="grows">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">Where it grows</span><h2>Ready to do more for the whole island</h2></div>
+    <div class="growcards">
+      <div class="growcard">
+        <h3>Island alerts</h3>
+        <div class="nn"><span class="lbl">In place</span><p>Businesses can broadcast urgent notices across the app, straight to people's phones.</p></div>
+        <div class="nn"><span class="lbl">Potential</span><p>A fast, island-wide channel for ferry disruption, severe weather and community emergencies — one place everyone already checks.</p></div>
+      </div>
+      <div class="growcard">
+        <h3>Island travel planner</h3>
+        <div class="nn"><span class="lbl">In place</span><p>Plans journeys across Shetland's ferries for any event, from any part of the islands.</p></div>
+        <div class="nn"><span class="lbl">Potential</span><p>A live island-transport companion — timetables, connections and disruption updates in one trusted place.</p></div>
+      </div>
+      <div class="growcard">
+        <h3>Live updates</h3>
+        <div class="nn"><span class="lbl">In place</span><p>Notifications are wired across every section, ready to carry timely, relevant messages.</p></div>
+        <div class="nn"><span class="lbl">Potential</span><p>Trusted council and community updates delivered straight to residents and visitors.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="ask">
+  <div class="wrap">
+    <div class="sec-head"><span class="num">The ask</span><h2>Where a partnership could take this</h2></div>
+    <p class="intro">OneShetland is built and ready. What would multiply its impact is a trusted local partner to help it reach every business and household — and to join up with Shetland Islands Council on the things that serve the whole community.</p>
+    <ul class="asklist">
+      <li><span class="t">A short conversation</span><span class="d">Half an hour to walk you through it and explore where our aims overlap.</span></li>
+      <li><span class="t">Introductions to businesses</span><span class="d">A trusted channel to help Shetland firms list and get set up.</span></li>
+      <li><span class="t">Co-promotion</span><span class="d">Reaching residents and visitors together — one island app, one message.</span></li>
+      <li><span class="t">Working with the Council</span><span class="d">Events, tourism and cruise welcome, town-centre and Shop-Local initiatives, shared island data.</span></li>
+      <li><span class="t">Support for the public good</span><span class="d">Guidance or funding for the heritage, dialect and digital-inclusion elements that benefit everyone, not just paying businesses.</span></li>
+      <li><span class="t">A pilot</span><span class="d">A focused trial with a group of businesses or a community, measured together.</span></li>
+    </ul>
+  </div>
+</section>
+
+<footer class="contact">
+  <div class="wrap">
+    <div class="cta">Let's keep Shetland's future local.</div>
+    <div class="details">
+      <div><b>Darren Fullerton</b> · Darren Fullerton Consultancy Ltd</div>
+      <div><b>oneshetland.com</b></div>
+      <div><a href="mailto:darren@oneshetland.com">darren@oneshetland.com</a> · <span class="ph">07717 306993</span></div>
+    </div>
+  </div>
+</footer>
+
+<button class="pdfbtn" onclick="window.print()" aria-label="Save this proposal as a PDF">Save as PDF</button>
+
+</body>
+</html>

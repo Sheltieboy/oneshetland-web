@@ -21,6 +21,8 @@ export default function robots(): MetadataRoute.Robots {
         "/reset-password",
         "/notifications",
         "/g/", // one-time gift claim links
+        "/proposal", // unlisted partnership proposal — private, not for search
+        "/proposal.html",
       ],
     },
     sitemap: `${BASE}/sitemap.xml`,

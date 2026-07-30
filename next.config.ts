@@ -24,6 +24,12 @@ const nextConfig: NextConfig = {
       { source: "/about", destination: "/", permanent: true },
     ];
   },
+  /** Clean URL for the (unlisted, noindex) partnership proposal one-pager. */
+  async rewrites() {
+    return [
+      { source: "/proposal", destination: "/proposal.html" },
+    ];
+  },
 };
 
 export default nextConfig;
