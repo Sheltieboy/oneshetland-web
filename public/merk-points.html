@@ -137,12 +137,23 @@
       </a>
       <span class="coord">60° North</span>
     </div>
-    <svg class="mplockup" viewBox="0 0 400 76" role="img" aria-label="Merk Points — shop local, earn a merk" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="38" cy="38" r="32" fill="#081e29" stroke="#e6ac48" stroke-width="2"/>
-      <circle cx="38" cy="38" r="26" fill="none" stroke="#e6ac48" stroke-width="1" opacity="0.45"/>
-      <image href="/brand/logo-mark-keyed.png" x="16" y="16" width="44" height="44"/>
-      <text x="88" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="600" fill="#ffffff">Merk Points</text>
-      <text x="90" y="59" font-family="system-ui, -apple-system, sans-serif" font-size="11" letter-spacing="2.4" fill="#e6ac48">SHOP LOCAL · EARN A MERK</text>
+    <svg class="mplockup" viewBox="0 0 400 76" role="img" aria-label="Merk Points — one merk. Shop local, earn a merk" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <radialGradient id="coinface" cx="38%" cy="32%" r="75%">
+          <stop offset="0%" stop-color="#f6d079"/>
+          <stop offset="55%" stop-color="#e6ac48"/>
+          <stop offset="100%" stop-color="#c6871d"/>
+        </radialGradient>
+      </defs>
+      <circle cx="38" cy="38" r="32" fill="url(#coinface)" stroke="#a9761b" stroke-width="1.5"/>
+      <circle cx="38" cy="38" r="28.5" fill="none" stroke="#8c5f14" stroke-width="1.3" stroke-dasharray="1.4 2.5" opacity="0.7"/>
+      <circle cx="38" cy="38" r="24.5" fill="none" stroke="#9a6a17" stroke-width="1" opacity="0.5"/>
+      <text x="38" y="45" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-weight="800" font-size="27" fill="#2b1e06">M</text>
+      <rect x="26" y="32" width="24" height="2.2" rx="1" fill="#2b1e06"/>
+      <rect x="26" y="38" width="24" height="2.2" rx="1" fill="#2b1e06"/>
+      <text x="38" y="59" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="700" font-size="7" letter-spacing="1.3" fill="#2b1e06">ONE MERK</text>
+      <text x="90" y="38" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-weight="600" fill="#ffffff">Merk Points</text>
+      <text x="92" y="59" font-family="system-ui, -apple-system, sans-serif" font-size="11" letter-spacing="2.4" fill="#e6ac48">SHOP LOCAL · EARN A MERK</text>
     </svg>
     <p class="eyebrow">A community concept</p>
     <h1>Shop local. Earn a stake in Shetland's shared life.</h1>
