@@ -89,6 +89,18 @@
     letter-spacing: -0.005em;
     line-height: 1.12;
   }
+  /* On light-text surfaces (e.g. coloured hero sections using text-paper /
+     text-white on a dark background) headings must follow that colour, not the
+     default dark ink — otherwise the title renders dark-on-dark and vanishes. */
+  .text-paper :is(h1, h2, h3, h4),
+  .text-white :is(h1, h2, h3, h4) {
+    color: inherit;
+  }
+  /* …but a light card nested inside such a surface keeps its dark heading. */
+  .text-paper :is(.bg-paper, .bg-white, .bg-sand) :is(h1, h2, h3, h4),
+  .text-white :is(.bg-paper, .bg-white, .bg-sand) :is(h1, h2, h3, h4) {
+    color: var(--color-ink);
+  }
   ::selection {
     background: color-mix(in srgb, var(--color-teal) 28%, transparent);
   }

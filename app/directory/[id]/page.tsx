@@ -122,7 +122,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                 <span className="rounded-pill bg-paper/20 px-2.5 py-0.5 text-xs font-semibold backdrop-blur-sm">★ Featured</span>
               )}
             </div>
-            <h1 className="mt-2 flex items-center gap-2 font-display text-4xl font-bold drop-shadow sm:text-5xl">
+            <h1 className="mt-2 flex items-center gap-2 font-display text-4xl font-bold text-paper drop-shadow sm:text-5xl">
               {b.name}
               {b.is_verified && (
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff" aria-label="Verified">
