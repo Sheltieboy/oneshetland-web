@@ -99,7 +99,12 @@ export async function GET(req: NextRequest) {
     width: SIZE,
     height: SIZE,
     fonts,
-    headers: { "Cache-Control": "public, s-maxage=86400, max-age=3600" },
+    headers: {
+      "Cache-Control": "public, s-maxage=86400, max-age=3600",
+      // Netlify's CDN must key this cache on the query string — otherwise the
+      // first card rendered gets served for EVERY kind/id combination.
+      "Netlify-Vary": "query",
+    },
   };
 
   /* ── Wird o' da Day ────────────────────────────────────────────────────── */
