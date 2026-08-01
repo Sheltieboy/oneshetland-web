@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  /** The social-card renderer reads brand TTFs off disk at runtime — make sure
+   *  serverless bundling (Netlify) traces them in. */
+  outputFileTracingIncludes: {
+    "/api/social-image": ["./assets/social-fonts/*.ttf"],
+  },
   /**
    * 301/308 redirects from the old WordPress URL structure to the new app, so
    * the ranking equity Google built up on the old site is passed through instead

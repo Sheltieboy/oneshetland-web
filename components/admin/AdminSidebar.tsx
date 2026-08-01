@@ -19,6 +19,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   ] },
   { group: "Content", items: [
     { href: "/admin/almanac", label: "The Almanac" },
+    { href: "/admin/social", label: "Social studio" },
   ] },
   { group: "Platform", items: [
     { href: "/admin/homepage", label: "Homepage" },
