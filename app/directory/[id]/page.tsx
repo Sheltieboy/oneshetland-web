@@ -20,6 +20,7 @@ import { FollowButton } from "@/components/local/FollowButton";
 import { LoyaltyProgress } from "@/components/local/LoyaltyProgress";
 import { BusinessLocationMap } from "@/components/local/BusinessLocationMap";
 import { tierUnlocks } from "@/lib/listing-tiers";
+import { getShopProducts } from "@/lib/shop-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { businessSchema, breadcrumbSchema } from "@/lib/seo-schema";
 
@@ -47,10 +48,11 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const b = await getBusiness(id);
   if (!b) notFound();
 
-  const [{ offers, loyalty, services, unitItems }, { events, jobs, owner }, account] = await Promise.all([
+  const [{ offers, loyalty, services, unitItems }, { events, jobs, owner }, account, shopProducts] = await Promise.all([
     getBusinessExtras(b.id),
     getBusinessEventsAndJobs(b.id),
     getAccount(),
+    getShopProducts(b.id),
   ]);
   const accent = accentOf(b.brand_color);
   const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
@@ -215,6 +217,26 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             <section>
               <h2 className="font-display text-2xl font-bold">Current offers</h2>
               <OfferClaimList offers={offers} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+            </section>
+          )}
+
+          {shopProducts.length > 0 && (
+            <section>
+              <h2 className="font-display text-2xl font-bold">Shop</h2>
+              <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3">
+                {shopProducts.map((p) => (
+                  <Link key={p.id} href={`/product/${p.id}`} className="group overflow-hidden rounded-card border border-line bg-white shadow-soft transition hover:shadow-lift">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {p.photos[0]
+                      ? <img src={p.photos[0]} alt="" className="aspect-square w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+                      : <div className="grid aspect-square w-full place-items-center bg-cream text-3xl">🛍️</div>}
+                    <div className="p-3">
+                      <p className="line-clamp-1 text-sm font-semibold text-ink">{p.title}</p>
+                      <p className="text-sm font-bold" style={{ color: accent }}>£{(p.price_pence / 100).toFixed(2)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </section>
           )}
 

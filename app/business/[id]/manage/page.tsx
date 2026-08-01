@@ -31,6 +31,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
     { href: `${base}/services`, icon: "✂️", title: "Services", desc: "What people can book", locked: !premium, built: true },
     { href: `${base}/schedule`, icon: "🗓️", title: "Availability", desc: "Weekly hours & overrides", locked: !premium, built: true },
     { href: `${base}/passes`, icon: "🎟️", title: "Passes & packs", desc: "Coffee cards, class packs, day passes", locked: !premium, built: true },
+    { href: `${base}/products`, icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", locked: !premium, built: true },
+    { href: `${base}/orders`, icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", locked: !premium, built: true },
     { href: `${base}/jobs`, icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: !!enabled("jobs") },
     { href: `${base}/events`, icon: "🎫", title: "Events", desc: "Create & manage ticketed events", built: !!enabled("events") },
     { href: `/directory/${business.slug || business.id}`, icon: "👁️", title: "View public profile", desc: "See your listing as customers do", built: true },

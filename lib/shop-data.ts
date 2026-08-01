@@ -1,0 +1,148 @@
+import { publicClient } from "./supabase/public";
+
+/**
+ * shop-data.ts — Shop Shetland types + public reads (browse/product/rate card)
+ * shared by the business shop tab, product pages and checkout.
+ */
+
+export type StockMode = "tracked" | "made_to_order" | "one_off";
+
+export type Product = {
+  id: string;
+  business_id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  price_pence: number;
+  compare_at_pence: number | null;
+  photos: string[];
+  stock_mode: StockMode;
+  stock: number | null;
+  reserved: number;
+  lead_time_days: number | null;
+  collect_only: boolean;
+  free_uk_post: boolean;
+  is_active: boolean;
+  sold_at: string | null;
+  created_at: string;
+};
+
+export type ProductVariant = {
+  id: string;
+  product_id: string;
+  name: string;
+  price_delta_pence: number;
+  stock: number | null;
+  reserved: number;
+  position: number;
+  is_active: boolean;
+};
+
+export type BusinessShipping = {
+  business_id: string;
+  collect_enabled: boolean;
+  collect_note: string | null;
+  post_enabled: boolean;
+  post_shetland_pence: number | null;
+  post_uk_pence: number | null;
+  post_per_extra_item_pence: number;
+  free_over_pence: number | null;
+  fetch_enabled: boolean;
+  vat_registered: boolean;
+};
+
+export const PRODUCT_CATEGORIES: { value: string; label: string }[] = [
+  { value: "knitwear", label: "Knitwear" },
+  { value: "craft", label: "Craft" },
+  { value: "art", label: "Art & prints" },
+  { value: "food_drink", label: "Food & drink" },
+  { value: "home", label: "Home" },
+  { value: "beauty", label: "Health & beauty" },
+  { value: "outdoor", label: "Outdoor" },
+  { value: "books_music", label: "Books & music" },
+  { value: "other", label: "Other" },
+];
+
+export const ORDER_STATUS_LABEL: Record<string, string> = {
+  pending: "Awaiting payment",
+  paid: "New order",
+  accepted: "Accepted",
+  ready: "Ready to collect",
+  handed_over: "Handed over",
+  posted: "Posted",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  refunded: "Refunded",
+  expired: "Expired",
+};
+
+export const gbp = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+
+/** Sellable right now? (stock modes are honest: made-to-order is always buyable) */
+export function availableQty(p: Product, v?: ProductVariant | null): number {
+  if (!p.is_active || p.sold_at) return 0;
+  if (p.stock_mode === "made_to_order") return 99;
+  if (p.stock_mode === "one_off") return p.reserved > 0 ? 0 : 1;
+  if (v && v.stock != null) return Math.max(0, v.stock - v.reserved);
+  if (p.stock == null) return 99;
+  return Math.max(0, p.stock - p.reserved);
+}
+
+export function shippingQuote(
+  ship: BusinessShipping | null,
+  itemsPence: number,
+  totalQty: number,
+  postcode: string,
+  allFreeUkPost: boolean,
+): number | null {
+  if (!ship?.post_enabled) return null;
+  if (allFreeUkPost) return 0;
+  const isShetland = postcode.trim().toUpperCase().startsWith("ZE");
+  const base = isShetland ? (ship.post_shetland_pence ?? ship.post_uk_pence ?? 0) : (ship.post_uk_pence ?? 0);
+  let quote = base + (ship.post_per_extra_item_pence ?? 0) * Math.max(0, totalQty - 1);
+  if (ship.free_over_pence && itemsPence >= ship.free_over_pence) quote = 0;
+  return quote;
+}
+
+/* ── Public reads ─────────────────────────────────────────────────────────── */
+
+export async function getShopProducts(businessId: string): Promise<Product[]> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("products")
+      .select("*")
+      .eq("business_id", businessId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    return (data ?? []) as Product[];
+  } catch { return []; }
+}
+
+export async function getProduct(id: string): Promise<{ product: Product; variants: ProductVariant[]; shipping: BusinessShipping | null; business: { id: string; name: string; slug: string | null; logo_url: string | null } | null } | null> {
+  const sb = publicClient();
+  try {
+    const { data: product } = await sb.from("products").select("*").eq("id", id).maybeSingle();
+    if (!product) return null;
+    const [{ data: variants }, { data: shipping }, { data: business }] = await Promise.all([
+      sb.from("product_variants").select("*").eq("product_id", id).eq("is_active", true).order("position"),
+      sb.from("business_shipping").select("*").eq("business_id", product.business_id).maybeSingle(),
+      sb.from("local_businesses").select("id, name, slug, logo_url").eq("id", product.business_id).maybeSingle(),
+    ]);
+    return {
+      product: product as Product,
+      variants: (variants ?? []) as ProductVariant[],
+      shipping: (shipping ?? null) as BusinessShipping | null,
+      business: (business ?? null) as { id: string; name: string; slug: string | null; logo_url: string | null } | null,
+    };
+  } catch { return null; }
+}
+
+export async function getBusinessShipping(businessId: string): Promise<BusinessShipping | null> {
+  const sb = publicClient();
+  try {
+    const { data } = await sb.from("business_shipping").select("*").eq("business_id", businessId).maybeSingle();
+    return (data ?? null) as BusinessShipping | null;
+  } catch { return null; }
+}
