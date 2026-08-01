@@ -8,7 +8,6 @@ import {
   type HomeContent,
   formatEventDate,
   formatEventTime,
-  offerBadge,
 } from "@/lib/home-data";
 import { type GamePrompt } from "@/lib/home-extras";
 import { type EventListItem } from "@/lib/events-data";
@@ -74,7 +73,7 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
   // equal-weight tiles — mirrors the app's CruiseTodayCard "in port today" accent.
   const cruiseCard = await getCruiseHomeCard();
   const shipInToday = Boolean(cruiseCard?.isToday);
-  const { events, businesses, offers, notices, campaigns, jobs, shifts, spik } = data;
+  const { events, notices, campaigns, jobs, shifts } = data;
   const featured = events[0];
   // Fundraisers get their own progress-bar card, so drop notices that just
   // re-announce an active campaign (avoids the same appeal appearing twice).
@@ -138,61 +137,12 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
         {/* ── Today's game — self-contained tile ────────────────────── */}
         <GamePromptCard game={game} leaders={gameLeaders} className="h-full lg:col-span-2" />
 
-        {/* ── Spik o' da day ────────────────────────────────────────── */}
-        {spik && (
-          <TileLink href="/spik" className="lg:col-span-2" accent={ACCENT.spik}>
-            <Eyebrow accent={ACCENT.spik}>Spik o&apos; da day</Eyebrow>
-            <p className="mt-2 font-display text-3xl font-bold text-spik">{spik.word}</p>
-            <p className="mt-1 line-clamp-1 text-ink">{spik.meaning}</p>
-            {spik.example && <p className="mt-2 line-clamp-1 border-l-2 border-spik/40 pl-2 text-sm italic text-ink-soft">&ldquo;{spik.example}&rdquo;</p>}
-            <Arrow accent={ACCENT.spik}>Mair o da dialect</Arrow>
-          </TileLink>
-        )}
+        {/* Spik, featured-business and offers tiles moved to their own homepage
+            shelves (IslandLifeBand / FeaturedShelf / OffersShelf) — the bento
+            focuses on events, cruise, calendar, game and community. */}
 
         {/* ── Editable feature image (tall) ─────────────────────────── */}
         <PromoImageTile p={promo.feature} className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
-
-        {/* ── Featured business ─────────────────────────────────────── */}
-        {businesses[0] && (
-          <Link href="/directory" className="group relative flex overflow-hidden rounded-2xl border border-line shadow-soft transition hover:shadow-lift lg:col-span-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <SafeImage src={businesses[0].cover_url || "/heroes/local.jpeg"} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" fallback={<img src="/heroes/local.jpeg" alt="" className="absolute inset-0 h-full w-full object-cover" />} />
-            <PhotoScrim />
-            <div className="relative mt-auto flex items-end gap-3 p-5 text-paper">
-              {businesses[0].logo_url && (
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-white/40 bg-white/10 backdrop-blur">
-                  <SafeImage src={businesses[0].logo_url} className="h-full w-full object-cover" fallback={<BizArt name={businesses[0].name} />} />
-                </div>
-              )}
-              <div className="min-w-0">
-                <h3 className={`truncate font-display text-xl font-bold leading-tight ${TSHADOW}`}>{businesses[0].name}</h3>
-                {businesses[0].category && <p className={`truncate text-sm capitalize text-white/90 ${TSHADOW}`}>{businesses[0].category.replace(/_/g, " ")}</p>}
-              </div>
-            </div>
-            <Eyebrow className={`absolute left-5 top-5 !text-white/95 ${TSHADOW}`}>Shop &amp; eat local</Eyebrow>
-          </Link>
-        )}
-
-        {/* ── Offers ────────────────────────────────────────────────── */}
-        {offers.length > 0 && (
-          <ListCard eyebrow="Worth a look" accent={ACCENT.local} href="/local" className="lg:col-span-2">
-            <ul className="mt-3 space-y-1">
-              {offers.slice(0, 2).map((o) => (
-                <li key={o.id}>
-                  <Link href={o.business ? `/directory/${o.business.id}` : "/local"} style={tint(ACCENT.local)} className={`-mx-2 flex items-center gap-3 rounded-xl px-2 py-2 transition ${HOVER_TINT_BG}`}>
-                    <span className="grid h-9 w-12 shrink-0 place-items-center rounded-lg bg-local/10 text-center text-[11px] font-bold leading-tight text-local">{offerBadge(o)}</span>
-                    <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-local/10">
-                      {o.business?.logo_url ? (
-                        <SafeImage src={o.business.logo_url} alt="" className="h-full w-full object-cover" fallback={<BizAvatar name={o.business?.name} />} />
-                      ) : <BizAvatar name={o.business?.name} />}
-                    </span>
-                    <span className="min-w-0"><span className="block truncate font-semibold text-ink">{o.title}</span>{o.business?.name && <span className="block truncate text-xs text-ink-muted">{o.business.name}</span>}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </ListCard>
-        )}
 
         {/* ── Fundraisers — each row carries a live progress bar ───────── */}
         {campaigns.length > 0 && (

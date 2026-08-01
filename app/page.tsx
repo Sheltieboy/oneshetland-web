@@ -11,6 +11,8 @@ import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
 import { ForYou } from "@/components/home/ForYou";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
+import { getHomeShelves } from "@/lib/home-shelves";
+import { FeaturedShelf, OffersShelf, ShopRails, IslandLifeBand, HiringShelf } from "@/components/home/Shelves";
 import { getEventsInMonth } from "@/lib/events-data";
 import { GAMES, fetchLeaderboardWithTrend, type GameId } from "@/lib/games-data";
 
@@ -26,7 +28,7 @@ const QUICK_CHIPS = [
 
 export default async function Home() {
   const now = new Date();
-  const [data, heroImage, personal, today, homeContent, account, monthEvents] = await Promise.all([
+  const [data, heroImage, personal, today, homeContent, account, monthEvents, shelves] = await Promise.all([
     getHomeData(),
     getHeroImage(),
     getHomePersonal(),
@@ -36,6 +38,7 @@ export default async function Home() {
     getHomeContent(),
     getAccount(),
     getEventsInMonth(now.getFullYear(), now.getMonth()).catch(() => []),
+    getHomeShelves(),
   ]);
   const game = getTodaysGame();
 
@@ -115,11 +118,29 @@ export default async function Home() {
         <ForYou name={accountName(account).split(" ")[0]} items={forYou} />
       )}
 
+      {/* ── Featured this week — the premium shelf (paid, with fresh-content
+             fallback until businesses subscribe) ──────────────────────────── */}
+      <FeaturedShelf shelves={shelves} />
+
+      {/* ── Offers & rewards — pro-tier offers + the pitch card ──────────── */}
+      <OffersShelf offers={data.offers} />
+
       {/* ── Bento — the live homepage mosaic ─────────────────────────────── */}
       <HomeBento data={data} game={game} content={homeContent} monthEvents={monthEvents} gameLeaders={gameLeaders} />
 
+      {/* ── Eat, drink & shop — directory rails, paid tiers sort first ───── */}
+      <ShopRails shelves={shelves} />
+
+      {/* ── Island life — Da Boats · Auld Stories · Spik ─────────────────── */}
+      <IslandLifeBand shelves={shelves} spik={shelves.spik} />
+
+      {/* ── Hiring now — jobs with employer logos ────────────────────────── */}
+      <HiringShelf shelves={shelves} />
+
       {/* ── Browse-everything grid ───────────────────────────────────────── */}
-      <SectionGrid />
+      <div className="mt-12">
+        <SectionGrid />
+      </div>
     </>
   );
 }
