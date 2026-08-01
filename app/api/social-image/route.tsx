@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
       (
         <Frame ringUrl={ringUrl} accent={TEAL}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "84px 72px 0", gap: 30 }}>
-            <Eyebrow text="Wird o' da Day" color={TEAL} />
+            <Eyebrow text="Spik · Word of the day" color={TEAL} />
             <div style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
               <span style={{ fontFamily: "Fraunces", fontSize: wordSize, color: NAVY, lineHeight: 1 }}>{w.word}</span>
               {w.part_of_speech ? <span style={{ fontSize: 32, color: INK_SOFT, fontStyle: "italic" }}>{w.part_of_speech}</span> : null}
@@ -199,8 +199,8 @@ export async function GET(req: NextRequest) {
       (
         <Frame ringUrl={ringUrl} accent={EVENTS}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "72px 72px 0", gap: 14 }}>
-            <Eyebrow text="Whit's On" color={EVENTS} />
-            <span style={{ fontFamily: "Fraunces", fontSize: 84, color: NAVY, lineHeight: 1.05, marginBottom: 22 }}>Dis week in Shetland</span>
+            <Eyebrow text="What's On" color={EVENTS} />
+            <span style={{ fontFamily: "Fraunces", fontSize: 84, color: NAVY, lineHeight: 1.05, marginBottom: 22 }}>This week in Shetland</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {list.map((e, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 22, background: "#ffffff", borderRadius: 18, padding: "16px 24px" }}>
@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
                   </div>
                 </div>
               ))}
-              {list.length === 0 ? <span style={{ fontSize: 36, color: INK_SOFT }}>Fresh events land all week — see whit's on at oneshetland.com</span> : null}
+              {list.length === 0 ? <span style={{ fontSize: 36, color: INK_SOFT }}>New events are added all week — see what's on at oneshetland.com</span> : null}
             </div>
           </div>
         </Frame>

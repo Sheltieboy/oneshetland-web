@@ -1,8 +1,8 @@
 /** Shared display metadata for social post kinds (safe for client + server). */
 
 export const KIND_META: Record<string, { label: string; color: string }> = {
-  wird_of_day: { label: "Wird o' da Day", color: "#12b3d6" },
-  whats_on_roundup: { label: "Whit's On roundup", color: "#d4921a" },
+  wird_of_day: { label: "Word of the day", color: "#12b3d6" },
+  whats_on_roundup: { label: "What's On roundup", color: "#d4921a" },
   event_spotlight: { label: "Event spotlight", color: "#7c3aed" },
   offer_roundup: { label: "Offer roundup", color: "#2a8b5c" },
   business_spotlight: { label: "Business spotlight", color: "#4f46e5" },
