@@ -61,6 +61,31 @@ function WritePost() {
   const [uploading, setUploading] = useState(false);
   const [pending, start] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
+  // Peerie Bot: seed a word/phrase and it writes the post for you.
+  const [seed, setSeed] = useState("");
+  const [words, setWords] = useState(40);
+  const [botBusy, setBotBusy] = useState(false);
+
+  async function askPeerieBot() {
+    if (!seed.trim() || botBusy) return;
+    setBotBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/ai/draft-social", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seed, words }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Peerie Bot had a moment — try again.");
+      setCaption(data.caption);
+      setMsg("Drafted by Peerie Bot ✨ — read it over and tweak before approving.");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Peerie Bot had a moment — try again.");
+    } finally {
+      setBotBusy(false);
+    }
+  }
 
   async function uploadPhoto(file: File) {
     setUploading(true);
@@ -110,14 +135,47 @@ function WritePost() {
   return (
     <div className="mb-4 rounded-card border border-teal/40 bg-white p-4 shadow-soft">
       <p className="mb-2 font-display font-bold text-navy">Write a post</p>
-      <textarea
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        rows={4}
-        placeholder="Say it like you'd say it — this posts as OneShetland."
-        className="w-full rounded-xl border border-line bg-cream/40 p-3 text-sm text-ink outline-none focus:border-teal"
-        aria-label="New post text"
-      />
+
+      {/* No time? Seed Peerie Bot with a word or phrase and it drafts it. */}
+      <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-line bg-cream/60 p-2.5">
+        <span className="text-sm font-bold text-ink-soft">✨ Peerie Bot</span>
+        <input
+          value={seed}
+          onChange={(e) => setSeed(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); askPeerieBot(); } }}
+          placeholder="Seed a word or phrase — e.g. 'thanks for the first 100 followers'"
+          className="min-w-40 flex-1 rounded-lg border border-line bg-white px-3 py-1.5 text-sm text-ink outline-none focus:border-teal"
+          aria-label="Peerie Bot seed"
+        />
+        <label className="flex items-center gap-1.5 text-xs font-semibold text-ink-soft">
+          ~
+          <input
+            type="number" min={10} max={200} step={10} value={words}
+            onChange={(e) => setWords(Number(e.target.value) || 40)}
+            className="w-16 rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink"
+            aria-label="Rough word count"
+          />
+          words
+        </label>
+        <button
+          onClick={askPeerieBot}
+          disabled={botBusy || !seed.trim()}
+          className="rounded-pill bg-navy px-4 py-1.5 text-sm font-bold text-white hover:bg-navy-dark disabled:opacity-50"
+        >
+          {botBusy ? "Writing…" : "Write it"}
+        </button>
+      </div>
+
+      <div className={"ai-glow" + (botBusy ? " is-active" : "")}>
+        <textarea
+          value={caption}
+          onChange={(e) => setCaption(e.target.value)}
+          rows={4}
+          placeholder="Say it like you'd say it — this posts as OneShetland."
+          className="w-full rounded-xl border border-line bg-cream/40 p-3 text-sm text-ink outline-none focus:border-teal"
+          aria-label="New post text"
+        />
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" id="social-photo"
           onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
