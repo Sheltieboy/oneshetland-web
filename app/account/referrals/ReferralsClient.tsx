@@ -26,7 +26,7 @@ export function ReferralsClient() {
   }
   useEffect(() => { load(); }, []);
 
-  const shareUrl = "https://oneshetland.netlify.app";
+  const shareUrl = "https://oneshetland.com";
   const shareText = data
     ? `Join me on OneShetland — everything Shetland in one app. Use my code ${data.code} and we'll both get ${reward} to spend locally. ${shareUrl}`
     : "";
