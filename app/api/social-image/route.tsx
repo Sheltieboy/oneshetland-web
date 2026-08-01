@@ -11,9 +11,10 @@ import { publicClient } from "@/lib/supabase/public";
  * no image is ever designed by hand.
  *
  * Templates (kind=):
- *   wird     &id=<spik_dictionary.id>   — Wird o' da Day card
+ *   wird     &id=<spik_dictionary.id>   — Word of the day card
  *   event    &id=<events.id>            — event spotlight poster (uses cover)
- *   roundup  &start=<YYYY-MM-DD>        — "Whit's On dis week" listing card
+ *   roundup  &start=<YYYY-MM-DD>&days=N — What's On listing card (7 or 14 days)
+ *   jobs     (no params)                — newest open jobs listing card
  */
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ const CREAM = "#fbf8f2";
 const INK = "#14222c";
 const INK_SOFT = "#3a4754";
 const EVENTS = "#d4921a";
+const JOBS = "#2a8b5c";
 
 // Loaded once per server instance.
 let fontsPromise: Promise<{ name: string; data: ArrayBuffer; weight: 400 | 600 | 700 }[]> | null = null;
@@ -183,8 +185,9 @@ export async function GET(req: NextRequest) {
   /* ── Whit's On dis week roundup ────────────────────────────────────────── */
   if (kind === "roundup") {
     const start = p.get("start") ?? new Date().toISOString().slice(0, 10);
+    const days = Math.min(Number(p.get("days") ?? 7) || 7, 31);
     const from = `${start}T00:00:00Z`;
-    const to = new Date(new Date(from).getTime() + 7 * 86400_000).toISOString();
+    const to = new Date(new Date(from).getTime() + days * 86400_000).toISOString();
     const { data: events } = await sb
       .from("events")
       .select("title, starts_at, venue, locality")
@@ -195,23 +198,71 @@ export async function GET(req: NextRequest) {
       .order("starts_at", { ascending: true })
       .limit(7);
     const list = events ?? [];
+    const dayNum = (iso: string) =>
+      new Date(iso).toLocaleDateString("en-GB", { day: "numeric", timeZone: "Europe/London" });
     return new ImageResponse(
       (
         <Frame ringUrl={ringUrl} accent={EVENTS}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "72px 72px 0", gap: 14 }}>
             <Eyebrow text="What's On" color={EVENTS} />
-            <span style={{ fontFamily: "Fraunces", fontSize: 84, color: NAVY, lineHeight: 1.05, marginBottom: 22 }}>This week in Shetland</span>
+            <span style={{ fontFamily: "Fraunces", fontSize: 84, color: NAVY, lineHeight: 1.05, marginBottom: 22 }}>
+              {days <= 7 ? "This week in Shetland" : "Coming up in Shetland"}
+            </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {list.map((e, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 22, background: "#ffffff", borderRadius: 18, padding: "16px 24px" }}>
-                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 96, height: 52, borderRadius: 12, background: NAVY, color: "#ffffff", fontSize: 26, fontWeight: 700, letterSpacing: 2 }}>{fmtDow(e.starts_at)}</span>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 128, height: 52, borderRadius: 12, background: NAVY, color: "#ffffff", fontSize: 25, fontWeight: 700, letterSpacing: 1 }}>{fmtDow(e.starts_at)} {dayNum(e.starts_at)}</span>
                   <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-                    <span style={{ fontSize: 32, fontWeight: 700, color: INK }}>{e.title.length > 42 ? `${e.title.slice(0, 41)}…` : e.title}</span>
+                    <span style={{ fontSize: 32, fontWeight: 700, color: INK }}>{e.title.length > 40 ? `${e.title.slice(0, 39)}…` : e.title}</span>
                     {(e.venue || e.locality) ? <span style={{ fontSize: 24, color: INK_SOFT }}>{[e.venue, e.locality].filter(Boolean).join(", ")}</span> : null}
                   </div>
                 </div>
               ))}
               {list.length === 0 ? <span style={{ fontSize: 36, color: INK_SOFT }}>New events are added all week — see what's on at oneshetland.com</span> : null}
+            </div>
+          </div>
+        </Frame>
+      ),
+      opts,
+    );
+  }
+
+  /* ── Jobs roundup — newest open jobs ───────────────────────────────────── */
+  if (kind === "jobs") {
+    const { data: jobs } = await sb
+      .from("jobs")
+      .select("title, external_employer_name, locality, location, contract_type, local_businesses!posted_as_business_id(name)")
+      .eq("status", "open")
+      .eq("is_hidden", false)
+      .order("posted_at", { ascending: false })
+      .limit(5);
+    const list = (jobs ?? []).map((j) => {
+      const biz = Array.isArray(j.local_businesses) ? j.local_businesses[0] : j.local_businesses;
+      const sub = [(biz?.name ?? j.external_employer_name) as string | null, (j.locality ?? j.location) as string | null]
+        .filter(Boolean).join(" · ");
+      return {
+        title: j.title as string,
+        sub: sub.length > 52 ? `${sub.slice(0, 51)}…` : sub,
+        type: ((j.contract_type as string) ?? "").replace("-", " ").toUpperCase(),
+      };
+    });
+    return new ImageResponse(
+      (
+        <Frame ringUrl={ringUrl} accent={JOBS}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "72px 72px 0", gap: 14 }}>
+            <Eyebrow text="Jobs & Shifts" color={JOBS} />
+            <span style={{ fontFamily: "Fraunces", fontSize: 76, color: NAVY, lineHeight: 1.05, marginBottom: 18 }}>Hiring in Shetland</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {list.map((j, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 22, background: "#ffffff", borderRadius: 18, padding: "14px 24px" }}>
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 148, height: 48, borderRadius: 12, background: JOBS, color: "#ffffff", fontSize: 19, fontWeight: 700, letterSpacing: 1 }}>{j.type || "OPEN ROLE"}</span>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+                    <span style={{ fontSize: 30, fontWeight: 700, color: INK }}>{j.title.length > 40 ? `${j.title.slice(0, 39)}…` : j.title}</span>
+                    {j.sub ? <span style={{ fontSize: 23, color: INK_SOFT }}>{j.sub}</span> : null}
+                  </div>
+                </div>
+              ))}
+              {list.length === 0 ? <span style={{ fontSize: 36, color: INK_SOFT }}>New roles are posted every week — see who's hiring at oneshetland.com</span> : null}
             </div>
           </div>
         </Frame>
