@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { isAdmin } from "@/lib/admin-data.server";
+import { ONESHETLAND_CONTEXT } from "@/lib/peerie-bot-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,7 +41,8 @@ export async function POST(request: Request) {
         "Write ONLY from what the admin's seed says — never invent events, dates, times, prices, names or claims that aren't in the seed. " +
         "If a link belongs, use https://oneshetland.com (or a path the seed gives you); otherwise no link. " +
         "At most 2 emoji, often none. No hashtag walls — at most 2 genuinely useful ones, usually none. " +
-        "Reply with the post text only — no quotes, no preamble.",
+        "Reply with the post text only — no quotes, no preamble.\n\n" +
+        ONESHETLAND_CONTEXT,
       messages: [{
         role: "user",
         content: `Today is ${today}.\nRough length: about ${words} words.\n\nWrite a OneShetland Facebook post from this seed:\n${seed}`,
