@@ -4,8 +4,8 @@ export const metadata = { title: "Terms of Service" };
 
 export default function TermsPage() {
   return (
-    <LegalLayout title="Terms of Service" updated="June 2026">
-      <p>These terms govern your use of OneShetland (the &ldquo;Service&rdquo;), a Shetland community platform operated by Darren Fullerton Consultancy Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;), trading as OneShetland. OneShetland brings together a local business directory, events and what&rsquo;s-on, Fetch deliveries, bookings, jobs and shifts, community hubs, memories, boats and local payments. By creating an account or using the Service you agree to these terms. You have one OneShetland account across the app and website.</p>
+    <LegalLayout title="Terms of Service" updated="August 2026">
+      <p>These terms govern your use of OneShetland (the &ldquo;Service&rdquo;), a Shetland community platform operated by Darren Fullerton Consultancy Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;), trading as OneShetland. OneShetland brings together a local business directory, events and what&rsquo;s-on, Fetch deliveries, bookings, jobs and shifts, community hubs, stories and memories, boats, dialect, games, local payments and loyalty. By creating an account or using the Service you agree to these terms. You have one OneShetland account across the app and website.</p>
 
       <L h="1. Accepting these terms">
         <p>By creating an account, signing in or otherwise using the Service you confirm you have read, understood and agree to these terms and to our <a href="/privacy" className="font-semibold text-ink underline">Privacy policy</a> and <a href="/community-guidelines" className="font-semibold text-ink underline">Community guidelines</a>. If you don&rsquo;t agree, please don&rsquo;t use the Service. When you accept these terms we keep a record of the version and date.</p>
@@ -36,7 +36,7 @@ export default function TermsPage() {
       </L>
 
       <L h="6. User-generated content — our zero-tolerance policy">
-        <p>Parts of OneShetland let you post content — listings, reviews, events, memories, photos, messages, comments, hub posts and profile information (&ldquo;user content&rdquo;). You keep ownership of your user content and grant us a worldwide, royalty-free licence to host, store and display it within the Service so we can run the platform. You&rsquo;re responsible for what you post and must have the rights to share it.</p>
+        <p>Parts of OneShetland let you post content — listings, reviews, events, stories, photos, voice recordings, messages, comments, hub posts and profile information (&ldquo;user content&rdquo;). You keep ownership of your user content and grant us a worldwide, royalty-free licence to host, store and display it within the Service so we can run the platform. Where you choose to publish content publicly — such as a published event, offer or business listing — that licence also lets us feature it on OneShetland&rsquo;s official social media pages to promote it and the community; email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a> if you&rsquo;d rather your content weren&rsquo;t featured. You&rsquo;re responsible for what you post and must have the rights to share it.</p>
         <div className="rounded-card border border-rose-300 bg-rose-50 px-4 py-3 text-rose-900">
           <p className="font-semibold">There is zero tolerance for objectionable content and abusive behaviour on OneShetland.</p>
           <p className="mt-1">Objectionable content and abusive users are not welcome here. If you post objectionable content — including content that is hateful, harassing, threatening, defamatory, obscene, sexually explicit or otherwise abusive — or behave abusively towards other users, your content will be removed and your account may be suspended or permanently removed.</p>
@@ -53,27 +53,45 @@ export default function TermsPage() {
         <p>Tickets, memberships, bookings, donations and shop/class purchases are sold by the relevant business or hub, not by us. Refunds, cancellations and fulfilment are the responsibility of that business or hub — contact them first. We can help mediate but are not a party to the sale.</p>
       </L>
 
-      <L h="8. Fetch deliveries">
+      <L h="8. Wallet, loyalty and rewards">
+        <p><span className="font-semibold text-ink">Wallet.</span> You can top up a OneShetland wallet to pay participating businesses. Top-ups are prepayments held via our payment provider for spending on the Service — the wallet is not a bank account, earns no interest, and can only be used within OneShetland. When you pay by wallet (including tap-to-pay and approve-on-phone charges) you authorise the deduction shown. If you close your account, we&rsquo;ll refund any unused wallet balance to your original payment method.</p>
+        <p><span className="font-semibold text-ink">Stamps, points and rewards.</span> Loyalty stamps, points and rewards have no cash value and can&rsquo;t be exchanged for money. Rewards are offered and honoured by the participating business, which may change or withdraw its scheme; we&rsquo;re not responsible if a business ceases trading or declines a reward, though we&rsquo;ll always try to help. Gaming the system (for example collecting stamps you didn&rsquo;t earn) may lead to stamps, points or rewards being reversed and accounts suspended.</p>
+      </L>
+
+      <L h="9. Fetch deliveries">
         <p>Fetch connects you with independent local drivers, who are self-employed community members, not our employees or agents. Items are carried at your own risk and we cannot guarantee their condition in transit. Do not request the carriage of prohibited items (see our <a href="/restricted-goods" className="font-semibold text-ink underline">Restricted goods</a> policy). Your card is pre-authorised when a driver accepts and charged on delivery, including any waiting fee shown in the app.</p>
       </L>
 
-      <L h="9. Third-party services">
-        <p>The Service relies on third parties including Stripe (payments), Supabase (hosting and data) and mapping providers. Your use of those features is also subject to their terms. We&rsquo;re not responsible for third-party services we don&rsquo;t control, though we choose our providers carefully.</p>
+      <L h="10. Business listings, claims and external jobs">
+        <p><span className="font-semibold text-ink">Directory listings.</span> The Directory includes listings compiled from publicly available sources so the community can find local businesses from day one. If you&rsquo;re authorised to act for a business you can claim its listing free of charge; claiming may require verification. You must not claim a listing for a business you don&rsquo;t represent. We may correct, merge or remove listings, and a business can ask for its listing to be amended or removed at any time.</p>
+        <p><span className="font-semibold text-ink">External job listings.</span> Some vacancies in the Work section are gathered from public sources (for example Shetland Islands Council roles via myjobscotland). Applications for those are made on the source website, not through OneShetland, and we can&rsquo;t guarantee an external listing is current or accurate — the source listing always takes precedence.</p>
       </L>
 
-      <L h="10. Liability">
+      <L h="11. AI features">
+        <p>Peerie Bot and other AI-assisted features (drafting listings and content, transcribing recordings) generate their output automatically, and it can be wrong or incomplete — always review AI-drafted content before publishing or relying on it. Content you publish remains your responsibility even where AI helped draft it, and the acceptable-use rules above apply equally to what you ask AI features to do.</p>
+      </L>
+
+      <L h="12. Games and promotions">
+        <p>Games, streaks and leaderboards are for fun; we may adjust scores or streaks to correct errors or prevent unfair play. Referral schemes, promotions and any prize competitions may carry their own additional terms, shown where they apply.</p>
+      </L>
+
+      <L h="13. Third-party services">
+        <p>The Service relies on third parties including Stripe (payments), Supabase (hosting and data), mapping providers, email and AI providers. Your use of those features is also subject to their terms. We&rsquo;re not responsible for third-party services we don&rsquo;t control, though we choose our providers carefully. Attributions for third-party data we display are listed on our <a href="/legal" className="font-semibold text-ink underline">Legal</a> page.</p>
+      </L>
+
+      <L h="14. Liability">
         <p>The Service is provided &ldquo;as is&rdquo;. To the extent permitted by law, we are not liable for the acts of businesses, hubs, drivers or other users, for items carried via Fetch, or for indirect or consequential loss. Nothing here limits liability that cannot be excluded by law (including for death or personal injury caused by negligence, or for fraud).</p>
       </L>
 
-      <L h="11. Termination and deleting your account">
-        <p>You can stop using OneShetland at any time. You can delete your account from within the app at <span className="font-semibold text-ink">Account → Delete account</span>, or see our <a href="/delete-account" className="font-semibold text-ink underline">Delete your account</a> page. Deleting your account removes your profile and personal content; some records (such as anonymised order and payment records) are retained where the law requires. We may suspend or terminate your account if you breach these terms or to protect the community.</p>
+      <L h="15. Termination and deleting your account">
+        <p>You can stop using OneShetland at any time. You can delete your account from within the app at <span className="font-semibold text-ink">Account → Delete account</span>, or see our <a href="/delete-account" className="font-semibold text-ink underline">Delete your account</a> page. Deleting your account removes your profile and personal content; some records (such as anonymised order and payment records) are retained where the law requires, and any unused wallet balance is refunded as described above. We may suspend or terminate your account if you breach these terms or to protect the community.</p>
       </L>
 
-      <L h="12. Changes and governing law">
+      <L h="16. Changes and governing law">
         <p>We may update these terms; significant changes will be notified in-app or by email. These terms are governed by the laws of Scotland and subject to the exclusive jurisdiction of the Scottish courts.</p>
       </L>
 
-      <L h="13. Contact">
+      <L h="17. Contact">
         <p>Questions about these terms? Email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a>. To report content or abuse, use the in-app Report option or email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a>.</p>
       </L>
     </LegalLayout>
