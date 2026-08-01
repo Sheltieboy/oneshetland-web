@@ -49,6 +49,29 @@ export async function deleteSocialPost(id: string): Promise<Result> {
   return { ok: true };
 }
 
+/** "Write a post" — a hand-written post through the same queue + publisher. */
+export async function createCustomPost(input: {
+  caption: string;
+  imageUrl?: string | null;
+  scheduledFor?: string | null;
+  approve?: boolean;
+}): Promise<Result & { id?: string }> {
+  await requireAdmin();
+  if (!input.caption.trim()) return { ok: false, error: "Write something first" };
+  const sb = await createClient();
+  const { data, error } = await sb.from("social_posts").insert({
+    kind: "custom",
+    caption: input.caption.trim(),
+    image_url: input.imageUrl?.trim() || null,
+    link_url: null,
+    scheduled_for: input.scheduledFor ?? null,
+    status: input.approve ? "approved" : "draft",
+  }).select("id").single();
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/social");
+  return { ok: true, id: (data as { id: string }).id };
+}
+
 export async function toggleSocialRecipe(key: string, enabled: boolean): Promise<Result> {
   await requireAdmin();
   const sb = await createClient();

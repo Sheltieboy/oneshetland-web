@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { SocialPost, SocialRecipe } from "@/lib/social-admin.server";
 import { kindMeta } from "@/lib/social-meta";
 import {
-  approveSocialPost, deleteSocialPost, revertSocialPost,
+  approveSocialPost, createCustomPost, deleteSocialPost, revertSocialPost,
   saveSocialPost, skipSocialPost, toggleSocialRecipe,
 } from "@/lib/social-actions";
+import { createClient } from "@/lib/supabase/client";
 
 /**
  * Social studio — review queue for the Peerie Press social-seeding engine.
@@ -47,6 +48,112 @@ function KindChip({ kind }: { kind: string }) {
 
 function StatusPill({ status }: { status: string }) {
   return <span className={"rounded-pill px-2.5 py-0.5 text-xs font-bold " + (STATUS_STYLE[status] ?? "")}>{status}</span>;
+}
+
+/** "Write a post" — hand-written content through the same queue/publisher.
+ *  This is what keeps the feed feeling human-run between the automated posts. */
+function WritePost() {
+  const [open, setOpen] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [when, setWhen] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [pending, start] = useTransition();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function uploadPhoto(file: File) {
+    setUploading(true);
+    setMsg(null);
+    try {
+      const sb = createClient();
+      const path = `social/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_")}`;
+      const { error } = await sb.storage.from("site-media").upload(path, file, { upsert: false });
+      if (error) throw error;
+      const { data } = sb.storage.from("site-media").getPublicUrl(path);
+      setImageUrl(data.publicUrl);
+      setMsg("Photo uploaded");
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  const submit = (approve: boolean) =>
+    start(async () => {
+      const r = await createCustomPost({
+        caption,
+        imageUrl: imageUrl || null,
+        scheduledFor: fromLocalInput(when),
+        approve,
+      });
+      if (r.ok) {
+        setCaption(""); setImageUrl(""); setWhen(""); setOpen(false); setMsg(null);
+      } else {
+        setMsg(r.error ?? "Something went wrong");
+      }
+    });
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mb-4 w-full rounded-card border-2 border-dashed border-line bg-white/60 p-4 text-sm font-bold text-ink-soft transition hover:border-teal hover:bg-white hover:text-teal-dark"
+      >
+        ＋ Write a post
+      </button>
+    );
+  }
+
+  return (
+    <div className="mb-4 rounded-card border border-teal/40 bg-white p-4 shadow-soft">
+      <p className="mb-2 font-display font-bold text-navy">Write a post</p>
+      <textarea
+        value={caption}
+        onChange={(e) => setCaption(e.target.value)}
+        rows={4}
+        placeholder="Say it like you'd say it — this posts as OneShetland."
+        className="w-full rounded-xl border border-line bg-cream/40 p-3 text-sm text-ink outline-none focus:border-teal"
+        aria-label="New post text"
+      />
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" id="social-photo"
+          onChange={(e) => e.target.files?.[0] && uploadPhoto(e.target.files[0])} />
+        <label htmlFor="social-photo" className="cursor-pointer rounded-pill border border-line px-4 py-1.5 text-sm font-bold text-ink-soft hover:bg-sand">
+          {uploading ? "Uploading…" : imageUrl ? "Change photo" : "📷 Add photo"}
+        </label>
+        {imageUrl ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageUrl} alt="Attached" className="h-10 w-10 rounded-lg border border-line object-cover" />
+            <button onClick={() => setImageUrl("")} className="text-xs font-bold text-ink-muted hover:text-rose-600">remove</button>
+          </>
+        ) : null}
+        <label className="ml-auto flex items-center gap-2 text-xs font-semibold text-ink-soft">
+          Post at
+          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)}
+            className="rounded-lg border border-line bg-white px-2 py-1.5 text-sm text-ink" />
+        </label>
+      </div>
+      <div className="mt-3 flex flex-wrap justify-end gap-2">
+        <button onClick={() => { setOpen(false); setMsg(null); }} className="rounded-pill px-4 py-1.5 text-sm font-bold text-ink-muted hover:bg-sand">
+          Cancel
+        </button>
+        <button onClick={() => submit(false)} disabled={pending || uploading}
+          className="rounded-pill border border-line px-4 py-1.5 text-sm font-bold text-ink-soft hover:bg-sand disabled:opacity-50">
+          Save as draft
+        </button>
+        <button onClick={() => submit(true)} disabled={pending || uploading}
+          className="rounded-pill bg-emerald-600 px-4 py-1.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">
+          Approve for posting
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-ink-muted">No "post at" time = goes out on the publisher&apos;s next 15-minute pass once approved.</p>
+      {msg ? <p className="mt-1 text-xs font-semibold text-teal-dark" role="status">{msg}</p> : null}
+    </div>
+  );
 }
 
 function QueueCard({ post }: { post: SocialPost }) {
@@ -235,6 +342,7 @@ export function SocialStudio({ posts, recipes }: { posts: SocialPost[]; recipes:
         ))}
       </div>
 
+      {tab === "queue" && <WritePost />}
       {tab === "queue" && (
         queue.length === 0 ? (
           <div className="rounded-card border border-line bg-white p-10 text-center">
