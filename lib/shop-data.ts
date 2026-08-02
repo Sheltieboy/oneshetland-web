@@ -106,6 +106,38 @@ export function shippingQuote(
 
 /* ── Public reads ─────────────────────────────────────────────────────────── */
 
+export type ProductThumbs = { photos: string[]; count: number };
+
+/**
+ * One batched query: product thumbnails for a set of businesses (up to 3
+ * photos + total count each). Powers the peerie product strips on business
+ * cards across Directory, Local and the homepage rails.
+ */
+export async function getProductThumbs(businessIds: string[]): Promise<Record<string, ProductThumbs>> {
+  const out: Record<string, ProductThumbs> = {};
+  if (!businessIds.length) return out;
+  const sb = publicClient();
+  try {
+    const { data } = await sb
+      .from("products")
+      .select("business_id, photos")
+      .in("business_id", [...new Set(businessIds)])
+      .eq("is_active", true)
+      .is("sold_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    for (const p of (data ?? []) as { business_id: string; photos: string[] }[]) {
+      const photo = p.photos?.[0];
+      const entry = (out[p.business_id] ??= { photos: [], count: 0 });
+      entry.count += 1;
+      if (photo && entry.photos.length < 3) entry.photos.push(photo);
+    }
+    // A strip with no images is just noise — require at least one photo.
+    for (const k of Object.keys(out)) if (out[k].photos.length === 0) delete out[k];
+  } catch { /* strips are decorative — never break a listing page */ }
+  return out;
+}
+
 export async function getShopProducts(businessId: string): Promise<Product[]> {
   const sb = publicClient();
   try {

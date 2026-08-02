@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getAllBusinesses, getDirectoryFeatured, searchHubs, CATEGORIES, CATEGORY_LABEL, SHETLAND_AREAS } from "@/lib/local-data";
 import { BusinessCard } from "@/components/local/LocalUI";
+import { getProductThumbs } from "@/lib/shop-data";
 import { HUB_TYPE_LABELS } from "@/lib/hubs-data";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 
@@ -25,6 +26,8 @@ export default async function DirectoryPage({
   // Exclude featured from the main grid so they aren't shown twice.
   const businesses = featured.length ? all.filter((b) => !featuredIds.has(b.id)) : all;
   const hubs = q && all.length === 0 ? await searchHubs(q) : [];
+  // Peerie product strips — one batched query for every card on the page.
+  const productThumbs = await getProductThumbs([...featured, ...businesses].map((b) => b.id));
 
   // Build a /directory URL preserving current filters, overriding the given keys.
   // A null value removes that param.
@@ -126,7 +129,7 @@ export default async function DirectoryPage({
             </div>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {featured.map((b) => (
-                <BusinessCard key={b.id} b={b} />
+                <BusinessCard key={b.id} b={b} productThumbs={productThumbs[b.id]} />
               ))}
             </div>
           </section>
@@ -159,7 +162,7 @@ export default async function DirectoryPage({
         {businesses.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {businesses.map((b) => (
-              <BusinessCard key={b.id} b={b} />
+              <BusinessCard key={b.id} b={b} productThumbs={productThumbs[b.id]} />
             ))}
           </div>
         ) : featured.length > 0 ? null : (

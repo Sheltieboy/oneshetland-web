@@ -29,7 +29,31 @@ export function AddonChips({ b, className = "" }: { b: Business; className?: str
   );
 }
 
-export function BusinessCard({ b }: { b: Business }) {
+/** Peerie product strip — up to 3 overlapping thumbs + a "+N" chip. A card
+ *  with one of these reads "you can buy here", not just "this exists". */
+export function ProductThumbStrip({ thumbs, size = 9 }: { thumbs?: { photos: string[]; count: number }; size?: number }) {
+  if (!thumbs || thumbs.photos.length === 0) return null;
+  const extra = thumbs.count - thumbs.photos.length;
+  return (
+    <span className="inline-flex items-center">
+      {thumbs.photos.map((p, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={p}
+          src={p}
+          alt=""
+          className="rounded-lg border-2 border-paper object-cover shadow-sm"
+          style={{ height: size * 4, width: size * 4, marginLeft: i === 0 ? 0 : -8, zIndex: 3 - i, position: "relative" }}
+        />
+      ))}
+      <span className="ml-1.5 text-xs font-bold text-local">
+        {extra > 0 ? `+${extra} in the shop` : "Shop →"}
+      </span>
+    </span>
+  );
+}
+
+export function BusinessCard({ b, productThumbs }: { b: Business; productThumbs?: { photos: string[]; count: number } }) {
   const href = `/directory/${b.slug ?? b.id}`;
   const accent = b.brand_color && /^#?[0-9a-f]{6}$/i.test(b.brand_color)
     ? (b.brand_color.startsWith("#") ? b.brand_color : `#${b.brand_color}`)
@@ -64,6 +88,7 @@ export function BusinessCard({ b }: { b: Business }) {
             </div>
             {b.category && <p className="text-sm text-ink-muted">{CATEGORY_LABEL[b.category] ?? b.category}</p>}
             {b.description && <p className="mt-1.5 line-clamp-2 text-sm text-ink-soft">{b.description}</p>}
+            {productThumbs && <div className="mt-3"><ProductThumbStrip thumbs={productThumbs} /></div>}
             <AddonChips b={b} className="mt-3" />
           </div>
         </div>
