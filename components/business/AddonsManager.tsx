@@ -15,6 +15,10 @@ export function AddonsManager({ businessId, addons, tier }: { businessId: string
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const premium = tierMeets(tier, "premium");
+  const pro = tierMeets(tier, "pro");
+  // Offers / stamps / payments are Pro features everywhere else — a free-tier
+  // toggle that flips but does nothing is misleading, so lock it honestly.
+  const PRO_KEYS: AddonKey[] = ["offers", "stamps", "payments"];
   const map = Object.fromEntries(addons.map((a) => [a.addon_key, a]));
   const extra = countExtraPremiumAddons(addons);
   const [confirm, setConfirm] = useState<AddonKey | null>(null);
@@ -44,13 +48,13 @@ export function AddonsManager({ businessId, addons, tier }: { businessId: string
   function Row({ k }: { k: AddonKey }) {
     const meta = ADDON_META[k];
     const on = !!map[k]?.enabled;
-    const locked = meta.isPremium && !premium;
+    const locked = (meta.isPremium && !premium) || (PRO_KEYS.includes(k) && !pro);
     return (
       <div className="flex items-center justify-between gap-3 border-t border-line py-3 first:border-t-0">
         <div className="flex min-w-0 items-start gap-3">
           <span className="text-xl">{meta.icon}</span>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-ink">{meta.label} {meta.isPremium && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{locked ? "Premium" : "Premium add-on"}</span>}</p>
+            <p className="text-sm font-semibold text-ink">{meta.label} {meta.isPremium && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{locked ? "Premium" : "Premium add-on"}</span>}{!meta.isPremium && PRO_KEYS.includes(k) && !pro && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">Pro</span>}</p>
             <p className="text-xs text-ink-muted">{meta.description}</p>
           </div>
         </div>
