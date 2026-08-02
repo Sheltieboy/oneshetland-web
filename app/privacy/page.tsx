@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       </L>
 
       <L h="AI features (Peerie Bot)">
-        <p>Some features are assisted by AI — for example Peerie Bot turning a plain-English description into an event listing, drafting content, or transcribing a voice recording you upload to Auld Stories. To provide these, the text or audio you submit is processed by our AI providers (<strong>Anthropic</strong> for text, <strong>OpenAI</strong> for audio transcription) on our instructions. We don&rsquo;t permit these providers to use your content to train their models. AI features only process what you choose to give them.</p>
+        <p>Some features are assisted by AI — for example Peerie Bot turning a plain-English description into an event listing, drafting content, or transcribing a voice recording you upload to Aald Memories. To provide these, the text or audio you submit is processed by our AI providers (<strong>Anthropic</strong> for text, <strong>OpenAI</strong> for audio transcription) on our instructions. We don&rsquo;t permit these providers to use your content to train their models. AI features only process what you choose to give them.</p>
       </L>
 
       <L h="Business listings">

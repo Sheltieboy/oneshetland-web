@@ -18,7 +18,7 @@ What's in it:
 - Work — Jobs & Shifts (oneshetland.com/jobs) — local vacancies (including Shetland Islands Council roles) plus one-off shifts businesses need covered.
 - Spik (oneshetland.com/spik) — a living dictionary of the Shaetlan dialect with meanings, example sentences and audio pronunciations; word of the day; the Guess da Wird game.
 - Da Boats — the Shetland fishing fleet, past and present: vessels, builders, photos and the folk who knew them.
-- Auld Stories — community memories in photos, audio and stories.
+- Aald Memories — community memories in photos, audio and stories.
 - Cruise — cruise-ship visit days and what's on for visitors ashore.
 - Hubs — community clubs, halls and groups: memberships, donations, notices.
 - Fetch — community deliveries by local drivers.

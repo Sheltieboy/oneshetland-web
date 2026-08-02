@@ -131,7 +131,7 @@ export default async function Home() {
       {/* ── Eat, drink & shop — directory rails, paid tiers sort first ───── */}
       <ShopRails shelves={shelves} />
 
-      {/* ── Island life — Da Boats · Auld Stories · Spik ─────────────────── */}
+      {/* ── Island life — Da Boats · Aald Memories · Spik ─────────────────── */}
       <IslandLifeBand shelves={shelves} spik={shelves.spik} />
 
       {/* ── Hiring now — jobs with employer logos ────────────────────────── */}

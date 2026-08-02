@@ -11,7 +11,7 @@ import type { HomeShelves, ShelfBusiness } from "@/lib/home-shelves";
  *   FeaturedShelf  — premium businesses, 1 big + 2 stacked (asymmetric bento)
  *   OffersShelf    — live offers with photos (pro+), ends on a pitch card
  *   ShopRails      — eat & drink / shops & services, paid tiers sort first
- *   IslandLifeBand — Da Boats photo · Auld Story · Spik wird, in section colours
+ *   IslandLifeBand — Da Boats photo · Aald Memory · Spik wird, in section colours
  *   HiringShelf    — newest jobs with employer logos
  */
 
@@ -223,7 +223,7 @@ export function ShopRails({ shelves }: { shelves: HomeShelves }) {
   );
 }
 
-/* ── Island life — Da Boats · Auld Stories · Spik ────────────────────────── */
+/* ── Island life — Da Boats · Aald Memories · Spik ────────────────────────── */
 
 export function IslandLifeBand({ shelves, spik }: { shelves: HomeShelves; spik: HomeSpik }) {
   const { boat, story } = shelves;
@@ -250,7 +250,7 @@ export function IslandLifeBand({ shelves, spik }: { shelves: HomeShelves; spik: 
           <Link href="/memories" className="group relative flex min-h-[240px] overflow-hidden rounded-2xl border border-line shadow-soft transition hover:shadow-lift">
             <SafeImage src={story.hero_url} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" fallback={<span className="absolute inset-0" style={{ background: MEMORIES }} />} />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-            <span className="absolute left-4 top-4 rounded-pill px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white" style={{ background: MEMORIES }}>Auld Stories</span>
+            <span className="absolute left-4 top-4 rounded-pill px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white" style={{ background: MEMORIES }}>Aald Memories</span>
             <div className="relative mt-auto p-5 text-paper">
               <p className={`line-clamp-2 font-display text-2xl font-bold ${TSHADOW}`}>{story.title || "A story fae da isles"}</p>
               <p className={`text-sm text-white/85 ${TSHADOW}`}>{[story.place_name, story.era].filter(Boolean).join(" · ")}</p>
