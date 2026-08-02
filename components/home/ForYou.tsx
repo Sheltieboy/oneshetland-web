@@ -11,7 +11,7 @@ export function ForYou({ name, items }: { name: string; items: ForYouItem[] }) {
   if (!items.length) return null;
 
   return (
-    <section className="mx-auto max-w-6xl px-5 pt-8">
+    <section className="mx-auto max-w-6xl px-5 pt-12">
       <div className="mb-3 flex items-baseline justify-between gap-3">
         <div>
           <h2 className="font-display text-2xl font-bold text-ink">

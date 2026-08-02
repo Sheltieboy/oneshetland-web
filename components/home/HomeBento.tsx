@@ -87,7 +87,7 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
   ].slice(0, 4);
 
   return (
-    <section className="mx-auto max-w-6xl px-5 py-10">
+    <section className="mx-auto max-w-6xl px-5 pt-12">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:auto-rows-[200px] lg:grid-flow-dense lg:grid-cols-4">
 
         {/* ── Featured event — big What's On hero (top-left) ────────── */}

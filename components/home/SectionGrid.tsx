@@ -4,7 +4,7 @@ import { SECTIONS, SECTION_IMAGE, type Section } from "@/lib/sections";
 
 export function SectionGrid() {
   return (
-    <section id="sections" className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
+    <section id="sections" className="mx-auto max-w-6xl px-5 pt-12 pb-16 sm:pb-20">
       <p className="eyebrow text-ink-muted">Browse everything</p>
       <h2 className="mt-2 max-w-2xl font-display text-3xl font-bold leading-tight sm:text-4xl">
         Find your corner of Shetland

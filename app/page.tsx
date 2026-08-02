@@ -138,9 +138,10 @@ export default async function Home() {
       <HiringShelf shelves={shelves} />
 
       {/* ── Browse-everything grid ───────────────────────────────────────── */}
-      <div className="mt-12">
-        <SectionGrid />
-      </div>
+      {/* Every homepage section sets its own TOP padding only (pt-12), so the
+          rhythm stays even and an empty section collapses without a double
+          gap. Only this last one adds bottom padding, before the footer. */}
+      <SectionGrid />
     </>
   );
 }

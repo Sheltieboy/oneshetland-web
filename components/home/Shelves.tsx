@@ -86,7 +86,7 @@ export function FeaturedShelf({ shelves }: { shelves: HomeShelves }) {
   const [first, ...rest] = shelves.featured;
   if (!first) return null;
   return (
-    <section className="mx-auto max-w-6xl px-5 pt-10">
+    <section className="mx-auto max-w-6xl px-5 pt-12">
       <ShelfHeader
         eyebrow="Shetland spotlight"
         title="Featured this week"
