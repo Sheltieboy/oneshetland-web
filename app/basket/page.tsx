@@ -24,12 +24,14 @@ export default function BasketPage() {
   const [ship, setShip] = useState<BusinessShipping | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
-  const [fulfilment, setFulfilment] = useState<"collect" | "post">("collect");
+  const [fulfilment, setFulfilment] = useState<"collect" | "post" | "fetch">("collect");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [postcode, setPostcode] = useState("");
   const [phone, setPhone] = useState("");
   const [note, setNote] = useState("");
+  const [regionSlug, setRegionSlug] = useState("");
+  const [regions, setRegions] = useState<{ slug: string; name: string }[]>([]);
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -48,6 +50,8 @@ export default function BasketPage() {
     sb.from("business_shipping").select("*").eq("business_id", basket.business_id).maybeSingle()
       .then(({ data }) => setShip((data ?? null) as BusinessShipping | null));
     sb.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    sb.from("regions").select("slug, name").order("display_order")
+      .then(({ data }) => setRegions((data ?? []) as { slug: string; name: string }[]));
   }, [basket?.business_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!hydrated) return null;
@@ -82,15 +86,19 @@ export default function BasketPage() {
   const allFreeUk = basket.lines.every((l) => l.free_uk_post);
   const collectOk = ship?.collect_enabled ?? true;
   const postOk = !!ship?.post_enabled && !anyCollectOnly;
-  const effFulfilment = fulfilment === "post" && postOk ? "post" : "collect";
+  const fetchOk = !!ship?.fetch_enabled; // local hand-to-hand — collect-only items are fine
+  const effFulfilment = fulfilment === "post" && postOk ? "post" : fulfilment === "fetch" && fetchOk ? "fetch" : "collect";
   const quote = effFulfilment === "post" ? (shippingQuote(ship, itemsPence, totalQty, postcode || "XX", allFreeUk) ?? 0) : 0;
   const total = itemsPence + quote;
 
   async function pay(payWith: "card" | "wallet") {
     setErr(null);
     if (signedIn === false) { router.push("/sign-in?next=/basket"); return; }
-    if (effFulfilment === "post" && (!name.trim() || !address.trim() || !postcode.trim())) {
+    if (effFulfilment !== "collect" && (!name.trim() || !address.trim() || !postcode.trim())) {
       setErr("Fill in the delivery name, address and postcode first."); return;
+    }
+    if (effFulfilment === "fetch" && !regionSlug) {
+      setErr("Choose the area you want it dropped off in — that's how drivers find it."); return;
     }
     setBusy(true);
     try {
@@ -100,7 +108,9 @@ export default function BasketPage() {
           business_id: basket!.business_id,
           items: basket!.lines.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id, qty: l.qty })),
           fulfilment: effFulfilment,
-          delivery: effFulfilment === "post" ? { name, address, postcode, phone } : undefined,
+          delivery: effFulfilment !== "collect"
+            ? { name, address, postcode, phone, region_slug: effFulfilment === "fetch" ? regionSlug : undefined }
+            : undefined,
           note: note || undefined,
           pay_with: payWith,
         },
@@ -173,6 +183,28 @@ export default function BasketPage() {
               </span>
             </label>
           )}
+          {fetchOk && (
+            <label className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 ${effFulfilment === "fetch" ? "border-2" : "border-line"}`} style={effFulfilment === "fetch" ? { borderColor: SHOP } : undefined}>
+              <input type="radio" name="fulfilment" checked={effFulfilment === "fetch"} onChange={() => setFulfilment("fetch")} className="mt-1" />
+              <span className="flex-1"><b className="text-ink">Fetch it 🚗</b> — a community driver brings it over
+                <span className="block text-sm text-ink-soft">Your order joins the Fetch board and a driver picks it up when they&rsquo;re next passing — usually within a day or two. The driver&rsquo;s fee is separate: your card is authorised when they accept, and only charged once it&rsquo;s delivered. You&rsquo;ll need a card saved for this.</span>
+                {effFulfilment === "fetch" && (
+                  <span className="mt-2 grid gap-2">
+                    <select value={regionSlug} onChange={(e) => setRegionSlug(e.target.value)} className="auth-input" aria-label="Drop-off area">
+                      <option value="">Which area are you in?</option>
+                      {regions.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+                    </select>
+                    <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" className="auth-input" aria-label="Delivery name" />
+                    <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Address" className="auth-input" aria-label="Delivery address" />
+                    <span className="grid grid-cols-2 gap-2">
+                      <input value={postcode} onChange={(e) => setPostcode(e.target.value)} placeholder="Postcode" className="auth-input" aria-label="Postcode" />
+                      <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" className="auth-input" aria-label="Phone" />
+                    </span>
+                  </span>
+                )}
+              </span>
+            </label>
+          )}
           {anyCollectOnly && <p className="text-xs text-ink-muted">An item in your basket is collect-only, so posting isn&rsquo;t available for this order.</p>}
         </div>
         <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="A note for the shop (optional)" className="auth-input mt-3" aria-label="Note for the shop" />
@@ -182,7 +214,7 @@ export default function BasketPage() {
       <div className="mt-6 rounded-card border border-line bg-white p-4 shadow-soft">
         <div className="space-y-1 text-sm text-ink-soft">
           <p className="flex justify-between"><span>Items</span><span>{gbp(itemsPence)}</span></p>
-          <p className="flex justify-between"><span>{effFulfilment === "post" ? "Postage" : "Collection"}</span><span>{quote === 0 ? "Free" : gbp(quote)}</span></p>
+          <p className="flex justify-between"><span>{effFulfilment === "post" ? "Postage" : effFulfilment === "fetch" ? "Fetch delivery" : "Collection"}</span><span>{effFulfilment === "fetch" ? "Driver fee paid separately" : quote === 0 ? "Free" : gbp(quote)}</span></p>
           <p className="flex justify-between border-t border-line pt-2 text-base font-bold text-ink"><span>Total</span><span>{gbp(total)}</span></p>
         </div>
 

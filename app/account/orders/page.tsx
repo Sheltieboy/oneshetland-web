@@ -65,7 +65,9 @@ export default async function OrdersPage() {
             <li key={o.id} className="rounded-card border border-line bg-white p-4 shadow-soft">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`rounded-pill px-2.5 py-0.5 text-xs font-bold ${STATUS_STYLE[o.status] ?? "bg-slate-100 text-slate-600"}`}>
-                  {BUYER_STATUS[o.status] ?? ORDER_STATUS_LABEL[o.status] ?? o.status}
+                  {o.fulfilment === "fetch" && o.status === "ready" ? "Waiting for a driver 🚗"
+                    : o.fulfilment === "fetch" && o.status === "handed_over" ? "With your driver 🚗"
+                    : BUYER_STATUS[o.status] ?? ORDER_STATUS_LABEL[o.status] ?? o.status}
                 </span>
                 <span className="text-xs text-ink-muted">
                   {new Date(o.paid_at ?? o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}

@@ -35,9 +35,12 @@ const NEXT: Record<string, { label: string; to: string; forFulfilment?: string }
   paid: [{ label: "Accept order", to: "accepted" }],
   accepted: [
     { label: "Ready to collect", to: "ready", forFulfilment: "collect" },
+    { label: "Ready for the driver", to: "ready", forFulfilment: "fetch" },
     { label: "Mark as posted", to: "posted", forFulfilment: "post" },
   ],
-  ready: [{ label: "Collected — complete", to: "completed" }],
+  // fetch orders leave 'ready' via the driver (collected → delivered syncs the
+  // order automatically), so no merchant button for that lane.
+  ready: [{ label: "Collected — complete", to: "completed", forFulfilment: "collect" }],
   posted: [{ label: "Complete", to: "completed" }],
   handed_over: [{ label: "Complete", to: "completed" }],
 };
@@ -74,6 +77,8 @@ function OrderCard({ o }: { o: OrderRow }) {
       if (to === "completed") patch.completed_at = stamp;
       const { error } = await sb.from("product_orders").update(patch).eq("id", o.id);
       if (error) throw error;
+      // Tell the buyer their order moved — fire-and-forget.
+      sb.functions.invoke("notify-product-order", { body: { order_id: o.id } }).catch(() => {});
       router.refresh();
     } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't update"); }
     finally { setBusy(false); }
@@ -99,10 +104,13 @@ function OrderCard({ o }: { o: OrderRow }) {
         {o.shipping_pence > 0 && <li className="text-ink-muted">Postage — {gbp(o.shipping_pence)}</li>}
       </ul>
 
-      {o.fulfilment === "post" && o.delivery_address && (
+      {(o.fulfilment === "post" || o.fulfilment === "fetch") && o.delivery_address && (
         <p className="mt-2 rounded-xl bg-cream/70 p-2.5 text-sm text-ink-soft">
-          📮 {o.delivery_name} · {o.delivery_address}, {o.delivery_postcode}{o.contact_phone ? ` · ${o.contact_phone}` : ""}
+          {o.fulfilment === "fetch" ? "🚗" : "📮"} {o.delivery_name} · {o.delivery_address}, {o.delivery_postcode}{o.contact_phone ? ` · ${o.contact_phone}` : ""}
         </p>
+      )}
+      {o.fulfilment === "fetch" && o.status === "ready" && (
+        <p className="mt-2 text-sm text-ink-muted">Waiting for a Fetch driver to collect — the order updates itself from here.</p>
       )}
       {o.buyer_note && <p className="mt-2 text-sm italic text-ink-soft">“{o.buyer_note}”</p>}
       {o.tracking_ref && <p className="mt-1 text-xs text-ink-muted">Tracking: {o.tracking_ref}</p>}

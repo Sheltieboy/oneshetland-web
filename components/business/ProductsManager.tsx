@@ -357,6 +357,7 @@ function ShippingCard({ businessId, initial }: { businessId: string; initial: Bu
   const [collect, setCollect] = useState(initial?.collect_enabled ?? true);
   const [collectNote, setCollectNote] = useState(initial?.collect_note ?? "");
   const [post, setPost] = useState(initial?.post_enabled ?? false);
+  const [fetchIt, setFetchIt] = useState(initial?.fetch_enabled ?? false);
   const [shet, setShet] = useState(pounds(initial?.post_shetland_pence));
   const [uk, setUk] = useState(pounds(initial?.post_uk_pence));
   const [extra, setExtra] = useState(pounds(initial?.post_per_extra_item_pence ?? 0));
@@ -374,6 +375,7 @@ function ShippingCard({ businessId, initial }: { businessId: string; initial: Bu
         collect_enabled: collect,
         collect_note: collectNote.trim() || null,
         post_enabled: post,
+        fetch_enabled: fetchIt,
         post_shetland_pence: toPence(shet),
         post_uk_pence: toPence(uk),
         post_per_extra_item_pence: toPence(extra) ?? 0,
@@ -414,6 +416,11 @@ function ShippingCard({ businessId, initial }: { businessId: string; initial: Bu
             <input value={freeOver} onChange={(e) => setFreeOver(e.target.value)} inputMode="decimal" placeholder="—" className="w-20 text-right outline-none" aria-label="Free over threshold" /></label>
         </div>
       )}
+
+      <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink">
+        <input type="checkbox" checked={fetchIt} onChange={(e) => setFetchIt(e.target.checked)} /> Fetch delivery 🚗
+      </label>
+      <p className="mt-1 text-xs text-ink-muted">A OneShetland community driver collects the order from you and takes it to the buyer, usually within a day or two. The buyer pays the driver&rsquo;s fee — nothing for you to set up; just have the order ready when a driver&rsquo;s assigned.</p>
 
       <div className="mt-3 flex items-center justify-end gap-3">
         {msg && <span className="text-sm font-semibold text-teal-dark" role="status">{msg}</span>}
