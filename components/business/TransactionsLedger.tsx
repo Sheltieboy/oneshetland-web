@@ -31,6 +31,7 @@ const KIND_LABEL: Record<string, string> = {
   gift_sale: "Gift",
   booking_deposit: "Booking deposit",
   ticket_sale: "Event tickets",
+  product_sale: "Shop order",
   boost: "Boost",
 };
 
