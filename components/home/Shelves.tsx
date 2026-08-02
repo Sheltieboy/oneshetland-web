@@ -185,12 +185,37 @@ function Rail({ title, href, items }: { title: string; href: string; items: Shel
   );
 }
 
+function ProductRail({ items }: { items: HomeShelves["freshProducts"] }) {
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <div className="mb-3 flex items-baseline justify-between">
+        <h3 className="font-display text-lg font-bold text-ink">Fresh in the shops</h3>
+      </div>
+      <div className="-mx-5 flex snap-x gap-3 overflow-x-auto px-5 pb-2">
+        {items.map((p) => (
+          <Link key={p.id} href={`/product/${p.id}`} className="group w-40 shrink-0 snap-start">
+            <div className="relative h-40 overflow-hidden rounded-xl border border-line bg-white">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <SafeImage src={p.photo ?? ""} className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.05]" fallback={<span className="grid h-full w-full place-items-center text-2xl">🛍️</span>} />
+              <span className="absolute bottom-2 left-2 rounded-pill bg-white/95 px-2 py-0.5 text-xs font-bold text-ink">£{(p.price_pence / 100).toFixed(2)}</span>
+            </div>
+            <p className="mt-1.5 line-clamp-1 text-sm font-semibold text-ink">{p.title}</p>
+            <p className="line-clamp-1 text-xs text-ink-muted">{p.business_name}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ShopRails({ shelves }: { shelves: HomeShelves }) {
-  if (shelves.eatDrink.length === 0 && shelves.shops.length === 0) return null;
+  if (shelves.eatDrink.length === 0 && shelves.shops.length === 0 && shelves.freshProducts.length === 0) return null;
   return (
     <section className="mx-auto max-w-6xl px-5 pt-12">
       <ShelfHeader eyebrow="The Directory" title="Eat, drink &amp; shop Shetland" href="/directory" cta="Full directory" accent={DIRECTORY} />
       <div className="space-y-7">
+        <ProductRail items={shelves.freshProducts} />
         <Rail title="Eat &amp; drink" href="/directory?category=food_drink" items={shelves.eatDrink} />
         <Rail title="Shops &amp; services" href="/directory?category=retail" items={shelves.shops} />
       </div>

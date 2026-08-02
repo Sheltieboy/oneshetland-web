@@ -35,6 +35,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     path = `/whats-on/${id}`;
     campaign = "event_spotlight";
     objectId = id;
+  } else if (head === "product" && id) {
+    path = `/product/${id}`;
+    campaign = "new_product";
+    objectId = id;
   } else if (head && ROUTES[head]) {
     path = ROUTES[head].path;
     campaign = ROUTES[head].campaign;

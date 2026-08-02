@@ -52,11 +52,20 @@ export type ShelfStory = {
 
 export type ShelfSpik = { word: string; meaning: string; example: string | null } | null;
 
+export type ShelfProduct = {
+  id: string;
+  title: string;
+  price_pence: number;
+  photo: string | null;
+  business_name: string;
+};
+
 export type HomeShelves = {
   featured: ShelfBusiness[]; // 3+ → shelf renders; premium first, fallback fresh
   anyPaid: boolean;          // true once a premium/pro business is in the shelf
   eatDrink: ShelfBusiness[];
   shops: ShelfBusiness[];
+  freshProducts: ShelfProduct[];
   hiring: ShelfJob[];
   boat: ShelfBoat;
   story: ShelfStory;
@@ -75,10 +84,11 @@ const byTier = (a: ShelfBusiness, b: ShelfBusiness) =>
 
 export async function getHomeShelves(): Promise<HomeShelves> {
   const sb = publicClient();
-  const [featured, eatDrink, shops, hiring, boat, story, spik] = await Promise.all([
+  const [featured, eatDrink, shops, freshProducts, hiring, boat, story, spik] = await Promise.all([
     safe(fetchFeatured(sb), []),
     safe(fetchRail(sb, ["food_drink"]), []),
     safe(fetchRail(sb, ["retail", "services"]), []),
+    safe(fetchFreshProducts(sb), []),
     safe(fetchHiring(sb), []),
     safe(fetchBoat(sb), null),
     safe(fetchStory(), null),
@@ -89,6 +99,7 @@ export async function getHomeShelves(): Promise<HomeShelves> {
     anyPaid: featured.some((b) => TIER_RANK[b.subscription_tier] > 0),
     eatDrink,
     shops,
+    freshProducts,
     hiring,
     boat,
     story,
@@ -143,6 +154,27 @@ async function fetchRail(sb: SB, categories: string[]): Promise<ShelfBusiness[]>
     .limit(24);
   // Paid tiers sort to the front of the rail — the visible "Pro sorts first".
   return ((data ?? []) as ShelfBusiness[]).sort(byTier).slice(0, 10);
+}
+
+/** Newest products across every shop — the Shop Shetland discovery rail. */
+async function fetchFreshProducts(sb: SB): Promise<ShelfProduct[]> {
+  const { data } = await sb
+    .from("products")
+    .select("id, title, price_pence, photos, business:local_businesses(name, is_active)")
+    .eq("is_active", true)
+    .is("sold_at", null)
+    .order("created_at", { ascending: false })
+    .limit(16);
+  const out: ShelfProduct[] = [];
+  for (const p of (data ?? []) as Record<string, unknown>[]) {
+    const biz = (Array.isArray(p.business) ? (p.business as Record<string, unknown>[])[0] : p.business) as { name?: string; is_active?: boolean } | null;
+    if (!biz?.is_active || !biz.name) continue;
+    const photo = (p.photos as string[])?.[0] ?? null;
+    if (!photo) continue;
+    out.push({ id: p.id as string, title: p.title as string, price_pence: p.price_pence as number, photo, business_name: biz.name });
+    if (out.length >= 10) break;
+  }
+  return out;
 }
 
 async function fetchHiring(sb: SB): Promise<ShelfJob[]> {

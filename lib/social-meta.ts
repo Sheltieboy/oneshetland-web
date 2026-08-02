@@ -8,6 +8,7 @@ export const KIND_META: Record<string, { label: string; color: string }> = {
   business_spotlight: { label: "Business spotlight", color: "#4f46e5" },
   ship_day: { label: "Ship day", color: "#1e3a8a" },
   new_business: { label: "New business", color: "#e0722a" },
+  new_product: { label: "New product", color: "#7c3aed" },
   almanac_article: { label: "Almanac", color: "#9f1239" },
   jobs_roundup: { label: "Jobs roundup", color: "#2a8b5c" },
   custom: { label: "Custom", color: "#6b7280" },

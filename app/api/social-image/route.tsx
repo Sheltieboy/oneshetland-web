@@ -228,6 +228,51 @@ export async function GET(req: NextRequest) {
   }
 
   /* ── Jobs roundup — newest open jobs ───────────────────────────────────── */
+  /* ── Product spotlight — Shop Shetland ─────────────────────────────────── */
+  if (kind === "product") {
+    const { data: prod } = await sb
+      .from("products")
+      .select("title, price_pence, photos, stock_mode, business:local_businesses(name, logo_url)")
+      .eq("id", p.get("id") ?? "")
+      .maybeSingle();
+    if (!prod) return new Response("product not found", { status: 404 });
+    const biz = (Array.isArray(prod.business) ? prod.business[0] : prod.business) as { name?: string; logo_url?: string } | null;
+    const photo = (prod.photos as string[])?.[0] ? await coverAsJpegDataUri((prod.photos as string[])[0]) : null;
+    const LOCAL = "#7c3aed";
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: CREAM, position: "relative", fontFamily: "Inter" }}>
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} width={SIZE} height={720} style={{ width: SIZE, height: 720, objectFit: "cover" }} alt="" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={ringUrl} width={760} height={760} style={{ position: "absolute", top: -180, right: -200, opacity: 0.08 }} alt="" />
+          )}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "30px 64px 0", gap: 6 }}>
+            <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 5, color: LOCAL }}>
+              {(`NEW FROM ${biz?.name ?? "A SHETLAND SHOP"}`).toUpperCase()}
+            </span>
+            <span style={{ fontFamily: "Fraunces", fontSize: prod.title.length > 30 ? 52 : 64, color: NAVY, lineHeight: 1.08 }}>{prod.title}</span>
+            <span style={{ fontSize: 44, fontWeight: 700, color: LOCAL }}>
+              £{((prod.price_pence as number) / 100).toFixed(2)}
+              {prod.stock_mode === "one_off" ? "  ·  one of a kind" : prod.stock_mode === "made_to_order" ? "  ·  made to order" : ""}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 64px", height: 110, borderTop: `6px solid ${LOCAL}`, background: "#ffffff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ringUrl} width={54} height={54} alt="" />
+              <span style={{ fontFamily: "Fraunces", fontSize: 38, color: NAVY }}>OneShetland</span>
+            </div>
+            <span style={{ fontSize: 26, fontWeight: 700, color: INK_SOFT }}>shop local · oneshetland.com</span>
+          </div>
+        </div>
+      ),
+      opts,
+    );
+  }
+
   if (kind === "jobs") {
     const { data: jobs } = await sb
       .from("jobs")
