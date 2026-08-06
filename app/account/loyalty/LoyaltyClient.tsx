@@ -62,6 +62,16 @@ export function LoyaltyClient() {
   );
 }
 
+/** Up to two initials from the business name — "DEMO — Shetland Makkers" → "SM". */
+function initialsOf(name: string): string {
+  const words = name
+    .replace(/[\u2014\u2013-]/g, " ")
+    .split(/\s+/)
+    .filter((w) => /[a-z]/i.test(w) && !/^(the|and|of|at|de|da)$/i.test(w));
+  const picked = words.length > 1 ? [words[0], words[words.length - 1]] : words;
+  return picked.slice(0, 2).map((w) => w[0].toUpperCase()).join("") || "\u2605";
+}
+
 function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
   const isStamp = card.program?.type === "stamps";
   const stamps = card.stamps_collected;
@@ -107,13 +117,15 @@ function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
           {Array.from({ length: needed }).map((_, i) => (
             <span
               key={i}
-              className="h-5 w-5 rounded-full border"
+              className="grid h-7 w-7 place-items-center rounded-full border text-[10px] font-black text-white"
               style={
                 i < stamps
                   ? { background: LOCAL, borderColor: LOCAL }
-                  : { background: "transparent", borderColor: LOCAL + "55" }
+                  : { background: "transparent", borderColor: LOCAL + "55", borderStyle: "dashed" }
               }
-            />
+            >
+              {i < stamps ? initialsOf(name) : ""}
+            </span>
           ))}
         </div>
       )}
