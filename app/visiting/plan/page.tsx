@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { getPlannerCandidates } from "@/lib/planner-data";
 import {
-  buildPlan, describeLeg, fmtTime, INTERESTS, LERWICK,
-  type Interest, type Transport,
+  buildPlan, schedulePicks, describeLeg, fmtTime, INTERESTS, LERWICK,
+  type Candidate, type Interest, type Plan, type Transport,
 } from "@/lib/planner";
 import { PlanMap } from "@/components/visiting/PlanMap";
 import { SafeImage } from "@/components/ui/SafeImage";
@@ -39,6 +39,54 @@ type SP = {
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
+/**
+ * Ask Peerie Bot for a running order. Deliberately forgiving: any failure at
+ * all returns null and the caller uses the deterministic planner, so the page
+ * never depends on the AI being up.
+ *
+ * Only the fields the model needs are sent — no coordinates, no ids beyond the
+ * candidate key, and the list is trimmed to keep the call quick.
+ */
+async function suggestOrder(args: {
+  candidates: Candidate[];
+  start: Date;
+  end: Date;
+  transport: Transport;
+  interests: Interest[];
+}): Promise<{ title: string; intro: string; picks: { id: string; why: string }[] } | null> {
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3005";
+  try {
+    const res = await fetch(`${base}/api/ai/plan-day`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fmtTime(args.start),
+        to: fmtTime(args.end),
+        transport: args.transport,
+        interests: args.interests,
+        candidates: args.candidates.slice(0, 45).map((c) => ({
+          id: c.id,
+          kind: c.kind,
+          name: c.name,
+          what: c.category ?? null,
+          about: c.blurb ? c.blurb.slice(0, 180) : null,
+          startsAt: c.startsAt ?? null,
+          endsAt: c.endsAt ?? null,
+        })),
+      }),
+      // A visitor will not wait half a minute for a day out.
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return Array.isArray(data?.picks) ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+
+
 export default async function PlanPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
 
@@ -57,16 +105,32 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
   const end = new Date(`${date}T${to}:00`);
   const validWindow = end.getTime() > start.getTime();
 
-  const plan = submitted && validWindow
-    ? buildPlan({
-        candidates: await getPlannerCandidates(
-          new Date(start.getTime() - 60 * 60000).toISOString(),
-          end.toISOString(),
-        ),
-        start, end, transport, interests: chosen,
-        startPoint: LERWICK,
-      })
-    : null;
+  let plan: Plan | null = null;
+  let headline: { title: string; intro: string } | null = null;
+
+  if (submitted && validWindow) {
+    const candidates = await getPlannerCandidates(
+      new Date(start.getTime() - 60 * 60000).toISOString(),
+      end.toISOString(),
+    );
+
+    // Peerie Bot picks WHAT and IN WHAT ORDER; schedulePicks then works out
+    // whether that order actually fits and drops what doesn't. If the call
+    // fails — no key, a hiccup, a slow night — we fall straight back to the
+    // deterministic planner, because a visitor must always get a day.
+    const suggestion = await suggestOrder({ candidates, start, end, transport, interests: chosen });
+    if (suggestion && suggestion.picks.length > 0) {
+      const byId = new Map(candidates.map((c) => [c.id, c] as const));
+      const scheduled = schedulePicks({ order: suggestion.picks, byId, start, end, transport, startPoint: LERWICK });
+      if (scheduled.stops.length >= 2) {
+        plan = scheduled;
+        headline = { title: suggestion.title, intro: suggestion.intro };
+      }
+    }
+    if (!plan) {
+      plan = buildPlan({ candidates, start, end, transport, interests: chosen, startPoint: LERWICK });
+    }
+  }
 
   const field = "rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none";
   const lab = "mb-1 block text-sm font-semibold text-ink-soft";
@@ -160,9 +224,15 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
         {plan && plan.stops.length > 0 && (
           <>
             <section>
+              {headline && (
+                <p className="mb-1 inline-flex items-center gap-1.5 rounded-pill bg-ink/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink-muted">
+                  ✨ Put together by Peerie Bot
+                </p>
+              )}
               <h2 className="font-display text-2xl font-bold">
-                Your day — {plan.stops.length} stop{plan.stops.length === 1 ? "" : "s"}
+                {headline ? headline.title : `Your day — ${plan.stops.length} stop${plan.stops.length === 1 ? "" : "s"}`}
               </h2>
+              {headline && <p className="mt-1 max-w-2xl text-ink-soft">{headline.intro}</p>}
               <p className="mt-1 text-ink-muted">
                 {fmtTime(plan.startAt)} to {fmtTime(plan.endAt)}
                 {plan.unusedMinutes > 30 ? ` · about ${Math.round(plan.unusedMinutes / 60)}h spare at the end` : ""}
@@ -236,7 +306,11 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
                       {s.candidate.blurb && (
                         <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{s.candidate.blurb}</p>
                       )}
-                      {s.note && <p className="mt-1 text-sm font-medium text-amber-700">{s.note}</p>}
+                      {s.note && (
+                        <p className="mt-1 text-sm text-ink-soft">
+                          <span aria-hidden>✨ </span>{s.note}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </li>

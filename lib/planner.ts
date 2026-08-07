@@ -202,7 +202,7 @@ export function buildPlan(opts: {
     // Fill the gap before the event with places we can get in and out of.
     let guard = 0;
     while (stops.length < maxStops && guard++ < 20) {
-      const best = pickNext({ places, used, at, cursor, transport, interests, mustFinishBy: eventStart, event });
+      const best = pickNext({ places, used, at, cursor, transport, interests, mustFinishBy: eventStart, chosen: stops.map((s) => s.candidate), event });
       if (!best) break;
       pushStop(best.c, best.arrive, best.travel);
     }
@@ -216,7 +216,7 @@ export function buildPlan(opts: {
   // Then fill whatever is left of the day.
   let guard = 0;
   while (stops.length < maxStops && guard++ < 30) {
-    const best = pickNext({ places, used, at, cursor, transport, interests, mustFinishBy: end });
+    const best = pickNext({ places, used, at, cursor, transport, interests, mustFinishBy: end, chosen: stops.map((s) => s.candidate) });
     if (!best) break;
     pushStop(best.c, best.arrive, best.travel);
   }
@@ -239,6 +239,82 @@ export function buildPlan(opts: {
   };
 }
 
+/**
+ * A day has a rhythm, and the first version of this had none — it cheerfully
+ * proposed a chippy, a takeaway, a curry house and a bar back to back, because
+ * every one of them scored well on "matches food, nearby, might be open".
+ *
+ * Nobody eats four lunches. These are the shape-of-a-day rules the scorer was
+ * missing; Peerie Bot does the real judgement (see /api/ai/plan-day), but the
+ * fallback has to produce something sane on its own.
+ */
+const LUNCH = { from: 11 * 60 + 30, to: 14 * 60 + 30 };
+const DINNER = { from: 17 * 60, to: 20 * 60 + 30 };
+const MAX_FOOD_STOPS = 2;
+
+const minutesOfDay = (d: Date) => d.getHours() * 60 + d.getMinutes();
+const isFood = (c: Candidate) => c.category === "food_drink";
+const inWindow = (m: number, w: { from: number; to: number }) => m >= w.from && m <= w.to;
+
+/**
+ * Schedule a running order somebody else chose (Peerie Bot, via
+ * /api/ai/plan-day) and report honestly on what wouldn't fit.
+ *
+ * The model picks WHAT and IN WHAT ORDER; every time here is still computed.
+ * It is also treated as untrusted input: unknown ids are ignored, a place we
+ * know to be shut at that hour is dropped with a reason, and anything that
+ * overruns the window is dropped rather than quietly running past the end.
+ */
+export function schedulePicks(opts: {
+  order: { id: string; why?: string }[];
+  byId: Map<string, Candidate>;
+  start: Date;
+  end: Date;
+  transport: Transport;
+  startPoint?: { lat: number; lng: number };
+}): Plan {
+  const { order, byId, start, end, transport } = opts;
+  const stops: Stop[] = [];
+  const skipped: { name: string; reason: string }[] = [];
+  let cursor = new Date(start);
+  let at = opts.startPoint ?? LERWICK;
+
+  for (const pick of order) {
+    const c = byId.get(pick.id);
+    if (!c) continue; // hallucinated or stale id — silently ignored
+
+    const travel = travelBetween(at, c, transport);
+    let arrive = addMinutes(cursor, travel.minutes);
+
+    // An event can't be moved: wait for it if we're early, and if its start
+    // has already gone by, it's missed.
+    if (c.kind === "event" && c.startsAt) {
+      const s = new Date(c.startsAt);
+      if (arrive < s) arrive = s;
+      const endsAt = c.endsAt ? new Date(c.endsAt) : null;
+      if (endsAt && arrive >= endsAt) { skipped.push({ name: c.name, reason: "over before you could get there" }); continue; }
+    }
+
+    const depart = addMinutes(arrive, dwellMinutes(c));
+    if (depart > end) { skipped.push({ name: c.name, reason: "wouldn't fit before you leave" }); continue; }
+
+    const open = c.kind === "event" ? true : isOpenAt(c.hours, arrive);
+    if (open === false) { skipped.push({ name: c.name, reason: "shut at that time" }); continue; }
+
+    stops.push({ candidate: c, arrive, depart, travel, openKnown: open, note: pick.why });
+    cursor = depart;
+    at = { lat: c.lat, lng: c.lng };
+  }
+
+  return {
+    stops,
+    startAt: start,
+    endAt: stops.length ? stops[stops.length - 1].depart : start,
+    unusedMinutes: Math.max(0, Math.round((end.getTime() - (stops.length ? stops[stops.length - 1].depart : start).getTime()) / 60000)),
+    skipped: skipped.slice(0, 4),
+  };
+}
+
 function pickNext(args: {
   places: Candidate[];
   used: Set<string>;
@@ -247,9 +323,13 @@ function pickNext(args: {
   transport: Transport;
   interests: Interest[];
   mustFinishBy: Date;
+  chosen: Candidate[];
   event?: Candidate;
 }): { c: Candidate; arrive: Date; travel: Leg } | null {
-  const { places, used, at, cursor, transport, mustFinishBy } = args;
+  const { places, used, at, cursor, transport, mustFinishBy, chosen } = args;
+
+  const foodSoFar = chosen.filter(isFood).length;
+  const lastCategory = chosen[chosen.length - 1]?.category ?? null;
 
   let best: { c: Candidate; arrive: Date; travel: Leg; score: number } | null = null;
 
@@ -266,11 +346,20 @@ function pickNext(args: {
     const open = isOpenAt(c.hours, arrive);
     if (open === false) continue;
 
+    // Meals: at most two, and only at something like meal times.
+    if (isFood(c)) {
+      if (foodSoFar >= MAX_FOOD_STOPS) continue;
+      const m = minutesOfDay(arrive);
+      if (!inWindow(m, LUNCH) && !inWindow(m, DINNER)) continue;
+    }
+
     const interestHit = args.interests.length > 0 && c.interests.some((i) => args.interests.includes(i));
     const score =
       (interestHit ? 60 : 0) +
       (open === true ? 25 : 0) +
       (c.tierRank ?? 0) * 8 +
+      // Two of the same kind in a row makes for a monotonous day.
+      (lastCategory && c.category === lastCategory ? -35 : 0) +
       Math.max(0, 40 - travel.minutes);
 
     if (!best || score > best.score) best = { c, arrive, travel, score };
@@ -286,6 +375,9 @@ export function fmtTime(d: Date): string {
 }
 
 export function describeLeg(leg: Leg): string {
+  // Nobody drives 300 metres. Below that it's a walk whatever the mode, and
+  // "5 min drive · 0 km" is the sort of line that makes a plan look daft.
+  if (leg.km < 0.4) return "a couple of minutes' walk";
   const how = leg.mode === "walking" ? "walk" : "drive";
   return `${leg.minutes} min ${how} · ${leg.km} km`;
 }
