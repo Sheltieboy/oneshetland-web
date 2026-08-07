@@ -385,6 +385,18 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             </dl>
           </div>
 
+          {/* ODbL requires OpenStreetMap-sourced data to be credited. Shown on
+              any listing we seeded rather than a person entering it. */}
+          {b.source === "openstreetmap" && (
+            <p className="rounded-xl border border-line bg-sand/40 px-4 py-3 text-xs text-ink-muted">
+              Location data ©{" "}
+              <a href="https://www.openstreetmap.org/copyright" className="underline" rel="noopener noreferrer" target="_blank">
+                OpenStreetMap contributors
+              </a>
+              . The claim banner above is how you take it over and correct it.
+            </p>
+          )}
+
           {b.opening_hours && Object.keys(b.opening_hours).length > 0 && (
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
               <h3 className="font-display text-lg font-bold">Opening hours</h3>
