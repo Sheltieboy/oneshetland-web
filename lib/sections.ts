@@ -62,7 +62,7 @@ export const SECTIONS: Section[] = [
   },
   {
     key: "memories",
-    label: "Aald Stories",
+    label: "Aald Memories",
     href: "/memories",
     color: "#9f1239",
     token: "memories",

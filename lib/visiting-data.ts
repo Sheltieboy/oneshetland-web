@@ -1,4 +1,5 @@
 import { publicClient } from "@/lib/supabase/public";
+import { getActiveOffers, type Offer } from "@/lib/local-data";
 
 /**
  * Data for /visiting — the page someone reads BEFORE they travel, usually
@@ -78,9 +79,21 @@ async function fetchMakes(): Promise<VisitingProduct[]> {
   });
 }
 
-/** The next few cruise days — useful both to visitors arriving by ship and
- *  to independent travellers who'd rather dodge a 4,000-passenger day. */
-async function fetchCruiseDays(): Promise<{ visit_date: string; ships_count: number; total_est_pax: number }[]> {
+export type VisitingCruiseDay = {
+  visit_date: string;
+  ships_count: number;
+  total_est_pax: number;
+  lead_image: string | null;
+  lead_ship: string | null;
+};
+
+/**
+ * The next few cruise days — useful both to visitors arriving by ship and to
+ * independent travellers who'd rather dodge a 4,000-passenger day. Carries the
+ * day's lead ship photo, because six identical text tiles is a dull way to
+ * show something as photogenic as a liner in Lerwick.
+ */
+async function fetchCruiseDays(): Promise<VisitingCruiseDay[]> {
   const sb = publicClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await sb
@@ -89,7 +102,33 @@ async function fetchCruiseDays(): Promise<{ visit_date: string; ships_count: num
     .gte("visit_date", today)
     .order("visit_date", { ascending: true })
     .limit(6);
-  return (data ?? []) as { visit_date: string; ships_count: number; total_est_pax: number }[];
+
+  const days = (data ?? []) as { visit_date: string; ships_count: number; total_est_pax: number }[];
+  if (days.length === 0) return [];
+
+  // One batched lookup for the photos: the biggest ship of each day that has one.
+  const { data: visits } = await sb
+    .from("cruise_visits")
+    .select("visit_date, est_pax, ship:cruise_ships(name, image_url)")
+    .in("visit_date", days.map((d) => d.visit_date))
+    .neq("status", "cancelled");
+
+  const lead: Record<string, { pax: number; img: string; name: string | null }> = {};
+  for (const v of (visits ?? []) as Record<string, unknown>[]) {
+    const ship = (Array.isArray(v.ship) ? v.ship[0] : v.ship) as { name?: string; image_url?: string } | null;
+    if (!ship?.image_url) continue;
+    const date = v.visit_date as string;
+    const pax = (v.est_pax as number) ?? 0;
+    if (!lead[date] || pax > lead[date].pax) {
+      lead[date] = { pax, img: ship.image_url, name: ship.name ?? null };
+    }
+  }
+
+  return days.map((d) => ({
+    ...d,
+    lead_image: lead[d.visit_date]?.img ?? null,
+    lead_ship: lead[d.visit_date]?.name ?? null,
+  }));
 }
 
 /** A few dialect words — the thing visitors reliably find delightful. */
@@ -108,11 +147,15 @@ async function fetchWords(): Promise<{ word: string; short_meaning: string | nul
 }
 
 export async function getVisitingData() {
-  const [places, makes, cruiseDays, words] = await Promise.all([
+  const [places, makes, cruiseDays, words, offers] = await Promise.all([
     safe(fetchPlaces(), []),
     safe(fetchMakes(), []),
     safe(fetchCruiseDays(), []),
     safe(fetchWords(), []),
+    // Offers work for anyone standing in the shop — a visitor can use a
+    // two-for-one the same as a local. Reuses the Local feed's fetcher so
+    // there's one definition of "a live offer".
+    safe(getActiveOffers(6), [] as Offer[]),
   ]);
-  return { places, makes, cruiseDays, words };
+  return { places, makes, cruiseDays, words, offers };
 }

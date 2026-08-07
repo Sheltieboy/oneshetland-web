@@ -11,9 +11,9 @@ export default async function NewMemoryPage({ searchParams }: { searchParams: Pr
   const account = await getAccount();
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href="/memories" className="text-sm font-semibold text-ink-soft hover:text-ink">← Aald Stories</Link>
+      <Link href="/memories" className="text-sm font-semibold text-ink-soft hover:text-ink">← Aald Memories</Link>
       <div className="mt-4">
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: MEMORIES }}>OneShetland · Aald Stories</p>
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: MEMORIES }}>OneShetland · Aald Memories</p>
         <h1 className="mt-1 font-display text-4xl font-bold">{parent ? "Add to this story" : "Pin a story"}</h1>
         <p className="mt-2 text-lg text-ink-soft">Mark a place, tell its story, and leave a photo, video or voice note for folk to find.</p>
       </div>
