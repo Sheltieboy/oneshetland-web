@@ -6,6 +6,7 @@ import {
 } from "@/lib/planner";
 import { PlanMap } from "@/components/visiting/PlanMap";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { suggestDayOrder } from "@/lib/plan-ai.server";
 
 /**
  * /visiting/plan — tell us when you're here and what you're after, get a day.
@@ -39,54 +40,6 @@ type SP = {
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
-/**
- * Ask Peerie Bot for a running order. Deliberately forgiving: any failure at
- * all returns null and the caller uses the deterministic planner, so the page
- * never depends on the AI being up.
- *
- * Only the fields the model needs are sent — no coordinates, no ids beyond the
- * candidate key, and the list is trimmed to keep the call quick.
- */
-async function suggestOrder(args: {
-  candidates: Candidate[];
-  start: Date;
-  end: Date;
-  transport: Transport;
-  interests: Interest[];
-}): Promise<{ title: string; intro: string; picks: { id: string; why: string }[] } | null> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3005";
-  try {
-    const res = await fetch(`${base}/api/ai/plan-day`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        from: fmtTime(args.start),
-        to: fmtTime(args.end),
-        transport: args.transport,
-        interests: args.interests,
-        candidates: args.candidates.slice(0, 45).map((c) => ({
-          id: c.id,
-          kind: c.kind,
-          name: c.name,
-          what: c.category ?? null,
-          about: c.blurb ? c.blurb.slice(0, 180) : null,
-          startsAt: c.startsAt ?? null,
-          endsAt: c.endsAt ?? null,
-        })),
-      }),
-      // A visitor will not wait half a minute for a day out.
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data?.picks) ? data : null;
-  } catch {
-    return null;
-  }
-}
-
-
-
 export default async function PlanPage({ searchParams }: { searchParams: Promise<SP> }) {
   const sp = await searchParams;
 
@@ -118,7 +71,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
     // whether that order actually fits and drops what doesn't. If the call
     // fails — no key, a hiccup, a slow night — we fall straight back to the
     // deterministic planner, because a visitor must always get a day.
-    const suggestion = await suggestOrder({ candidates, start, end, transport, interests: chosen });
+    const suggestion = await suggestDayOrder({ candidates, start, end, transport, interests: chosen });
     if (suggestion && suggestion.picks.length > 0) {
       const byId = new Map(candidates.map((c) => [c.id, c] as const));
       const scheduled = schedulePicks({ order: suggestion.picks, byId, start, end, transport, startPoint: LERWICK });
