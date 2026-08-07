@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
+import Link from "next/link";
 import { gbp } from "@/lib/stripe";
 import { payWithWallet } from "@/lib/local-commerce-client";
 
@@ -10,15 +10,16 @@ const LOCAL = "#7c3aed";
 /**
  * PayAtTillCard — web mirror of the app's "Pay at till" flow (local-pay.tsx).
  *
- * IMPORTANT — the OneShetland pay model is *merchant-displays-code*, not
- * *customer-shows-QR*: the business shows a rotating 6-digit till code and the
- * customer enters it (the `local-wallet-pay` edge fn identifies the customer from
- * their JWT). There is therefore no customer-side payload for a merchant to scan.
+ * IMPORTANT — this is the *fallback*, not the main road. The customer shows
+ * their member card and staff scan it; that card is the one code anybody should
+ * ever be asked to present. This flow is for when staff can't scan.
  *
- * So this card does two things, mirroring the app faithfully:
- *   1. A QR that deep-links to the app's pay screen (oneshetland://local-pay) — a
- *      convenience hand-off to finish on the phone, NOT a merchant-scannable code.
- *   2. The real web pay flow: enter amount + the business's till code → pay.
+ * The pay model here is *merchant-displays-code*: the business shows a rotating
+ * 6-digit till code and the customer enters it (the `local-wallet-pay` edge fn
+ * identifies the customer from their JWT). There is no customer-side payload for
+ * a merchant to scan, which is exactly why the app-handoff QR that used to sit
+ * on this card was removed — staff read it as scannable and scanned it instead
+ * of the member card, and every one of those scans failed.
  */
 export function PayAtTillCard({
   balancePence,
@@ -61,24 +62,22 @@ export function PayAtTillCard({
 
   return (
     <section className="rounded-card border border-line bg-paper p-5 shadow-soft">
-      <h2 className="font-display text-xl font-bold text-ink">Pay at till</h2>
+      <h2 className="font-display text-xl font-bold text-ink">Enter a till code</h2>
       <p className="mt-1 text-sm text-ink-muted">
-        Pay from your wallet at a participating business. Ask staff for their till code, enter it with the
-        amount, and we&apos;ll charge your balance.
+        The usual way to pay is to show your{" "}
+        <Link href="/account/loyalty" className="font-semibold underline" style={{ color: LOCAL }}>
+          member card
+        </Link>{" "}
+        and let staff scan it. Use this instead when they can&apos;t scan: ask for their till code, enter it
+        with the amount, and we&apos;ll charge your balance.
       </p>
 
-      <div className="mt-5 grid gap-6 sm:grid-cols-[auto,1fr] sm:items-start">
-        {/* QR — hand-off to the app to finish on a phone. */}
-        <div className="flex flex-col items-center gap-2">
-          <div className="rounded-card border border-line bg-white p-3">
-            <QRCodeSVG value="oneshetland://local-pay" size={132} fgColor={LOCAL} level="M" />
-          </div>
-          <p className="max-w-[150px] text-center text-xs text-ink-faint">
-            Scan with your phone to finish paying in the app
-          </p>
-        </div>
+      {/* There used to be a second QR here — an app hand-off link that looked
+          exactly like something staff should scan. It sent people to the till
+          with the wrong code and cost a real afternoon of debugging. The member
+          card is the only code a customer should ever be asked to present. */}
 
-        {/* Web pay flow. */}
+      <div className="mt-5">
         {done ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="font-display font-bold text-emerald-700">Paid ✓</p>

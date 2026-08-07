@@ -18,6 +18,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const premium = tierMeets(business.subscription_tier, "premium");
 
   const tiles: Tile[] = [
+    // Serving comes before managing — it's the thing done many times a day.
+    { href: `${base}/counter`, icon: "🧾", title: "Counter mode", desc: "Full-screen serving view · lockable with a staff PIN", built: true },
     { href: `${base}/billing`, icon: "💳", title: "Plan, payments & payouts", desc: "Subscription, business card & bank, NFC", built: true },
     { href: `${base}/profile`, icon: "🏪", title: "Profile & branding", desc: "Name, description, photos, hours, links", built: true },
     { href: `${base}/addons`, icon: "🧩", title: "Add-ons & features", desc: "Turn features on and off", built: true },

@@ -176,8 +176,11 @@ function MemberCard() {
           {code ? <QRCodeSVG value={code} size={96} /> : <div className="h-24 w-24 animate-pulse rounded bg-black/10" />}
         </div>
         <div className="min-w-0">
-          <p className="font-display text-lg font-bold leading-tight">Your loyalty card</p>
-          <p className="mt-0.5 text-sm text-paper/90">One card for every shop. Show this at the till to collect or redeem.</p>
+          <p className="font-display text-lg font-bold leading-tight">Your member card</p>
+          <p className="mt-0.5 text-sm text-paper/90">
+            One card for every shop — stamps, points, rewards, and paying. Nothing is charged by showing it;
+            a payment appears on your phone to approve first.
+          </p>
           <p className="mt-2 text-[11px] font-bold tracking-widest text-paper/80">OR GIVE CODE</p>
           <p className="font-display text-2xl font-bold tracking-[0.25em]">{code ?? "—"}</p>
         </div>
