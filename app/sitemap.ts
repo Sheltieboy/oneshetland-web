@@ -10,6 +10,10 @@ const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequen
   { path: "", freq: "daily", priority: 1 },
   { path: "/whats-on", freq: "daily", priority: 0.9 },
   { path: "/local", freq: "daily", priority: 0.9 },
+  // The two pages people reach by search rather than by knowing us: someone
+  // googling "Shetland knitwear" or "things to do in Shetland".
+  { path: "/shop", freq: "daily", priority: 0.9 },
+  { path: "/visiting", freq: "weekly", priority: 0.9 },
   { path: "/loyalty", freq: "weekly", priority: 0.8 },
   { path: "/directory", freq: "daily", priority: 0.8 },
   { path: "/cruise", freq: "daily", priority: 0.8 },

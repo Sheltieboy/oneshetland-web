@@ -12,6 +12,8 @@ import { ForYou } from "@/components/home/ForYou";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
 import { getHomeShelves } from "@/lib/home-shelves";
+import { getAudience } from "@/lib/audience.server";
+import { AudienceChip } from "@/components/home/AudienceChip";
 import { FeaturedShelf, OffersShelf, ShopRails, IslandLifeBand, HiringShelf } from "@/components/home/Shelves";
 import { getEventsInMonth } from "@/lib/events-data";
 import { GAMES, fetchLeaderboardWithTrend, type GameId } from "@/lib/games-data";
@@ -40,6 +42,8 @@ export default async function Home() {
     getEventsInMonth(now.getFullYear(), now.getMonth()).catch(() => []),
     getHomeShelves(),
   ]);
+  const audience = await getAudience();
+  const visiting = audience === "visiting";
   const game = getTodaysGame();
 
   // Top-5 leaderboard for whichever game is featured on the tile today.
@@ -118,30 +122,54 @@ export default async function Home() {
         <ForYou name={accountName(account).split(" ")[0]} items={forYou} />
       )}
 
+      {/* ── Who the page is ordered for. Sits above the shelves it affects,
+             so the effect of tapping it is visible immediately. ──────────── */}
+      <div className="mx-auto flex max-w-6xl items-center gap-3 px-5 pt-10">
+        <AudienceChip audience={audience} />
+        {visiting && (
+          <Link href="/visiting" className="text-xs font-semibold text-sky-700 underline">
+            Planning a trip? →
+          </Link>
+        )}
+      </div>
+
       {/* ── Featured this week — the premium shelf (paid, with fresh-content
              fallback until businesses subscribe) ──────────────────────────── */}
       <FeaturedShelf shelves={shelves} />
 
-      {/* ── Offers & rewards — pro-tier offers + the pitch card ──────────── */}
-      <OffersShelf offers={data.offers} />
-
       {/* ── Bento — the live homepage mosaic ─────────────────────────────── */}
       <HomeBento data={data} game={game} content={homeContent} monthEvents={monthEvents} gameLeaders={gameLeaders} />
 
-      {/* ── Eat, drink & shop — directory rails, paid tiers sort first ───── */}
-      <ShopRails shelves={shelves} />
-
-      {/* ── Island life — Da Boats · Aald Memories · Spik ─────────────────── */}
-      <IslandLifeBand shelves={shelves} spik={shelves.spik} />
-
-      {/* ── Hiring now — jobs with employer logos ────────────────────────── */}
-      <HiringShelf shelves={shelves} />
+      {/* ── The middle of the page is ordered for who's reading it.
+             A visitor came for what's on, the shops and the island itself.
+             Local offers and hiring are the two things they can't act on, so
+             those move down — hiring all the way below the browse grid, since
+             a job in Lerwick is no use to somebody here until Friday.
+             Nothing is removed either way; the ORDER is the only difference.
+             See lib/audience.ts. ────────────────────────────────────────── */}
+      {visiting ? (
+        <>
+          <ShopRails shelves={shelves} />
+          <IslandLifeBand shelves={shelves} spik={shelves.spik} />
+          <OffersShelf offers={data.offers} />
+        </>
+      ) : (
+        <>
+          <OffersShelf offers={data.offers} />
+          <ShopRails shelves={shelves} />
+          <IslandLifeBand shelves={shelves} spik={shelves.spik} />
+          <HiringShelf shelves={shelves} />
+        </>
+      )}
 
       {/* ── Browse-everything grid ───────────────────────────────────────── */}
       {/* Every homepage section sets its own TOP padding only (pt-12), so the
           rhythm stays even and an empty section collapses without a double
           gap. Only this last one adds bottom padding, before the footer. */}
       <SectionGrid />
+
+      {/* Visitors get hiring last — present, but after everything they came for. */}
+      {visiting && <HiringShelf shelves={shelves} />}
     </>
   );
 }
