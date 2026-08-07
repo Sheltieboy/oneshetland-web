@@ -7,6 +7,7 @@ import {
 import { PlanMap } from "@/components/visiting/PlanMap";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { suggestDayOrder } from "@/lib/plan-ai.server";
+import { PeerieBadge } from "@/components/ai/PeerieBadge";
 
 /**
  * /visiting/plan — tell us when you're here and what you're after, get a day.
@@ -177,11 +178,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
         {plan && plan.stops.length > 0 && (
           <>
             <section>
-              {headline && (
-                <p className="mb-1 inline-flex items-center gap-1.5 rounded-pill bg-ink/5 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-ink-muted">
-                  ✨ Put together by Peerie Bot
-                </p>
-              )}
+              {headline && <div className="mb-2"><PeerieBadge /></div>}
               <h2 className="font-display text-2xl font-bold">
                 {headline ? headline.title : `Your day — ${plan.stops.length} stop${plan.stops.length === 1 ? "" : "s"}`}
               </h2>
