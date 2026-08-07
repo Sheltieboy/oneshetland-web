@@ -492,8 +492,28 @@ export type FeedJob = {
 };
 export type FeedNotice = {
   id: string; title: string; body: string | null; published_at: string;
+  severity: string;
   hub: { id: string; name: string; logo_url: string | null; slug: string | null } | null;
 };
+
+/**
+ * Which of these notices have already been pushed island-wide. Admin-only UI
+ * state, so it is a separate query — and a forgiving one: before the
+ * broadcast_at migration is applied it returns {} rather than breaking the
+ * page. Losing the "already sent" label is cosmetic; the edge function is
+ * what actually enforces once-only, and answers 409 on a second attempt.
+ */
+export async function getNoticeBroadcastState(ids: string[]): Promise<Record<string, string | null>> {
+  if (!ids.length) return {};
+  try {
+    const sb = publicClient();
+    const { data, error } = await sb.from("notices").select("id, broadcast_at").in("id", ids);
+    if (error) return {};
+    return Object.fromEntries(
+      (data ?? []).map((r: { id: string; broadcast_at: string | null }) => [r.id, r.broadcast_at]),
+    );
+  } catch { return {}; }
+}
 
 export async function getLocalFeed(area?: string): Promise<{
   events: FeedEvent[];
@@ -555,7 +575,12 @@ export async function getLocalFeed(area?: string): Promise<{
     safe(
       (async () => {
         let q = sb.from("notices")
-          .select("id, title, body, published_at, hub:hubs(id, name, logo_url, slug)")
+          // NOT selecting broadcast_at here on purpose: this query feeds the
+          // public notices list, and PostgREST fails the whole request on an
+          // unknown column. Selecting it would blank the notices section for
+          // everyone in the window between the web deploy and the migration.
+          // Admins get that column from getNoticeBroadcastState() instead.
+          .select("id, title, body, published_at, severity, hub:hubs(id, name, logo_url, slug)")
           .eq("visibility", "public")
           .order("published_at", { ascending: false })
           .limit(4);

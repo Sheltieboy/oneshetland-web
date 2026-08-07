@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getLocalFeed, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
+import { getLocalFeed, getNoticeBroadcastState, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
+import { getAccount } from "@/lib/auth";
+import { NoticeBroadcast } from "@/components/notices/NoticeBroadcast";
 import { SafeImage } from "@/components/ui/SafeImage";
 
 export const dynamic = "force-dynamic";
@@ -47,6 +49,12 @@ export default async function LocalPage({
 }) {
   const { area } = await searchParams;
   const { events, jobs, businesses, notices, offers } = await getLocalFeed(area);
+  // Only platform admins see the island-wide broadcast control.
+  const account = await getAccount();
+  const isAdmin = account?.profile?.role === "admin";
+  const broadcastState = isAdmin
+    ? await getNoticeBroadcastState(notices.filter((n) => n.severity === "urgent").map((n) => n.id))
+    : {};
   const areaLabel = SHETLAND_AREAS.find((a) => a.key === area)?.label;
 
   // Curated-proposition counts (Local = offers / bookable / cashback, not an
@@ -425,8 +433,14 @@ export default async function LocalPage({
                       <span className="text-xs font-semibold text-ink-muted hover:underline">{n.hub.name}</span>
                     </Link>
                   )}
+                  {n.severity === "urgent" && (
+                    <p className="mb-1 text-[10px] font-black tracking-wide text-rose-600">URGENT</p>
+                  )}
                   <p className="font-display font-bold text-ink leading-snug">{n.title}</p>
                   {n.body && <p className="mt-1.5 line-clamp-3 text-sm text-ink-soft">{n.body}</p>}
+                  {isAdmin && n.severity === "urgent" && (
+                    <NoticeBroadcast noticeId={n.id} title={n.title} broadcastAt={broadcastState[n.id] ?? null} />
+                  )}
                 </div>
               ))}
             </div>
