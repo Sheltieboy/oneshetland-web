@@ -126,9 +126,15 @@ export async function askPeerieBot(
  * back to the deterministic planner, so a visitor always gets a day.
  */
 const cachedAsk = unstable_cache(
-  async (payload: string): Promise<DaySuggestion | null> => {
+  async (payload: string): Promise<DaySuggestion> => {
     const { candidates, meta } = JSON.parse(payload);
-    return askPeerieBot(candidates, meta);
+    const result = await askPeerieBot(candidates, meta);
+    // THROW on failure rather than return null: unstable_cache stores whatever
+    // resolves, so returning null here would cache the FAILURE for six hours
+    // and pin every visitor to the plain planner for that query. A throw isn't
+    // cached, so the next request tries again.
+    if (!result) throw new Error("no-plan");
+    return result;
   },
   ["peerie-plan-day"],
   // Long enough that a link you send someone gives them the SAME day, short
@@ -161,5 +167,9 @@ export async function suggestDayOrder(input: {
       interests: [...input.interests].sort(),
     },
   });
-  return cachedAsk(payload);
+  try {
+    return await cachedAsk(payload);
+  } catch {
+    return null; // fall back to the deterministic planner
+  }
 }
