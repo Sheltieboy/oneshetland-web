@@ -106,6 +106,13 @@ export default async function VisitingPage() {
             Here for a few days, or ashore for one? This is what&apos;s actually happening while you&apos;re here —
             kept up to date by the folk who live here, not a guidebook written three years ago.
           </p>
+          <Link
+            href="/visiting/plan"
+            className="mt-6 inline-flex items-center gap-2 rounded-pill bg-paper px-6 py-3 font-semibold shadow-soft transition hover:brightness-95"
+            style={{ color: LOCAL }}
+          >
+            🗺 Plan my day →
+          </Link>
         </div>
       </section>
 

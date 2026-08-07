@@ -14,6 +14,7 @@ const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequen
   // googling "Shetland knitwear" or "things to do in Shetland".
   { path: "/shop", freq: "daily", priority: 0.9 },
   { path: "/visiting", freq: "weekly", priority: 0.9 },
+  { path: "/visiting/plan", freq: "weekly", priority: 0.8 },
   { path: "/loyalty", freq: "weekly", priority: 0.8 },
   { path: "/directory", freq: "daily", priority: 0.8 },
   { path: "/cruise", freq: "daily", priority: 0.8 },
