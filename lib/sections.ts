@@ -29,6 +29,14 @@ export const SECTIONS: Section[] = [
     blurb: "Shops, makers and services — with loyalty, offers and bookings from Shetland businesses.",
   },
   {
+    key: "shop",
+    label: "Shop",
+    href: "/shop",
+    color: "#7c3aed",
+    token: "local",
+    blurb: "Everything on sale from Shetland's own shops and makers — knitwear, craft, art, food and drink.",
+  },
+  {
     key: "directory",
     label: "Directory",
     href: "/directory",
@@ -104,7 +112,7 @@ export const SECTIONS: Section[] = [
 
 /** The handful shown directly in the top navigation bar, in display order.
  *  (Home is the wordmark; Profile lives in the header user menu.) */
-const PRIMARY_NAV_ORDER = ["whats-on", "local", "games", "cruise", "jobs", "directory", "hubs"];
+const PRIMARY_NAV_ORDER = ["whats-on", "local", "shop", "games", "cruise", "jobs", "directory", "hubs"];
 export const PRIMARY_NAV = PRIMARY_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));

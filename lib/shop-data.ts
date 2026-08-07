@@ -138,6 +138,61 @@ export async function getProductThumbs(businessIds: string[]): Promise<Record<st
   return out;
 }
 
+export type BrowseProduct = Product & { business_name: string; business_slug: string | null };
+export type BrowseSort = "newest" | "price_low" | "price_high";
+
+/**
+ * Everything on sale across Shetland — the standalone /shop surface.
+ *
+ * Until now a product was only reachable through the shop that sells it, or
+ * the homepage rail. That's fine if you know the maker and useless if you just
+ * want to buy something Shetland.
+ *
+ * Sold one-offs and products from deactivated shops are excluded. `!inner`
+ * makes the business join filterable server-side, so paging stays honest.
+ */
+export async function browseProducts(opts: {
+  category?: string | null;
+  query?: string;
+  sort?: BrowseSort;
+  limit?: number;
+  offset?: number;
+} = {}): Promise<BrowseProduct[]> {
+  const { category = null, query = "", sort = "newest", limit = 24, offset = 0 } = opts;
+  const sb = publicClient();
+  try {
+    let q = sb
+      .from("products")
+      .select("*, business:local_businesses!inner(name, slug, is_active)")
+      .eq("is_active", true)
+      .is("sold_at", null)
+      .eq("business.is_active", true);
+
+    if (category) q = q.eq("category", category);
+    if (query.trim()) {
+      // Commas and % are PostgREST filter syntax, so they can't reach `or()` raw.
+      const safe = query.trim().replace(/[%,]/g, " ");
+      q = q.or(`title.ilike.%${safe}%,description.ilike.%${safe}%`);
+    }
+
+    if (sort === "price_low") q = q.order("price_pence", { ascending: true });
+    else if (sort === "price_high") q = q.order("price_pence", { ascending: false });
+    else q = q.order("created_at", { ascending: false });
+
+    const { data } = await q.range(offset, offset + limit - 1);
+    return ((data ?? []) as Record<string, unknown>[]).map((p) => {
+      const biz = (Array.isArray(p.business) ? p.business[0] : p.business) as
+        { name?: string; slug?: string | null } | null;
+      const { business: _drop, ...rest } = p;
+      return {
+        ...(rest as unknown as Product),
+        business_name: biz?.name ?? "A Shetland shop",
+        business_slug: biz?.slug ?? null,
+      };
+    });
+  } catch { return []; }
+}
+
 export async function getShopProducts(businessId: string): Promise<Product[]> {
   const sb = publicClient();
   try {
