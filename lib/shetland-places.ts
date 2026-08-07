@@ -68,6 +68,35 @@ export const PLACES: Place[] = [
   { name: "Fair Isle", lat: 59.5350, lng: -1.6300, mainland: false },
 ];
 
+/**
+ * Does getting here involve a ferry?
+ *
+ * Classifies a point by its nearest gazetteer entry. Businesses carry real
+ * coordinates but nothing that says which island they're on, so without this
+ * the planner happily routed Lerwick → Unst and called two ferry crossings a
+ * "97 minute drive" — while the page underneath promised ferry islands weren't
+ * planned for.
+ *
+ * Errs toward excluding: a visitor wrongly told a shop is unreachable has lost
+ * one suggestion, where a visitor sent to Unst on a road that doesn't exist
+ * has lost their day.
+ */
+export function needsFerry(lat: number, lng: number): boolean {
+  let nearest: Place | null = null;
+  let bestKm = Infinity;
+  for (const p of PLACES) {
+    // Cheap equirectangular distance — fine at this scale, and this runs over
+    // a few hundred businesses per request.
+    const dLat = (p.lat - lat) * 111;
+    const dLng = (p.lng - lng) * 111 * Math.cos((lat * Math.PI) / 180);
+    const km = Math.sqrt(dLat * dLat + dLng * dLng);
+    if (km < bestKm) { bestKm = km; nearest = p; }
+  }
+  // Nothing recognisable within 25 km: treat as unreachable rather than guess.
+  if (!nearest || bestKm > 25) return true;
+  return !nearest.mainland;
+}
+
 const normalise = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 

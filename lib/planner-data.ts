@@ -1,5 +1,5 @@
 import { publicClient } from "@/lib/supabase/public";
-import { findPlace } from "@/lib/shetland-places";
+import { findPlace, needsFerry } from "@/lib/shetland-places";
 import type { Candidate, Interest } from "@/lib/planner";
 
 /**
@@ -71,8 +71,11 @@ async function fetchPlaces(): Promise<Candidate[]> {
       tierRank: TIER_RANK[(b.subscription_tier as string) ?? "free"] ?? 0,
     }))
     // A place with no coordinates can't be routed to, and one on a ferry
-    // island can't be reached without a timetable we don't hold.
-    .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng));
+    // island can't be reached without a timetable we don't hold. The ferry
+    // check was on events from the start and missing here, so the planner was
+    // routing people to Yell and Unst and billing two crossings as a 97-minute
+    // drive — while the page said ferry islands weren't planned for.
+    .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng) && !needsFerry(c.lat, c.lng));
 }
 
 /** Published events inside the window, placed via the gazetteer. */
