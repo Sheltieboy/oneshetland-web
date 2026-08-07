@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
 import { updateBusiness, uploadBusinessMedia } from "@/lib/business-client";
+import { OpeningHoursEditor } from "@/components/business/OpeningHoursEditor";
+import { hasAnyHours, type OpeningHours } from "@/lib/opening-hours";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -19,6 +21,8 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
     phone: business.phone ?? "", website: business.website ?? "", email: business.email ?? "",
     address: business.address ?? "", brand_color: business.brand_color ?? BIZ, tags: (business.tags ?? []).join(", "),
   });
+  // Hours are their own state: a nested object doesn't fit the flat string form.
+  const [hours, setHours] = useState<OpeningHours>(business.opening_hours ?? {});
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +54,7 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         phone: f.phone.trim() || null, website: f.website.trim() || null, email: f.email.trim() || null,
         address: f.address.trim() || null, brand_color: f.brand_color,
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
+        opening_hours: hasAnyHours(hours) ? hours : null,
       };
       if (logoFile) { const url = await uploadBusinessMedia(business.id, "logo", logoFile); patch.logo_url = url; setLogoUrl(url); setLogoFile(null); setLogoPreview(""); }
       if (coverFile) { const url = await uploadBusinessMedia(business.id, "cover", coverFile); patch.cover_url = url; setCoverUrl(url); setCoverFile(null); setCoverPreview(""); }
@@ -112,6 +117,14 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         <div><label className={lab}>Email</label><input className={field} value={f.email} onChange={(e) => set("email", e.target.value)} /></div>
       </div>
       <div><label className={lab}>Website</label><input className={field} value={f.website} onChange={(e) => set("website", e.target.value)} placeholder="https://" /></div>
+      <div>
+        <label className={lab}>Opening hours</label>
+        <p className="mb-2 text-xs text-ink-muted">
+          Worth filling in properly: it&apos;s what puts you in a visitor&apos;s plan for the right part of the day,
+          and it stops folk turning up when you&apos;re shut.
+        </p>
+        <OpeningHoursEditor value={hours} onChange={(h) => { setHours(h); setSaved(false); }} />
+      </div>
       <div><label className={lab}>Tags (comma-separated)</label><input className={field} value={f.tags} onChange={(e) => set("tags", e.target.value)} placeholder="coffee, takeaway, vegan" /></div>
       <div>
         <label className={lab}>Brand colour</label>

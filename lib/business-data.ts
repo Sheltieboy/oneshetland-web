@@ -1,3 +1,4 @@
+import type { OpeningHours } from "@/lib/opening-hours";
 /**
  * business-data.ts — shared types/constants/helpers for the web "Manage
  * Business" dashboard. Mirrors the app's lib/local-api.ts (the management side).
@@ -18,6 +19,8 @@ export const EXTRA_ADDON_MONTHLY_PENCE = 1000; // £10 per additional premium ad
 export type BusinessAddon = { id: string; business_id: string; addon_key: AddonKey; enabled: boolean; config: Record<string, unknown>; created_at: string };
 
 /** The full management view of a business (owner-readable row). */
+export type { OpeningHours } from "@/lib/opening-hours";
+
 export type ManagedBusiness = {
   id: string;
   owner_id: string;
@@ -35,6 +38,7 @@ export type ManagedBusiness = {
   website: string | null;
   email: string | null;
   slug: string | null;
+  opening_hours: OpeningHours | null;
   is_verified: boolean;
   is_active: boolean;
   // Subscription
@@ -61,7 +65,7 @@ export type ManagedBusiness = {
 };
 
 export const BUSINESS_COLS =
-  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, is_verified, is_active, subscription_tier, subscription_until, subscription_cancel_at_period_end, stripe_subscription_id, accepts_wallet, cashback_percent, payout_enabled, stripe_account_id, use_business_payment, has_business_payment_method, use_business_payout, business_stripe_onboarding_complete, business_stripe_payouts_enabled, nfc_token, nfc_status, accepts_bookings";
+  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, is_verified, is_active, subscription_tier, subscription_until, subscription_cancel_at_period_end, stripe_subscription_id, accepts_wallet, cashback_percent, payout_enabled, stripe_account_id, use_business_payment, has_business_payment_method, use_business_payout, business_stripe_onboarding_complete, business_stripe_payouts_enabled, nfc_token, nfc_status, accepts_bookings";
 
 /* ── Plan model ───────────────────────────────────────────────────────────── */
 

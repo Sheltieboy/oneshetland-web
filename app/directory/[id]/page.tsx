@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/opening-hours";
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
@@ -391,7 +392,10 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
                 {DAYS.map(([k, label]) => (
                   <div key={k} className="flex justify-between gap-3">
                     <dt className="text-ink-muted">{label}</dt>
-                    <dd className="font-medium text-ink">{b.opening_hours?.[k] || "Closed"}</dd>
+                    {/* Blank means "not told us", NOT closed — saying closed
+                        for a day a business simply hasn't filled in turns folk
+                        away from an open shop. */}
+                    <dd className="font-medium text-ink">{formatDay(b.opening_hours?.[k])}</dd>
                   </div>
                 ))}
               </dl>
