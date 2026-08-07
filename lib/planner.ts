@@ -368,6 +368,59 @@ function pickNext(args: {
   return best ? { c: best.c, arrive: best.arrive, travel: best.travel } : null;
 }
 
+/**
+ * Trim the candidate list to something a model can hold, WITHOUT skewing it.
+ *
+ * The naive version — `candidates.slice(0, 45)` — was quietly disastrous.
+ * fetchPlaces orders newest-first, and the most recently added businesses
+ * happened to be cafés, so of 164 eligible places Peerie Bot was shown 43
+ * food, 2 retail and ZERO tourism. It wasn't choosing four food stops; food
+ * was very nearly all it had. Every plan looked like a pub crawl and the model
+ * was blameless.
+ *
+ * So: keep every event (there are few and they anchor the day), then fill by
+ * round-robin across categories so the shortlist mirrors what actually exists.
+ * Within a category, anything matching a stated interest comes first, then
+ * paying tiers, then the rest.
+ */
+export function shortlistForModel(
+  candidates: Candidate[],
+  opts: { limit?: number; interests?: Interest[] } = {},
+): Candidate[] {
+  const limit = opts.limit ?? 45;
+  const interests = opts.interests ?? [];
+
+  const events = candidates.filter((c) => c.kind === "event").slice(0, 10);
+  const places = candidates.filter((c) => c.kind === "place");
+
+  const buckets = new Map<string, Candidate[]>();
+  for (const p of places) {
+    const key = p.category ?? "other";
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key)!.push(p);
+  }
+
+  const rank = (c: Candidate) =>
+    (interests.length && c.interests.some((i) => interests.includes(i)) ? 2 : 0) + (c.tierRank ?? 0) * 0.5;
+  for (const list of buckets.values()) list.sort((a, b) => rank(b) - rank(a));
+
+  const out: Candidate[] = [...events];
+  const keys = [...buckets.keys()];
+  let added = true;
+  while (out.length < limit && added) {
+    added = false;
+    for (const k of keys) {
+      const list = buckets.get(k)!;
+      const next = list.shift();
+      if (!next) continue;
+      out.push(next);
+      added = true;
+      if (out.length >= limit) break;
+    }
+  }
+  return out;
+}
+
 /* ── Presentation helpers (shared by page and API) ────────────────────────── */
 
 export function fmtTime(d: Date): string {

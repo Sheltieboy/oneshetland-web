@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { unstable_cache } from "next/cache";
 import type { Candidate, Interest, Transport } from "@/lib/planner";
-import { fmtTime } from "@/lib/planner";
+import { fmtTime, shortlistForModel } from "@/lib/planner";
 
 /**
  * Peerie Bot's part of the day planner: choosing WHICH stops and IN WHAT
@@ -62,9 +62,15 @@ const SYSTEM =
   `Only ever use the candidate ids given. Never invent a place, and never claim anything about a place ` +
   `beyond what its description says — no opening times, no prices, no "famous for" unless it's written there.`;
 
-/** The shape sent to the model: no coordinates, no internal fields. */
-export function toModelCandidates(candidates: Candidate[]) {
-  return candidates.slice(0, 45).map((c) => ({
+/**
+ * The shape sent to the model: no coordinates, no internal fields.
+ *
+ * Trimming is done by shortlistForModel, NOT a plain slice — see the note
+ * there. A slice took the newest 45, which were almost all cafés, and left
+ * Peerie Bot unable to suggest a museum because it had never seen one.
+ */
+export function toModelCandidates(candidates: Candidate[], interests: Interest[] = []) {
+  return shortlistForModel(candidates, { limit: 45, interests }).map((c) => ({
     id: c.id,
     kind: c.kind,
     name: c.name,
@@ -159,7 +165,7 @@ export async function suggestDayOrder(input: {
   interests: Interest[];
 }): Promise<DaySuggestion | null> {
   const payload = JSON.stringify({
-    candidates: toModelCandidates(input.candidates),
+    candidates: toModelCandidates(input.candidates, input.interests),
     meta: {
       from: fmtTime(input.start),
       to: fmtTime(input.end),
