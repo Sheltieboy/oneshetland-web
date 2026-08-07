@@ -8,6 +8,7 @@ import { PlanMap } from "@/components/visiting/PlanMap";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { suggestDayOrder } from "@/lib/plan-ai.server";
 import { PeerieBadge } from "@/components/ai/PeerieBadge";
+import { PlanForm } from "@/components/visiting/PlanForm";
 
 /**
  * /visiting/plan — tell us when you're here and what you're after, get a day.
@@ -86,8 +87,6 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
     }
   }
 
-  const field = "rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none";
-  const lab = "mb-1 block text-sm font-semibold text-ink-soft";
 
   return (
     <>
@@ -103,61 +102,10 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
       </section>
 
       <main className="mx-auto max-w-5xl space-y-10 px-5 py-10">
-        {/* A plain GET form — the resulting URL IS the plan, so it can be shared. */}
-        <form method="get" className="rounded-card border border-line bg-paper p-5 shadow-soft">
-          <input type="hidden" name="go" value="1" />
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <label className={lab} htmlFor="date">Which day</label>
-              <input id="date" name="date" type="date" defaultValue={date} className={field + " w-full"} />
-            </div>
-            <div>
-              <label className={lab} htmlFor="from">From</label>
-              <input id="from" name="from" type="time" defaultValue={from} className={field + " w-full"} />
-            </div>
-            <div>
-              <label className={lab} htmlFor="to">Until</label>
-              <input id="to" name="to" type="time" defaultValue={to} className={field + " w-full"} />
-            </div>
-            <div>
-              <label className={lab} htmlFor="transport">Getting about</label>
-              <select id="transport" name="transport" defaultValue={transport} className={field + " w-full"}>
-                <option value="driving">By car</option>
-                <option value="walking">On foot</option>
-              </select>
-            </div>
-          </div>
-
-          <fieldset className="mt-5">
-            <legend className={lab}>What are you after?</legend>
-            <div className="flex flex-wrap gap-2">
-              {INTERESTS.map((i) => (
-                <label
-                  key={i.key}
-                  className="cursor-pointer rounded-pill border border-line-strong px-3.5 py-1.5 text-sm font-semibold text-ink-soft transition has-[:checked]:border-transparent has-[:checked]:bg-purple-600 has-[:checked]:text-white hover:bg-sand"
-                >
-                  <input
-                    type="checkbox"
-                    name="interests"
-                    value={i.key}
-                    defaultChecked={chosen.includes(i.key)}
-                    className="sr-only"
-                  />
-                  <span aria-hidden>{i.emoji}</span> {i.label}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-ink-faint">Pick none and we&apos;ll give you a bit of everything.</p>
-          </fieldset>
-
-          <button
-            type="submit"
-            className="mt-5 w-full rounded-pill py-3 font-semibold text-white shadow-soft transition hover:brightness-95 sm:w-auto sm:px-8"
-            style={{ background: LOCAL }}
-          >
-            Plan my day
-          </button>
-        </form>
+        {/* The form is a client component so Peerie Bot's ring-colour glow
+            can run while it thinks. The URL it navigates to is unchanged, so
+            the plan stays shareable, and it still submits without JS. */}
+        <PlanForm date={date} from={from} to={to} transport={transport} chosen={chosen} />
 
         {submitted && !validWindow && (
           <p className="rounded-card border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
