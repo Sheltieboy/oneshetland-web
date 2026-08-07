@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { unstable_cache } from "next/cache";
 import type { Candidate, Interest, Transport } from "@/lib/planner";
 import { fmtTime } from "@/lib/planner";
 
@@ -96,7 +97,11 @@ export async function askPeerieBot(
     `Candidates:\n${JSON.stringify(modelCandidates, null, 1)}`;
 
   try {
-    const client = new Anthropic({ apiKey });
+    // Fail fast to the deterministic fallback rather than let the hosting
+    // platform kill the request: a visitor waiting 30s for a day out has
+    // already given up. Measured on production, roughly two calls in five
+    // were coming back too slow and silently falling back.
+    const client = new Anthropic({ apiKey, timeout: 18000, maxRetries: 1 });
     const resp = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 2000,
@@ -120,6 +125,26 @@ export async function askPeerieBot(
  * Returns null on ANY failure — missing key, timeout, bad JSON. Callers fall
  * back to the deterministic planner, so a visitor always gets a day.
  */
+const cachedAsk = unstable_cache(
+  async (payload: string): Promise<DaySuggestion | null> => {
+    const { candidates, meta } = JSON.parse(payload);
+    return askPeerieBot(candidates, meta);
+  },
+  ["peerie-plan-day"],
+  // Long enough that a link you send someone gives them the SAME day, short
+  // enough that a new event shows up the same day it's added.
+  { revalidate: 60 * 60 * 6 },
+);
+
+/**
+ * Returns null on ANY failure — missing key, timeout, bad JSON. Callers fall
+ * back to the deterministic planner, so a visitor always gets a day.
+ *
+ * Cached on the request, which matters for more than speed: the plan is meant
+ * to be a URL you can send to whoever you're travelling with, and an uncached
+ * model call made the same link produce a different day every time it was
+ * opened. It also means a slow call is paid for once, not by every visitor.
+ */
 export async function suggestDayOrder(input: {
   candidates: Candidate[];
   start: Date;
@@ -127,10 +152,14 @@ export async function suggestDayOrder(input: {
   transport: Transport;
   interests: Interest[];
 }): Promise<DaySuggestion | null> {
-  return askPeerieBot(toModelCandidates(input.candidates), {
-    from: fmtTime(input.start),
-    to: fmtTime(input.end),
-    transport: input.transport,
-    interests: input.interests,
+  const payload = JSON.stringify({
+    candidates: toModelCandidates(input.candidates),
+    meta: {
+      from: fmtTime(input.start),
+      to: fmtTime(input.end),
+      transport: input.transport,
+      interests: [...input.interests].sort(),
+    },
   });
+  return cachedAsk(payload);
 }
