@@ -17,6 +17,12 @@ import { INTERESTS, type Interest } from "@/lib/planner";
  * So this collects the day, the hours and the interests, and hands off to
  * /visiting/plan, which keeps the plan a shareable URL.
  *
+ * Colour, not the usual paper card. Everything either side of it in the mosaic
+ * is a photograph or a warm neutral, so a white form with a purple button read
+ * as a settings panel somebody had left lying about. Filled with the Local
+ * purple it reads as an invitation, and it's the only tile of its colour, which
+ * is what makes it findable on a page this long.
+ *
  * Two layouts, one form:
  *   default — a 2×2 bento tile, stacked.
  *   wide    — a full-width band for somebody who has said they're VISITING,
@@ -24,7 +30,7 @@ import { INTERESTS, type Interest } from "@/lib/planner";
  *             the page, so it sits above the mosaic rather than inside it.
  */
 
-const LOCAL = "#7c3aed";
+const DEEP = "#5b21b6";
 
 function todayISO() {
   const d = new Date();
@@ -53,20 +59,18 @@ export function PlanDayTile({
     startTransition(() => router.push(`/visiting/plan?${p.toString()}`));
   }
 
+  // Inputs stay on white: a native date/time picker on a coloured field is
+  // unreadable in Safari, and this is the one part that has to be legible.
   const field =
-    "w-full rounded-lg border border-line bg-paper px-2.5 py-1.5 text-sm text-ink outline-none focus:border-[color:var(--local)]";
+    "w-full rounded-lg border border-white/25 bg-white/95 px-2.5 py-1.5 text-sm text-ink shadow-sm outline-none focus:border-white";
 
   const heading = (
     <div>
-      <p className="text-xs font-bold uppercase tracking-widest" style={{ color: LOCAL }}>
-        Something to do
-      </p>
-      <h3
-        className={`mt-0.5 font-display font-bold text-ink ${wide ? "text-2xl" : "text-xl"}`}
-      >
+      <p className="text-xs font-bold uppercase tracking-widest text-white/70">Something to do</p>
+      <h3 className={`mt-0.5 font-display font-bold text-white ${wide ? "text-2xl" : "text-xl"}`}>
         Plan a day out
       </h3>
-      <p className="mt-1 text-sm text-ink-muted">
+      <p className="mt-1 text-sm leading-relaxed text-white/80">
         Tell us when you&apos;re free and what you fancy — we&apos;ll lay out a day with travel
         times and a map.
       </p>
@@ -104,9 +108,11 @@ export function PlanDayTile({
             onClick={() => setPicked((p) => (on ? p.filter((k) => k !== i.key) : [...p, i.key]))}
             className={
               "rounded-pill border px-2.5 py-1 text-xs font-semibold transition " +
-              (on ? "border-transparent text-white" : "border-line-strong text-ink-soft hover:bg-sand")
+              (on
+                ? "border-white bg-white shadow-sm"
+                : "border-white/35 text-white/90 hover:border-white/60 hover:bg-white/15")
             }
-            style={on ? { background: LOCAL } : undefined}
+            style={on ? { color: DEEP } : undefined}
           >
             <span aria-hidden>{i.emoji}</span> {i.label}
           </button>
@@ -120,33 +126,46 @@ export function PlanDayTile({
       type="submit"
       disabled={pending}
       className={
-        "flex items-center justify-center gap-2 rounded-pill px-4 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:opacity-70 " +
-        (wide ? "w-full sm:w-auto sm:px-6" : "w-full")
+        "flex items-center justify-center gap-2 rounded-pill bg-white px-4 py-2.5 text-sm font-bold shadow-soft transition hover:bg-white/90 disabled:opacity-70 " +
+        (wide ? "w-full sm:w-auto sm:justify-self-start sm:px-7" : "w-full")
       }
-      style={{ background: LOCAL }}
+      style={{ color: DEEP }}
     >
       {pending && (
         <span
           aria-hidden
-          className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+          className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current"
         />
       )}
       {pending ? "Off we go…" : "Plan my day →"}
     </button>
   );
 
-  const shell = `rounded-2xl border border-line bg-paper shadow-soft ${className}`;
-  const wash = { background: `linear-gradient(150deg, ${LOCAL}0f, transparent 60%)`, "--local": LOCAL } as React.CSSProperties;
+  const shell = `relative overflow-hidden rounded-2xl shadow-lift ${className}`;
+  const paint: React.CSSProperties = {
+    background: `linear-gradient(140deg, ${DEEP} 0%, #7c3aed 52%, #9333ea 100%)`,
+  };
+
+  /* A soft light-source in the top-right stops the gradient reading as a flat
+     fill — same trick the hero uses, at a quieter volume. */
+  const sheen = (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full opacity-40 blur-2xl"
+      style={{ background: "radial-gradient(circle, rgba(255,255,255,0.55), transparent 70%)" }}
+    />
+  );
 
   if (wide) {
     return (
-      <form onSubmit={go} className={`${shell} p-5 sm:p-6`} style={wash}>
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,20rem)_1fr] lg:items-center lg:gap-8">
+      <form onSubmit={go} className={`${shell} p-5 sm:p-6`} style={paint}>
+        {sheen}
+        <div className="relative grid gap-5 lg:grid-cols-[minmax(0,20rem)_1fr] lg:items-center lg:gap-8">
           {heading}
           <div className="grid gap-3">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,24rem)_auto] sm:items-start">
               {times}
-              <div className="sm:pt-0">{submit}</div>
+              {submit}
             </div>
             {chips}
           </div>
@@ -156,11 +175,14 @@ export function PlanDayTile({
   }
 
   return (
-    <form onSubmit={go} className={`flex flex-col ${shell} p-5`} style={wash}>
-      {heading}
-      <div className="mt-3">{times}</div>
-      <div className="mt-2">{chips}</div>
-      <div className="mt-auto pt-3">{submit}</div>
+    <form onSubmit={go} className={`flex flex-col ${shell} p-5`} style={paint}>
+      {sheen}
+      <div className="relative flex h-full flex-col">
+        {heading}
+        <div className="mt-3">{times}</div>
+        <div className="mt-2">{chips}</div>
+        <div className="mt-auto pt-3">{submit}</div>
+      </div>
     </form>
   );
 }
