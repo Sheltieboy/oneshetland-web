@@ -156,6 +156,28 @@ function dwellMinutes(c: Candidate): number {
 
 const addMinutes = (d: Date, m: number) => new Date(d.getTime() + m * 60000);
 
+/**
+ * Is this effectively somewhere already in the plan?
+ *
+ * The directory holds genuine duplicates — "Jarlshof" and "Jarlshof
+ * Prehistoric and Norse Settlement" sit 81 metres apart, both visitor-ready,
+ * with different dwell times. Without this a day can contain the same place
+ * twice under two names, which is the sort of thing that destroys trust in the
+ * whole plan.
+ *
+ * Deliberately narrow: same-ish name AND within 150 metres. Two different
+ * shops in one building are not duplicates, and the Toll Clock centre alone
+ * has half a dozen neighbours within 100m.
+ */
+const nameKey = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+function isSamePlace(a: Candidate, b: Candidate): boolean {
+  const n1 = nameKey(a.name), n2 = nameKey(b.name);
+  const alike = n1 === n2 || (n1.length > 5 && (n1.includes(n2) || n2.includes(n1)));
+  if (!alike) return false;
+  return haversineKm(a, b) < 0.15;
+}
+
 /* ── The scheduler ────────────────────────────────────────────────────────── */
 
 /**
@@ -301,6 +323,10 @@ export function schedulePicks(opts: {
   for (const pick of order) {
     const c = byId.get(pick.id);
     if (!c) continue; // hallucinated or stale id — silently ignored
+    // The model can't know two listings are the same place; the directory
+    // holds pairs like "Jarlshof" and "Jarlshof Prehistoric and Norse
+    // Settlement" 81 metres apart.
+    if (stops.some((s) => isSamePlace(s.candidate, c))) continue;
 
     const travel = travelBetween(at, c, transport);
     let arrive = addMinutes(cursor, travel.minutes);
@@ -354,6 +380,7 @@ function pickNext(args: {
 
   for (const c of places) {
     if (used.has(c.id)) continue;
+    if (chosen.some((s) => isSamePlace(s, c))) continue;   // already going there
     const travel = travelBetween(at, c, transport);
     const arrive = addMinutes(cursor, travel.minutes);
     const depart = addMinutes(arrive, dwellMinutes(c));

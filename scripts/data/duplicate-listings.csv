@@ -1,0 +1,6 @@
+action,a_id,a_name,a_dwell,a_note,b_id,b_name,b_dwell,b_note,metres,both_in_plans
+retire_b,807af91b-3d54-4901-84ed-08853cf44e7f,Final Checkout Cafe,30,,8d6e8125-00a1-44eb-ac9f-dde1d7568623,Final Checkout,30,,4,yes
+retire_b,fc963285-873d-4d45-834d-3f6b7ecebbce,Scalloway Hotel,,,5374acbc-4a37-4808-8f93-445c64cdba83,Scalloway Hotel Restaurant,,,4,no
+retire_b,bc00cd84-6c1b-4713-b336-123f6029d812,Northern Lights lounge bar,60,,221a411d-bcd7-471d-be0a-02446015ccad,Northern Lights,60,,13,yes
+retire_b,889e102c-56c4-4417-94f9-ac9bdaebf504,Sumburgh Hotel,,,70713923-ba7e-471a-9e33-2ec64bb4ebe1,Sumburgh Hotel Bar,,,21,no
+retire_b,940bb80c-762f-4983-ba01-bb5e748bd64e,Jarlshof Prehistoric and Norse Settlement,90,Four thousand years of settlement in one place — Bronze Age ,63ebe56f-5ec7-487f-9064-ec3a5e60fe34,Jarlshof,30,,81,yes
