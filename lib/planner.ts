@@ -354,9 +354,19 @@ function pickNext(args: {
     }
 
     const interestHit = args.interests.length > 0 && c.interests.some((i) => args.interests.includes(i));
+
+    // A description is the best proxy we have for "somewhere a visitor would
+    // go". Watching the fallback live, it offered a flooring merchant, a shop
+    // called "Shoes" and a playpark for a history-and-shops walk — all
+    // correctly matching "retail", none of them a day out. A business that has
+    // written about itself is one that wants visitors.
+    const described = !!c.blurb && c.blurb.trim().length > 40;
+
     const score =
       (interestHit ? 60 : 0) +
       (open === true ? 25 : 0) +
+      (described ? 20 : 0) +
+      (c.kind === "event" ? 15 : 0) +
       (c.tierRank ?? 0) * 8 +
       // Two of the same kind in a row makes for a monotonous day.
       (lastCategory && c.category === lastCategory ? -35 : 0) +

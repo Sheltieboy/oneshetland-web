@@ -133,11 +133,14 @@ export function PlanUpgrade({
             {steps[step]}
           </p>
 
-          {/* How far through, so a ten-second wait doesn't feel open-ended. */}
+          {/* How far through, so a ten-second wait doesn't feel open-ended.
+              Capped at 90%: watching it live, it reached 100% with the plan
+              still coming, which is a small lie and the kind that makes a
+              progress bar worthless. It only completes when the day does. */}
           <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-sand">
             <div
               className="h-full rounded-full transition-[width] duration-700 ease-out"
-              style={{ width: `${((step + 1) / steps.length) * 100}%`, background: accent }}
+              style={{ width: `${Math.min(90, ((step + 1) / steps.length) * 90)}%`, background: accent }}
             />
           </div>
 
