@@ -15,6 +15,7 @@
  */
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { parseCsv } from "./lib/csv.mjs";
 
 const WRITE = process.argv.includes("--write");
 const fileArg = process.argv.indexOf("--file");
@@ -28,26 +29,6 @@ if (fs.existsSync(envFile)) {
     const m = line.match(/^([A-Z_]+)=(.*)$/);
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   }
-}
-
-/** Minimal CSV reader — handles quoted fields and doubled quotes. */
-function parseCsv(text) {
-  const rows = [];
-  let row = [], field = "", quoted = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quoted) {
-      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (c === '"') quoted = false;
-      else field += c;
-    } else if (c === '"') quoted = true;
-    else if (c === ",") { row.push(field); field = ""; }
-    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
-    else if (c !== "\r") field += c;
-  }
-  if (field || row.length) { row.push(field); rows.push(row); }
-  const head = rows.shift().map((h) => h.trim());
-  return rows.filter((r) => r.some((v) => v !== "")).map((r) => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? "").trim()])));
 }
 
 const VALID_SETTING = ["indoor", "outdoor", "both"];

@@ -19,6 +19,7 @@
  */
 import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import { parseCsv, csvEscape, isUuid } from "./lib/csv.mjs";
 
 const WRITE = process.argv.includes("--write");
 const envFile = new URL("../.env.local", import.meta.url).pathname;
@@ -104,7 +105,6 @@ if (!WRITE) {
   //   retire_b  — keep the first, retire the second (the suggestion)
   //   retire_a  — the other way round
   //   skip      — leave both alone, they're genuinely different
-  const esc = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
   const cols = ["action", "a_id", "a_name", "a_dwell", "a_note", "b_id", "b_name", "b_dwell", "b_note", "metres", "both_in_plans"];
   const rows = pairs.map((p) => ({
     action: "retire_b",
@@ -112,7 +112,7 @@ if (!WRITE) {
     b_id: p.drop.id, b_name: p.drop.name, b_dwell: p.drop.planner_dwell_minutes ?? "", b_note: (p.drop.planner_note ?? "").slice(0, 60),
     metres: p.metres, both_in_plans: p.keep.planner_visitor_ready && p.drop.planner_visitor_ready ? "yes" : "no",
   }));
-  fs.writeFileSync(CSV, [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\n") + "\n");
+  fs.writeFileSync(CSV, [cols.join(","), ...rows.map((r) => cols.map((c) => csvEscape(r[c])).join(","))].join("\n") + "\n");
   console.log(`Decisions written to ${CSV}`);
   console.log("Set `action` per row: retire_b (keep the a_ one), retire_a (keep the b_ one), or skip.");
   console.log("Then re-run with --write.");
@@ -122,16 +122,16 @@ if (!WRITE) {
 if (!process.env.SUPABASE_SERVICE_ROLE_KEY) { console.error("Writing needs SUPABASE_SERVICE_ROLE_KEY."); process.exit(1); }
 if (!fs.existsSync(CSV)) { console.error(`No ${CSV} — run without --write first and check it.`); process.exit(1); }
 
-const lines = fs.readFileSync(CSV, "utf8").trim().split("\n");
-const head = lines[0].split(",");
 let ok = 0, skipped = 0;
-for (const line of lines.slice(1)) {
-  const cells = line.match(/("([^"]|"")*"|[^,]*)/g).filter((_, i) => i % 2 === 0).map((c) => c.replace(/^"|"$/g, "").replace(/""/g, '"'));
-  const r = Object.fromEntries(head.map((h, i) => [h, cells[i] ?? ""]));
+for (const r of parseCsv(fs.readFileSync(CSV, "utf8"))) {
   const action = (r.action || "").trim();
   const target = action === "retire_b" ? r.b_id : action === "retire_a" ? r.a_id : null;
   const name = action === "retire_b" ? r.b_name : r.a_name;
   if (!target) { skipped++; continue; }
+  // A drifted column is the failure mode worth guarding: an id cell holding a
+  // name means the whole row is misaligned, so refuse it rather than write
+  // is_active = false somewhere unintended.
+  if (!isUuid(target)) { console.error(`  ${name || action}: "${target}" is not an id — row misread, skipping`); skipped++; continue; }
   const { error: e } = await sb.from("local_businesses").update({ is_active: false }).eq("id", target);
   if (e) console.error(`  ${name}: ${e.message}`); else { ok++; console.log(`  retired: ${name}`); }
 }
