@@ -1,6 +1,6 @@
 import { askPeerieBot } from "@/lib/plan-ai.server";
 import { getPlannerCandidates } from "@/lib/planner-data";
-import { schedulePicks, fmtTime, describeLeg, LERWICK, type Interest, type Transport } from "@/lib/planner";
+import { buildPlan, schedulePicks, fmtTime, describeLeg, LERWICK, type Interest, type Transport } from "@/lib/planner";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,10 +20,13 @@ export const dynamic = "force-dynamic";
  * visitor keeps the plan already on screen; they never see a failure, and no
  * page render ever waits on a model.
  *
- * Two shapes for two callers:
- *   • { date, from, to, transport, interests } — the website. Does the lot
- *     server-side and returns stops ready to render.
- *   • { candidates, ... } — the app, which holds its own candidates.
+ * Two shapes:
+ *   • { date, from, to, transport, interests } — does the lot server-side and
+ *     returns stops ready to render. Used by the website, and by the APP with
+ *     allowPlain (see below), so both get the identical day for identical
+ *     input rather than two planners drifting apart.
+ *   • { candidates, ... } — ordering only, for a caller holding its own
+ *     candidates.
  */
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
@@ -62,20 +65,39 @@ export async function POST(request: Request) {
     end.toISOString(),
   );
 
+  /**
+   * The website has a deterministic plan ON SCREEN already, so a 503 here is
+   * harmless — it keeps what it has. The APP has nothing to keep: it asked
+   * cold and a 503 is a blank screen. So the app sends allowPlain and gets the
+   * plain planner's day rather than an apology, which is the same safety net
+   * the website gets from rendering first, just served from here.
+   */
+  const allowPlain = body.allowPlain === true;
+
   const { suggestDayOrder } = await import("@/lib/plan-ai.server");
   const suggestion = await suggestDayOrder({ candidates, start, end, transport, interests });
-  if (!suggestion) return Response.json({ error: "no plan" }, { status: 503 });
 
   const byId = new Map(candidates.map((c) => [c.id, c] as const));
-  const scheduled = schedulePicks({ order: suggestion.picks, byId, start, end, transport, startPoint: LERWICK });
-  // Fewer than two stops isn't a day; let the page keep what it has.
-  if (scheduled.stops.length < 2) return Response.json({ error: "too thin" }, { status: 503 });
+  const scheduled = suggestion
+    ? schedulePicks({ order: suggestion.picks, byId, start, end, transport, startPoint: LERWICK })
+    : null;
+
+  // Fewer than two stops isn't a day.
+  const usable = scheduled && scheduled.stops.length >= 2 ? scheduled : null;
+
+  if (!usable && !allowPlain) {
+    return Response.json({ error: suggestion ? "too thin" : "no plan" }, { status: 503 });
+  }
+
+  const plan = usable ?? buildPlan({ candidates, start, end, transport, interests, startPoint: LERWICK });
+  if (plan.stops.length === 0) return Response.json({ error: "nothing fits" }, { status: 503 });
 
   // Flattened for rendering — no Date objects over the wire.
   return Response.json({
-    title: suggestion.title,
-    intro: suggestion.intro,
-    stops: scheduled.stops.map((s) => ({
+    by: usable ? "peerie" : "plain",
+    title: usable ? suggestion!.title : "Your day",
+    intro: usable ? suggestion!.intro : null,
+    stops: plan.stops.map((s) => ({
       id: s.candidate.id,
       name: s.candidate.name,
       href: s.candidate.href,
@@ -92,6 +114,6 @@ export async function POST(request: Request) {
       lat: s.candidate.lat,
       lng: s.candidate.lng,
     })),
-    skipped: scheduled.skipped,
+    skipped: plan.skipped,
   });
 }
