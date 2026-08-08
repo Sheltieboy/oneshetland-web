@@ -1,5 +1,6 @@
 /**
- * Give the seeded OpenStreetMap places their planner context.
+ * Give places their planner context: the seeded OpenStreetMap ones by kind,
+ * and Shetland's best-known attractions from a hand-written list.
  *
  * Nobody owns a broch, so nobody is going to fill this in — but the defaults
  * are knowable from what the place IS. A lighthouse is a 25-minute outdoor
@@ -29,6 +30,20 @@ const rows = JSON.parse(
 );
 const kindByRef = new Map(rows.map((r) => [r.osm_id, r.kind]));
 
+/**
+ * The flagships — Jarlshof, the Shetland Museum, the Crofthouse — are almost
+ * all PRE-EXISTING listings, so the seeded backfill missed every one of them.
+ * The places with good data were obscure brochs and the ones a visitor actually
+ * goes to had none, which is precisely backwards.
+ *
+ * Matched on the exact name, deliberately: a loose match put "Sumburgh Head
+ * Cafe" and "Clickimin Cafe" in the frame, which are cafés and not the
+ * attractions they're named after.
+ */
+const FLAGSHIPS = JSON.parse(
+  fs.readFileSync(new URL("./data/flagship-context.json", import.meta.url).pathname, "utf8"),
+);
+
 function client() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // A dry run only reads, and the listings are public — so it works on the anon
@@ -56,6 +71,28 @@ if (error) { console.error(error.message); process.exit(1); }
 const updates = [];
 const unknownKinds = new Set();
 
+// ── Flagships first, by exact name ──
+const { data: named } = await sb
+  .from("local_businesses")
+  .select("id, name, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_note, planner_booking")
+  .eq("is_active", true);
+
+const byName = new Map((named ?? []).map((r) => [r.name.trim().toLowerCase(), r]));
+let flagshipHits = 0, flagshipMisses = [];
+
+for (const f of FLAGSHIPS) {
+  const row = byName.get(f.match.trim().toLowerCase());
+  if (!row) { flagshipMisses.push(f.match); continue; }
+  const patch = { id: row.id };
+  if (row.planner_visitor_ready === null) patch.planner_visitor_ready = f.visitorReady;
+  if (row.planner_dwell_minutes === null && f.dwell) patch.planner_dwell_minutes = f.dwell;
+  if (row.planner_setting === null && f.setting) patch.planner_setting = f.setting;
+  if (row.planner_good_for === null && f.goodFor) patch.planner_good_for = f.goodFor;
+  if (row.planner_booking === null && f.booking) patch.planner_booking = f.booking;
+  if (row.planner_note === null && f.note) patch.planner_note = f.note;
+  if (Object.keys(patch).length > 1) { updates.push({ patch, name: row.name, kind: "flagship" }); flagshipHits++; }
+}
+
 for (const row of seeded) {
   const kind = kindByRef.get(row.source_ref);
   if (!kind) continue;
@@ -74,7 +111,8 @@ for (const row of seeded) {
 
 const ready = updates.filter((u) => u.patch.planner_visitor_ready === true).length;
 const notReady = updates.filter((u) => u.patch.planner_visitor_ready === false).length;
-console.log(`${seeded.length} seeded places; ${updates.length} to fill in`);
+console.log(`flagship attractions matched: ${flagshipHits}${flagshipMisses.length ? `  (not listed: ${flagshipMisses.join(", ")})` : ""}`);
+console.log(`${seeded.length} seeded places; ${updates.length} rows to fill in total`);
 console.log(`  marked visitor-ready:     ${ready}`);
 console.log(`  marked NOT for visitors:  ${notReady}  (halls, library — stay in the Directory)`);
 if (unknownKinds.size) console.log(`  no default for kind:      ${[...unknownKinds].join(", ")}`);

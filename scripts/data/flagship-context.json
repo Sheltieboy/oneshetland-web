@@ -1,0 +1,80 @@
+[
+  {
+    "match": "Jarlshof Prehistoric and Norse Settlement",
+    "visitorReady": true, "dwell": 90, "setting": "outdoor",
+    "goodFor": ["proper_visit", "families"], "booking": "none",
+    "note": "Four thousand years of settlement in one place — Bronze Age huts through to a Norse farm. Allow a good hour and a half."
+  },
+  {
+    "match": "Shetland Museum and Archives",
+    "visitorReady": true, "dwell": 90, "setting": "indoor",
+    "goodFor": ["wet_day", "families", "proper_visit", "food_on_site", "accessible", "free"], "booking": "none",
+    "note": "The islands' story under one roof, down at Hay's Dock. Café on site. The obvious answer to a wet afternoon."
+  },
+  {
+    "match": "Crofthouse Museum",
+    "visitorReady": true, "dwell": 45, "setting": "both",
+    "goodFor": ["families", "proper_visit"], "booking": "none",
+    "note": "A restored 1870s croft house with the fire lit — thatched roof, box beds, and a water mill down the burn."
+  },
+  {
+    "match": "Tangwick Haa Museum",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "free"], "booking": "none",
+    "note": "A laird's house in Northmavine turned local museum — fishing, crofting and the folk of the north end."
+  },
+  {
+    "match": "Old Haa Museum",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "free"], "booking": "none",
+    "note": "Yell's oldest building, now a museum and gallery with a tearoom."
+  },
+  {
+    "match": "Unst Boat Haven",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "proper_visit"], "booking": "none",
+    "note": "A shed full of traditional Shetland boats, kept as they were built and used."
+  },
+  {
+    "match": "Shetland Textile Museum",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "proper_visit"], "booking": "none",
+    "note": "Fair Isle and lace knitting at the Böd of Gremista — the work close up, and often someone knitting."
+  },
+  {
+    "match": "Scalloway Museum",
+    "visitorReady": true, "dwell": 60, "setting": "indoor",
+    "goodFor": ["wet_day", "families", "proper_visit"], "booking": "none",
+    "note": "The Shetland Bus story, next to the castle — the wartime runs to occupied Norway."
+  },
+  {
+    "match": "Quendale Mill",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "families"], "booking": "none",
+    "note": "A restored Victorian watermill in the south end, machinery and all."
+  },
+  {
+    "match": "Hoswick Visitors Centre",
+    "visitorReady": true, "dwell": 45, "setting": "indoor",
+    "goodFor": ["wet_day", "food_on_site", "free"], "booking": "none",
+    "note": "Local history, knitwear and a tearoom — an easy stop on the road south."
+  },
+  {
+    "match": "Fort Charlotte",
+    "visitorReady": true, "dwell": 25, "setting": "outdoor",
+    "goodFor": ["quick_stop", "free"], "booking": "none",
+    "note": "The 18th-century fort above Lerwick harbour. Walk the walls for the view over Bressay Sound."
+  },
+  {
+    "match": "Garrison Theatre",
+    "visitorReady": true, "dwell": 90, "setting": "indoor",
+    "goodFor": ["wet_day"], "booking": "advised",
+    "note": "Lerwick's theatre — worth checking what's on while you're here."
+  },
+  {
+    "match": "Mousa Ferry Waiting Room Exhibition",
+    "visitorReady": true, "dwell": 20, "setting": "indoor",
+    "goodFor": ["quick_stop", "free"], "booking": "none",
+    "note": "A small exhibition at Sandsayre pier, where the Mousa boat goes from."
+  }
+]
