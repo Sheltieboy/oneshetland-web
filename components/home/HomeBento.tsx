@@ -68,7 +68,7 @@ function PhotoScrim() {
   );
 }
 
-export async function HomeBento({ data, game, content, monthEvents = [], gameLeaders = [] }: { data: HomeData; game: GamePrompt; content: HomeContent | null; monthEvents?: EventListItem[]; gameLeaders?: LeaderboardTrendRow[] }) {
+export async function HomeBento({ data, game, content, monthEvents = [], gameLeaders = [], visiting = false }: { data: HomeData; game: GamePrompt; content: HomeContent | null; monthEvents?: EventListItem[]; gameLeaders?: LeaderboardTrendRow[]; visiting?: boolean }) {
   const promo = buildPromo(content);
   // When a ship is in port TODAY the cruise tile is escalated above the other
   // equal-weight tiles — mirrors the app's CruiseTodayCard "in port today" accent.
@@ -86,6 +86,28 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
     ...jobs.slice(0, 2).map((j) => ({ kind: "job" as const, id: j.id, title: j.title, sub: `${j.location || "Shetland"}${j.pay_text ? ` · ${j.pay_text}` : ""}` })),
     ...shifts.slice(0, 2).map((s) => ({ kind: "shift" as const, id: s.id, title: s.title, sub: `${s.location_text || "Shetland"}${s.pay_text ? ` · ${s.pay_text}` : ""}` })),
   ].slice(0, 4);
+
+  // Defined once so the pair can swap slots without duplicating either.
+  const cruiseTile = shipInToday ? (
+    <div
+      className="relative h-full rounded-2xl p-1 shadow-lift lg:col-span-2 lg:row-span-2"
+      style={{ background: `linear-gradient(135deg, ${CRUISE_ACCENT}, ${CRUISE_ACCENT}66)` }}
+    >
+      <span
+        className="absolute -top-2 left-4 z-10 rounded-pill px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-soft"
+        style={{ background: CRUISE_ACCENT }}
+      >
+        Ship in today
+      </span>
+      <CruiseTodayCard className="h-full" />
+    </div>
+  ) : (
+    <CruiseTodayCard className="h-full lg:col-span-2 lg:row-span-2" />
+  );
+
+  /* Form only; a plan is a map and six stops, so it goes to /visiting/plan,
+     which also keeps the plan a shareable URL. */
+  const plannerTile = <PlanDayTile className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />;
 
   return (
     <section className="mx-auto max-w-6xl px-5 pt-12">
@@ -112,33 +134,21 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
         {/* ── Editable welcome copy ─────────────────────────────────── */}
         <PromoCopyTile p={promo.welcome} className="lg:col-span-2" />
 
-        {/* ── In port today (cruise) — self-contained tile ──────────── */}
-        {/* When a ship is in port TODAY the tile is escalated: a coloured ring
-            + "Ship in today" badge lift it above the equal-weight tiles. */}
-        {shipInToday ? (
-          <div
-            className="relative h-full rounded-2xl p-1 shadow-lift lg:col-span-2 lg:row-span-2"
-            style={{ background: `linear-gradient(135deg, ${CRUISE_ACCENT}, ${CRUISE_ACCENT}66)` }}
-          >
-            <span
-              className="absolute -top-2 left-4 z-10 rounded-pill px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-white shadow-soft"
-              style={{ background: CRUISE_ACCENT }}
-            >
-              Ship in today
-            </span>
-            <CruiseTodayCard className="h-full" />
-          </div>
-        ) : (
-          <CruiseTodayCard className="h-full lg:col-span-2 lg:row-span-2" />
-        )}
+        {/* ── Cruise and planner — which sits higher depends on the day ──
+             The planner takes the upper slot: for most people "what shall we
+             do" beats "is there a ship in". Two things outrank it, and both
+             are time-limited —
+
+               · a ship in port TODAY, which is true for one day and not the
+                 next, and already has escalation logic below;
+               · nothing, if they're VISITING — then the planner isn't in the
+                 mosaic at all, it's the full-width band above it, and cruise
+                 simply keeps its old place. */}
+        {visiting || shipInToday ? cruiseTile : plannerTile}
+        {visiting ? null : shipInToday ? plannerTile : cruiseTile}
 
         {/* ── What's on this month — compact calendar ───────────────── */}
         <BentoCalendarTile monthEvents={monthEvents} className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
-
-        {/* ── Plan a day out — the planner's front door ──────────────
-             Form only; the result needs a map and six stops and goes to
-             /visiting/plan, which also keeps the plan a shareable URL. */}
-        <PlanDayTile className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
 
         {/* ── Today's game — self-contained tile ────────────────────── */}
         <GamePromptCard game={game} leaders={gameLeaders} className="h-full lg:col-span-2" />

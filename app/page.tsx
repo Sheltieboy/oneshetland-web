@@ -9,6 +9,7 @@ import { SectionGrid } from "@/components/home/SectionGrid";
 import { ShetlandTodayCard } from "@/components/home/ShetlandTodayCard";
 import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
 import { ForYou } from "@/components/home/ForYou";
+import { PlanDayTile } from "@/components/home/PlanDayTile";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
 import { getHomeShelves } from "@/lib/home-shelves";
@@ -117,6 +118,17 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ── Plan a day out — full width, for somebody who's VISITING ──────
+             Top of the page, above "For you", because for a visitor "what
+             shall we do today" IS the reason they opened it. For somebody who
+             lives here it stays a tile in the mosaic, where it reads as one
+             option among many rather than the question of the day. */}
+      {visiting && (
+        <section className="mx-auto max-w-6xl px-5 pt-12">
+          <PlanDayTile wide />
+        </section>
+      )}
+
       {/* ── For you — personalised, signed-in only ───────────────────────── */}
       {account && forYou.length > 0 && (
         <ForYou name={accountName(account).split(" ")[0]} items={forYou} />
@@ -138,7 +150,7 @@ export default async function Home() {
       <FeaturedShelf shelves={shelves} />
 
       {/* ── Bento — the live homepage mosaic ─────────────────────────────── */}
-      <HomeBento data={data} game={game} content={homeContent} monthEvents={monthEvents} gameLeaders={gameLeaders} />
+      <HomeBento data={data} game={game} content={homeContent} monthEvents={monthEvents} gameLeaders={gameLeaders} visiting={visiting} />
 
       {/* ── The middle of the page is ordered for who's reading it.
              A visitor came for what's on, the shops and the island itself.
