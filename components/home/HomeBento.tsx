@@ -13,6 +13,7 @@ import { type GamePrompt } from "@/lib/home-extras";
 import { type EventListItem } from "@/lib/events-data";
 import { type LeaderboardTrendRow } from "@/lib/games-data";
 import { BentoCalendarTile } from "@/components/home/BentoCalendarTile";
+import { PlanDayTile } from "@/components/home/PlanDayTile";
 
 /* The three editable promo tiles are managed in the admin control centre
    (/admin/homepage) and stored in the `home_content` table — see buildPromo().
@@ -133,6 +134,11 @@ export async function HomeBento({ data, game, content, monthEvents = [], gameLea
 
         {/* ── What's on this month — compact calendar ───────────────── */}
         <BentoCalendarTile monthEvents={monthEvents} className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
+
+        {/* ── Plan a day out — the planner's front door ──────────────
+             Form only; the result needs a map and six stops and goes to
+             /visiting/plan, which also keeps the plan a shareable URL. */}
+        <PlanDayTile className="sm:col-span-2 lg:col-span-2 lg:row-span-2" />
 
         {/* ── Today's game — self-contained tile ────────────────────── */}
         <GamePromptCard game={game} leaders={gameLeaders} className="h-full lg:col-span-2" />
