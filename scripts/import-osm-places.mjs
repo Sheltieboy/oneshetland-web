@@ -73,7 +73,15 @@ function convertHours(osm) {
   return Object.keys(out).length ? out : null;
 }
 
-const tierA = rows.filter((r) => r.tier === "A" && !r.duplicate_of);
+// OSM names that are real features but useless as directory listings: the
+// numbered segments of the Funzie Girt wall ("End section 4/ beginning section
+// 5"), unnamed mills, bare "War Memorial". Caught only after the first run put
+// 25 of them live.
+const JUNK_NAME = /^(mill|war memorial|beginning section|end ?section)/i;
+
+const tierA = rows.filter(
+  (r) => r.tier === "A" && !r.duplicate_of && !JUNK_NAME.test(r.name.trim()) && r.name.trim().length >= 5,
+);
 
 const payload = tierA.map((r) => ({
   name: r.name,
@@ -108,11 +116,37 @@ if (!WRITE) {
   process.exit(0);
 }
 
+const sb = client();
+
 let ok = 0, failed = 0;
 for (let i = 0; i < payload.length; i += 50) {
   const batch = payload.slice(i, i + 50);
-  const { error } = await client().from("local_businesses").upsert(batch, { onConflict: "source,source_ref" });
+  const { error } = await sb.from("local_businesses").upsert(batch, { onConflict: "source,source_ref" });
   if (error) { console.error("batch failed:", error.message); failed += batch.length; }
   else ok += batch.length;
 }
 console.log(`\nwritten: ${ok}, failed: ${failed}`);
+
+// Reconcile: anything THIS importer created before and no longer wants is
+// removed, so a tightened filter cleans up after itself instead of leaving
+// yesterday's mistakes live.
+//
+// Scoped hard to rows with a source_ref, which only this script sets. An
+// earlier import left 265 rows with source='openstreetmap' and NO source_ref;
+// those are somebody else's and must never be touched here.
+const keep = new Set(payload.map((p) => p.source_ref));
+const { data: existing } = await sb
+  .from("local_businesses")
+  .select("id,name,source_ref")
+  .eq("source", "openstreetmap")
+  .not("source_ref", "is", null);
+
+const stale = (existing ?? []).filter((r) => !keep.has(r.source_ref));
+if (stale.length) {
+  console.log(`\nremoving ${stale.length} listing(s) this importer no longer wants:`);
+  for (const r of stale.slice(0, 30)) console.log(`  · ${r.name}`);
+  const { error } = await sb.from("local_businesses").delete().in("id", stale.map((r) => r.id));
+  console.log(error ? `  removal FAILED: ${error.message}` : "  removed");
+} else {
+  console.log("\nnothing stale to remove.");
+}
