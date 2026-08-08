@@ -8,20 +8,22 @@ import { PlanMap } from "@/components/visiting/PlanMap";
 import { PEERIE } from "@/lib/peerie";
 
 /**
- * Shows the plain plan straight away, then upgrades to Peerie Bot's once it
- * answers.
+ * Waits for Peerie Bot, then shows ONE plan.
  *
- * This exists because doing it the obvious way kept taking the page down. The
- * server used to await the model inside its own render: a 20-second call, plus
- * whatever a signed-in visitor's layout does, and the host killed the request —
- * an error page instead of a day out. The fallback was there to prevent exactly
- * that and never got the chance to run.
+ * The first version showed the deterministic plan immediately and swapped in
+ * Peerie Bot's when it arrived. Darren's verdict, and he's right: worse than
+ * waiting. You read a plan, it glowed for no reason you could see, then became
+ * a different plan — so you can't trust what's in front of you.
  *
- * Now nothing on the request path waits for a model. The visitor has a complete
- * day, with times and a map, before the browser has even asked for the better
- * one. If that request is slow, fails, or the account is out of credit, they
- * simply keep what they're looking at — the upgrade is the only thing that can
- * fail, and its failure is silence.
+ * So there's a proper wait now: a skeleton that says what's happening, then the
+ * finished day. Nothing changes under the reader. If Peerie Bot can't answer,
+ * the deterministic plan appears instead — the same single transition, and the
+ * visitor never learns anything went wrong.
+ *
+ * The wait happens HERE, in the browser, and not in the page render. The server
+ * used to await the model itself: a 20-second call plus a signed-in visitor's
+ * layout work, and the host killed the request — an error page instead of a day
+ * out. Waiting in the browser costs nothing and can't take a page down.
  */
 
 type Upgraded = { title: string; intro: string; stops: StopView[]; skipped: { name: string; reason: string }[] };
@@ -67,6 +69,39 @@ export function PlanUpgrade({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Nothing is shown until we know which plan it is.
+  if (busy) {
+    return (
+      <AiGlow active>
+        <div className="rounded-card border border-line bg-paper p-6 shadow-soft">
+          <div className="flex items-center gap-3">
+            <span
+              aria-hidden
+              className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink/20 border-t-ink/60"
+            />
+            <p className="font-display text-lg font-bold text-ink">
+              {PEERIE.name} is putting your day together…
+            </p>
+          </div>
+          <p className="mt-1 text-sm text-ink-muted">
+            Working out what&apos;s worth seeing, in an order that makes sense. Usually about ten seconds.
+          </p>
+
+          {/* Placeholder rows in the shape of the real thing, so the page
+              doesn't jump when the plan lands. */}
+          <ul className="mt-5 space-y-3" aria-hidden>
+            {[0, 1, 2, 3].map((i) => (
+              <li key={i} className="flex items-center gap-4">
+                <span className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-sand" />
+                <span className="h-12 flex-1 animate-pulse rounded-card bg-sand" style={{ animationDelay: `${i * 120}ms` }} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      </AiGlow>
+    );
+  }
+
   const stops = plan?.stops ?? fallbackStops;
   const skipped = plan?.skipped ?? fallbackSkipped;
 
@@ -84,12 +119,6 @@ export function PlanUpgrade({
             <h2 className="font-display text-2xl font-bold">
               Your day — {stops.length} stop{stops.length === 1 ? "" : "s"}
             </h2>
-            {busy && (
-              <p className="mt-1 flex items-center gap-2 text-sm text-ink-muted">
-                <span aria-hidden className="h-3 w-3 animate-spin rounded-full border-2 border-ink/20 border-t-ink/60" />
-                {PEERIE.name} is having a look to see if it can do better…
-              </p>
-            )}
           </>
         )}
         <p className="mt-1 text-sm text-ink-muted">
@@ -102,10 +131,7 @@ export function PlanUpgrade({
         points={stops.map((s) => ({ lat: s.lat, lng: s.lng, label: s.name, time: s.arrive }))}
       />
 
-      {/* The glow runs on the list itself — it's the thing about to change. */}
-      <AiGlow active={busy && !plan}>
-        <Itinerary stops={stops} accent={accent} />
-      </AiGlow>
+      <Itinerary stops={stops} accent={accent} />
 
       {skipped.length > 0 && (
         <p className="text-sm text-ink-muted">
