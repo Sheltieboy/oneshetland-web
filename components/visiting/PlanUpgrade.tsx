@@ -6,6 +6,7 @@ import { PeerieBadge } from "@/components/ai/PeerieBadge";
 import { Itinerary, type StopView } from "@/components/visiting/Itinerary";
 import { PlanMap } from "@/components/visiting/PlanMap";
 import { PEERIE } from "@/lib/peerie";
+import { INTERESTS } from "@/lib/planner";
 
 /**
  * Waits for Peerie Bot, then shows ONE plan.
@@ -28,6 +29,38 @@ import { PEERIE } from "@/lib/peerie";
 
 type Upgraded = { title: string; intro: string; stops: StopView[]; skipped: { name: string; reason: string }[] };
 
+/**
+ * What to say during the wait.
+ *
+ * Every line is something the planner ACTUALLY does, in the order it does it:
+ * it reads the interests, gathers candidates by category, checks opening hours,
+ * computes travel between stops, then fits the window. Inventing steps to fill
+ * the time would be theatre, and the moment one didn't match what came back
+ * you'd stop believing the rest of the page.
+ */
+function progressSteps(q: { from: string; to: string; transport: string; interests: string[] }): string[] {
+  const wanted = q.interests
+    .map((k) => INTERESTS.find((i) => i.key === k)?.label.toLowerCase())
+    .filter(Boolean) as string[];
+
+  const list =
+    wanted.length === 0 ? "a bit of everything"
+    : wanted.length === 1 ? wanted[0]
+    : `${wanted.slice(0, -1).join(", ")} and ${wanted[wanted.length - 1]}`;
+
+  return [
+    "Reading your search…",
+    `Looking for ${list}…`,
+    "Checking what's open while you're here…",
+    q.transport === "walking"
+      ? "Working out what's within walking distance…"
+      : "Working out the drive between each stop…",
+    `Fitting it into ${q.from} to ${q.to}…`,
+    "Putting them in an order that makes sense…",
+    "Nearly there…",
+  ];
+}
+
 export function PlanUpgrade({
   fallbackStops,
   fallbackSkipped,
@@ -41,6 +74,17 @@ export function PlanUpgrade({
 }) {
   const [plan, setPlan] = useState<Upgraded | null>(null);
   const [busy, setBusy] = useState(true);
+  const [step, setStep] = useState(0);
+
+  const steps = progressSteps(query);
+
+  // Advance through the lines while waiting, holding on the last one rather
+  // than looping — a loop would say the work had restarted.
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(() => setStep((n) => Math.min(n + 1, steps.length - 1)), 1900);
+    return () => clearInterval(t);
+  }, [busy, steps.length]);
 
   useEffect(() => {
     let alive = true;
@@ -80,12 +124,22 @@ export function PlanUpgrade({
               className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-ink/20 border-t-ink/60"
             />
             <p className="font-display text-lg font-bold text-ink">
-              {PEERIE.name} is putting your day together…
+              {PEERIE.name} is putting your day together
             </p>
           </div>
-          <p className="mt-1 text-sm text-ink-muted">
-            Working out what&apos;s worth seeing, in an order that makes sense. Usually about ten seconds.
+
+          {/* key= restarts the animation, so each line slides in as it lands. */}
+          <p key={step} className="plan-step mt-2 text-sm font-medium text-ink-soft" aria-live="polite">
+            {steps[step]}
           </p>
+
+          {/* How far through, so a ten-second wait doesn't feel open-ended. */}
+          <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-sand">
+            <div
+              className="h-full rounded-full transition-[width] duration-700 ease-out"
+              style={{ width: `${((step + 1) / steps.length) * 100}%`, background: accent }}
+            />
+          </div>
 
           {/* Placeholder rows in the shape of the real thing, so the page
               doesn't jump when the plan lands. */}
