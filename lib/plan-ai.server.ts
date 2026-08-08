@@ -111,13 +111,18 @@ export async function askPeerieBot(
     // whole point of the fallback is that the visitor always gets a day.
     // Measured in production: exactly 36.15s to the error page.
     //
-    // One attempt, 12 seconds. If Peerie Bot can't answer in that, the
-    // deterministic planner renders instead and nobody sees a failure.
-    const client = new Anthropic({ apiKey, timeout: 12000, maxRetries: 0 });
+    // One attempt, 20 seconds. 12s was too tight — measured on production,
+    // five calls in six were timing out at 12.7s while a 15.6s call returned
+    // fine, so the host's ceiling is comfortably above that and the budget was
+    // throwing away good answers. 36s is known to be fatal; 20 leaves room.
+    const client = new Anthropic({ apiKey, timeout: 20000, maxRetries: 0 });
     const resp = await client.messages.create({
       model: "claude-opus-4-8",
-      max_tokens: 2000,
-      thinking: { type: "adaptive" },
+      max_tokens: 1500,
+      // No extended thinking here, unlike the form-parsing routes. This is a
+      // selection task against an explicit set of rules, not something needing
+      // deliberation, and thinking was the bulk of the latency that had five
+      // calls in six timing out. The scheduler validates the answer anyway.
       output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
       system: SYSTEM,
       messages: [{ role: "user", content: user }],
