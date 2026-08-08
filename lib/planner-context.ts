@@ -29,6 +29,13 @@ export const GOOD_FOR = [
   { key: "dogs",        label: "Dogs welcome" },
   { key: "accessible",  label: "Step-free access" },
   { key: "free",        label: "Free to visit" },
+  // Added by Darren while reviewing the 391 — all three describe something the
+  // original list couldn't. `stay_overnight` in particular records what a hotel
+  // IS without putting it in a day plan, which is why those rows stay
+  // visitor_ready false.
+  { key: "stay_overnight",      label: "Somewhere to stay" },
+  { key: "local_shop_food_etc", label: "Local shop — food and essentials" },
+  { key: "quick_food_stop",     label: "A quick bite" },
 ] as const;
 
 export const GOOD_FOR_LABEL: Record<string, string> =

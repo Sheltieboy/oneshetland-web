@@ -1,392 +1,392 @@
 id,name,category,has_coords,visitor_ready,dwell_minutes,setting,good_for,booking,note,proposed_by,source_url,their_description
-32c67bbf-6873-430d-b442-6b8272ece482,Spiggie Hotel,accommodation,yes,false,,,,,,rules,,
-bfe727e1-b531-4976-a5cb-fe16503f1352,Weisdale Mill,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-9a4c3a1a-d8d4-4624-9b61-4d457022b4b5,Wind Lodge Bod,accommodation,yes,false,,,,,,rules,,
-8e3ff71c-1442-405e-84c3-0de4eff64c99,Anderson & Co,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Anderson & Co is a long-established family business specialising in Shetland knitwear, crafts, and children’s clothing. Founded in 1873, the shop produces and s"
-807af91b-3d54-4901-84ed-08853cf44e7f,Final Checkout Cafe,food_drink,yes,true,30,indoor,,,,fsa:Retailers - other,,
-e437ef9b-afb2-4692-bff9-2ad81257c53c,Bobby's Bus Shelter,tourism,yes,true,60,both,proper_visit,,,rules,,
-817dff04-b50c-4362-a5f4-902df47ca801,Baltasound Hotel & Restarant,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-5cd3812d-b8b3-47b6-9249-1c7bc28e36d4,Hendersons Store (Ethel's),retail,yes,true,30,indoor,,,,rules,,
-b88efc29-1053-4b83-b766-84d02c6e4a4c,Viking Longship,tourism,yes,true,60,both,proper_visit,,,rules,,
-83737693-fa8e-40b3-863c-c622354517f8,Foords Chocolates,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-2b25ed25-4678-48a8-86b0-4734e38286eb,Fetlar General Merchants,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-d6b3f683-e817-4bb9-bc46-dd081d53f346,Braewick Caravan Park,accommodation,yes,false,,,,,,rules,,
-d840c7ff-0942-45b5-b9fd-63b5e9467cc7,The Bixter Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-cc1b55d7-e0e1-4a05-a9b5-fa91b67e0b53,Robertson & Morrison,services,yes,false,,,,,,rules,,
-6b4a7381-6f73-43e7-98d3-dccad608ae3f,Barclay Arms,accommodation,yes,false,,,,,,rules,,
-d5824d15-322b-4870-b067-eb0d2eaef609,Mainlands,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-f678fe06-dabf-4036-85fd-77d6fe765214,Bressay Post Office,services,yes,false,,,,,,rules,,
-bacea841-495b-4828-9381-53e3fe41ed95,The Sail Loft,accommodation,yes,false,,,,,,rules,,
-67df91e6-08e4-4f7f-9e46-cb128d2307f2,Betty Mouat's Camping Böd,accommodation,yes,false,,,,,,rules,,
-0a59867a-f107-4854-8195-d3ad645b009d,The Checkout,retail,yes,true,30,indoor,,,,rules,,
-77a8dc3e-1232-488a-8b8f-c61b8a73f914,Scalloway Meat Company,retail,yes,false,,,,,,fsa:Manufacturers/packers,,
-e6e0ccc8-b0f8-4d7e-adaf-e14d6b69333c,One-stop,retail,yes,true,30,indoor,,,,rules,,
-fcbabe03-cf62-4433-bf52-7b734d3a985d,Frank Williamson,retail,yes,true,30,indoor,,,,rules,,
-205c7be2-26fc-47c0-9e82-8990f0d81466,Freefield Post Office,services,yes,false,,,,,,rules,,
-4d16f76c-6763-47f7-99c3-d197c4a68d04,Scoop Wholefoods,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-098ea1a1-9573-41dd-80e4-968a9a33d099,Bolts Filling Station,services,yes,false,,,,,,rules,,
-2f65faaa-8f4e-46cc-8448-8ee81fad04e0,Heima,retail,yes,true,30,indoor,,,,rules,,
-077706ac-fa12-41c6-b356-90c0a2bc40ff,Freefield Pharmacy,services,yes,false,,,,,,rules,,
-97839993-02b1-4e33-b4e9-3197d49e749e,Alex Morrisons,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-fda30a7d-121a-4c16-b2a9-e558bf4ea347,Happy Haddock,food_drink,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-fdc98314-ce95-4825-a919-307a23050671,Anderson Globe,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-fc22a37d-e96a-4a44-8371-e66757cbda65,Tasty Hong Kong Takeaway,food_drink,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-b62f6a07-624b-4ec6-a4a9-d57dc512849e,Himalayan Lounge,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Every sunday all day buffet
-23e07592-89df-45df-a4f4-3c26bd4b726f,Trench Bar,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-47a1bc77-2884-4b50-b845-070c29d5838a,Baltasound Post Office,services,yes,false,,,,,,rules,,
-2447e94b-c03b-42f8-b619-605dd3695926,Skibhoull Stores,services,yes,false,,,,,,rules,,
-427b2c68-1019-426b-b08d-9368b498a0a2,Victoria's Vintage Tea Rooms,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-2e0e97db-afc5-4d96-9249-d4776df8776f,Walls Post Office,services,yes,false,,,,,,rules,,
-94c96433-1f38-4aeb-ac9e-1a53f28fd6fd,Hay's Dock,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-c0e14a60-ae4d-4a41-8b3e-f06267e95f5c,Lerwick Post Office,services,yes,false,,,,,,rules,,
-cb221a6d-a283-4fcc-9016-8a75e564707d,Scalloway Post Office,services,yes,false,,,,,,rules,,
-ae711888-1e9a-4306-8247-82f76fdc0740,Skerries Post Office,services,yes,false,,,,,,rules,,
-36969259-ef78-450a-b508-052a9b78394f,Aith Post Office,services,yes,false,,,,,,rules,,
-7de2bf92-4c66-4abb-bf1b-5f9296649b03,The Lerwick Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-76225069-e8dd-4f35-b4df-6ef5a597bcc1,Ollaberry Post Office,services,yes,false,,,,,,rules,,
-efc68724-80ff-44f8-a488-aa9a7314670b,Ulsta Post Office,services,yes,false,,,,,,rules,,
-6b3835a7-e5ff-4757-937c-49596479ceb1,Burravoe Post Office,services,yes,false,,,,,,rules,,
-5ff6e41c-a5ef-403c-833d-c44f4f3c1187,Fetlar Post Office,services,yes,false,,,,,,rules,,
-1caf7e07-ff38-4b28-80be-708aa700168e,Symbister Post Office,services,yes,false,,,,,,rules,,
-7b8cb56e-e245-4b60-bacc-d7182aa86710,Bixter Post Office,services,yes,false,,,,,,rules,,
-9162717a-4fb9-464d-9f2b-67f2ec7dc206,Clickimin Cafe,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-b68c6969-8f89-479b-8e7a-83c63bfe7e12,Islesburgh Cafe,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-bc859f3d-24c7-4a68-9387-3567457fd913,Spar,retail,yes,true,30,indoor,,,,rules,,
-979e9774-7a51-47d6-98e0-e116388fb8e0,Sandwick Bakery,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-4fa4d54b-665b-4950-bf88-87be6fa370e6,Brucefield Stores,retail,yes,true,30,indoor,,,,rules,,
-fc963285-873d-4d45-834d-3f6b7ecebbce,Scalloway Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-93d0b287-629a-4d5b-81b8-f2cb4915e50f,Alder Lodge,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-b49e1223-fd95-4e67-acba-1cbc692c6b8a,Douglas Arms,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-f179a7b4-56fa-4b53-8ef0-45e74543a612,Eddlewood,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-beb9b6e7-5a7f-40a5-9e50-e36673b609cf,Gurkha Kitchen,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-4082d226-3e28-45ec-9d24-bc64d148bb5e,Kveldsro House Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-84a39d3e-e998-4a6e-869c-b0f5e0ff5636,RBS,services,yes,false,,,,,,rules,,
-ef322ab0-bb6f-47a8-8dc9-f7756dcc13d3,Shetland Community Bike Project,retail,yes,true,30,indoor,,,,rules,,
-50cb3a19-0464-41d9-b4f5-7365f5ecb2b4,The Great Wall,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-c9a9f25f-39d4-43ce-9788-83352ef2b8e0,Anderson Butchers,retail,yes,false,,,,,,fsa:Manufacturers/packers,,
-aedfc33e-0b80-425a-ab2f-db221da8ea4b,Da Haaf,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-1a8a2d3e-07c2-4f7f-80da-34b87179ae15,North Roe Post Office,services,yes,false,,,,,,rules,,
-2bd8d00c-c4bc-4aca-b630-75e6db365cc8,Lerwick Fishery Office,services,yes,false,,,,,,rules,,
-0c84fe37-e1cc-4d43-8c10-414ea5c960fd,Brae Post Office,services,yes,false,,,,,,rules,,
-eee5b71e-d2c4-4162-ba6a-10345b1929c6,Healthcraft,retail,yes,true,30,indoor,,,,rules,,
-211e3924-4918-46f5-91cf-558484f9ead8,Braewick Cafe,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-b10022a8-1f88-46f0-9841-192ad4acfabd,North Base Cafe,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-baf8f197-758b-4a32-9773-f0e014bdfb0a,RAF Saxa Vord Exhibition,tourism,yes,true,60,both,proper_visit,,,rules,,
-839f6521-942f-406c-8cd4-292ed497d900,Skibhoul Stores,retail,yes,false,,,,,,fsa:Manufacturers/packers,,
-bf9e574d-7aa0-408f-ae7f-1afeeb7a157f,Kiln Bar,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-ea6d5726-acd5-43c2-9610-fb6e6d5d040c,Hai Yang,food_drink,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-a18f7093-f505-4575-842b-82cf54162e5d,Dunrossness Post Office,services,yes,false,,,,,,rules,,
-f7a8915a-a80b-467c-8c4b-ca42369471c0,Da Craft Shed,retail,yes,true,30,indoor,,,,rules,,
-6ce8c083-8cfc-45ba-a43c-494b6b646023,Shetland Jewellery,retail,yes,true,30,indoor,,,,rules,,
-275dc936-3af6-42f4-b43d-4c881bad352c,Outdoor Trek,retail,yes,true,30,indoor,,,,rules,,
-13f3caa5-429c-43c7-b4c5-00c561ad114b,Jamieson’s Knitwear,retail,yes,true,30,indoor,,,,rules,,
-ad9773a5-b420-42e6-92f4-511e61189148,RNLI Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-4b01b686-0de7-48fc-9d76-acae328c84d7,Connie Lauren,retail,yes,true,30,indoor,,,,rules,,
-99fdddf8-d1a7-46ab-90ba-47b26fa99a98,Conochies,food_drink,yes,true,30,indoor,,,,fsa:Retailers - other,,
-b0e928bc-d62e-4db9-aaf4-c4b8e07a604e,Avril Thomson-Smith,retail,yes,true,30,indoor,,,,rules,,
-aef1371e-be74-41bb-b961-ee3797cbc835,Shoes,retail,yes,true,30,indoor,,,,rules,,
-40d9c014-ecf6-4f96-a625-04fe24a41eb4,No 88 Kitchen and Bar,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-20f5775c-b1ea-4938-9b1d-9d763916e619,J G Rae Ltd,retail,yes,true,30,indoor,,,,rules,,
-7f7b4827-8a4f-4887-b829-5dbb585bba0d,Sound Service Station,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-e17553fc-d433-4e31-9fd8-c97ace1103c9,Bigton Community Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-4d4f3093-8f9f-483b-bb5a-c7c252ff5d3c,Herrislea House Hotel,accommodation,yes,false,,,,,,rules,,
-94dcf034-301a-4cc1-97f5-26b71a196762,Skellister Stores,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-765ee31e-1a99-4413-b95b-0a79bd3349cf,Setterbrae B&B,accommodation,yes,false,,,,,,rules,,
-91206abb-3188-4520-90c4-2ceba4a1814c,Almara B&B,accommodation,yes,false,,,,,,rules,,
-ce451c65-7d2c-4c65-a9a6-0a7a8b1730ff,Hair & Beauty Room,retail,yes,true,30,indoor,,,,rules,,
-0a5dca13-c1ea-4995-bf3c-1eaa2075deee,Taste of China,food_drink,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-e5f9f4ed-1d9e-4e1e-a83d-a5abdf12baf4,Greystones Guesthouse,accommodation,yes,false,,,,,,rules,,
-95fdc8cc-5c38-43ac-8368-f249d4e408b3,Mid Brae Inn,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-b1193096-2fad-46f8-9cd7-6db26a646c0f,Ollaberry Co-operative,retail,yes,true,30,indoor,,,,rules,,"A thriving general store owned and run by the local community offering a wide range of everyday items such as fresh fruit and vegetables, fresh bread and dairy,"
-716ebf4e-7b05-42c9-b51b-691f64cf2769,Tagon Stores,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-d865a3b1-8e75-4cdd-b254-cb9d3ad396d3,Valleyfield Guest House,accommodation,yes,false,,,,,,rules,,
-6cccb3c2-76b5-4b32-add9-25b5d54af2bf,Cullivoe Post Office,services,yes,false,,,,,,rules,,
-b871f167-6e8d-4aeb-bff0-b1d689ca4053,Fjarå Coffee,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-d3243ad2-ebe9-477d-8950-5e47fbe187cc,Brae Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-78b5ba85-f04c-45b0-ba56-ed4be004f295,Vadsdal B&B,accommodation,yes,false,,,,,,rules,,
-221a411d-bcd7-471d-be0a-02446015ccad,Northern Lights,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-3fdc34b5-6537-49dc-b03e-ae78a2a1aea6,Frankie's Fish & Chips,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-bc00cd84-6c1b-4713-b336-123f6029d812,Northern Lights lounge bar,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-110725df-57af-4f15-945f-bb4c1d864427,Quam B&B,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-40bc406f-4e43-4b2a-8bbd-1ff122c39f62,Valhalla Brewery,services,yes,false,,,,,,rules,,
-24957a3f-7e77-46d3-aea0-460d891e8f0d,Saxa Vord resort,accommodation,yes,false,,,,,,rules,,
-c4070f26-7606-4f32-8dd4-01b713587afb,Shetland Reel Distillery,tourism,yes,true,60,both,proper_visit,,,rules,,
-83e28e23-5961-4fe4-99e6-24acec1c61b0,Viking Longhouse,tourism,yes,true,60,both,proper_visit,,,rules,,
-8eab8422-570c-4460-998f-308c8f15733b,Independent Fuel Station,services,yes,false,,,,,,rules,,
-bf3742f0-2b78-4963-99f5-9eb84fa374b5,Smugglers Cove Entrance,tourism,yes,true,60,both,proper_visit,,,rules,,
-e7ce8ace-d703-46ab-91f4-7064fd0d669a,Made Here Chocalate,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-d7057399-2711-4f08-b006-c2b1fce4f508,Da Steak Hoose,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-d2cc74bc-5424-4e59-a4c1-b7237e78e97a,The Lounge,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-dc248705-0e8f-4879-b100-cef6a6b632dc,The Shetland Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-f83c67b1-c87a-483d-ad3d-de8ff91ef2e5,Golden Wok,food_drink,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-e3badc2c-9646-4e93-9e09-a3d3c79036c5,T L Dallas,services,yes,false,,,,,,rules,,
-8ccdbc38-bbff-492d-8502-d48d5b79ce5d,Saffron,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-cee455f3-e5fe-4132-b032-0140665b54ee,Muddy Bay,retail,yes,true,30,indoor,,,,rules,,
-284db5ac-7284-4633-88bb-305ddbd806c6,ITS,retail,yes,true,30,indoor,,,,rules,,
-a98ce732-c462-4faf-ae69-56a50d96359e,Allied Taxis,services,yes,false,,,,,,rules,,
-6bf83bda-98ca-4d8a-a9b6-d1c4e454abfe,Virkie Post Office,services,yes,false,,,,,,rules,,
-78b7af84-0bac-4f08-a075-d2e9837cb01d,LJ's Diner and Pizzeria,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-6b8e7c2d-d334-4dbd-b2c3-a8da24e10579,Hilltop Shop,retail,yes,true,30,indoor,,,,rules,,
-9c5eeace-cd90-4d8a-adff-e1b845cd6c7a,Aithbank Camping Böd,accommodation,yes,false,,,,,,rules,,
-b02a8e05-c882-47f0-b0fd-e56fc1fb32f6,Speldiburn Cafe,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-fd913747-6428-4a70-a541-b4465b3e2f0e,Johnson Marine,services,yes,false,,,,,,rules,,
-a1cdbb12-7487-4081-a85e-b82cd43677a2,Grading Systems (UK) ltd,services,yes,false,,,,,,rules,,
-8fcff443-def8-4281-8638-7aed8a394221,Olnafirth Sea Farms ltd,services,yes,false,,,,,,rules,,
-3fcb3e18-a048-49eb-8844-46e8d7c2916e,John I. Herculson,retail,yes,true,30,indoor,,,,rules,,
-7f18bf0a-8574-4336-91c6-b7d2451b1fbe,Mail Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-6d96d77e-5f6f-4971-8744-8e9e9e80718c,Good As New Shop,retail,yes,true,30,indoor,,,,rules,,
-70713923-ba7e-471a-9e33-2ec64bb4ebe1,Sumburgh Hotel Bar,food_drink,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-e25d3e08-b816-46a6-82b2-e0cca53b258f,The new harbour cafe,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-7e38895b-264b-4417-8482-d02c1b393b74,The Shetland Fudge Company,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-d818cdf5-519b-4be8-ac74-5c52ad2c3b58,"Red Pool, Virkie",tourism,yes,true,60,both,proper_visit,,,rules,,
-386311f4-17a3-4b57-b2a6-5cccad5a0aba,Harbro,retail,yes,true,30,indoor,,,,rules,,
-7f5b09ac-d462-40eb-8851-6837b781d7c8,NHS Shetland,services,yes,false,,,,,,fsa:Caring Premises,,
-fbbb3dd2-7f6b-479a-99ff-f67fb3218598,The Veg Box,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-1d09aa09-45ac-425e-9749-72e1eeafe307,The Original Cake Fridge & Tearoom,retail,yes,true,30,indoor,,,,rules,,
-37d72dda-c3de-48ca-ad55-62b1a119cc0b,Shetland Parliamentary Office,services,yes,false,,,,,,rules,,Parliamentary Office of Alistair Carmichael MP and Beatrice Wishart MSP
-21ace2f6-ea81-4bbb-a5fe-a1e64a213111,The Cornerstone Bed & Breakfast,accommodation,yes,false,,,,,,rules,,
-eb917de6-2e15-4dbe-9ca5-92825eb527ff,The Cornerstone Cafe & Restaurant,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-d61e87bc-4924-4809-bf60-753048e85ad2,Dead Bird,tourism,yes,true,60,both,proper_visit,,,rules,,
-5866539a-64b1-441c-8ce6-7d6fde462cc6,HyImpulse UK,services,yes,false,,,,,,rules,,subsidiary of HyImpulse Technologies GmbH
-d713c1f7-7de5-4f9d-9474-242c44512e42,Laing's Pharmacy,services,yes,false,,,,,,rules,,
-773455be-04e1-4548-ac05-781bdbd5e6d3,Golden Coach,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-926ba430-a549-4e6e-a299-d243bacf5596,Begg,retail,yes,true,30,indoor,,,,rules,,
-5a3505ee-7ecd-49e5-bd3b-d48f3e4aba00,Ham Knitwear,services,yes,false,,,,,,rules,,
-c0f6bfd8-7cb9-4404-81f5-b422f81a8003,C'est là vie,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-fb8eb35a-2ca6-473d-a1ab-5b25cd18d6e2,Hamnavoe Post Office,services,yes,false,,,,,,rules,,
-efc34948-5608-4111-87be-6a1893c63fe0,Scalloway Pharmacy,services,yes,false,,,,,,rules,,
-c9f788f6-eaab-414b-9752-ac0194f944b2,Brae Pharmacy,services,yes,false,,,,,,rules,,
-000ad0e6-4def-48bc-ad1b-f1c18ca87323,Rachael's Cake Fridge,retail,yes,true,30,indoor,,,,rules,,
-8d3cfcf4-5f3f-4227-9700-9d1f4bb23666,Picnic Press Cake Fridge,retail,yes,true,30,indoor,,,,rules,,
-b4079652-b5f0-4a15-a10e-3c2f970e28c5,Cake Fridge,retail,yes,true,30,indoor,,,,rules,,
-b392afd5-90c2-400f-b7c4-3d4ca3277f0c,Marina's Kitchen Cabinet Cake Fridge,retail,yes,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
-f0a5f921-c74f-4224-9fc3-ec54454394de,Scalloway Caravan Park,accommodation,yes,false,,,,,,rules,,
-004bdf91-7d58-468e-9572-4d5dbe3b1e3d,Norse Stofa,tourism,yes,true,60,both,proper_visit,,,rules,,
-982de783-9c3f-4ae1-9420-84ede5f60dfd,Lerwick Brewery,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-6bef02b7-1534-43c5-956f-2a402d850402,New Hai Yang,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-74320af7-e4fa-47e2-b539-ee06772c36c1,Cunningsburgh Touring Park,accommodation,yes,false,,,,,,rules,,
-ac65db2c-1751-413f-bec5-45f173b30475,Sumburgh Head Cafe,food_drink,yes,true,60,indoor,food_on_site,,,rules,,Honesty box in cafe
-92ddc246-df04-454e-870d-4ac90e519b3d,Charity Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-2bc59d8d-436b-4c36-873f-83de33a90175,Mareel Café & Bar,food_drink,yes,true,45,indoor,food_on_site,,,fsa:Other catering premises,,
-7b11425b-219d-4200-b8f3-98ea69456d0d,Bigton Post Office,services,yes,false,,,,,,rules,,
-1bf67fc5-34f7-497c-be65-fc9cfedd288d,Hillswick Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-5374acbc-4a37-4808-8f93-445c64cdba83,Scalloway Hotel Restaurant,food_drink,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-aea331f1-85a1-4f77-b13e-df0773a52a78,The Shearing Shed,retail,yes,true,30,indoor,,,,rules,,
-89f01db1-4e69-487c-91a5-de48ba7f8f9f,Reawick Post Office,services,yes,false,,,,,,rules,,
-3f374a81-8085-44cf-9c33-c03d40dcc7ad,Sound Butchers,food_drink,yes,false,,,,,,fsa:Manufacturers/packers,,
-71ae4df0-ad3b-4320-a7cb-e913964353ca,K Hughson Repairs,retail,yes,true,30,indoor,,,,rules,,
-3a87d42d-2a6c-4e0d-be5c-416cf5295e2e,Brough Stores Post Office,services,yes,true,30,indoor,,,,fsa:Retailers - other,,
-07ef6d0b-2299-4029-b72c-ce09dd54d06b,Harper Macleod LLP,services,yes,false,,,,,,rules,,
-0c09fc4a-8068-4253-a7d8-cae8bd95d60b,The Book Swap,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-cf204b6d-aa20-4e3f-910d-92a44a1a0c43,Leravoe Telephone Box,tourism,yes,true,60,both,proper_visit,,,rules,,
-d1128b0c-8bd9-4b4a-b9bc-7858ef8f5e3b,DA Mad Hoose,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,cafe and softplay
-491f03f9-5bcb-43f5-ad4e-d6db157d9f8c,The Original Cake Fridge Giftshop And Cakeaway,retail,yes,true,30,indoor,,,,rules,,
-75fdeeda-84ae-4d58-83c4-b2265ca10484,Thorntons,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-71e66e98-af58-4d04-a807-a5cdbc81d03f,Conocgies,retail,yes,true,30,indoor,,,,rules,,
-76b3ce37-0b7f-48af-8e6f-a9392db1ef71,British Red Cross,retail,yes,true,30,indoor,,,,rules,,
-e53ddbdc-2bca-4805-8c0a-dcc5e9036b39,Shetland Surveyors,services,yes,false,,,,,,rules,,
-f2eaa634-f3fa-459c-9930-041aed4561a3,Santander,services,yes,false,,,,,,rules,,
-e95df378-19d7-4d81-b3fa-dd0ac769491c,High Level Music Centre,retail,yes,true,30,indoor,,,,rules,,
-8d893777-aa33-4378-af24-00713c233205,The Moist Lounge Bar,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-7acebd7e-7d76-4070-be1d-57eac9cc0504,Coffee Culture Lerwick,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-5e47bb78-2ca9-4c25-be56-87dc26c77e03,Perrie Shop,retail,yes,true,30,indoor,,,,rules,,
-961fa1d3-b060-497f-a537-008f4c599ed2,Bressay Marina & Caravan Park,accommodation,yes,false,,,,,,rules,,
-954dfe8d-bfd2-4594-86ef-c9224cf38477,Orkney & Shetland Valuation Joint Board,services,yes,false,,,,,,rules,,
-e705c823-31c7-4071-821b-a84e65bd6ef7,I flooring Shetland,retail,yes,true,30,indoor,,,,rules,,
-ca534a48-5472-4005-9c5f-f907749493c0,Oldies Antiques & Collectables,retail,yes,true,30,indoor,,,,rules,,
-cebd21a5-588a-49e1-ad09-e24be826e455,A9 Accounting,services,yes,false,,,,,,rules,,
-26164f37-a4cc-4f7f-a51f-7a9911a146f1,Jemma Tattoo And Beauty Parlour,retail,yes,true,30,indoor,,,,rules,,
-4001c02f-7fa4-41e1-8d09-3c43e627c436,David Coles Independent Shetland Finance,services,yes,false,,,,,,rules,,
-80a4c106-cb40-42e7-8253-a1234cfbe935,Shetland Charitable Trust,services,yes,false,,,,,,rules,,
-be715e31-4205-4cf9-8af8-3cfe29890275,Toll Clock Toys,retail,yes,true,30,indoor,,,,rules,,
-86be7d40-6925-4803-916d-f52e87067e70,D.I.T.T. DIY Supplies,retail,yes,true,30,indoor,,,,rules,,
-b5cdb271-9b42-4c3a-9c67-592e75646b1b,Clickimin Leisure Centre,services,yes,false,,,,,,rules,,
-24d5f861-b4dc-4f06-b18f-b6bb3c460d50,Islesburgh House Hostel,accommodation,yes,false,,,,,,rules,,
-6013e4f4-dc46-40c6-b8ec-f63f4c25146c,Unst Leisure Centre,services,yes,true,30,indoor,,,,fsa:Retailers - other,,
-ddb66e57-2828-4b75-a71e-daf51097be08,A. Humphray General Stores,retail,yes,true,30,indoor,,,,rules,,
-963f00fa-3401-466e-8b0f-364bd41b4965,Hillside,accommodation,yes,false,,,,,,rules,,
-44ab7784-5da6-4e6c-bbe5-7dfb70c93274,East Isle Shop,retail,yes,true,30,indoor,,,,rules,,
-93787a34-871e-4ae8-bdb1-bf08259e1fc0,Gardiesfauld Hostel,accommodation,yes,false,,,,,,rules,,
-ffc32e36-1f42-4506-86b4-97bf5ae3df00,Carnegie Hall,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-e1d57e5b-e041-444e-8ec4-47e273398cf3,Bressay Heritage Centre,tourism,yes,true,60,both,proper_visit,,,rules,,
-b53636eb-791a-4b5d-9ef9-1d64888b820e,Bressay Lighthouse,accommodation,yes,false,,,,,,rules,,
-4d492acd-de3e-4507-9ac6-bad8f14f6ff0,Maryfield House Hotel,accommodation,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-0e777aa9-7847-4a94-8e42-8c01f59a0788,JWJ Whalsay Ltd,retail,yes,true,30,indoor,,,,rules,,
-7e972792-d885-40d8-9f9b-bd911a23e93a,Whalsay Leisure Centre,services,yes,true,30,indoor,,,,fsa:Retailers - other,,
-01a2d40c-00d4-42f2-98c0-e26a024bff6a,Scalloway Pool,services,yes,false,,,,,,rules,,
-bed72b7c-6e58-4046-994c-3656d900f90d,Leask Motors,retail,yes,true,30,indoor,,,,rules,,
-6191d17f-c313-4a80-be0c-85c1534f9234,Foords Chocolates Manufactury,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-15f9e418-7d58-4b3b-8d46-2c0fe891e27c,Co-op Food,retail,yes,true,30,indoor,,,,rules,,
-d97899e7-535c-4f35-85c7-5564ddffd333,Lunna House,accommodation,yes,false,,,,,,rules,,
-63ebe56f-5ec7-487f-9064-ec3a5e60fe34,Jarlshof,tourism,yes,true,30,indoor,,,,fsa:Retailers - other,,
-889e102c-56c4-4417-94f9-ac9bdaebf504,Sumburgh Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-fc7d70c7-f848-4277-8bbd-1e00761fad15,St Magnus Bay Hotel,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-2421ad14-ecca-45ef-b82b-825491f78d0a,Magno,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-65f3e881-9af3-41af-b179-cc59a3712c24,Home Furnishing of Lerwick,retail,yes,true,30,indoor,,,,rules,,
-68db870c-0d99-411c-80c5-be3655d083c4,Toll Clock Shopping Centre,retail,yes,true,30,indoor,,,,rules,,
-da9fa84a-3ba2-49d9-9235-bb9566968048,Burrastow House,accommodation,yes,false,,,,,,rules,,
-aa63e776-a8b8-4e46-819a-c2cf6ca39f20,Welcome Inn,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-86614420-b9ba-4cd4-8dfe-b673919c9b49,Jim's Garage,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-e21d10a5-ba27-4c3f-86a6-cb3e1a899a92,Scalloway Primary School Games Hall,services,yes,false,,,,,,fsa:School/college/university,,
-0120462d-b5fc-46f0-b67f-e0ef5a02eacc,Burra Public Hall,services,yes,false,,,,,,rules,,
-c1777ddf-af18-411c-89d5-643508a8bc8d,West Mainland Leisure Centre,services,yes,false,,,,,,rules,,
-7643af8d-e447-460e-b878-8d94658ea536,Whalsay Boating Club,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-8a9db7d0-526a-41c2-b664-e052116a0d39,Hanseatic Trading Booth,tourism,yes,true,60,both,proper_visit,,,rules,,
-4d47769f-0c08-474a-ab28-2325e3d354fe,Oot-Ower Lounge,food_drink,yes,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-8d6e8125-00a1-44eb-ac9f-dde1d7568623,Final Checkout,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-ef16dd95-7243-4d07-bda1-91d48175d064,Mossbank Post Office,services,yes,false,,,,,,rules,,
-09b9dacd-2a81-4151-a710-efb0e9a73033,Co-op,retail,yes,true,30,indoor,,,,rules,,
-c22f1a4f-9d84-4f5b-98d8-11eff216cf34,North Mainland Leisure Centre,services,yes,true,30,indoor,,,,fsa:Retailers - other,,
-679ce957-f197-4dde-a97a-f0b454c920a1,Tesco,retail,yes,true,30,indoor,,,,rules,,
-85df7b8d-131f-4ef9-97e6-2038337c1e1b,The Hoop,accommodation,yes,false,,,,,,rules,,
-35998622-9e71-4b6c-899a-b35ff0041d01,Ollaberry Shop,retail,yes,true,30,indoor,,,,fsa:Retailers - other,,
-432e359f-e5a7-432a-9594-e164bc46e6e1,Unst Heritage Centre,tourism,yes,true,60,both,proper_visit,,,rules,,
-ebfd4f9b-f465-4eee-99b6-933c11a0585d,H. Williamson & Sons Ltd,services,yes,false,,,,,,rules,,
-b54949cf-6ae5-43bc-8aa7-6e0d05549266,R S Henderson,retail,yes,true,30,indoor,,,,rules,,
-46946380-d13c-4fd2-82d1-e958f51f68ba,Busta House,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-c70420d9-4ce9-4756-a4c4-c1dd8e1368ca,Gardiesfauld Caravan Park,accommodation,yes,false,,,,,,rules,,
-acc063fd-e88e-4ff7-b2d3-bd2f48be9c26,The Cabin Museum,tourism,yes,true,60,both,proper_visit,,,rules,,
-706deabc-71fe-4744-9aa1-e0ac34d41358,Fort Cafe and Take Away,food_drink,yes,true,60,indoor,food_on_site,,,rules,,
-5812787a-0bf1-4fa4-a7d4-a43c42e39ad5,Hayhoull,accommodation,yes,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,
-3ac1032c-5d4a-4f94-990b-19748b01c1a8,Fetlar Interpretive Centre,tourism,yes,true,60,both,proper_visit,,,rules,,
-b563d85a-79c3-4cb3-88ed-2f677c436e66,Meadowvale Lodge,accommodation,yes,false,,,,,,rules,,
-8e4168e2-6c0e-4b76-bfab-57cf302b8906,Mowgli Motors Ltd,retail,yes,true,30,indoor,,,,rules,,
-58f4122b-7e5b-4b2b-980a-772c96bff182,Leasks Filling Station,services,yes,false,,,,,,rules,,
-3faedd42-bc50-4626-9bd8-05f1d76f17cc,Aa' Fired Up,services,NO — cannot be planned,true,45,indoor,food_on_site,,,fsa:Other catering premises,,"Aa' Fired Up is a fun, friendly & relaxing experience for all, from peerie bairns to auld folk. We offer :- Pottery Painting, Build your own Teddy Bear, Life Ca"
-bbb990ce-2bf1-4284-ac64-32191a750818,Anderson & Co,services,NO — cannot be planned,false,,,,,,rules,,"Anderson & Co is an old established family firm trading in Shetland knitwear, crafts, children&rsquo;s clothes and nursery products. Founded in 1873 by Thomas A"
-af3742f5-1f28-4c62-9d64-fd889cd0c8c0,Anderson & Goodlad,services,NO — cannot be planned,false,,,,,,rules,,"Solicitors, Notary Public & Estate Agents Founded in 1882 by John Bannatyne Anderson, the firm added the name Goodlad when the present Partner&rsquo;s grandfath"
-d298ebfe-4acb-4fa3-b65e-9d650f991d0d,Arch Henderson LLP,services,NO — cannot be planned,false,,,,,,rules,,"We specialise in Civil and Structural Engineering, Architecture and Environmental Services. We offer a complete and flexible consultancy service, from project c"
-67430964-fadd-4711-a5a8-97e8f6d5b6cb,Arthur and Simpson,other,NO — cannot be planned,false,,,,,,rules,,"Welcome to Arthur & Simpson Arthur Simpson - Estate and Letting Agents in the Shetland Islands. We take the stress out of selling, renting and managing property"
-01869f1b-ff5f-40fc-9afe-07f3474b2b69,Aura Lounge,services,NO — cannot be planned,false,,,,,,rules,,Aura Lounge Ltd is a local beauty retreat offering a wide range of beauty treatments in a relaxing and welcoming environment. Whether you&rsquo;re looking to un
-94826f81-a6c5-4ad4-ba5d-123df727ba68,Aurora,retail,NO — cannot be planned,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,"A full range of Silver, Gold and Diamond Aurora Jewellery is available in our shop. Along with Kilt Hire and Purchase we also stock a large selection of gift it"
-4a865e42-9078-495d-9dbd-e938fa1a57f7,Boots,services,NO — cannot be planned,false,,,,,,rules,,"Boots is the UK&rsquo;s leading pharmacy-led health and beauty retailer. With around 2,500 stores ranging from local community pharmacies to large destination h"
-578d5ff6-d185-4a82-a9ae-2ea41b4bf57f,Avril Thomson Smith Art,services,NO — cannot be planned,false,,,,,,rules,,"Shetland artist, born in 1975 on the most northerly island in Scotland, the Shetland Islands, draws inspiration from the local landscape. Having grown up in Ler"
-2ce86e01-d176-42da-9773-fabf3bb6b258,Babs Clubb Studio & Shetland Academy of Beauty,services,NO — cannot be planned,false,,,,,,rules,,Bab's Clubb is a seasoned professional make up artist with a wealth of experience and extensive training. Having completed a rigorous 2-year program at West Col
-7a43bc18-2076-470f-93ca-a14ed9b0f2bb,Bank of Scotland,services,NO — cannot be planned,false,,,,,,rules,,"Lerwick branch of the Llyods Banking Group, trading as Bank of Scotland."
-df6ecd2f-b27a-40c5-91a0-41b5599c5019,Beauty Services at 7 Reform Lane,services,NO — cannot be planned,false,,,,,,rules,,"Health and Beauty: Irene is HND trained with over 33 years experience as an Intense Pulsed Light (IPL) therapist, and also offers skin rejuvenation, electrolysi"
-a3708b78-d115-4a0a-ba6d-cff31efb4855,Beauty109,services,NO — cannot be planned,false,,,,,,rules,,"Beauty109 offers a luxurious range of beauty treatments, providing clients with professional and personalised care in a relaxing environment. Conveniently locat"
-7446bf6f-4a7b-4eed-835e-a5f61ed94ad3,Blyde Welcome,services,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Shetland's foremost training provider for the hospitality and tourism sector, Blyde Welcome can provide vocational or bespoke, hands-on training to match your s"
-11da7f3c-aa82-4248-b3eb-7f63b88c9105,BML Accounts Ltd,services,NO — cannot be planned,false,,,,,,rules,,"BML Accounts is run by Ben Laurenson, an experienced tax manager with over seventeen years of working in accountancy. A member of the Association of Accounting "
-6f52bef1-8964-438f-b93f-9a9e4591a9e9,Bressay Ferry Waiting Room,other,NO — cannot be planned,false,,,,,,rules,,"Waiting area for Bressay ferry passengers, located within Albert Building."
-49bcf49e-d262-49b8-a4e8-9306449d16c2,British Red Cross Society,retail,NO — cannot be planned,true,30,indoor,,,,rules,,The British Red Cross has been helping millions of people in the UK and around the world get the support they need when crisis strikes. From hiring a wheelchair
-e08070b8-dc56-47e2-93b6-c6aa66a5d21c,Burns Lane Clothing,services,NO — cannot be planned,false,,,,,,rules,,Burns Lane Clothing &ndash; it&rsquo;s right up your street Opened in May 2018 Owners Ian Pagulayan and Michael Laurenson decided to expand from their already s
-8894d173-a4c9-4f0f-a887-93ca9b7737cf,C'est La Vie,services,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"Welcome to C'est la Vie &ndash; A Taste of France in the Heart of Lerwick Nestled in the centre of Lerwick, Shetland, C'est la Vie is a French-inspired restaura"
-80c4042c-9e63-4a5b-846f-5ed98795e89e,Camera Centre,services,NO — cannot be planned,false,,,,,,rules,,"From Canon to Nikon, Apple to Samsung, Camera Centre are your local photographic and mobile experts. Our dedication to service, photographic expertise and excel"
-227a3fab-2db6-42ca-b021-aa1b2bd21f0b,Cancer Research UK,services,NO — cannot be planned,false,,,,,,rules,,"The Cancer Research Shop in Lerwick Town Centre stands as a beacon of community spirit and charitable endeavour. Located in Harrison Sq, this shop is dedicated "
-2a837831-2f19-41c6-a0e2-73a6fbe3f209,Caroline Leask - Therapies,services,NO — cannot be planned,false,,,,,,rules,,"Play Therapy Shetland offers a confidential space for children, teens and adults. Here there are three services available; Counselling, Play Therapy and Parent/"
-1bbc4def-4078-412f-a4ab-4cc7535db782,Da Harbour Chippy,services,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Da Harbour Chippy provides tasty and freshly cooked food every time, with friendly service. We have competitive pricing, a convenient Esplanade location and lon"
-f2434fe1-6647-4cc1-8a6c-59860e48dafd,CASE Shetland LTD,services,NO — cannot be planned,false,,,,,,rules,,CASE Shetland was set up as an alternative to the larger engineering practices which have offices on the isles. There was a growing demand from the private sect
-7b4289b2-d565-4e0f-b941-904521cc94ad,Cee & Jays,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Shetland Sports & Footwear is a premier retailer located in the heart of Lerwick, specialising in footwear, sports goods, and clothing. Serving the local commun"
-765b21ee-8fa2-46dd-bdbe-b10bcfc7c657,Coffee Culture,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"A warm welcome from Jigar and his friendly staff awaits at Coffee Culture, a delightful caf&eacute; in the heart of Lerwick. Known for its cozy atmosphere and e"
-8f6d53a3-caa0-4ea7-b0bb-15e19ab99d69,Connie Laureen Jewellery,services,NO — cannot be planned,false,,,,,,rules,,Independent handmade jewellery shop located in the heart of Lerwick. This small independent jewellery shop is a real local treasure. Everything is handmade by C
-2aa72f2f-d4dd-425b-baa8-a9259491ed56,Conochie's Newsagent & Post Office,services,NO — cannot be planned,false,,,,,,rules,,"Conochie's Newsagents, the most popular newsagent in Shetland, is conveniently located in the heart of Lerwick's town centre. Known for its wide range of produc"
-e982ede4-44a6-4f82-9de6-66bcf7af50fe,CoWork,other,NO — cannot be planned,false,,,,,,rules,,"CoWork Shetland provides flexible office space in the heart of the capital, Lerwick. Take your business to the next level with your own dedicated desks, private"
-558cbd70-2378-4b00-965e-67ffabe1881d,CU Marketing,services,NO — cannot be planned,false,,,,,,rules,,"CU Marketing Ltd. is dedicated to the belief that small local businesses are vital to any community, particularly in island regions such as Orkney and Shetland."
-2de90984-5c2d-4a9d-8f74-2ef6ddb7f2e1,D.G Leslies,retail,NO — cannot be planned,true,30,indoor,,,,fsa:Retailers - other,,"DG Leslie is a well-established convenience store, off licence, and tobacconist located in the heart of Lerwick. Known for its diverse offerings and commitment "
-fc595ffe-2a5b-4a98-8d56-0a233b739e3a,Eldamato,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Welcome to Eldamato: Your haven for spinning, felting, and local knitwear Located in the centre of Lerwick, just next door to the iconic Peerie Shop, Eldamato i"
-26b88f3d-04b1-4a95-a128-a140da0bd1f4,Envi,services,NO — cannot be planned,false,,,,,,rules,,"Envi is a family-run hair salon located centrally at 110 Commercial Street, Lerwick. Conveniently situated near bus routes and with ample nearby parking, Envi i"
-5e6f71f9-3514-4268-82b9-5f93419a6c7c,Ferry Terminal,other,NO — cannot be planned,false,,,,,,rules,,Ferry to Bressay https://www.shetland.gov.uk/ferries
-9463fcb7-0f66-49fe-832d-fdab5b2bb8b3,Fort Charlotte Guest House,services,NO — cannot be planned,false,,,,,,rules,,"Fort Charlotte Guesthouse is a family run guesthouse ideally situated the heart of Lerwick, Shetland Islands. We pride ourselves on our great service, location "
-64e5af28-d1c4-41b8-98f0-92367c55429c,Fort Fish & Chip Shop,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,rules,,"Fort Chippy is a beloved Fish & Chip shop in Lerwick, renowned for serving some of the finest local fish in Shetland. Situated on Commerical Street opposite the"
-a88e5fbd-1806-49e3-9087-70389356bdfe,George Robertson (Shetland) Ltd,services,NO — cannot be planned,false,,,,,,rules,,"Established in 1947, George Robertson (Shetland) Ltd has been in business for more than 75 years and is proud to be Shetland&rsquo;s leading electrical contract"
-4b05f67e-f14c-4ec6-a36f-1d8433db6457,Graceful Beauty,services,NO — cannot be planned,false,,,,,,rules,,Grace Allan is a fully qualified Beauty Therapist who has been established in the trade for a number of years and is now opened up her own salon in the centre o
-251365b5-1032-4171-96e1-cea4c0fb7fd5,Grantfield Garage,services,NO — cannot be planned,false,,,,,,rules,,Visiting and want to hire a car in the Shetland Islands? Our extensive car hire and van hire stock contains the vehicle best suited to your needs. We have Self 
-6b7ce222-d3e3-48dc-8bde-377194f8aa04,Harry's Department Store,services,NO — cannot be planned,false,,,,,,rules,,"Harry's is a friendly, family-run business spread across three floors, offering a diverse range of products to meet all your needs. What You'll Find: Ground Flo"
-a0276834-cf84-44cf-900a-c6e34d0bda48,NB Communication Ltd,services,NO — cannot be planned,false,,,,,,rules,,"We are NB Communication, experts in digital strategy. Founded in the beautiful Shetland Islands, with a 2nd base in Edinburgh, we work for clients throughout th"
-3b3d76fd-ec58-4b46-a5f1-89cb717796cc,High Level Music,services,NO — cannot be planned,false,,,,,,rules,,High Level Music has been in business for 21 years. They moved into their new shop 5 years ago and the business has gone from strength to strength. You can find
-3adff17b-05d7-4a7b-b7b6-496a565b7083,Highland Fuels Ltd,other,NO — cannot be planned,false,,,,,,rules,,"Scotland&rsquo;s leading independent fuel distributor. We are committed to providing outstanding, professional customer service and we pride ourselves on our re"
-8ba7122e-53aa-49f5-8bae-aff88528ab77,Historic Scotland,services,NO — cannot be planned,false,,,,,,rules,,Fort Charlotte overlooks the strategic Sound of Bressay. It was built to defend the sound against Dutch and later French warships. Some sort of fortification wa
-29e8f8a3-fe8a-478d-a8fe-ea75240ed091,Icare,services,NO — cannot be planned,false,,,,,,rules,,Optometrist based in Lerwick At ICare Shetland we pride ourselves on providing a high quality service and the cornerstone of this service is the eye examination
-09bd2e45-5581-4db9-a910-0e852164a086,Independent Finance (Shetland),services,NO — cannot be planned,false,,,,,,rules,,Ian Thomson DipFA Cemap is an Independent Financial Adviser trading as Independent Finance (Shetland)
-5a27f75e-0446-4837-a4d9-1641ff0d5a5b,Intersport,retail,NO — cannot be planned,true,30,indoor,,,,rules,,The World's Leading Sports Retail Brand right on your door step. Guaranteeing satisfaction and support to bring you a worry-free shopping experience. We guarant
-0db30912-071e-41bb-a34a-03619ec7a5d9,Island Larder,food_drink,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,We are a small family-owned business committed to using and showcasing the very best of Shetland produce. Since launching Island Larder in 2017 we have revamped
-134a0312-1442-453d-a760-3f591aa3370f,J.G.Rae Shetland,retail,NO — cannot be planned,true,30,indoor,,,,rules,,Jack Rae trained as a jeweller in Edinburgh and moved to the island of Foula in Shetland in 1945. He later moved to Weisdale on the Shetland mainland and starte
-83190905-d239-4a78-9cd4-ce565582bf56,Jamiesons of Shetland,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Jamieson&rsquo;s is a family owned business, which has specialised in wool from the native Shetland sheep for 5 generations. The family are dedicated to the sur"
-61a92467-9698-40ab-bc89-0ff6592c508f,Puffin Rebublic,other,NO — cannot be planned,false,,,,,,rules,,
-ca08ead8-339a-4a27-a183-8d1e162387b4,JLP Internet,services,NO — cannot be planned,false,,,,,,rules,,JLP Internet- Shetland Web Design and Online Services. Here at JLP Internet we help businesses unlock the power of the Internet to reach more customers online a
-0ddf1176-f8bb-4974-b9a2-5a8ea8391e5c,Jon Stone Hair,services,NO — cannot be planned,false,,,,,,rules,,"Looking for a barber or a hairstylist specialised in taking care of your hair in LERWICK, SHETLAND? JON STONE, welcomes you for a unique and unforgettable salon"
-d9339541-480b-4477-9349-d594582e1379,Juice Culture,other,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Juices,Smoothies,Bubble Tea,Candy Floss,Popcorn,Waffles and much more..."
-550f3d41-16e9-4e56-931c-d39cbfe0a895,Just Gents Barbers,services,NO — cannot be planned,false,,,,,,rules,,Gents Barber shop
-fd7db0d5-0765-444d-9013-e41c798495b2,Kool Kutz,services,NO — cannot be planned,false,,,,,,rules,,"Kool Kutz is a long established, family run business, providing a range of hairdressing services to the Shetland community. Furthermore we provide retail servic"
-e6344a40-f9c7-4a5d-83a9-cdd5fdab102e,Kung Fu Cuisine,food_drink,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,Our Lunch Special Bar is open from 12pm - 2pm where you can pick rice or noodles aswell as a main course in our lunch boxes. Menu Orders available from 11am - 8
-e03eea19-3b52-4e6a-bcb5-a632fde43fef,Lerwick Dental Practice,services,NO — cannot be planned,false,,,,,,rules,,"NHS and Private dental practice Dentist Mr Apil Timilsina, BDS 2008, MPH, MSc SSCD Master in public Health, University of Salford, Manchester Master in Sedation"
-97983332-33f3-4cf0-82d2-c3941717d571,Lerwick DIY,retail,NO — cannot be planned,true,30,indoor,,,,rules,,DIY retail shop selling Tools; a wide variety of Hardware and Ironmongery; and Gardening tools and accessories. Also offering a Tool Sharpening Service and a Ke
-810ae10f-4716-4076-be48-bf4cc6ba081e,Lerwick Port Authority,other,NO — cannot be planned,false,,,,,,rules,,"Lerwick Harbour, with modern, versatile facilities for a wide variety of users, is the principal commercial port for Shetland and a key component in the islands"
-6297fc66-3f74-4a59-882d-66f50648c3f4,LHD (Net Mending) Ltd,other,NO — cannot be planned,false,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
-ae2cbf7e-4986-43ac-ba27-5cb59fa0a405,LHD Custom Clothing,services,NO — cannot be planned,false,,,,,,rules,,"LHD Custom Clothing design, print and embroider garments providing you with brand corporate clothing or leisure wear to your requirements. LHD supply workplace,"
-29084b21-238a-4c19-be08-f750ffcfca5f,LHD Ltd,other,NO — cannot be planned,false,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
-326de33f-fc40-4a96-89aa-572cbdf4ebc7,"Taxi Rank, Victoria Pier",services,NO — cannot be planned,false,,,,,,rules,,
-da20acaa-7684-4dce-b4b2-34f87bd6199c,LHD Marine Supplies Ltd,services,NO — cannot be planned,false,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
-8eac478b-88be-4204-937d-abf2e8e12253,Lighthouse Counselling Shetland,other,NO — cannot be planned,false,,,,,,rules,,"Located at The Mission in Lerwick town centre, Lighthouse Counselling Shetland offers a safe, confidential and welcoming space where people can feel heard, supp"
-950c8772-243c-4c7b-86e8-d3a61ef61ac6,Loose Ends,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Loose Ends is an independent knitting, yarn and haberdashery shop in the centre of Lerwick's Commercial Street. Selling everything from fabric to knitting patte"
-fdda4cbe-1e28-4f4d-89d8-aed8317be513,Love From Shetland,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"We are a small family run company based in the Shetland Islands. All of our soaps and bath products are handmade by myself here in Shetland , using the best sou"
-d0f3e9fc-da62-41a9-a848-62d5a404a30b,Marine Scotland,other,NO — cannot be planned,false,,,,,,rules,,Marine Scotland is responsible for the integrated management of Scotland's seas. Its purpose is to manage Scotland's seas for prosperity and environmental susta
-c2087b10-b91a-4b8b-b935-c10c7edf1843,Marine Scotland Science,other,NO — cannot be planned,false,,,,,,rules,,"Marine Scotland Science (MSS), the scientific Division of Marine Scotland, plays an integral part in supporting the Scottish Government's vision of marine and c"
-ca15a252-92a2-4863-9ecf-857b475ad853,Meraki Hair Studio,services,NO — cannot be planned,false,,,,,,rules,,"Located in the heart of Lerwick town centre, Meraki is a modern and welcoming hair salon offering professional hairdressing services. With a focus on creativity"
-4e4d76dd-14b1-4ab6-a70e-24b2bd2711e4,MH Apps,other,NO — cannot be planned,false,,,,,,rules,,"MH Apps develop high quality desktop, mobile and web solutions for a wide range of businesses to help reduce and simplify admin work, improve processes & produc"
-41325079-254d-4e67-87d1-addecc7086ff,Michael Inkster & Co,services,NO — cannot be planned,false,,,,,,rules,,"Michael Inkster & Co Solicitors - Shetland Property for Sale or Let Michael Inkster and Co are a firm of solicitors based in Shetland, Shetland Isles. To contac"
-b141d2ec-6634-47fe-97c4-7aa16b5af87c,Michael Thomson FRICS,other,NO — cannot be planned,false,,,,,,rules,,
-571b1146-4ecf-4b56-92b4-89e819405c20,Monitor Station,other,NO — cannot be planned,false,,,,,,rules,,
-66b81874-10f1-4c76-88bd-981b8ff7c313,née gibson architects,services,NO — cannot be planned,false,,,,,,rules,,"We are a locally based Architects practice with extensive experience in all major sectors including housing, healthcare, local authority work, commercial, indus"
-08d0e571-a8fd-40f8-9845-7602c1c7477a,New Golden Coach,other,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
-e03193e6-5e86-422e-a479-d09b5f2af136,NGR Accountants,services,NO — cannot be planned,false,,,,,,rules,,NGR Accountancy was founded with a clear goal&mdash;to remove the stress and complexity of accounting for small businesses and self-employed professionals. Afte
-3fb4ce57-9935-48bc-8324-0ab768cda42e,Ninian,services,NO — cannot be planned,false,,,,,,rules,,Ninian specialises in design led Shetland knitwear which is designed and made in-store by Joanna Hunter and her team. Ask to have a look at the knitwear studio 
-285d00ef-396d-4293-ad13-e03a4c484e1a,No88 Kitchen & Bar Lerwick,services,NO — cannot be planned,false,,,,,,rules,,At No88 we strive to use the best local seasonal produce to give you the best meal we can. We are in close contact with our suppliers all year round to make sur
-80279ba9-c838-43f5-a10c-fd7ca33e4802,Nomadic Pizzeria Ltd,tourism,NO — cannot be planned,true,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Looking for proper, delicious pizza? This local favourite serves up freshly made pizzas packed with flavour, using quality ingredients. Whether you&rsquo;re aft"
-cfae4a48-7e43-4d9c-9ee1-70928d29167e,Outdoor4kids/Outdoor Trek,accommodation,NO — cannot be planned,false,,,,,,rules,,"Selling camping equipment and adult & kids outdoor clothing from well known brands like Berghaus, Rab, Jack Wolfskin and many more. Online and telephone orders "
-accaf8a0-d655-4cec-8287-5537d0b32730,Parliamentary Office,other,NO — cannot be planned,false,,,,,,rules,,MSP's can be contacted via email: alistair.carmichael.mp@parliament.uk/Beatrice.wishart.msp@parliament.scot
-01a8147a-2186-447c-addc-cf8c43d9769f,Peerie Isles,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Shetland crafters and UK crafters bringing all their unique handcrafted pieces to you from one place - Peerie Isles shop, Lerwick. Find that perfect gift or a p"
-796a8ec6-d7a4-4af0-b77b-460ca31ab1da,Peerie Shop,services,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"The Peerie Shop 'theonestoppresentshop', in front of the Peerie Shop Caf&eacute; on the Esplanade. A huge range of carefully chosen colourful interesting gifts "
-649c7844-c094-479e-ad57-290e5ac3d97e,Peerie Shop Cafe,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"We make everything ourselves using local and seasonal produce whenever possible.. Striving for the best coffee, roasted every month for us in Perth. Lots of tem"
-ed502629-d893-46cc-a74b-5d4ee5115cd4,Pete's Cafe and Takeaway,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Caf&eacute; offering breakfast and lunch in the historic Solotti's & Faerdie Maet premises. Check out Pete's Facebook page for daily specials
-ef48fbfb-9815-47fc-b246-2526fa18c94b,Public Convenience,other,NO — cannot be planned,false,,,,,,rules,,"From Monday 7th June 2022, the opening hours of the public toilets at Harbour House in Lerwick are to be extended, to open from 8am to 9pm daily, seven days a w"
-046e0707-3985-48da-9506-f4a4f6c071af,R. Robertson & Son Ltd,services,NO — cannot be planned,false,,,,,,rules,,"R. Robertson & Son Ltd are Shetland&rsquo;s largest transport operator, based in the main town of Lerwick. Providing private hires and tours within Shetland and"
-4495eb2d-fd72-4979-89ce-dbfc048912eb,R.A.M Knitwear,services,NO — cannot be planned,false,,,,,,rules,,Unique and attractive knitwear designs by Roisin McAtamney. A fun and fresh custom knitwear design company. Creating unique fashion and promoting the versatilit
-8ffde8a0-198e-4bd3-878c-be720cd3e30e,Radiance Shetland Ltd,services,NO — cannot be planned,false,,,,,,rules,,"Radiance Shetland &ndash; Your One-Stop Beauty Destination Originally starting as a tanning salon, Radiance Shetland has grown into a full-service beauty hub of"
-8344b2f6-4cd5-4572-bb59-5873796e5e70,Realta Events Management,other,NO — cannot be planned,false,,,,,,rules,,Realta Events Management offers bespoke event and project management services to the public and private sector.
-c25b113a-0e48-4fc4-a05e-6e264be57faf,Reset Well-being Therapies,services,NO — cannot be planned,false,,,,,,rules,,"Reset Wellbeing Therapies is founded by Jennie, whose lifelong passion for caring spans nursing, social care, dementia support, oncology massage and over 30 yea"
-1877bd83-f9a1-4dd4-b6c3-60161a09484f,Royal Mail,other,NO — cannot be planned,false,,,,,,rules,,
-987d9ed9-dbbf-4b3d-9984-48e4092e57f0,RSM,services,NO — cannot be planned,false,,,,,,rules,,RSM are an independent firm of accountants and business advisers. We provide a wide range of services including tax and financial planning as well as accountanc
-6238d716-02a7-4052-853c-1d9e1af5eaf8,Santander UK Plc,other,NO — cannot be planned,false,,,,,,rules,,
-d222f528-3228-4500-823a-a14d48d92867,Scottish Children's Report Administration,other,NO — cannot be planned,false,,,,,,rules,,Opening times This office is open during the following times: Monday - Thursday 09:00 - 17:00 Friday 09:00 - 16:00 This office is closed on the following public
-8bc781d4-50ab-49d7-966c-e7a58228acd5,Scottish Fisheries Protection Agency,other,NO — cannot be planned,false,,,,,,rules,,
-0d9012b3-5748-4b6b-84b7-1c7bd86a1e5c,Shetland Aerogenerators Ltd,other,NO — cannot be planned,false,,,,,,rules,,"Shetland Aerogenerators was formed in 1992, and we operate from our offices on Charlotte Street in Shetland&rsquo;s capital of Lerwick. We initially set out to "
-abfc2fbb-35a8-4ba8-84a2-a2650899b96c,Shetland Bookshop,services,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,The Shetland Bookshop is a general bookshop with a large Shetland interest section. We offer a customer ordering service for any in-print titles we do not have 
-e18a9e3a-b91a-4a92-8199-ee50e84b8f20,Shetland Broadband LLP,other,NO — cannot be planned,false,,,,,,rules,,
-0aac60af-69c7-45dd-9a92-8fa83955a8fb,The Dowry,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"The Dowry opened in June 2018. A light and airy cafe bar with Scandinavian influences in the decor and fantastic views out over the harbour area, this is a love"
-150e7903-395a-42ae-87da-39a81d266d64,Shetland Fish,other,NO — cannot be planned,false,,,,,,rules,,Shetland Fish Ltd is at the forefront of an exciting time for the Shetland fishing industry. Shetland&rsquo;s fishing industry is undergoing a renaissance. The 
-074aec17-685d-4869-b989-bcbffaacdbf7,Shetland Property Lets,other,NO — cannot be planned,false,,,,,,rules,,
-7511b3df-4cc6-479b-b62e-04715a22cd7c,Shetland Soap Company,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Here at the Shetland Soap Company, our soap and skincare range is inspired by the islands' raw elements, and are hand crafted using both traditional and contemp"
-b99ae0df-4c9b-42f9-9c23-b6ba7a83b92d,Shetland Somatic Arts,services,NO — cannot be planned,false,,,,,,rules,,"Located in the centre of Lerwick, Shetland Somatic Arts is a modern, welcoming tattoo and piercing studio known for its creativity, professionalism, and attenti"
-e3169e58-bacd-4f96-966c-260572a236a6,Shetland Telecom,services,NO — cannot be planned,false,,,,,,rules,,Shetland Islands Council has identified improving data communication services across the Isles as one of its key targets. To help meet this aspiration the SIC h
-c1df578d-d168-4a0c-9876-e3542b6d6d01,Shetland Wool Adventures,services,NO — cannot be planned,false,,,,,,rules,,Specialist knitting tours in Shetland & Shetland Wool Adventures Journal. Join us on a unforgettable journey to discover Shetland and our unique textile heritag
-3cceca2e-c9b9-4002-a745-f712d0864da4,SIBC: Shetland Islands Broadcasting Company Limited,other,NO — cannot be planned,false,,,,,,rules,,"Commercial radio station broadcasting 24 hours a day, 365/6 days of the year."
-59d2e90a-22c7-4c20-adfc-6f1b99897692,SIC Town Hall,other,NO — cannot be planned,false,,,,,,rules,,
-84cb322b-0316-4042-a331-3d2d2c11e300,Smith & Robertson,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Smith and Robertson stocks a wide range of ladies fashion and accessories, as well as a selection of menswear. The store has a long history on Commercial Street"
-d02e9db5-c182-44d4-88cf-ea342f842218,Specsavers,other,NO — cannot be planned,false,,,,,,rules,,
-07aa0aa3-ab78-47f6-a0ac-de2a79b83653,Stems,retail,NO — cannot be planned,true,30,indoor,,,,rules,,Stems is a high quality florist.
-a222438a-b7b6-4b0f-93a1-c74b6d234854,Studio 4 Hair,services,NO — cannot be planned,false,,,,,,rules,,
-9a022df6-f09b-4723-98ab-2ca236f7a02d,Superdrug,services,NO — cannot be planned,true,30,indoor,,,,fsa:Retailers - other,,"Superdrug offers a wide range of products and services. Healthcare Products: Superdrug stocks a variety of over-the-counter medications, vitamins, supplements, "
-4f3ef283-7a4d-4f81-9477-51ba05c59992,Tait & Peterson,other,NO — cannot be planned,false,,,,,,rules,,
-889c1c1b-94ee-4110-b816-8ad8b2194e5a,The Grand Hotel,accommodation,NO — cannot be planned,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,"In the heart of Shetland&rsquo;s capital of Lerwick, the Grand Hotel offers comfortable ensuite rooms, free parking and excellent service to guests year-round. "
-3969f087-e830-4264-8b91-eb5e8aa03de6,The Harbour Café,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Currently open: 7am - 12noon Monday to Saturday. 8am - 12noon on Sunday
-5792dc67-a181-4090-9d5f-30428f3cbb52,The Kildrummy Corporation,services,NO — cannot be planned,false,,,,,,rules,,"In 1986 Ken Beer began writing cost control software for BP Sullom Voe. The oil terminal was one of Europe&rsquo;s largest, based in Shetland, a remote island h"
-8a3f9daf-e33e-47ec-a7bb-752664660bc8,The Lounge Bar,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
-1251bc01-80b3-41bc-8a4e-960ed044ad20,The Noost Bar,tourism,NO — cannot be planned,true,60,both,proper_visit,,,rules,,"Located in the heart of Lerwick, The Noost Bar is a welcoming spot to relax, unwind, and enjoy great drinks in a friendly atmosphere. Whether you're a local loo"
-b202febd-16e3-4514-8952-5bd5704bdecc,The Original Cake Fridge,food_drink,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"Bringing a taste of home baking into Lerwick town centre, The Original Cake Fridge is the perfect spot for something sweet. Alongside their famous cakes and tra"
-9505776a-7f4b-4375-b067-0f003e2320fc,The Queens Hotel,services,NO — cannot be planned,false,,,,,,fsa:Hotel/bed & breakfast/guest house,,"On Lerwick&rsquo;s seafront, the former lodberries, turned hotel, offers comfortable rooms to visitors to Shetland in the heart of &lsquo;old&rsquo; Lerwick. Wi"
-e0068dff-2454-4cca-8969-5330381d474e,The Royal Bank of Scotland,services,NO — cannot be planned,false,,,,,,rules,,Banking Services Monday 09:15 - 16:45. Tuesday 09:15 - 16:45. Wednesday 10:00 - 16:45. Thursday 09:15 - 16:45. Friday 09:15 - 16:45. Saturday Closed - Closed. S
-0981d837-6692-45b5-aad3-f970f6306955,The Shetland Times Newspaper,other,NO — cannot be planned,false,,,,,,rules,,"The Shetland Times is Shetland&rsquo;s longest-running weekly newspaper, keeping the community informed with trusted local news, features, sport and opinion for"
-099ed309-2c5a-4fcc-b59b-5fb5fa69de45,The Swan Trust,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"The Swan Trust was formed in 1990, and today is responsible for the operation and upkeep of the Swan. The main objectives of the Trust are: To encourage and fac"
-609473a6-4117-45ef-84e0-70fe72135abc,The Wine Shop,services,NO — cannot be planned,true,30,indoor,,,,fsa:Retailers - other,,"All your wines, spirits, extensive malt selection, and beers under one roof, all at keen prices. Serving Lerwick since 1985, service, pricing, and variety of st"
-e5178378-a61f-4a01-bc9a-6979ac5f8fac,Thule Bar,services,NO — cannot be planned,true,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,"The oldest bar in Shetland, a very popular public house situated on Lerwick&rsquo;s harbour front &ndash; keeping customers refreshed since 1895! A warm, welcom"
-4430f477-d73b-463c-a558-e78e431154c0,Thulecraft Ltd,services,NO — cannot be planned,false,,,,,,rules,,"Thulecraft Ltd are the agents in Shetland for Honda Motorcycles, ATV's, Marine and Garden Equipment. We are also agents for Yamaha Marine and ATV's, Hyundai pow"
-d7fa0891-f337-4471-8c44-3da532109b50,Tooth and Nail Barber Surgeons,services,NO — cannot be planned,false,,,,,,rules,,Shetland's Traditional Barber Shop Tuesday: 09:00 - 18:00 Wednesday: 09:00 - 18:00 Thursday: 10:00 - 20:00 Friday: 09:00 - 18:00 Saturday: 09:00 - 16:00 Sunday:
-9752a26c-2830-4ffa-a5ea-caae1b6d76a4,Universal Stores,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Universal Stores brings together two lovely things in life, beautiful flowers and irresistible sweet treats. Whether you&rsquo;re picking up a fresh bouquet for"
-f7475646-cbe6-4eb8-8917-04e4275550d8,Vaila Fine Art,other,NO — cannot be planned,false,,,,,,rules,,
-8b880e7e-0440-4cd7-8997-15bd0739d1b5,Venture Chiropractic & Sports Injuries,services,NO — cannot be planned,false,,,,,,rules,,Chiropractors are spine and joint specialists who use their hands to treat problems in these areas. At Venture Chiropractic & Sports Injuries we'll give you rel
-358679cb-55be-4de5-9b04-3534a3c0863e,Victoria Pier,other,NO — cannot be planned,false,,,,,,rules,,
-c231750d-115a-4959-a986-bf9611729219,Virgin Money,services,NO — cannot be planned,false,,,,,,rules,,With roots back to its establishment in Glasgow in 1838. Clydesdale Bank has a proud history of innovation and support for Scottish industry and communities. Vi
-003d8ae8-21cb-4253-a503-1c3e5cd879d3,VisitScotland,services,NO — cannot be planned,false,,,,,,rules,,"Who we are We are Scotland&rsquo;s award-winning national tourism organisation. As a publicly-funded body (an NDPB, or &lsquo;non-departmental government body&r"
-7a9bc6f0-9503-421d-b6b8-5574dd3dac08,Westside Pine,retail,NO — cannot be planned,true,30,indoor,,,,rules,,"Giftware and furniture retail outlet, specialising in quality oak & pine furniture and funky gifts & home accessories. Stockists of Yankee Candle, Emma Bridgewa"
-dddddddd-0000-0000-0000-000000000001,DEMO — Shetland Makkers,retail,yes,true,30,indoor,,,,rules,,"Hand-made in Lerwick: knitwear fae local wool, prints and peerie treats. (Demo shop for testing.)"
+32c67bbf-6873-430d-b442-6b8272ece482,Spiggie Hotel,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+bfe727e1-b531-4976-a5cb-fe16503f1352,Weisdale Mill,food_drink,yes,TRUE,60,both,food_on_site,,,rules,,
+9a4c3a1a-d8d4-4624-9b61-4d457022b4b5,Wind Lodge Bod,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+8e3ff71c-1442-405e-84c3-0de4eff64c99,Anderson & Co,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Anderson & Co is a long-established family business specialising in Shetland knitwear, crafts, and children’s clothing. Founded in 1873, the shop produces and s"
+807af91b-3d54-4901-84ed-08853cf44e7f,Final Checkout Cafe,food_drink,yes,TRUE,30,indoor,quick_food_stop,,,fsa:Retailers - other,,
+e437ef9b-afb2-4692-bff9-2ad81257c53c,Bobby's Bus Shelter,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+817dff04-b50c-4362-a5f4-902df47ca801,Baltasound Hotel & Restarant,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+5cd3812d-b8b3-47b6-9249-1c7bc28e36d4,Hendersons Store (Ethel's),retail,yes,TRUE,30,indoor,,,,rules,,
+b88efc29-1053-4b83-b766-84d02c6e4a4c,Viking Longship,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+83737693-fa8e-40b3-863c-c622354517f8,Foords Chocolates,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+2b25ed25-4678-48a8-86b0-4734e38286eb,Fetlar General Merchants,retail,yes,TRUE,30,indoor,quick_food_stop,,,fsa:Retailers - other,,
+d6b3f683-e817-4bb9-bc46-dd081d53f346,Braewick Caravan Park,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+d840c7ff-0942-45b5-b9fd-63b5e9467cc7,The Bixter Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+cc1b55d7-e0e1-4a05-a9b5-fa91b67e0b53,Robertson & Morrison,services,yes,FALSE,,,local_shop_food_etc,,,rules,,
+6b4a7381-6f73-43e7-98d3-dccad608ae3f,Barclay Arms,accommodation,yes,FALSE,,indoors,,,,rules,,
+d5824d15-322b-4870-b067-eb0d2eaef609,Mainlands,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+f678fe06-dabf-4036-85fd-77d6fe765214,Bressay Post Office,services,yes,FALSE,,,,,,rules,,
+bacea841-495b-4828-9381-53e3fe41ed95,The Sail Loft,accommodation,yes,FALSE,,indoors,,,,rules,,
+67df91e6-08e4-4f7f-9e46-cb128d2307f2,Betty Mouat's Camping Böd,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+0a59867a-f107-4854-8195-d3ad645b009d,The Checkout,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+77a8dc3e-1232-488a-8b8f-c61b8a73f914,Scalloway Meat Company,retail,yes,FALSE,,,local_shop_food_etc,,,fsa:Manufacturers/packers,,
+e6e0ccc8-b0f8-4d7e-adaf-e14d6b69333c,One-stop,retail,yes,TRUE,30,indoor,,,,rules,,
+fcbabe03-cf62-4433-bf52-7b734d3a985d,Frank Williamson,retail,yes,TRUE,30,indoor,,,,rules,,
+205c7be2-26fc-47c0-9e82-8990f0d81466,Freefield Post Office,services,yes,FALSE,,,,,,rules,,
+4d16f76c-6763-47f7-99c3-d197c4a68d04,Scoop Wholefoods,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+098ea1a1-9573-41dd-80e4-968a9a33d099,Bolts Filling Station,services,yes,FALSE,,,local_shop_food_etc,,,rules,,
+2f65faaa-8f4e-46cc-8448-8ee81fad04e0,Heima,retail,yes,TRUE,30,indoor,,,,rules,,
+077706ac-fa12-41c6-b356-90c0a2bc40ff,Freefield Pharmacy,services,yes,FALSE,,,,,,rules,,
+97839993-02b1-4e33-b4e9-3197d49e749e,Alex Morrisons,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+fda30a7d-121a-4c16-b2a9-e558bf4ea347,Happy Haddock,food_drink,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+fdc98314-ce95-4825-a919-307a23050671,Anderson Globe,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+fc22a37d-e96a-4a44-8371-e66757cbda65,Tasty Hong Kong Takeaway,food_drink,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+b62f6a07-624b-4ec6-a4a9-d57dc512849e,Himalayan Lounge,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Every sunday all day buffet
+23e07592-89df-45df-a4f4-3c26bd4b726f,Trench Bar,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+47a1bc77-2884-4b50-b845-070c29d5838a,Baltasound Post Office,services,yes,FALSE,,,,,,rules,,
+2447e94b-c03b-42f8-b619-605dd3695926,Skibhoull Stores,services,yes,FALSE,,,local_shop_food_etc,,,rules,,
+427b2c68-1019-426b-b08d-9368b498a0a2,Victoria's Vintage Tea Rooms,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+2e0e97db-afc5-4d96-9249-d4776df8776f,Walls Post Office,services,yes,FALSE,,,,,,rules,,
+94c96433-1f38-4aeb-ac9e-1a53f28fd6fd,Hay's Dock,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+c0e14a60-ae4d-4a41-8b3e-f06267e95f5c,Lerwick Post Office,services,yes,FALSE,,,,,,rules,,
+cb221a6d-a283-4fcc-9016-8a75e564707d,Scalloway Post Office,services,yes,FALSE,,,,,,rules,,
+ae711888-1e9a-4306-8247-82f76fdc0740,Skerries Post Office,services,yes,FALSE,,,,,,rules,,
+36969259-ef78-450a-b508-052a9b78394f,Aith Post Office,services,yes,FALSE,,,,,,rules,,
+7de2bf92-4c66-4abb-bf1b-5f9296649b03,The Lerwick Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+76225069-e8dd-4f35-b4df-6ef5a597bcc1,Ollaberry Post Office,services,yes,FALSE,,,,,,rules,,
+efc68724-80ff-44f8-a488-aa9a7314670b,Ulsta Post Office,services,yes,FALSE,,,,,,rules,,
+6b3835a7-e5ff-4757-937c-49596479ceb1,Burravoe Post Office,services,yes,FALSE,,,,,,rules,,
+5ff6e41c-a5ef-403c-833d-c44f4f3c1187,Fetlar Post Office,services,yes,FALSE,,,,,,rules,,
+1caf7e07-ff38-4b28-80be-708aa700168e,Symbister Post Office,services,yes,FALSE,,,,,,rules,,
+7b8cb56e-e245-4b60-bacc-d7182aa86710,Bixter Post Office,services,yes,FALSE,,,,,,rules,,
+9162717a-4fb9-464d-9f2b-67f2ec7dc206,Clickimin Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+b68c6969-8f89-479b-8e7a-83c63bfe7e12,Islesburgh Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+bc859f3d-24c7-4a68-9387-3567457fd913,Spar,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+979e9774-7a51-47d6-98e0-e116388fb8e0,Sandwick Bakery,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+4fa4d54b-665b-4950-bf88-87be6fa370e6,Brucefield Stores,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+fc963285-873d-4d45-834d-3f6b7ecebbce,Scalloway Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+93d0b287-629a-4d5b-81b8-f2cb4915e50f,Alder Lodge,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+b49e1223-fd95-4e67-acba-1cbc692c6b8a,Douglas Arms,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+f179a7b4-56fa-4b53-8ef0-45e74543a612,Eddlewood,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+beb9b6e7-5a7f-40a5-9e50-e36673b609cf,Gurkha Kitchen,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+4082d226-3e28-45ec-9d24-bc64d148bb5e,Kveldsro House Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+84a39d3e-e998-4a6e-869c-b0f5e0ff5636,RBS,services,yes,FALSE,,,,,,rules,,
+ef322ab0-bb6f-47a8-8dc9-f7756dcc13d3,Shetland Community Bike Project,retail,yes,TRUE,30,indoor,,,,rules,,
+50cb3a19-0464-41d9-b4f5-7365f5ecb2b4,The Great Wall,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+c9a9f25f-39d4-43ce-9788-83352ef2b8e0,Anderson Butchers,retail,yes,FALSE,,,local_shop_food_etc,,,fsa:Manufacturers/packers,,
+aedfc33e-0b80-425a-ab2f-db221da8ea4b,Da Haaf,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+1a8a2d3e-07c2-4f7f-80da-34b87179ae15,North Roe Post Office,services,yes,FALSE,,,,,,rules,,
+2bd8d00c-c4bc-4aca-b630-75e6db365cc8,Lerwick Fishery Office,services,yes,FALSE,,,,,,rules,,
+0c84fe37-e1cc-4d43-8c10-414ea5c960fd,Brae Post Office,services,yes,FALSE,,,,,,rules,,
+eee5b71e-d2c4-4162-ba6a-10345b1929c6,Healthcraft,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+211e3924-4918-46f5-91cf-558484f9ead8,Braewick Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+b10022a8-1f88-46f0-9841-192ad4acfabd,North Base Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+baf8f197-758b-4a32-9773-f0e014bdfb0a,RAF Saxa Vord Exhibition,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+839f6521-942f-406c-8cd4-292ed497d900,Skibhoul Stores,retail,yes,FALSE,,,local_shop_food_etc,,,fsa:Manufacturers/packers,,
+bf9e574d-7aa0-408f-ae7f-1afeeb7a157f,Kiln Bar,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+ea6d5726-acd5-43c2-9610-fb6e6d5d040c,Hai Yang,food_drink,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+a18f7093-f505-4575-842b-82cf54162e5d,Dunrossness Post Office,services,yes,FALSE,,,,,,rules,,
+f7a8915a-a80b-467c-8c4b-ca42369471c0,Da Craft Shed,retail,yes,TRUE,30,indoor,,,,rules,,
+6ce8c083-8cfc-45ba-a43c-494b6b646023,Shetland Jewellery,retail,yes,TRUE,30,indoor,,,,rules,,
+275dc936-3af6-42f4-b43d-4c881bad352c,Outdoor Trek,retail,yes,TRUE,30,indoor,,,,rules,,
+13f3caa5-429c-43c7-b4c5-00c561ad114b,Jamieson’s Knitwear,retail,yes,TRUE,30,indoor,,,,rules,,
+ad9773a5-b420-42e6-92f4-511e61189148,RNLI Shop,retail,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+4b01b686-0de7-48fc-9d76-acae328c84d7,Connie Lauren,retail,yes,TRUE,30,indoor,,,,rules,,
+99fdddf8-d1a7-46ab-90ba-47b26fa99a98,Conochies,food_drink,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+b0e928bc-d62e-4db9-aaf4-c4b8e07a604e,Avril Thomson-Smith,retail,yes,TRUE,30,indoor,,,,rules,,
+aef1371e-be74-41bb-b961-ee3797cbc835,Shoes,retail,yes,TRUE,30,indoor,,,,rules,,
+40d9c014-ecf6-4f96-a625-04fe24a41eb4,No 88 Kitchen and Bar,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+20f5775c-b1ea-4938-9b1d-9d763916e619,J G Rae Ltd,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+7f7b4827-8a4f-4887-b829-5dbb585bba0d,Sound Service Station,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+e17553fc-d433-4e31-9fd8-c97ace1103c9,Bigton Community Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+4d4f3093-8f9f-483b-bb5a-c7c252ff5d3c,Herrislea House Hotel,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+94dcf034-301a-4cc1-97f5-26b71a196762,Skellister Stores,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+765ee31e-1a99-4413-b95b-0a79bd3349cf,Setterbrae B&B,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+91206abb-3188-4520-90c4-2ceba4a1814c,Almara B&B,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+ce451c65-7d2c-4c65-a9a6-0a7a8b1730ff,Hair & Beauty Room,retail,yes,TRUE,30,indoor,,,,rules,,
+0a5dca13-c1ea-4995-bf3c-1eaa2075deee,Taste of China,food_drink,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+e5f9f4ed-1d9e-4e1e-a83d-a5abdf12baf4,Greystones Guesthouse,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+95fdc8cc-5c38-43ac-8368-f249d4e408b3,Mid Brae Inn,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+b1193096-2fad-46f8-9cd7-6db26a646c0f,Ollaberry Co-operative,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,"A thriving general store owned and run by the local community offering a wide range of everyday items such as fresh fruit and vegetables, fresh bread and dairy,"
+716ebf4e-7b05-42c9-b51b-691f64cf2769,Tagon Stores,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+d865a3b1-8e75-4cdd-b254-cb9d3ad396d3,Valleyfield Guest House,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+6cccb3c2-76b5-4b32-add9-25b5d54af2bf,Cullivoe Post Office,services,yes,FALSE,,,,,,rules,,
+b871f167-6e8d-4aeb-bff0-b1d689ca4053,Fjarå Coffee,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+d3243ad2-ebe9-477d-8950-5e47fbe187cc,Brae Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+78b5ba85-f04c-45b0-ba56-ed4be004f295,Vadsdal B&B,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+221a411d-bcd7-471d-be0a-02446015ccad,Northern Lights,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+3fdc34b5-6537-49dc-b03e-ae78a2a1aea6,Frankie's Fish & Chips,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+bc00cd84-6c1b-4713-b336-123f6029d812,Northern Lights lounge bar,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+110725df-57af-4f15-945f-bb4c1d864427,Quam B&B,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+40bc406f-4e43-4b2a-8bbd-1ff122c39f62,Valhalla Brewery,services,yes,FALSE,,,,,,rules,,
+24957a3f-7e77-46d3-aea0-460d891e8f0d,Saxa Vord resort,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+c4070f26-7606-4f32-8dd4-01b713587afb,Shetland Reel Distillery,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+83e28e23-5961-4fe4-99e6-24acec1c61b0,Viking Longhouse,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+8eab8422-570c-4460-998f-308c8f15733b,Independent Fuel Station,services,yes,FALSE,,,local_shop_food_etc,,,rules,,
+bf3742f0-2b78-4963-99f5-9eb84fa374b5,Smugglers Cove Entrance,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+e7ce8ace-d703-46ab-91f4-7064fd0d669a,Made Here Chocalate,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+d7057399-2711-4f08-b006-c2b1fce4f508,Da Steak Hoose,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+d2cc74bc-5424-4e59-a4c1-b7237e78e97a,The Lounge,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+dc248705-0e8f-4879-b100-cef6a6b632dc,The Shetland Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+f83c67b1-c87a-483d-ad3d-de8ff91ef2e5,Golden Wok,food_drink,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+e3badc2c-9646-4e93-9e09-a3d3c79036c5,T L Dallas,services,yes,FALSE,,,,,,rules,,
+8ccdbc38-bbff-492d-8502-d48d5b79ce5d,Saffron,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+cee455f3-e5fe-4132-b032-0140665b54ee,Muddy Bay,retail,yes,TRUE,30,indoor,,,,rules,,
+284db5ac-7284-4633-88bb-305ddbd806c6,ITS,retail,yes,TRUE,30,indoor,,,,rules,,
+a98ce732-c462-4faf-ae69-56a50d96359e,Allied Taxis,services,yes,FALSE,,,,,,rules,,
+6bf83bda-98ca-4d8a-a9b6-d1c4e454abfe,Virkie Post Office,services,yes,FALSE,,,,,,rules,,
+78b7af84-0bac-4f08-a075-d2e9837cb01d,LJ's Diner and Pizzeria,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+6b8e7c2d-d334-4dbd-b2c3-a8da24e10579,Hilltop Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+9c5eeace-cd90-4d8a-adff-e1b845cd6c7a,Aithbank Camping Böd,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+b02a8e05-c882-47f0-b0fd-e56fc1fb32f6,Speldiburn Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+fd913747-6428-4a70-a541-b4465b3e2f0e,Johnson Marine,services,yes,FALSE,,,,,,rules,,
+a1cdbb12-7487-4081-a85e-b82cd43677a2,Grading Systems (UK) ltd,services,yes,FALSE,,,,,,rules,,
+8fcff443-def8-4281-8638-7aed8a394221,Olnafirth Sea Farms ltd,services,yes,FALSE,,,local_shop_food_etc,,,rules,,
+3fcb3e18-a048-49eb-8844-46e8d7c2916e,John I. Herculson,retail,yes,TRUE,30,indoor,,,,rules,,
+7f18bf0a-8574-4336-91c6-b7d2451b1fbe,Mail Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+6d96d77e-5f6f-4971-8744-8e9e9e80718c,Good As New Shop,retail,yes,TRUE,30,indoor,,,,rules,,
+70713923-ba7e-471a-9e33-2ec64bb4ebe1,Sumburgh Hotel Bar,food_drink,yes,FALSE,,,,,,fsa:Hotel/bed & breakfast/guest house,,
+e25d3e08-b816-46a6-82b2-e0cca53b258f,The new harbour cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+7e38895b-264b-4417-8482-d02c1b393b74,The Shetland Fudge Company,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+d818cdf5-519b-4be8-ac74-5c52ad2c3b58,"Red Pool, Virkie",tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+386311f4-17a3-4b57-b2a6-5cccad5a0aba,Harbro,retail,yes,TRUE,30,indoor,,,,rules,,
+7f5b09ac-d462-40eb-8851-6837b781d7c8,NHS Shetland,services,yes,FALSE,,,,,,fsa:Caring Premises,,
+fbbb3dd2-7f6b-479a-99ff-f67fb3218598,The Veg Box,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+1d09aa09-45ac-425e-9749-72e1eeafe307,The Original Cake Fridge & Tearoom,retail,yes,TRUE,30,indoor,,,,rules,,
+37d72dda-c3de-48ca-ad55-62b1a119cc0b,Shetland Parliamentary Office,services,yes,FALSE,,,,,,rules,,Parliamentary Office of Alistair Carmichael MP and Beatrice Wishart MSP
+21ace2f6-ea81-4bbb-a5fe-a1e64a213111,The Cornerstone Bed & Breakfast,accommodation,yes,FALSE,,indoors,stay_overnight,,,rules,,
+eb917de6-2e15-4dbe-9ca5-92825eb527ff,The Cornerstone Cafe & Restaurant,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+d61e87bc-4924-4809-bf60-753048e85ad2,Dead Bird,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+5866539a-64b1-441c-8ce6-7d6fde462cc6,HyImpulse UK,services,yes,FALSE,,,,,,rules,,subsidiary of HyImpulse Technologies GmbH
+d713c1f7-7de5-4f9d-9474-242c44512e42,Laing's Pharmacy,services,yes,FALSE,,,,,,rules,,
+773455be-04e1-4548-ac05-781bdbd5e6d3,Golden Coach,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+926ba430-a549-4e6e-a299-d243bacf5596,Begg,retail,yes,TRUE,30,indoor,,,,rules,,
+5a3505ee-7ecd-49e5-bd3b-d48f3e4aba00,Ham Knitwear,services,yes,FALSE,,,,,,rules,,
+c0f6bfd8-7cb9-4404-81f5-b422f81a8003,C'est là vie,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+fb8eb35a-2ca6-473d-a1ab-5b25cd18d6e2,Hamnavoe Post Office,services,yes,FALSE,,,,,,rules,,
+efc34948-5608-4111-87be-6a1893c63fe0,Scalloway Pharmacy,services,yes,FALSE,,,,,,rules,,
+c9f788f6-eaab-414b-9752-ac0194f944b2,Brae Pharmacy,services,yes,FALSE,,,,,,rules,,
+000ad0e6-4def-48bc-ad1b-f1c18ca87323,Rachael's Cake Fridge,retail,yes,TRUE,30,indoor,,,,rules,,
+8d3cfcf4-5f3f-4227-9700-9d1f4bb23666,Picnic Press Cake Fridge,retail,yes,TRUE,30,indoor,,,,rules,,
+b4079652-b5f0-4a15-a10e-3c2f970e28c5,Cake Fridge,retail,yes,TRUE,30,indoor,,,,rules,,
+b392afd5-90c2-400f-b7c4-3d4ca3277f0c,Marina's Kitchen Cabinet Cake Fridge,retail,yes,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,
+f0a5f921-c74f-4224-9fc3-ec54454394de,Scalloway Caravan Park,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+004bdf91-7d58-468e-9572-4d5dbe3b1e3d,Norse Stofa,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+982de783-9c3f-4ae1-9420-84ede5f60dfd,Lerwick Brewery,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+6bef02b7-1534-43c5-956f-2a402d850402,New Hai Yang,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+74320af7-e4fa-47e2-b539-ee06772c36c1,Cunningsburgh Touring Park,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+ac65db2c-1751-413f-bec5-45f173b30475,Sumburgh Head Cafe,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,Honesty box in cafe
+92ddc246-df04-454e-870d-4ac90e519b3d,Charity Shop,retail,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+2bc59d8d-436b-4c36-873f-83de33a90175,Mareel Café & Bar,food_drink,yes,TRUE,45,indoor,food_on_site,,,fsa:Other catering premises,,
+7b11425b-219d-4200-b8f3-98ea69456d0d,Bigton Post Office,services,yes,FALSE,,,,,,rules,,
+1bf67fc5-34f7-497c-be65-fc9cfedd288d,Hillswick Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,
+5374acbc-4a37-4808-8f93-445c64cdba83,Scalloway Hotel Restaurant,food_drink,yes,FALSE,,indoors,,,,fsa:Hotel/bed & breakfast/guest house,,
+aea331f1-85a1-4f77-b13e-df0773a52a78,The Shearing Shed,retail,yes,TRUE,30,indoor,,,,rules,,
+89f01db1-4e69-487c-91a5-de48ba7f8f9f,Reawick Post Office,services,yes,FALSE,,,,,,rules,,
+3f374a81-8085-44cf-9c33-c03d40dcc7ad,Sound Butchers,food_drink,yes,FALSE,,,local_shop_food_etc,,,fsa:Manufacturers/packers,,
+71ae4df0-ad3b-4320-a7cb-e913964353ca,K Hughson Repairs,retail,yes,TRUE,30,indoor,,,,rules,,
+3a87d42d-2a6c-4e0d-be5c-416cf5295e2e,Brough Stores Post Office,services,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+07ef6d0b-2299-4029-b72c-ce09dd54d06b,Harper Macleod LLP,services,yes,FALSE,,,,,,rules,,
+0c09fc4a-8068-4253-a7d8-cae8bd95d60b,The Book Swap,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+cf204b6d-aa20-4e3f-910d-92a44a1a0c43,Leravoe Telephone Box,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+d1128b0c-8bd9-4b4a-b9bc-7858ef8f5e3b,DA Mad Hoose,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,cafe and softplay
+491f03f9-5bcb-43f5-ad4e-d6db157d9f8c,The Original Cake Fridge Giftshop And Cakeaway,retail,yes,TRUE,30,indoor,,,,rules,,
+75fdeeda-84ae-4d58-83c4-b2265ca10484,Thorntons,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+71e66e98-af58-4d04-a807-a5cdbc81d03f,Conocgies,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+76b3ce37-0b7f-48af-8e6f-a9392db1ef71,British Red Cross,retail,yes,TRUE,30,indoor,,,,rules,,
+e53ddbdc-2bca-4805-8c0a-dcc5e9036b39,Shetland Surveyors,services,yes,FALSE,,,,,,rules,,
+f2eaa634-f3fa-459c-9930-041aed4561a3,Santander,services,yes,FALSE,,,,,,rules,,
+e95df378-19d7-4d81-b3fa-dd0ac769491c,High Level Music Centre,retail,yes,TRUE,30,indoor,,,,rules,,
+8d893777-aa33-4378-af24-00713c233205,The Moist Lounge Bar,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+7acebd7e-7d76-4070-be1d-57eac9cc0504,Coffee Culture Lerwick,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+5e47bb78-2ca9-4c25-be56-87dc26c77e03,Perrie Shop,retail,yes,TRUE,30,indoor,,,,rules,,
+961fa1d3-b060-497f-a537-008f4c599ed2,Bressay Marina & Caravan Park,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+954dfe8d-bfd2-4594-86ef-c9224cf38477,Orkney & Shetland Valuation Joint Board,services,yes,FALSE,,,,,,rules,,
+e705c823-31c7-4071-821b-a84e65bd6ef7,I flooring Shetland,retail,yes,TRUE,30,indoor,,,,rules,,
+ca534a48-5472-4005-9c5f-f907749493c0,Oldies Antiques & Collectables,retail,yes,TRUE,30,indoor,,,,rules,,
+cebd21a5-588a-49e1-ad09-e24be826e455,A9 Accounting,services,yes,FALSE,,,,,,rules,,
+26164f37-a4cc-4f7f-a51f-7a9911a146f1,Jemma Tattoo And Beauty Parlour,retail,yes,TRUE,30,indoor,,,,rules,,
+4001c02f-7fa4-41e1-8d09-3c43e627c436,David Coles Independent Shetland Finance,services,yes,FALSE,,,,,,rules,,
+80a4c106-cb40-42e7-8253-a1234cfbe935,Shetland Charitable Trust,services,yes,FALSE,,,,,,rules,,
+be715e31-4205-4cf9-8af8-3cfe29890275,Toll Clock Toys,retail,yes,TRUE,30,indoor,,,,rules,,
+86be7d40-6925-4803-916d-f52e87067e70,D.I.T.T. DIY Supplies,retail,yes,TRUE,30,indoor,,,,rules,,
+b5cdb271-9b42-4c3a-9c67-592e75646b1b,Clickimin Leisure Centre,services,yes,FALSE,,both,,,,rules,,
+24d5f861-b4dc-4f06-b18f-b6bb3c460d50,Islesburgh House Hostel,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+6013e4f4-dc46-40c6-b8ec-f63f4c25146c,Unst Leisure Centre,services,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+ddb66e57-2828-4b75-a71e-daf51097be08,A. Humphray General Stores,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+963f00fa-3401-466e-8b0f-364bd41b4965,Hillside,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+44ab7784-5da6-4e6c-bbe5-7dfb70c93274,East Isle Shop,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+93787a34-871e-4ae8-bdb1-bf08259e1fc0,Gardiesfauld Hostel,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+ffc32e36-1f42-4506-86b4-97bf5ae3df00,Carnegie Hall,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+e1d57e5b-e041-444e-8ec4-47e273398cf3,Bressay Heritage Centre,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+b53636eb-791a-4b5d-9ef9-1d64888b820e,Bressay Lighthouse,accommodation,yes,FALSE,,outddors,stay_overnight,,,rules,,
+4d492acd-de3e-4507-9ac6-bad8f14f6ff0,Maryfield House Hotel,accommodation,yes,TRUE,60,indoor,"food_on_site, stay_overnight",,,fsa:Pub/bar/nightclub,,
+0e777aa9-7847-4a94-8e42-8c01f59a0788,JWJ Whalsay Ltd,retail,yes,TRUE,30,indoor,,,,rules,,
+7e972792-d885-40d8-9f9b-bd911a23e93a,Whalsay Leisure Centre,services,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+01a2d40c-00d4-42f2-98c0-e26a024bff6a,Scalloway Pool,services,yes,FALSE,,,,,,rules,,
+bed72b7c-6e58-4046-994c-3656d900f90d,Leask Motors,retail,yes,TRUE,30,indoor,,,,rules,,
+6191d17f-c313-4a80-be0c-85c1534f9234,Foords Chocolates Manufactury,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+15f9e418-7d58-4b3b-8d46-2c0fe891e27c,Co-op Food,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+d97899e7-535c-4f35-85c7-5564ddffd333,Lunna House,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+63ebe56f-5ec7-487f-9064-ec3a5e60fe34,Jarlshof,tourism,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+889e102c-56c4-4417-94f9-ac9bdaebf504,Sumburgh Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+fc7d70c7-f848-4277-8bbd-1e00761fad15,St Magnus Bay Hotel,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+2421ad14-ecca-45ef-b82b-825491f78d0a,Magno,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+65f3e881-9af3-41af-b179-cc59a3712c24,Home Furnishing of Lerwick,retail,yes,TRUE,30,indoor,,,,rules,,
+68db870c-0d99-411c-80c5-be3655d083c4,Toll Clock Shopping Centre,retail,yes,TRUE,30,indoor,local_shop_food_etc,,,rules,,
+da9fa84a-3ba2-49d9-9235-bb9566968048,Burrastow House,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+aa63e776-a8b8-4e46-819a-c2cf6ca39f20,Welcome Inn,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+86614420-b9ba-4cd4-8dfe-b673919c9b49,Jim's Garage,retail,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+e21d10a5-ba27-4c3f-86a6-cb3e1a899a92,Scalloway Primary School Games Hall,services,yes,FALSE,,,,,,fsa:School/college/university,,
+0120462d-b5fc-46f0-b67f-e0ef5a02eacc,Burra Public Hall,services,yes,FALSE,,,,,,rules,,
+c1777ddf-af18-411c-89d5-643508a8bc8d,West Mainland Leisure Centre,services,yes,FALSE,,both,,,,rules,,
+7643af8d-e447-460e-b878-8d94658ea536,Whalsay Boating Club,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+8a9db7d0-526a-41c2-b664-e052116a0d39,Hanseatic Trading Booth,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+4d47769f-0c08-474a-ab28-2325e3d354fe,Oot-Ower Lounge,food_drink,yes,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+8d6e8125-00a1-44eb-ac9f-dde1d7568623,Final Checkout,retail,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+ef16dd95-7243-4d07-bda1-91d48175d064,Mossbank Post Office,services,yes,FALSE,,,,,,rules,,
+09b9dacd-2a81-4151-a710-efb0e9a73033,Co-op,retail,yes,TRUE,30,indoor,,,,rules,,
+c22f1a4f-9d84-4f5b-98d8-11eff216cf34,North Mainland Leisure Centre,services,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+679ce957-f197-4dde-a97a-f0b454c920a1,Tesco,retail,yes,TRUE,30,indoor,,,,rules,,
+85df7b8d-131f-4ef9-97e6-2038337c1e1b,The Hoop,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+35998622-9e71-4b6c-899a-b35ff0041d01,Ollaberry Shop,retail,yes,TRUE,30,indoor,,,,fsa:Retailers - other,,
+432e359f-e5a7-432a-9594-e164bc46e6e1,Unst Heritage Centre,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+ebfd4f9b-f465-4eee-99b6-933c11a0585d,H. Williamson & Sons Ltd,services,yes,FALSE,,,,,,rules,,
+b54949cf-6ae5-43bc-8aa7-6e0d05549266,R S Henderson,retail,yes,TRUE,30,indoor,,,,rules,,
+46946380-d13c-4fd2-82d1-e958f51f68ba,Busta House,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+c70420d9-4ce9-4756-a4c4-c1dd8e1368ca,Gardiesfauld Caravan Park,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+acc063fd-e88e-4ff7-b2d3-bd2f48be9c26,The Cabin Museum,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+706deabc-71fe-4744-9aa1-e0ac34d41358,Fort Cafe and Take Away,food_drink,yes,TRUE,60,indoor,food_on_site,,,rules,,
+5812787a-0bf1-4fa4-a7d4-a43c42e39ad5,Hayhoull,accommodation,yes,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,
+3ac1032c-5d4a-4f94-990b-19748b01c1a8,Fetlar Interpretive Centre,tourism,yes,TRUE,60,both,proper_visit,,,rules,,
+b563d85a-79c3-4cb3-88ed-2f677c436e66,Meadowvale Lodge,accommodation,yes,FALSE,,,stay_overnight,,,rules,,
+8e4168e2-6c0e-4b76-bfab-57cf302b8906,Mowgli Motors Ltd,retail,yes,TRUE,30,indoor,,,,rules,,
+58f4122b-7e5b-4b2b-980a-772c96bff182,Leasks Filling Station,services,yes,FALSE,,,,,,rules,,
+3faedd42-bc50-4626-9bd8-05f1d76f17cc,Aa' Fired Up,services,NO — cannot be planned,TRUE,45,indoor,food_on_site,,,fsa:Other catering premises,,"Aa' Fired Up is a fun, friendly & relaxing experience for all, from peerie bairns to auld folk. We offer :- Pottery Painting, Build your own Teddy Bear, Life Ca"
+bbb990ce-2bf1-4284-ac64-32191a750818,Anderson & Co,services,NO — cannot be planned,FALSE,,,,,,rules,,"Anderson & Co is an old established family firm trading in Shetland knitwear, crafts, children&rsquo;s clothes and nursery products. Founded in 1873 by Thomas A"
+af3742f5-1f28-4c62-9d64-fd889cd0c8c0,Anderson & Goodlad,services,NO — cannot be planned,FALSE,,,,,,rules,,"Solicitors, Notary Public & Estate Agents Founded in 1882 by John Bannatyne Anderson, the firm added the name Goodlad when the present Partner&rsquo;s grandfath"
+d298ebfe-4acb-4fa3-b65e-9d650f991d0d,Arch Henderson LLP,services,NO — cannot be planned,FALSE,,,,,,rules,,"We specialise in Civil and Structural Engineering, Architecture and Environmental Services. We offer a complete and flexible consultancy service, from project c"
+67430964-fadd-4711-a5a8-97e8f6d5b6cb,Arthur and Simpson,other,NO — cannot be planned,FALSE,,,,,,rules,,"Welcome to Arthur & Simpson Arthur Simpson - Estate and Letting Agents in the Shetland Islands. We take the stress out of selling, renting and managing property"
+01869f1b-ff5f-40fc-9afe-07f3474b2b69,Aura Lounge,services,NO — cannot be planned,FALSE,,,,,,rules,,Aura Lounge Ltd is a local beauty retreat offering a wide range of beauty treatments in a relaxing and welcoming environment. Whether you&rsquo;re looking to un
+94826f81-a6c5-4ad4-ba5d-123df727ba68,Aurora,retail,NO — cannot be planned,FALSE,,,,,,fsa:Hotel/bed & breakfast/guest house,,"A full range of Silver, Gold and Diamond Aurora Jewellery is available in our shop. Along with Kilt Hire and Purchase we also stock a large selection of gift it"
+4a865e42-9078-495d-9dbd-e938fa1a57f7,Boots,services,NO — cannot be planned,FALSE,,,,,,rules,,"Boots is the UK&rsquo;s leading pharmacy-led health and beauty retailer. With around 2,500 stores ranging from local community pharmacies to large destination h"
+578d5ff6-d185-4a82-a9ae-2ea41b4bf57f,Avril Thomson Smith Art,services,NO — cannot be planned,FALSE,,,,,,rules,,"Shetland artist, born in 1975 on the most northerly island in Scotland, the Shetland Islands, draws inspiration from the local landscape. Having grown up in Ler"
+2ce86e01-d176-42da-9773-fabf3bb6b258,Babs Clubb Studio & Shetland Academy of Beauty,services,NO — cannot be planned,FALSE,,,,,,rules,,Bab's Clubb is a seasoned professional make up artist with a wealth of experience and extensive training. Having completed a rigorous 2-year program at West Col
+7a43bc18-2076-470f-93ca-a14ed9b0f2bb,Bank of Scotland,services,NO — cannot be planned,FALSE,,,,,,rules,,"Lerwick branch of the Llyods Banking Group, trading as Bank of Scotland."
+df6ecd2f-b27a-40c5-91a0-41b5599c5019,Beauty Services at 7 Reform Lane,services,NO — cannot be planned,FALSE,,,,,,rules,,"Health and Beauty: Irene is HND trained with over 33 years experience as an Intense Pulsed Light (IPL) therapist, and also offers skin rejuvenation, electrolysi"
+a3708b78-d115-4a0a-ba6d-cff31efb4855,Beauty109,services,NO — cannot be planned,FALSE,,,,,,rules,,"Beauty109 offers a luxurious range of beauty treatments, providing clients with professional and personalised care in a relaxing environment. Conveniently locat"
+7446bf6f-4a7b-4eed-835e-a5f61ed94ad3,Blyde Welcome,services,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Shetland's foremost training provider for the hospitality and tourism sector, Blyde Welcome can provide vocational or bespoke, hands-on training to match your s"
+11da7f3c-aa82-4248-b3eb-7f63b88c9105,BML Accounts Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"BML Accounts is run by Ben Laurenson, an experienced tax manager with over seventeen years of working in accountancy. A member of the Association of Accounting "
+6f52bef1-8964-438f-b93f-9a9e4591a9e9,Bressay Ferry Waiting Room,other,NO — cannot be planned,FALSE,,,,,,rules,,"Waiting area for Bressay ferry passengers, located within Albert Building."
+49bcf49e-d262-49b8-a4e8-9306449d16c2,British Red Cross Society,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,The British Red Cross has been helping millions of people in the UK and around the world get the support they need when crisis strikes. From hiring a wheelchair
+e08070b8-dc56-47e2-93b6-c6aa66a5d21c,Burns Lane Clothing,services,NO — cannot be planned,FALSE,,,,,,rules,,Burns Lane Clothing &ndash; it&rsquo;s right up your street Opened in May 2018 Owners Ian Pagulayan and Michael Laurenson decided to expand from their already s
+8894d173-a4c9-4f0f-a887-93ca9b7737cf,C'est La Vie,services,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"Welcome to C'est la Vie &ndash; A Taste of France in the Heart of Lerwick Nestled in the centre of Lerwick, Shetland, C'est la Vie is a French-inspired restaura"
+80c4042c-9e63-4a5b-846f-5ed98795e89e,Camera Centre,services,NO — cannot be planned,FALSE,,,,,,rules,,"From Canon to Nikon, Apple to Samsung, Camera Centre are your local photographic and mobile experts. Our dedication to service, photographic expertise and excel"
+227a3fab-2db6-42ca-b021-aa1b2bd21f0b,Cancer Research UK,services,NO — cannot be planned,FALSE,,,,,,rules,,"The Cancer Research Shop in Lerwick Town Centre stands as a beacon of community spirit and charitable endeavour. Located in Harrison Sq, this shop is dedicated "
+2a837831-2f19-41c6-a0e2-73a6fbe3f209,Caroline Leask - Therapies,services,NO — cannot be planned,FALSE,,,,,,rules,,"Play Therapy Shetland offers a confidential space for children, teens and adults. Here there are three services available; Counselling, Play Therapy and Parent/"
+1bbc4def-4078-412f-a4ab-4cc7535db782,Da Harbour Chippy,services,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Da Harbour Chippy provides tasty and freshly cooked food every time, with friendly service. We have competitive pricing, a convenient Esplanade location and lon"
+f2434fe1-6647-4cc1-8a6c-59860e48dafd,CASE Shetland LTD,services,NO — cannot be planned,FALSE,,,,,,rules,,CASE Shetland was set up as an alternative to the larger engineering practices which have offices on the isles. There was a growing demand from the private sect
+7b4289b2-d565-4e0f-b941-904521cc94ad,Cee & Jays,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Shetland Sports & Footwear is a premier retailer located in the heart of Lerwick, specialising in footwear, sports goods, and clothing. Serving the local commun"
+765b21ee-8fa2-46dd-bdbe-b10bcfc7c657,Coffee Culture,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"A warm welcome from Jigar and his friendly staff awaits at Coffee Culture, a delightful caf&eacute; in the heart of Lerwick. Known for its cozy atmosphere and e"
+8f6d53a3-caa0-4ea7-b0bb-15e19ab99d69,Connie Laureen Jewellery,services,NO — cannot be planned,FALSE,,,,,,rules,,Independent handmade jewellery shop located in the heart of Lerwick. This small independent jewellery shop is a real local treasure. Everything is handmade by C
+2aa72f2f-d4dd-425b-baa8-a9259491ed56,Conochie's Newsagent & Post Office,services,NO — cannot be planned,FALSE,,,,,,rules,,"Conochie's Newsagents, the most popular newsagent in Shetland, is conveniently located in the heart of Lerwick's town centre. Known for its wide range of produc"
+e982ede4-44a6-4f82-9de6-66bcf7af50fe,CoWork,other,NO — cannot be planned,FALSE,,,,,,rules,,"CoWork Shetland provides flexible office space in the heart of the capital, Lerwick. Take your business to the next level with your own dedicated desks, private"
+558cbd70-2378-4b00-965e-67ffabe1881d,CU Marketing,services,NO — cannot be planned,FALSE,,,,,,rules,,"CU Marketing Ltd. is dedicated to the belief that small local businesses are vital to any community, particularly in island regions such as Orkney and Shetland."
+2de90984-5c2d-4a9d-8f74-2ef6ddb7f2e1,D.G Leslies,retail,NO — cannot be planned,TRUE,30,indoor,local_shop_food_etc,,,fsa:Retailers - other,,"DG Leslie is a well-established convenience store, off licence, and tobacconist located in the heart of Lerwick. Known for its diverse offerings and commitment "
+fc595ffe-2a5b-4a98-8d56-0a233b739e3a,Eldamato,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Welcome to Eldamato: Your haven for spinning, felting, and local knitwear Located in the centre of Lerwick, just next door to the iconic Peerie Shop, Eldamato i"
+26b88f3d-04b1-4a95-a128-a140da0bd1f4,Envi,services,NO — cannot be planned,FALSE,,,,,,rules,,"Envi is a family-run hair salon located centrally at 110 Commercial Street, Lerwick. Conveniently situated near bus routes and with ample nearby parking, Envi i"
+5e6f71f9-3514-4268-82b9-5f93419a6c7c,Ferry Terminal,other,NO — cannot be planned,FALSE,,,,,,rules,,Ferry to Bressay https://www.shetland.gov.uk/ferries
+9463fcb7-0f66-49fe-832d-fdab5b2bb8b3,Fort Charlotte Guest House,services,NO — cannot be planned,FALSE,,,,,,rules,,"Fort Charlotte Guesthouse is a family run guesthouse ideally situated the heart of Lerwick, Shetland Islands. We pride ourselves on our great service, location "
+64e5af28-d1c4-41b8-98f0-92367c55429c,Fort Fish & Chip Shop,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,rules,,"Fort Chippy is a beloved Fish & Chip shop in Lerwick, renowned for serving some of the finest local fish in Shetland. Situated on Commerical Street opposite the"
+a88e5fbd-1806-49e3-9087-70389356bdfe,George Robertson (Shetland) Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"Established in 1947, George Robertson (Shetland) Ltd has been in business for more than 75 years and is proud to be Shetland&rsquo;s leading electrical contract"
+4b05f67e-f14c-4ec6-a36f-1d8433db6457,Graceful Beauty,services,NO — cannot be planned,FALSE,,,,,,rules,,Grace Allan is a fully qualified Beauty Therapist who has been established in the trade for a number of years and is now opened up her own salon in the centre o
+251365b5-1032-4171-96e1-cea4c0fb7fd5,Grantfield Garage,services,NO — cannot be planned,FALSE,,,,,,rules,,Visiting and want to hire a car in the Shetland Islands? Our extensive car hire and van hire stock contains the vehicle best suited to your needs. We have Self 
+6b7ce222-d3e3-48dc-8bde-377194f8aa04,Harry's Department Store,services,NO — cannot be planned,FALSE,,,,,,rules,,"Harry's is a friendly, family-run business spread across three floors, offering a diverse range of products to meet all your needs. What You'll Find: Ground Flo"
+a0276834-cf84-44cf-900a-c6e34d0bda48,NB Communication Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"We are NB Communication, experts in digital strategy. Founded in the beautiful Shetland Islands, with a 2nd base in Edinburgh, we work for clients throughout th"
+3b3d76fd-ec58-4b46-a5f1-89cb717796cc,High Level Music,services,NO — cannot be planned,FALSE,,,,,,rules,,High Level Music has been in business for 21 years. They moved into their new shop 5 years ago and the business has gone from strength to strength. You can find
+3adff17b-05d7-4a7b-b7b6-496a565b7083,Highland Fuels Ltd,other,NO — cannot be planned,FALSE,,,,,,rules,,"Scotland&rsquo;s leading independent fuel distributor. We are committed to providing outstanding, professional customer service and we pride ourselves on our re"
+8ba7122e-53aa-49f5-8bae-aff88528ab77,Historic Scotland,services,NO — cannot be planned,FALSE,,,,,,rules,,Fort Charlotte overlooks the strategic Sound of Bressay. It was built to defend the sound against Dutch and later French warships. Some sort of fortification wa
+29e8f8a3-fe8a-478d-a8fe-ea75240ed091,Icare,services,NO — cannot be planned,FALSE,,,,,,rules,,Optometrist based in Lerwick At ICare Shetland we pride ourselves on providing a high quality service and the cornerstone of this service is the eye examination
+09bd2e45-5581-4db9-a910-0e852164a086,Independent Finance (Shetland),services,NO — cannot be planned,FALSE,,,,,,rules,,Ian Thomson DipFA Cemap is an Independent Financial Adviser trading as Independent Finance (Shetland)
+5a27f75e-0446-4837-a4d9-1641ff0d5a5b,Intersport,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,The World's Leading Sports Retail Brand right on your door step. Guaranteeing satisfaction and support to bring you a worry-free shopping experience. We guarant
+0db30912-071e-41bb-a34a-03619ec7a5d9,Island Larder,food_drink,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,We are a small family-owned business committed to using and showcasing the very best of Shetland produce. Since launching Island Larder in 2017 we have revamped
+134a0312-1442-453d-a760-3f591aa3370f,J.G.Rae Shetland,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,Jack Rae trained as a jeweller in Edinburgh and moved to the island of Foula in Shetland in 1945. He later moved to Weisdale on the Shetland mainland and starte
+83190905-d239-4a78-9cd4-ce565582bf56,Jamiesons of Shetland,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Jamieson&rsquo;s is a family owned business, which has specialised in wool from the native Shetland sheep for 5 generations. The family are dedicated to the sur"
+61a92467-9698-40ab-bc89-0ff6592c508f,Puffin Rebublic,other,NO — cannot be planned,FALSE,,,,,,rules,,
+ca08ead8-339a-4a27-a183-8d1e162387b4,JLP Internet,services,NO — cannot be planned,FALSE,,,,,,rules,,JLP Internet- Shetland Web Design and Online Services. Here at JLP Internet we help businesses unlock the power of the Internet to reach more customers online a
+0ddf1176-f8bb-4974-b9a2-5a8ea8391e5c,Jon Stone Hair,services,NO — cannot be planned,FALSE,,,,,,rules,,"Looking for a barber or a hairstylist specialised in taking care of your hair in LERWICK, SHETLAND? JON STONE, welcomes you for a unique and unforgettable salon"
+d9339541-480b-4477-9349-d594582e1379,Juice Culture,other,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Juices,Smoothies,Bubble Tea,Candy Floss,Popcorn,Waffles and much more..."
+550f3d41-16e9-4e56-931c-d39cbfe0a895,Just Gents Barbers,services,NO — cannot be planned,FALSE,,,,,,rules,,Gents Barber shop
+fd7db0d5-0765-444d-9013-e41c798495b2,Kool Kutz,services,NO — cannot be planned,FALSE,,,,,,rules,,"Kool Kutz is a long established, family run business, providing a range of hairdressing services to the Shetland community. Furthermore we provide retail servic"
+e6344a40-f9c7-4a5d-83a9-cdd5fdab102e,Kung Fu Cuisine,food_drink,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,Our Lunch Special Bar is open from 12pm - 2pm where you can pick rice or noodles aswell as a main course in our lunch boxes. Menu Orders available from 11am - 8
+e03eea19-3b52-4e6a-bcb5-a632fde43fef,Lerwick Dental Practice,services,NO — cannot be planned,FALSE,,,,,,rules,,"NHS and Private dental practice Dentist Mr Apil Timilsina, BDS 2008, MPH, MSc SSCD Master in public Health, University of Salford, Manchester Master in Sedation"
+97983332-33f3-4cf0-82d2-c3941717d571,Lerwick DIY,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,DIY retail shop selling Tools; a wide variety of Hardware and Ironmongery; and Gardening tools and accessories. Also offering a Tool Sharpening Service and a Ke
+810ae10f-4716-4076-be48-bf4cc6ba081e,Lerwick Port Authority,other,NO — cannot be planned,FALSE,,,,,,rules,,"Lerwick Harbour, with modern, versatile facilities for a wide variety of users, is the principal commercial port for Shetland and a key component in the islands"
+6297fc66-3f74-4a59-882d-66f50648c3f4,LHD (Net Mending) Ltd,other,NO — cannot be planned,FALSE,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
+ae2cbf7e-4986-43ac-ba27-5cb59fa0a405,LHD Custom Clothing,services,NO — cannot be planned,FALSE,,,,,,rules,,"LHD Custom Clothing design, print and embroider garments providing you with brand corporate clothing or leisure wear to your requirements. LHD supply workplace,"
+29084b21-238a-4c19-be08-f750ffcfca5f,LHD Ltd,other,NO — cannot be planned,FALSE,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
+326de33f-fc40-4a96-89aa-572cbdf4ebc7,"Taxi Rank, Victoria Pier",services,NO — cannot be planned,FALSE,,,,,,rules,,
+da20acaa-7684-4dce-b4b2-34f87bd6199c,LHD Marine Supplies Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"The company began life on 3 April 1900 as Lowestoft Steam Herring Drifters Company Limited, and traded under that name until 1943 when a number of its vessels ("
+8eac478b-88be-4204-937d-abf2e8e12253,Lighthouse Counselling Shetland,other,NO — cannot be planned,FALSE,,,,,,rules,,"Located at The Mission in Lerwick town centre, Lighthouse Counselling Shetland offers a safe, confidential and welcoming space where people can feel heard, supp"
+950c8772-243c-4c7b-86e8-d3a61ef61ac6,Loose Ends,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Loose Ends is an independent knitting, yarn and haberdashery shop in the centre of Lerwick's Commercial Street. Selling everything from fabric to knitting patte"
+fdda4cbe-1e28-4f4d-89d8-aed8317be513,Love From Shetland,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"We are a small family run company based in the Shetland Islands. All of our soaps and bath products are handmade by myself here in Shetland , using the best sou"
+d0f3e9fc-da62-41a9-a848-62d5a404a30b,Marine Scotland,other,NO — cannot be planned,FALSE,,,,,,rules,,Marine Scotland is responsible for the integrated management of Scotland's seas. Its purpose is to manage Scotland's seas for prosperity and environmental susta
+c2087b10-b91a-4b8b-b935-c10c7edf1843,Marine Scotland Science,other,NO — cannot be planned,FALSE,,,,,,rules,,"Marine Scotland Science (MSS), the scientific Division of Marine Scotland, plays an integral part in supporting the Scottish Government's vision of marine and c"
+ca15a252-92a2-4863-9ecf-857b475ad853,Meraki Hair Studio,services,NO — cannot be planned,FALSE,,,,,,rules,,"Located in the heart of Lerwick town centre, Meraki is a modern and welcoming hair salon offering professional hairdressing services. With a focus on creativity"
+4e4d76dd-14b1-4ab6-a70e-24b2bd2711e4,MH Apps,other,NO — cannot be planned,FALSE,,,,,,rules,,"MH Apps develop high quality desktop, mobile and web solutions for a wide range of businesses to help reduce and simplify admin work, improve processes & produc"
+41325079-254d-4e67-87d1-addecc7086ff,Michael Inkster & Co,services,NO — cannot be planned,FALSE,,,,,,rules,,"Michael Inkster & Co Solicitors - Shetland Property for Sale or Let Michael Inkster and Co are a firm of solicitors based in Shetland, Shetland Isles. To contac"
+b141d2ec-6634-47fe-97c4-7aa16b5af87c,Michael Thomson FRICS,other,NO — cannot be planned,FALSE,,,,,,rules,,
+571b1146-4ecf-4b56-92b4-89e819405c20,Monitor Station,other,NO — cannot be planned,FALSE,,,,,,rules,,
+66b81874-10f1-4c76-88bd-981b8ff7c313,née gibson architects,services,NO — cannot be planned,FALSE,,,,,,rules,,"We are a locally based Architects practice with extensive experience in all major sectors including housing, healthcare, local authority work, commercial, indus"
+08d0e571-a8fd-40f8-9845-7602c1c7477a,New Golden Coach,other,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,
+e03193e6-5e86-422e-a479-d09b5f2af136,NGR Accountants,services,NO — cannot be planned,FALSE,,,,,,rules,,NGR Accountancy was founded with a clear goal&mdash;to remove the stress and complexity of accounting for small businesses and self-employed professionals. Afte
+3fb4ce57-9935-48bc-8324-0ab768cda42e,Ninian,services,NO — cannot be planned,FALSE,,,,,,rules,,Ninian specialises in design led Shetland knitwear which is designed and made in-store by Joanna Hunter and her team. Ask to have a look at the knitwear studio 
+285d00ef-396d-4293-ad13-e03a4c484e1a,No88 Kitchen & Bar Lerwick,services,NO — cannot be planned,FALSE,,,,,,rules,,At No88 we strive to use the best local seasonal produce to give you the best meal we can. We are in close contact with our suppliers all year round to make sur
+80279ba9-c838-43f5-a10c-fd7ca33e4802,Nomadic Pizzeria Ltd,tourism,NO — cannot be planned,TRUE,15,indoor,quick_stop,,,fsa:Takeaway/sandwich shop,,"Looking for proper, delicious pizza? This local favourite serves up freshly made pizzas packed with flavour, using quality ingredients. Whether you&rsquo;re aft"
+cfae4a48-7e43-4d9c-9ee1-70928d29167e,Outdoor4kids/Outdoor Trek,accommodation,NO — cannot be planned,FALSE,,,stay_overnight,,,rules,,"Selling camping equipment and adult & kids outdoor clothing from well known brands like Berghaus, Rab, Jack Wolfskin and many more. Online and telephone orders "
+accaf8a0-d655-4cec-8287-5537d0b32730,Parliamentary Office,other,NO — cannot be planned,FALSE,,,,,,rules,,MSP's can be contacted via email: alistair.carmichael.mp@parliament.uk/Beatrice.wishart.msp@parliament.scot
+01a8147a-2186-447c-addc-cf8c43d9769f,Peerie Isles,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Shetland crafters and UK crafters bringing all their unique handcrafted pieces to you from one place - Peerie Isles shop, Lerwick. Find that perfect gift or a p"
+796a8ec6-d7a4-4af0-b77b-460ca31ab1da,Peerie Shop,services,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"The Peerie Shop 'theonestoppresentshop', in front of the Peerie Shop Caf&eacute; on the Esplanade. A huge range of carefully chosen colourful interesting gifts "
+649c7844-c094-479e-ad57-290e5ac3d97e,Peerie Shop Cafe,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"We make everything ourselves using local and seasonal produce whenever possible.. Striving for the best coffee, roasted every month for us in Perth. Lots of tem"
+ed502629-d893-46cc-a74b-5d4ee5115cd4,Pete's Cafe and Takeaway,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Caf&eacute; offering breakfast and lunch in the historic Solotti's & Faerdie Maet premises. Check out Pete's Facebook page for daily specials
+ef48fbfb-9815-47fc-b246-2526fa18c94b,Public Convenience,other,NO — cannot be planned,FALSE,,,,,,rules,,"From Monday 7th June 2022, the opening hours of the public toilets at Harbour House in Lerwick are to be extended, to open from 8am to 9pm daily, seven days a w"
+046e0707-3985-48da-9506-f4a4f6c071af,R. Robertson & Son Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"R. Robertson & Son Ltd are Shetland&rsquo;s largest transport operator, based in the main town of Lerwick. Providing private hires and tours within Shetland and"
+4495eb2d-fd72-4979-89ce-dbfc048912eb,R.A.M Knitwear,services,NO — cannot be planned,FALSE,,,,,,rules,,Unique and attractive knitwear designs by Roisin McAtamney. A fun and fresh custom knitwear design company. Creating unique fashion and promoting the versatilit
+8ffde8a0-198e-4bd3-878c-be720cd3e30e,Radiance Shetland Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"Radiance Shetland &ndash; Your One-Stop Beauty Destination Originally starting as a tanning salon, Radiance Shetland has grown into a full-service beauty hub of"
+8344b2f6-4cd5-4572-bb59-5873796e5e70,Realta Events Management,other,NO — cannot be planned,FALSE,,,,,,rules,,Realta Events Management offers bespoke event and project management services to the public and private sector.
+c25b113a-0e48-4fc4-a05e-6e264be57faf,Reset Well-being Therapies,services,NO — cannot be planned,FALSE,,,,,,rules,,"Reset Wellbeing Therapies is founded by Jennie, whose lifelong passion for caring spans nursing, social care, dementia support, oncology massage and over 30 yea"
+1877bd83-f9a1-4dd4-b6c3-60161a09484f,Royal Mail,other,NO — cannot be planned,FALSE,,,,,,rules,,
+987d9ed9-dbbf-4b3d-9984-48e4092e57f0,RSM,services,NO — cannot be planned,FALSE,,,,,,rules,,RSM are an independent firm of accountants and business advisers. We provide a wide range of services including tax and financial planning as well as accountanc
+6238d716-02a7-4052-853c-1d9e1af5eaf8,Santander UK Plc,other,NO — cannot be planned,FALSE,,,,,,rules,,
+d222f528-3228-4500-823a-a14d48d92867,Scottish Children's Report Administration,other,NO — cannot be planned,FALSE,,,,,,rules,,Opening times This office is open during the following times: Monday - Thursday 09:00 - 17:00 Friday 09:00 - 16:00 This office is closed on the following public
+8bc781d4-50ab-49d7-966c-e7a58228acd5,Scottish Fisheries Protection Agency,other,NO — cannot be planned,FALSE,,,,,,rules,,
+0d9012b3-5748-4b6b-84b7-1c7bd86a1e5c,Shetland Aerogenerators Ltd,other,NO — cannot be planned,FALSE,,,,,,rules,,"Shetland Aerogenerators was formed in 1992, and we operate from our offices on Charlotte Street in Shetland&rsquo;s capital of Lerwick. We initially set out to "
+abfc2fbb-35a8-4ba8-84a2-a2650899b96c,Shetland Bookshop,services,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,The Shetland Bookshop is a general bookshop with a large Shetland interest section. We offer a customer ordering service for any in-print titles we do not have 
+e18a9e3a-b91a-4a92-8199-ee50e84b8f20,Shetland Broadband LLP,other,NO — cannot be planned,FALSE,,,,,,rules,,
+0aac60af-69c7-45dd-9a92-8fa83955a8fb,The Dowry,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"The Dowry opened in June 2018. A light and airy cafe bar with Scandinavian influences in the decor and fantastic views out over the harbour area, this is a love"
+150e7903-395a-42ae-87da-39a81d266d64,Shetland Fish,other,NO — cannot be planned,FALSE,,,,,,rules,,Shetland Fish Ltd is at the forefront of an exciting time for the Shetland fishing industry. Shetland&rsquo;s fishing industry is undergoing a renaissance. The 
+074aec17-685d-4869-b989-bcbffaacdbf7,Shetland Property Lets,other,NO — cannot be planned,FALSE,,,,,,rules,,
+7511b3df-4cc6-479b-b62e-04715a22cd7c,Shetland Soap Company,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Here at the Shetland Soap Company, our soap and skincare range is inspired by the islands' raw elements, and are hand crafted using both traditional and contemp"
+b99ae0df-4c9b-42f9-9c23-b6ba7a83b92d,Shetland Somatic Arts,services,NO — cannot be planned,FALSE,,,,,,rules,,"Located in the centre of Lerwick, Shetland Somatic Arts is a modern, welcoming tattoo and piercing studio known for its creativity, professionalism, and attenti"
+e3169e58-bacd-4f96-966c-260572a236a6,Shetland Telecom,services,NO — cannot be planned,FALSE,,,,,,rules,,Shetland Islands Council has identified improving data communication services across the Isles as one of its key targets. To help meet this aspiration the SIC h
+c1df578d-d168-4a0c-9876-e3542b6d6d01,Shetland Wool Adventures,services,NO — cannot be planned,FALSE,,,,,,rules,,Specialist knitting tours in Shetland & Shetland Wool Adventures Journal. Join us on a unforgettable journey to discover Shetland and our unique textile heritag
+3cceca2e-c9b9-4002-a745-f712d0864da4,SIBC: Shetland Islands Broadcasting Company Limited,other,NO — cannot be planned,FALSE,,,,,,rules,,"Commercial radio station broadcasting 24 hours a day, 365/6 days of the year."
+59d2e90a-22c7-4c20-adfc-6f1b99897692,SIC Town Hall,other,NO — cannot be planned,FALSE,,,,,,rules,,
+84cb322b-0316-4042-a331-3d2d2c11e300,Smith & Robertson,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Smith and Robertson stocks a wide range of ladies fashion and accessories, as well as a selection of menswear. The store has a long history on Commercial Street"
+d02e9db5-c182-44d4-88cf-ea342f842218,Specsavers,other,NO — cannot be planned,FALSE,,,,,,rules,,
+07aa0aa3-ab78-47f6-a0ac-de2a79b83653,Stems,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,Stems is a high quality florist.
+a222438a-b7b6-4b0f-93a1-c74b6d234854,Studio 4 Hair,services,NO — cannot be planned,FALSE,,,,,,rules,,
+9a022df6-f09b-4723-98ab-2ca236f7a02d,Superdrug,services,NO — cannot be planned,TRUE,30,indoor,,,,fsa:Retailers - other,,"Superdrug offers a wide range of products and services. Healthcare Products: Superdrug stocks a variety of over-the-counter medications, vitamins, supplements, "
+4f3ef283-7a4d-4f81-9477-51ba05c59992,Tait & Peterson,other,NO — cannot be planned,FALSE,,,,,,rules,,
+889c1c1b-94ee-4110-b816-8ad8b2194e5a,The Grand Hotel,accommodation,NO — cannot be planned,FALSE,,,stay_overnight,,,fsa:Hotel/bed & breakfast/guest house,,"In the heart of Shetland&rsquo;s capital of Lerwick, the Grand Hotel offers comfortable ensuite rooms, free parking and excellent service to guests year-round. "
+3969f087-e830-4264-8b91-eb5e8aa03de6,The Harbour Café,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,Currently open: 7am - 12noon Monday to Saturday. 8am - 12noon on Sunday
+5792dc67-a181-4090-9d5f-30428f3cbb52,The Kildrummy Corporation,services,NO — cannot be planned,FALSE,,,,,,rules,,"In 1986 Ken Beer began writing cost control software for BP Sullom Voe. The oil terminal was one of Europe&rsquo;s largest, based in Shetland, a remote island h"
+8a3f9daf-e33e-47ec-a7bb-752664660bc8,The Lounge Bar,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,
+1251bc01-80b3-41bc-8a4e-960ed044ad20,The Noost Bar,tourism,NO — cannot be planned,TRUE,60,both,proper_visit,,,rules,,"Located in the heart of Lerwick, The Noost Bar is a welcoming spot to relax, unwind, and enjoy great drinks in a friendly atmosphere. Whether you're a local loo"
+b202febd-16e3-4514-8952-5bd5704bdecc,The Original Cake Fridge,food_drink,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Restaurant/Cafe/Canteen,,"Bringing a taste of home baking into Lerwick town centre, The Original Cake Fridge is the perfect spot for something sweet. Alongside their famous cakes and tra"
+9505776a-7f4b-4375-b067-0f003e2320fc,The Queens Hotel,services,NO — cannot be planned,FALSE,,,,,,fsa:Hotel/bed & breakfast/guest house,,"On Lerwick&rsquo;s seafront, the former lodberries, turned hotel, offers comfortable rooms to visitors to Shetland in the heart of &lsquo;old&rsquo; Lerwick. Wi"
+e0068dff-2454-4cca-8969-5330381d474e,The Royal Bank of Scotland,services,NO — cannot be planned,FALSE,,,,,,rules,,Banking Services Monday 09:15 - 16:45. Tuesday 09:15 - 16:45. Wednesday 10:00 - 16:45. Thursday 09:15 - 16:45. Friday 09:15 - 16:45. Saturday Closed - Closed. S
+0981d837-6692-45b5-aad3-f970f6306955,The Shetland Times Newspaper,other,NO — cannot be planned,FALSE,,,,,,rules,,"The Shetland Times is Shetland&rsquo;s longest-running weekly newspaper, keeping the community informed with trusted local news, features, sport and opinion for"
+099ed309-2c5a-4fcc-b59b-5fb5fa69de45,The Swan Trust,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"The Swan Trust was formed in 1990, and today is responsible for the operation and upkeep of the Swan. The main objectives of the Trust are: To encourage and fac"
+609473a6-4117-45ef-84e0-70fe72135abc,The Wine Shop,services,NO — cannot be planned,TRUE,30,indoor,,,,fsa:Retailers - other,,"All your wines, spirits, extensive malt selection, and beers under one roof, all at keen prices. Serving Lerwick since 1985, service, pricing, and variety of st"
+e5178378-a61f-4a01-bc9a-6979ac5f8fac,Thule Bar,services,NO — cannot be planned,TRUE,60,indoor,food_on_site,,,fsa:Pub/bar/nightclub,,"The oldest bar in Shetland, a very popular public house situated on Lerwick&rsquo;s harbour front &ndash; keeping customers refreshed since 1895! A warm, welcom"
+4430f477-d73b-463c-a558-e78e431154c0,Thulecraft Ltd,services,NO — cannot be planned,FALSE,,,,,,rules,,"Thulecraft Ltd are the agents in Shetland for Honda Motorcycles, ATV's, Marine and Garden Equipment. We are also agents for Yamaha Marine and ATV's, Hyundai pow"
+d7fa0891-f337-4471-8c44-3da532109b50,Tooth and Nail Barber Surgeons,services,NO — cannot be planned,FALSE,,,,,,rules,,Shetland's Traditional Barber Shop Tuesday: 09:00 - 18:00 Wednesday: 09:00 - 18:00 Thursday: 10:00 - 20:00 Friday: 09:00 - 18:00 Saturday: 09:00 - 16:00 Sunday:
+9752a26c-2830-4ffa-a5ea-caae1b6d76a4,Universal Stores,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Universal Stores brings together two lovely things in life, beautiful flowers and irresistible sweet treats. Whether you&rsquo;re picking up a fresh bouquet for"
+f7475646-cbe6-4eb8-8917-04e4275550d8,Vaila Fine Art,other,NO — cannot be planned,FALSE,,,,,,rules,,
+8b880e7e-0440-4cd7-8997-15bd0739d1b5,Venture Chiropractic & Sports Injuries,services,NO — cannot be planned,FALSE,,,,,,rules,,Chiropractors are spine and joint specialists who use their hands to treat problems in these areas. At Venture Chiropractic & Sports Injuries we'll give you rel
+358679cb-55be-4de5-9b04-3534a3c0863e,Victoria Pier,other,NO — cannot be planned,FALSE,,,,,,rules,,
+c231750d-115a-4959-a986-bf9611729219,Virgin Money,services,NO — cannot be planned,FALSE,,,,,,rules,,With roots back to its establishment in Glasgow in 1838. Clydesdale Bank has a proud history of innovation and support for Scottish industry and communities. Vi
+003d8ae8-21cb-4253-a503-1c3e5cd879d3,VisitScotland,services,NO — cannot be planned,FALSE,,,,,,rules,,"Who we are We are Scotland&rsquo;s award-winning national tourism organisation. As a publicly-funded body (an NDPB, or &lsquo;non-departmental government body&r"
+7a9bc6f0-9503-421d-b6b8-5574dd3dac08,Westside Pine,retail,NO — cannot be planned,TRUE,30,indoor,,,,rules,,"Giftware and furniture retail outlet, specialising in quality oak & pine furniture and funky gifts & home accessories. Stockists of Yankee Candle, Emma Bridgewa"
+dddddddd-0000-0000-0000-000000000001,DEMO — Shetland Makkers,retail,yes,TRUE,30,indoor,,,,rules,,"Hand-made in Lerwick: knitwear fae local wool, prints and peerie treats. (Demo shop for testing.)"

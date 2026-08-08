@@ -52,7 +52,26 @@ function parseCsv(text) {
 
 const VALID_SETTING = ["indoor", "outdoor", "both"];
 const VALID_BOOKING = ["none", "advised", "required"];
-const VALID_CHIPS = ["families", "wet_day", "quick_stop", "proper_visit", "food_on_site", "dogs", "accessible", "free"];
+const VALID_CHIPS = [
+  "families", "wet_day", "quick_stop", "proper_visit", "food_on_site", "dogs", "accessible", "free",
+  "stay_overnight", "local_shop_food_etc", "quick_food_stop",
+];
+
+/**
+ * Forgiving on spelling, strict on meaning.
+ *
+ * A human filling in 391 rows in a spreadsheet writes "indoors" and, once,
+ * "outddors". Rejecting the row over that would be pedantry — the intent is
+ * unmistakable. Anything genuinely ambiguous still fails loudly.
+ */
+function normaliseSetting(v) {
+  const t = (v || "").trim().toLowerCase();
+  if (!t) return "";
+  if (/^in/.test(t)) return "indoor";        // indoor, indoors
+  if (/^out/.test(t)) return "outdoor";      // outdoor, outdoors, outddors
+  if (/^both|^bit/.test(t)) return "both";
+  return v;
+}
 
 const parsed = parseCsv(fs.readFileSync(FILE, "utf8"));
 const sb = createClient(
@@ -91,16 +110,18 @@ for (const r of parsed) {
     }
     if (dwell) patch.planner_dwell_minutes = dwell;
 
-    if (r.setting) {
-      if (!VALID_SETTING.includes(r.setting)) { problems.push(`${r.name}: setting "${r.setting}"`); continue; }
-      patch.planner_setting = r.setting;
+    const setting = normaliseSetting(r.setting);
+    if (setting) {
+      if (!VALID_SETTING.includes(setting)) { problems.push(`${r.name}: setting "${r.setting}"`); continue; }
+      patch.planner_setting = setting;
     }
     if (r.booking) {
       if (!VALID_BOOKING.includes(r.booking)) { problems.push(`${r.name}: booking "${r.booking}"`); continue; }
       patch.planner_booking = r.booking;
     }
     if (r.good_for) {
-      const chips = r.good_for.split("|").map((c) => c.trim()).filter(Boolean);
+      // Pipe is what the file asks for; commas happen. Accept both.
+      const chips = r.good_for.split(/[|,]/).map((c) => c.trim()).filter(Boolean);
       const bad = chips.filter((c) => !VALID_CHIPS.includes(c));
       if (bad.length) { problems.push(`${r.name}: unknown chips ${bad.join(", ")}`); continue; }
       patch.planner_good_for = chips;
