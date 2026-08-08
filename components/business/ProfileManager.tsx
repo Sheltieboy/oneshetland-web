@@ -6,6 +6,8 @@ import { BIZ, type ManagedBusiness } from "@/lib/business-data";
 import { updateBusiness, uploadBusinessMedia } from "@/lib/business-client";
 import { OpeningHoursEditor } from "@/components/business/OpeningHoursEditor";
 import { hasAnyHours, type OpeningHours } from "@/lib/opening-hours";
+import { PlannerContextEditor } from "@/components/business/PlannerContextEditor";
+import { type PlannerContext } from "@/lib/planner-context";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
@@ -23,6 +25,14 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
   });
   // Hours are their own state: a nested object doesn't fit the flat string form.
   const [hours, setHours] = useState<OpeningHours>(business.opening_hours ?? {});
+  const [planner, setPlanner] = useState<PlannerContext>({
+    planner_visitor_ready: business.planner_visitor_ready ?? null,
+    planner_dwell_minutes: business.planner_dwell_minutes ?? null,
+    planner_setting: business.planner_setting ?? null,
+    planner_good_for: business.planner_good_for ?? null,
+    planner_booking: business.planner_booking ?? null,
+    planner_note: business.planner_note ?? null,
+  });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +65,7 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         address: f.address.trim() || null, brand_color: f.brand_color,
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
         opening_hours: hasAnyHours(hours) ? hours : null,
+        ...planner,
       };
       if (logoFile) { const url = await uploadBusinessMedia(business.id, "logo", logoFile); patch.logo_url = url; setLogoUrl(url); setLogoFile(null); setLogoPreview(""); }
       if (coverFile) { const url = await uploadBusinessMedia(business.id, "cover", coverFile); patch.cover_url = url; setCoverUrl(url); setCoverFile(null); setCoverPreview(""); }
@@ -125,6 +136,8 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         </p>
         <OpeningHoursEditor value={hours} onChange={(h) => { setHours(h); setSaved(false); }} />
       </div>
+      <PlannerContextEditor value={planner} onChange={(p) => { setPlanner(p); setSaved(false); }} />
+
       <div><label className={lab}>Tags (comma-separated)</label><input className={field} value={f.tags} onChange={(e) => set("tags", e.target.value)} placeholder="coffee, takeaway, vegan" /></div>
       <div>
         <label className={lab}>Brand colour</label>

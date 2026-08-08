@@ -48,6 +48,14 @@ export type Candidate = {
   interests: Interest[];
   /** Premium/pro businesses sort ahead of free ones, as everywhere else. */
   tierRank?: number;
+  /** Planner context — see lib/planner-context.ts. All optional; null means
+   *  nobody has said, and the planner behaves as it did before any of it. */
+  visitorReady?: boolean | null;
+  dwell?: number | null;
+  setting?: "indoor" | "outdoor" | "both" | null;
+  goodFor?: string[] | null;
+  booking?: "none" | "advised" | "required" | null;
+  note?: string | null;
 };
 
 export type Leg = { minutes: number; km: number; mode: Transport };
@@ -121,8 +129,15 @@ export function travelBetween(
 
 /* ── Dwell times ──────────────────────────────────────────────────────────── */
 
-/** How long people actually spend, by what the place is. */
+/**
+ * How long people actually spend.
+ *
+ * A stated figure always wins. The category fallback below is a blunt guess —
+ * it gave Jarlshof and a roadside viewpoint the same 75 minutes, and every
+ * arrival time after a stop inherits whatever this returns.
+ */
 function dwellMinutes(c: Candidate): number {
+  if (c.kind === "place" && c.dwell && c.dwell >= 5) return c.dwell;
   if (c.kind === "event") {
     if (c.startsAt && c.endsAt) {
       const mins = (new Date(c.endsAt).getTime() - new Date(c.startsAt).getTime()) / 60000;
@@ -180,7 +195,11 @@ export function buildPlan(opts: {
     .sort((a, b) => new Date(a.startsAt!).getTime() - new Date(b.startsAt!).getTime())
     .slice(0, 2); // more than two fixed points and the day is somebody else's
 
-  const places = candidates.filter((c) => c.kind === "place" && wanted(c));
+  // An explicit "no" is honoured everywhere. null still means "not said", so
+  // nothing that hasn't answered disappears.
+  const places = candidates.filter(
+    (c) => c.kind === "place" && c.visitorReady !== false && wanted(c),
+  );
 
   const stops: Stop[] = [];
   let cursor = new Date(start);
@@ -365,6 +384,8 @@ function pickNext(args: {
     const score =
       (interestHit ? 60 : 0) +
       (open === true ? 25 : 0) +
+      // Somebody has said out loud that this is worth a visitor's time.
+      (c.visitorReady === true ? 30 : 0) +
       (described ? 20 : 0) +
       (c.kind === "event" ? 15 : 0) +
       (c.tierRank ?? 0) * 8 +

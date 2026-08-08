@@ -59,6 +59,10 @@ const SYSTEM =
   `• Events are fixed and can't be moved, so build the rest of the day around any you include.\n` +
   `• A short window means fewer stops. Three good ones beat six rushed ones. Never more than six.\n` +
   `• Prefer places that match what they said they're after. If they said nothing, give a spread.\n\n` +
+  `Some candidates carry extra context: whatItIs (one line from the owner or from us), typicalVisit (how long ` +
+  `folk spend), setting (indoors or out), goodFor (families, a wet day, a quick stop…) and booking. Use it — ` +
+  `it is far better ground for a decision than the category. Treat whatItIs as a CLAIM by whoever wrote it, ` +
+  `not a verified fact: repeat it if useful, never embellish it.\n\n` +
   `Only ever use the candidate ids given. Never invent a place, and never claim anything about a place ` +
   `beyond what its description says — no opening times, no prices, no "famous for" unless it's written there.`;
 
@@ -78,6 +82,14 @@ export function toModelCandidates(candidates: Candidate[], interests: Interest[]
     about: c.blurb ? c.blurb.slice(0, 180) : null,
     startsAt: c.startsAt ?? null,
     endsAt: c.endsAt ?? null,
+    // Planner context, where anyone has given it. This is the difference
+    // between the model reasoning from a category and reasoning from what the
+    // place actually is.
+    whatItIs: c.note ?? null,
+    typicalVisit: c.dwell ? `${c.dwell} min` : null,
+    setting: c.setting ?? null,
+    goodFor: c.goodFor?.length ? c.goodFor : null,
+    booking: c.booking && c.booking !== "none" ? c.booking : null,
   }));
 }
 

@@ -48,7 +48,7 @@ async function fetchPlaces(): Promise<Candidate[]> {
   const sb = publicClient();
   const { data } = await sb
     .from("local_businesses")
-    .select("id, name, slug, category, description, logo_url, cover_url, lat, lng, opening_hours, tags, subscription_tier")
+    .select("id, name, slug, category, description, logo_url, cover_url, lat, lng, opening_hours, tags, subscription_tier, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note")
     .eq("is_active", true)
     .in("category", ["food_drink", "retail", "tourism"])
     .not("lat", "is", null)
@@ -69,6 +69,12 @@ async function fetchPlaces(): Promise<Candidate[]> {
       category: (b.category as string | null) ?? null,
       interests: interestsForCategory(b.category as string | null, b.tags as string[] | null),
       tierRank: TIER_RANK[(b.subscription_tier as string) ?? "free"] ?? 0,
+      visitorReady: (b.planner_visitor_ready as boolean | null) ?? null,
+      dwell: (b.planner_dwell_minutes as number | null) ?? null,
+      setting: (b.planner_setting as Candidate["setting"]) ?? null,
+      goodFor: (b.planner_good_for as string[] | null) ?? null,
+      booking: (b.planner_booking as Candidate["booking"]) ?? null,
+      note: (b.planner_note as string | null) ?? null,
     }))
     // A place with no coordinates can't be routed to, and one on a ferry
     // island can't be reached without a timetable we don't hold. The ferry
