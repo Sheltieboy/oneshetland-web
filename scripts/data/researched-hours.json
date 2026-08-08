@@ -1,0 +1,73 @@
+{
+  "_README": [
+    "Opening hours read off each business's OWN website on 8 Aug 2026, keyed by",
+    "listing name. Every entry carries the page it came from so it can be",
+    "re-checked rather than re-guessed.",
+    "",
+    "TWO LIMITS TO KNOW ABOUT.",
+    "",
+    "1. SEASON. Several of these are summer hours with a published end date —",
+    "   Quendale Mill closes 11 Oct 2026, Old Haa 4 Oct, Crofthouse 4 Oct,",
+    "   Tangwick Haa 30 Sep. The opening_hours column has no notion of a season,",
+    "   so these WILL be wrong come the winter. `until` records the date each one",
+    "   stops being true; nothing reads it yet.",
+    "",
+    "2. LUNCH BREAKS. The column holds one range per day, so a place that shuts",
+    "   1–2pm can't be expressed. Where that happens the range is the OUTER one",
+    "   and `caveat` says so — worth knowing before trusting it for a 1:30 stop."
+  ],
+
+  "Shetland Museum and Archives": {
+    "source": "https://www.shetlandmuseumandarchives.org.uk/opening-times",
+    "hours": { "mon": "12:00-17:00", "tue": "10:00-17:00", "wed": "10:00-17:00", "thu": "10:00-17:00", "fri": "10:00-17:00", "sat": "10:00-17:00", "sun": "12:00-17:00" }
+  },
+
+  "Crofthouse Museum": {
+    "source": "https://www.shetlandmuseumandarchives.org.uk/opening-times",
+    "until": "2026-10-04",
+    "caveat": "Closed 13:00-14:00 for lunch; the range below does not show that.",
+    "hours": { "mon": "Closed", "tue": "10:00-16:00", "wed": "10:00-16:00", "thu": "10:00-16:00", "fri": "10:00-16:00", "sat": "10:00-16:00", "sun": "10:00-16:00" }
+  },
+
+  "Quendale Mill": {
+    "source": "https://www.quendalemill.co.uk/",
+    "until": "2026-10-11",
+    "hours": { "mon": "10:00-17:00", "tue": "10:00-17:00", "wed": "10:00-17:00", "thu": "10:00-17:00", "fri": "10:00-17:00", "sat": "10:00-17:00", "sun": "10:00-17:00" }
+  },
+
+  "Old Haa Museum": {
+    "source": "https://www.oldhaa.com/",
+    "until": "2026-10-04",
+    "hours": { "mon": "10:00-16:00", "tue": "10:00-16:00", "wed": "10:00-16:00", "thu": "10:00-16:00", "fri": "10:00-16:00", "sat": "10:00-16:00", "sun": "14:00-17:00" }
+  },
+
+  "Tangwick Haa Museum": {
+    "source": "https://www.tangwickhaa.org.uk/",
+    "until": "2026-09-30",
+    "caveat": "October is by appointment only.",
+    "hours": { "mon": "11:00-17:00", "tue": "11:00-17:00", "wed": "11:00-17:00", "thu": "11:00-17:00", "fri": "11:00-17:00", "sat": "11:00-17:00", "sun": "11:00-17:00" }
+  },
+
+  "Frankie's Fish & Chips": {
+    "source": "https://www.frankiesfishandchips.com/",
+    "caveat": "Takeaway hours. The sit-in café takes last orders at 17:45.",
+    "hours": { "mon": "12:00-19:00", "tue": "12:00-19:00", "wed": "12:00-19:00", "thu": "12:00-19:00", "fri": "09:30-19:00", "sat": "09:30-19:00", "sun": "12:00-19:00" }
+  },
+
+  "Fjarå Coffee": {
+    "source": "https://www.fjaracoffee.com/",
+    "hours": { "mon": "Closed", "tue": "08:00-22:00", "wed": "08:00-22:00", "thu": "08:00-22:00", "fri": "08:00-22:00", "sat": "08:00-22:00", "sun": "09:00-17:00" }
+  },
+
+  "No 88 Kitchen and Bar": {
+    "source": "https://www.no88shetland.com/",
+    "hours": { "mon": "Closed", "tue": "Closed", "wed": "11:00-22:00", "thu": "11:00-22:00", "fri": "11:00-22:00", "sat": "11:00-22:00", "sun": "Closed" }
+  },
+
+  "Speldiburn Cafe": {
+    "source": "https://www.bressay.org/speldiburn-cafe",
+    "until": "2026-10-31",
+    "caveat": "Saturday is Parkrun breakfast 09:30-11:00, then lunch from 11:45.",
+    "hours": { "mon": "Closed", "tue": "11:00-15:00", "wed": "11:00-16:00", "thu": "11:00-15:00", "fri": "11:00-15:00", "sat": "09:30-15:00", "sun": "Closed" }
+  }
+}
