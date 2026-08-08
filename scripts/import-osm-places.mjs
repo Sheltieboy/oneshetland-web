@@ -75,9 +75,13 @@ function convertHours(osm) {
 
 // OSM names that are real features but useless as directory listings: the
 // numbered segments of the Funzie Girt wall ("End section 4/ beginning section
-// 5"), unnamed mills, bare "War Memorial". Caught only after the first run put
-// 25 of them live.
-const JUNK_NAME = /^(mill|war memorial|beginning section|end ?section)/i;
+// 5"), unnamed mills, bare "War Memorial", and a surveyor's marker named
+// literally "Ignore". Caught only after the first run put them live.
+//
+// Short names are NOT junk on their own: "Timna" is a real named ruin. Judge
+// on the name itself, not its length.
+const JUNK_NAME =
+  /^(mill|war memorial|beginning section|end ?section|ignore|test|unnamed|untitled|no name|tbc|todo)$?/i;
 
 const tierA = rows.filter(
   (r) => r.tier === "A" && !r.duplicate_of && !JUNK_NAME.test(r.name.trim()) && r.name.trim().length >= 5,
