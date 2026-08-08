@@ -80,11 +80,15 @@ function convertHours(osm) {
 //
 // Short names are NOT junk on their own: "Timna" is a real named ruin. Judge
 // on the name itself, not its length.
-const JUNK_NAME =
-  /^(mill|war memorial|beginning section|end ?section|ignore|test|unnamed|untitled|no name|tbc|todo)$?/i;
+// Exact matches — a bare generic name that identifies nothing. "Quendale Mill"
+// is a real museum, so these must match the WHOLE name, not a prefix.
+const JUNK_EXACT = /^(mill|war memorial|ignore|test|unnamed|untitled|no name|tbc|todo)$/i;
+// Prefixes — the numbered fragments of the Funzie Girt wall.
+const JUNK_PREFIX = /^(beginning section|end ?section)/i;
+const isJunk = (n) => JUNK_EXACT.test(n) || JUNK_PREFIX.test(n);
 
 const tierA = rows.filter(
-  (r) => r.tier === "A" && !r.duplicate_of && !JUNK_NAME.test(r.name.trim()) && r.name.trim().length >= 5,
+  (r) => r.tier === "A" && !r.duplicate_of && !isJunk(r.name.trim()) && r.name.trim().length >= 5,
 );
 
 const payload = tierA.map((r) => ({
