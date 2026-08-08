@@ -21,7 +21,11 @@ export default function ForgotPasswordPage() {
     await sb.functions.invoke("request-password-reset", {
       body: {
         email: email.trim().toLowerCase(),
-        redirect_to: `${window.location.origin}/auth/callback?next=/reset-password`,
+        // Straight to the page, NOT via /auth/callback. That route is a server
+        // handler that only understands `?code=`; it can't see a URL fragment
+        // and it has no code verifier for a link we generated on the server.
+        // The reset page verifies the token hash itself.
+        redirect_to: `${window.location.origin}/reset-password`,
       },
     }).catch(() => {});
     setBusy(false);
