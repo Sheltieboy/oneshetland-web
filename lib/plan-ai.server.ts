@@ -69,8 +69,8 @@ const SYSTEM =
  * there. A slice took the newest 45, which were almost all cafés, and left
  * Peerie Bot unable to suggest a museum because it had never seen one.
  */
-export function toModelCandidates(candidates: Candidate[], interests: Interest[] = []) {
-  return shortlistForModel(candidates, { limit: 45, interests }).map((c) => ({
+export function toModelCandidates(candidates: Candidate[], interests: Interest[] = [], limit = 45) {
+  return shortlistForModel(candidates, { limit, interests }).map((c) => ({
     id: c.id,
     kind: c.kind,
     name: c.name,
@@ -103,11 +103,17 @@ export async function askPeerieBot(
     `Candidates:\n${JSON.stringify(modelCandidates, null, 1)}`;
 
   try {
-    // Fail fast to the deterministic fallback rather than let the hosting
-    // platform kill the request: a visitor waiting 30s for a day out has
-    // already given up. Measured on production, roughly two calls in five
-    // were coming back too slow and silently falling back.
-    const client = new Anthropic({ apiKey, timeout: 18000, maxRetries: 1 });
+    // NO RETRIES, and a budget well inside the host's limit.
+    //
+    // This was `timeout: 18000, maxRetries: 1`, which sounds cautious and
+    // isn't: a slow call waited 18s, retried, waited another 18s, and the
+    // platform killed the request at 36s — a 500 and an error page, when the
+    // whole point of the fallback is that the visitor always gets a day.
+    // Measured in production: exactly 36.15s to the error page.
+    //
+    // One attempt, 12 seconds. If Peerie Bot can't answer in that, the
+    // deterministic planner renders instead and nobody sees a failure.
+    const client = new Anthropic({ apiKey, timeout: 12000, maxRetries: 0 });
     const resp = await client.messages.create({
       model: "claude-opus-4-8",
       max_tokens: 2000,
@@ -165,7 +171,9 @@ export async function suggestDayOrder(input: {
   interests: Interest[];
 }): Promise<DaySuggestion | null> {
   const payload = JSON.stringify({
-    candidates: toModelCandidates(input.candidates, input.interests),
+    // 30, not 45: fewer candidates is a materially faster call, and the
+    // shortlist is balanced by category so 30 still covers every kind.
+    candidates: toModelCandidates(input.candidates, input.interests, 30),
     meta: {
       from: fmtTime(input.start),
       to: fmtTime(input.end),
