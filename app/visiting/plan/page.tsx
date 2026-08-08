@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { getPlannerCandidates } from "@/lib/planner-data";
 import {
-  buildPlan, schedulePicks, describeLeg, fmtTime, INTERESTS, LERWICK,
-  type Candidate, type Interest, type Plan, type Transport,
+  buildPlan, describeLeg, fmtTime, INTERESTS, LERWICK,
+  type Interest, type Plan, type Transport,
 } from "@/lib/planner";
-import { PlanMap } from "@/components/visiting/PlanMap";
+import { PlanUpgrade } from "@/components/visiting/PlanUpgrade";
+import { type StopView } from "@/components/visiting/Itinerary";
 import { SafeImage } from "@/components/ui/SafeImage";
-import { suggestDayOrder } from "@/lib/plan-ai.server";
-import { PeerieBadge } from "@/components/ai/PeerieBadge";
 import { PlanForm } from "@/components/visiting/PlanForm";
 
 /**
@@ -60,33 +59,35 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
   const end = new Date(`${date}T${to}:00`);
   const validWindow = end.getTime() > start.getTime();
 
+  // The server builds the PLAIN plan only. Peerie Bot's version is fetched by
+  // the browser after paint (PlanUpgrade) — a model call inside a page render
+  // is what kept killing this page for signed-in visitors.
   let plan: Plan | null = null;
-  let headline: { title: string; intro: string } | null = null;
-
   if (submitted && validWindow) {
     const candidates = await getPlannerCandidates(
       new Date(start.getTime() - 60 * 60000).toISOString(),
       end.toISOString(),
     );
-
-    // Peerie Bot picks WHAT and IN WHAT ORDER; schedulePicks then works out
-    // whether that order actually fits and drops what doesn't. If the call
-    // fails — no key, a hiccup, a slow night — we fall straight back to the
-    // deterministic planner, because a visitor must always get a day.
-    const suggestion = await suggestDayOrder({ candidates, start, end, transport, interests: chosen });
-    if (suggestion && suggestion.picks.length > 0) {
-      const byId = new Map(candidates.map((c) => [c.id, c] as const));
-      const scheduled = schedulePicks({ order: suggestion.picks, byId, start, end, transport, startPoint: LERWICK });
-      if (scheduled.stops.length >= 2) {
-        plan = scheduled;
-        headline = { title: suggestion.title, intro: suggestion.intro };
-      }
-    }
-    if (!plan) {
-      plan = buildPlan({ candidates, start, end, transport, interests: chosen, startPoint: LERWICK });
-    }
+    plan = buildPlan({ candidates, start, end, transport, interests: chosen, startPoint: LERWICK });
   }
 
+  const stopViews: StopView[] = (plan?.stops ?? []).map((s) => ({
+    id: s.candidate.id,
+    name: s.candidate.name,
+    href: s.candidate.href,
+    image: s.candidate.image,
+    blurb: s.candidate.blurb,
+    kind: s.candidate.kind,
+    startsAt: s.candidate.startsAt ?? null,
+    arrive: fmtTime(s.arrive),
+    depart: fmtTime(s.depart),
+    travel: describeLeg(s.travel),
+    travelMode: s.travel.mode,
+    openKnown: s.openKnown,
+    why: s.note ?? null,
+    lat: s.candidate.lat,
+    lng: s.candidate.lng,
+  }));
 
   return (
     <>
@@ -125,101 +126,12 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
 
         {plan && plan.stops.length > 0 && (
           <>
-            <section>
-              {headline && <div className="mb-2"><PeerieBadge /></div>}
-              <h2 className="font-display text-2xl font-bold">
-                {headline ? headline.title : `Your day — ${plan.stops.length} stop${plan.stops.length === 1 ? "" : "s"}`}
-              </h2>
-              {headline && <p className="mt-1 max-w-2xl text-ink-soft">{headline.intro}</p>}
-              <p className="mt-1 text-ink-muted">
-                {fmtTime(plan.startAt)} to {fmtTime(plan.endAt)}
-                {plan.unusedMinutes > 30 ? ` · about ${Math.round(plan.unusedMinutes / 60)}h spare at the end` : ""}
-                {" · "}travel times are estimates.
-              </p>
-            </section>
-
-            <PlanMap
+            <PlanUpgrade
+              fallbackStops={stopViews}
+              fallbackSkipped={plan.skipped}
               accent={LOCAL}
-              points={plan.stops.map((s) => ({
-                lat: s.candidate.lat,
-                lng: s.candidate.lng,
-                label: s.candidate.name,
-                time: fmtTime(s.arrive),
-              }))}
+              query={{ date, from, to, transport, interests: chosen }}
             />
-
-            <ol className="space-y-3">
-              {plan.stops.map((s, i) => (
-                <li key={s.candidate.id}>
-                  {/* The travel leg sits ABOVE its stop, so the eye reads
-                      "12 minutes, then here" in the order you'd live it. */}
-                  <p className="mb-2 flex items-center gap-2 pl-4 text-xs font-semibold text-ink-muted">
-                    <span aria-hidden>{s.travel.mode === "walking" ? "🚶" : "🚗"}</span>
-                    {describeLeg(s.travel)}
-                    {i === 0 ? " from Lerwick" : ""}
-                  </p>
-                  <div className="flex gap-4 rounded-card border border-line bg-paper p-4 shadow-soft">
-                    <div className="flex flex-col items-center">
-                      <span
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-                        style={{ background: LOCAL }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span className="mt-1 text-xs font-bold text-ink-soft">{fmtTime(s.arrive)}</span>
-                    </div>
-
-                    {s.candidate.image && (
-                      <div className="hidden h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-line sm:block">
-                        <SafeImage src={s.candidate.image} alt="" className="h-full w-full object-cover" fallback={<span />} />
-                      </div>
-                    )}
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Link href={s.candidate.href} className="font-display font-bold text-ink hover:underline">
-                          {s.candidate.name}
-                        </Link>
-                        {s.candidate.kind === "event" && (
-                          <span className="rounded-pill bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-800">
-                            Event · starts {fmtTime(new Date(s.candidate.startsAt!))}
-                          </span>
-                        )}
-                        {/* Unknown hours is stated, never hidden — most
-                            businesses haven't filled theirs in yet. */}
-                        {s.openKnown === null && s.candidate.kind === "place" && (
-                          <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-bold text-ink-muted">
-                            Check opening times
-                          </span>
-                        )}
-                        {s.openKnown === true && s.candidate.kind === "place" && (
-                          <span className="rounded-pill bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-800">
-                            Open then
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-0.5 text-sm text-ink-muted">
-                        {fmtTime(s.arrive)} – {fmtTime(s.depart)}
-                      </p>
-                      {s.candidate.blurb && (
-                        <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{s.candidate.blurb}</p>
-                      )}
-                      {s.note && (
-                        <p className="mt-1 text-sm text-ink-soft">
-                          <span aria-hidden>✨ </span>{s.note}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-
-            {plan.skipped.length > 0 && (
-              <p className="text-sm text-ink-muted">
-                Left out: {plan.skipped.map((s) => `${s.name} (${s.reason})`).join(", ")}.
-              </p>
-            )}
 
             <div className="rounded-card border border-line bg-sand/40 p-4 text-sm text-ink-muted">
               <strong className="text-ink">Worth knowing.</strong> Travel times are estimated from distance and
@@ -230,6 +142,7 @@ export default async function PlanPage({ searchParams }: { searchParams: Promise
             </div>
           </>
         )}
+
       </main>
     </>
   );
