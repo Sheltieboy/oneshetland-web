@@ -20,6 +20,7 @@ import fs from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
 const USE_AI = process.argv.includes("--ai");
+const RESEARCH = process.argv.includes("--research");
 const OUT = new URL("./data/planner-context-proposals.csv", import.meta.url).pathname;
 
 const envFile = new URL("../.env.local", import.meta.url).pathname;
@@ -44,6 +45,29 @@ const sb = createClient(
  * Services likewise — a parliamentary office and "HyImpulse UK" are both
  * `services`, and neither is a day out.
  */
+/**
+ * Food Standards Agency business types — official, open-licensed, and far
+ * sharper than our own category. `retail` covers a bookshop and a wholesaler;
+ * FSA knows the difference between a takeaway and a restaurant, which is the
+ * distinction that produced four lunches in a row in the first place.
+ */
+const FSA_RULES = {
+  "Restaurant/Cafe/Canteen":            { ready: true,  dwell: 60, setting: "indoor", goodFor: ["food_on_site"] },
+  "Takeaway/sandwich shop":             { ready: true,  dwell: 15, setting: "indoor", goodFor: ["quick_stop"] },
+  "Pub/bar/nightclub":                  { ready: true,  dwell: 60, setting: "indoor", goodFor: ["food_on_site"] },
+  "Mobile caterer":                     { ready: true,  dwell: 15, setting: "outdoor", goodFor: ["quick_stop"] },
+  "Other catering premises":            { ready: true,  dwell: 45, setting: "indoor", goodFor: ["food_on_site"] },
+  "Retailers - other":                  { ready: true,  dwell: 30, setting: "indoor", goodFor: [] },
+  "Retailers - supermarkets/hypermarkets": { ready: true, dwell: 25, setting: "indoor", goodFor: [] },
+  "Farmers/growers":                    { ready: true,  dwell: 30, setting: "both",   goodFor: [] },
+  // Nobody visits these on a day out, and two of them are somebody's home or workplace.
+  "Hotel/bed & breakfast/guest house":  { ready: false },
+  "Caring Premises":                    { ready: false },
+  "School/college/university":          { ready: false },
+  "Manufacturers/packers":              { ready: false },
+  "Distributors/Transporters":          { ready: false },
+};
+
 const RULES = {
   food_drink:    { ready: true,  dwell: 60, setting: "indoor", goodFor: ["food_on_site"] },
   retail:        { ready: true,  dwell: 30, setting: "indoor", goodFor: [] },
@@ -107,6 +131,23 @@ async function inferOne(client, b) {
   return block ? JSON.parse(block.text) : null;
 }
 
+// ── FSA: official business types, matched on name and proximity ──
+const fsaByBusiness = new Map();
+try {
+  const res = await fetch(
+    "https://api.ratings.food.gov.uk/Establishments?localAuthorityId=226&pageSize=400&pageNumber=1",
+    { headers: { "x-api-version": "2" } },
+  );
+  const fsa = (await res.json()).establishments ?? [];
+  const norm = (x) => (x || "").toLowerCase().replace(/[^a-z0-9]+/g, " ")
+    .replace(/\b(ltd|limited|the|shetland)\b/g, "").replace(/\s+/g, " ").trim();
+  const km = (a, b, c, d) => Math.hypot((c - a) * 111, (d - b) * 111 * Math.cos((a * Math.PI) / 180));
+  globalThis.__fsa = { fsa, norm, km };
+  console.log(`FSA: ${fsa.length} Shetland food-business records loaded`);
+} catch {
+  console.log("FSA: could not load — carrying on with category rules only");
+}
+
 const { data: all, error } = await sb
   .from("local_businesses")
   .select("id, name, category, description, lat, lng, source")
@@ -128,21 +169,78 @@ if (USE_AI) {
   anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY, timeout: 30000 });
 }
 
+/** Fetch a business's own site and pull the readable text. Their words are
+ *  theirs — this is only ever read to write ONE line in ours, and the URL is
+ *  recorded in the CSV so any claim can be traced back. */
+async function readWebsite(url) {
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(12000),
+      headers: { "User-Agent": "OneShetland/1.0 (+https://oneshetland.com; local directory)" },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const text = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return text.length > 120 ? text.slice(0, 2500) : null;
+  } catch {
+    return null;
+  }
+}
+
+let fsaHits = 0, researched = 0, researchFailed = 0;
+
 for (const b of all) {
-  const rule = RULES[b.category ?? "other"] ?? RULES.other;
+  let rule = RULES[b.category ?? "other"] ?? RULES.other;
+  let ruleSource = "rules";
+
+  // FSA type beats our category where we can match it confidently.
+  if (globalThis.__fsa) {
+    const { fsa, norm, km } = globalThis.__fsa;
+    const n1 = norm(b.name);
+    if (n1) {
+      for (const f of fsa) {
+        const n2 = norm(f.BusinessName);
+        if (!n2) continue;
+        if (!(n1 === n2 || (n1.length > 5 && (n2.includes(n1) || n1.includes(n2))))) continue;
+        const g = f.geocode || {};
+        if (b.lat != null && g.latitude && km(+b.lat, +b.lng, +g.latitude, +g.longitude) > 2) continue;
+        const fr = FSA_RULES[f.BusinessType];
+        if (fr) { rule = fr; ruleSource = "fsa:" + f.BusinessType; fsaHits++; }
+        break;
+      }
+    }
+  }
   let p = {
     visitor_ready: rule.ready,
     dwell_minutes: rule.dwell ?? "",
     setting: rule.setting ?? "",
     good_for: (rule.goodFor ?? []).join("|"),
     note: "",
-    proposed_by: "rules",
+    proposed_by: ruleSource,
+    source_url: "",
   };
 
-  const hasDescription = !!b.description && b.description.trim().length > 40;
-  if (anthropic && hasDescription) {
+  let material = b.description && b.description.trim().length > 40 ? b.description.slice(0, 600) : null;
+  let materialUrl = "";
+
+  // No description of their own? Read their website, if they have one.
+  if (!material && RESEARCH && b.website) {
+    const text = await readWebsite(b.website);
+    if (text) { material = text; materialUrl = b.website; researched++; }
+    else researchFailed++;
+    await new Promise((r) => setTimeout(r, 700));   // be a decent guest
+  }
+
+  if (anthropic && material) {
     try {
-      const out = await inferOne(anthropic, { ...b, description: b.description.slice(0, 600) });
+      const out = await inferOne(anthropic, { ...b, description: material });
       if (out) {
         p = {
           visitor_ready: out.visitor_ready,
@@ -150,7 +248,8 @@ for (const b of all) {
           setting: out.setting || "",
           good_for: (out.good_for ?? []).filter((c) => INFERABLE_CHIPS.includes(c)).join("|"),
           note: (out.note || "").slice(0, 140),
-          proposed_by: "inferred",
+          proposed_by: materialUrl ? "researched" : "inferred",
+          source_url: materialUrl,
         };
         aiUsed++;
       }
@@ -169,7 +268,7 @@ for (const b of all) {
   });
 }
 
-const cols = ["id", "name", "category", "has_coords", "visitor_ready", "dwell_minutes", "setting", "good_for", "booking", "note", "proposed_by", "their_description"];
+const cols = ["id", "name", "category", "has_coords", "visitor_ready", "dwell_minutes", "setting", "good_for", "booking", "note", "proposed_by", "source_url", "their_description"];
 const esc = (v) => {
   const s = String(v ?? "");
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -183,7 +282,9 @@ const ready = rows.filter((r) => r.visitor_ready === true).length;
 console.log(`${rows.length} businesses with no context yet`);
 console.log(`  proposed visitor-ready:  ${ready}`);
 console.log(`  proposed NOT for plans:  ${rows.length - ready}`);
+console.log(`  sharpened by FSA type:   ${fsaHits}  (official, separates a takeaway from a restaurant)`);
 if (USE_AI) console.log(`  read by Peerie Bot:      ${aiUsed}${aiFailed ? ` (${aiFailed} failed, left on rules)` : ""}`);
+if (RESEARCH) console.log(`  websites read:           ${researched}${researchFailed ? ` (${researchFailed} unreachable)` : ""}`);
 console.log(`  no coordinates:          ${rows.filter((r) => r.has_coords !== "yes").length}  (can't appear in a plan whatever we say)`);
 console.log(`\nwritten to ${OUT}`);
 console.log("Open it, correct anything you know better, then run apply-planner-context.mjs.");
