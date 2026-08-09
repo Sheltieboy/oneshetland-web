@@ -1,3 +1,4 @@
+import { hoursExpired } from "@/lib/opening-hours";
 import { publicClient } from "@/lib/supabase/public";
 import { findPlace, needsFerry } from "@/lib/shetland-places";
 import type { Candidate, Interest } from "@/lib/planner";
@@ -44,11 +45,16 @@ function interestsForEvent(category: string | null): Interest[] {
 }
 
 /** Businesses that make sense as a stop, with coordinates. */
-async function fetchPlaces(): Promise<Candidate[]> {
+/**
+ * @param planDate the day being planned — seasonal hours are judged against
+ *   the day of the visit, not today. Planning October in August has to use
+ *   October's answer.
+ */
+async function fetchPlaces(planDate: Date): Promise<Candidate[]> {
   const sb = publicClient();
   const { data } = await sb
     .from("local_businesses")
-    .select("id, name, slug, category, description, logo_url, cover_url, lat, lng, opening_hours, tags, subscription_tier, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note")
+    .select("id, name, slug, category, description, logo_url, cover_url, lat, lng, opening_hours, opening_hours_until, tags, subscription_tier, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note")
     .eq("is_active", true)
     .in("category", ["food_drink", "retail", "tourism"])
     .not("lat", "is", null)
@@ -65,7 +71,12 @@ async function fetchPlaces(): Promise<Candidate[]> {
       lng: Number(b.lng),
       href: `/directory/${(b.slug as string) || b.id}`,
       image: (b.cover_url as string | null) ?? (b.logo_url as string | null) ?? null,
-      hours: (b.opening_hours as Candidate["hours"]) ?? null,
+      /* Seasonal hours are dropped to null once they're out of date, HERE,
+         rather than at each isOpenAt call — five call sites is five chances to
+         forget, and forgetting means telling a visitor a shut museum is open. */
+      hours: hoursExpired(b.opening_hours_until as string | null, planDate)
+        ? null
+        : ((b.opening_hours as Candidate["hours"]) ?? null),
       category: (b.category as string | null) ?? null,
       interests: interestsForCategory(b.category as string | null, b.tags as string[] | null),
       tierRank: TIER_RANK[(b.subscription_tier as string) ?? "free"] ?? 0,
@@ -133,8 +144,9 @@ async function fetchEvents(fromIso: string, toIso: string): Promise<Candidate[]>
 }
 
 export async function getPlannerCandidates(fromIso: string, toIso: string): Promise<Candidate[]> {
+  const planDate = new Date(fromIso);
   const [places, events] = await Promise.all([
-    fetchPlaces().catch(() => [] as Candidate[]),
+    fetchPlaces(planDate).catch(() => [] as Candidate[]),
     fetchEvents(fromIso, toIso).catch(() => [] as Candidate[]),
   ]);
   return [...events, ...places];

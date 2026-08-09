@@ -47,12 +47,38 @@ export function dayKeyFor(date: Date): DayKey {
 }
 
 /**
- * Is it open at this moment? `null` means "we don't know" — no hours recorded,
- * or free text we can't read. Never guess: the planner shows "check times"
- * for null, and that's a far better answer than a confident wrong one.
+ * Have these hours passed their sell-by date?
+ *
+ * Seasonal opening times come with an end date — Quendale Mill's 10-5 is true
+ * until 11 October and then it isn't. `until` is the last date the hours are
+ * known good; after it they're UNKNOWN, not closed. We know the summer times
+ * expired; we don't know what replaced them, and inventing a winter closure
+ * would be the same mistake pointing the other way.
+ *
+ * Compared date-only, in local time — an evening on the last day is still the
+ * last day.
  */
-export function isOpenAt(hours: OpeningHours | null | undefined, when: Date): boolean | null {
+export function hoursExpired(until: string | null | undefined, when: Date): boolean {
+  if (!until) return false;
+  const [y, m, d] = until.split("-").map(Number);
+  if (!y || !m || !d) return false;
+  const lastMoment = new Date(y, m - 1, d, 23, 59, 59, 999);
+  return when.getTime() > lastMoment.getTime();
+}
+
+/**
+ * Is it open at this moment? `null` means "we don't know" — no hours recorded,
+ * free text we can't read, or hours that have gone out of season. Never guess:
+ * the planner shows "check times" for null, and that's a far better answer
+ * than a confident wrong one.
+ */
+export function isOpenAt(
+  hours: OpeningHours | null | undefined,
+  when: Date,
+  until?: string | null,
+): boolean | null {
   if (!hours) return null;
+  if (hoursExpired(until, when)) return null;
   const value = hours[dayKeyFor(when)];
   if (!value) return null;
   if (value.trim().toLowerCase() === CLOSED.toLowerCase()) return false;

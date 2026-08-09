@@ -1,4 +1,4 @@
-import { formatDay } from "@/lib/opening-hours";
+import { formatDay, hoursExpired } from "@/lib/opening-hours";
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
@@ -400,6 +400,16 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
           {b.opening_hours && Object.keys(b.opening_hours).length > 0 && (
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
               <h3 className="font-display text-lg font-bold">Opening hours</h3>
+              {/* Seasonal hours we know have run out. Shown rather than hidden
+                  — they're still the best guide anyone has to what this place
+                  does — but never presented as current. */}
+              {hoursExpired(b.opening_hours_until, new Date()) && (
+                <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                  These were the summer hours, which ran to{" "}
+                  {new Date(b.opening_hours_until!).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}.
+                  Check before you go.
+                </p>
+              )}
               <dl className="mt-4 space-y-1.5 text-sm">
                 {DAYS.map(([k, label]) => (
                   <div key={k} className="flex justify-between gap-3">

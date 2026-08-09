@@ -52,6 +52,8 @@ export type Business = {
   website: string | null;
   email: string | null;
   opening_hours: OpeningHours | null;
+  /** Last date opening_hours is known good (seasonal). NULL = no known end. */
+  opening_hours_until: string | null;
   /** Where the listing came from. Null = a person entered it. ODbL requires
    *  OpenStreetMap-sourced entries to be credited, hence surfacing this. */
   source: string | null;

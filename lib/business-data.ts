@@ -39,6 +39,8 @@ export type ManagedBusiness = {
   email: string | null;
   slug: string | null;
   opening_hours: OpeningHours | null;
+  /** Last date opening_hours is known good (seasonal). NULL = no known end. */
+  opening_hours_until: string | null;
   planner_visitor_ready: boolean | null;
   planner_dwell_minutes: number | null;
   planner_setting: "indoor" | "outdoor" | "both" | null;
@@ -71,7 +73,7 @@ export type ManagedBusiness = {
 };
 
 export const BUSINESS_COLS =
-  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, is_verified, is_active, subscription_tier, subscription_until, subscription_cancel_at_period_end, stripe_subscription_id, accepts_wallet, cashback_percent, payout_enabled, stripe_account_id, use_business_payment, has_business_payment_method, use_business_payout, business_stripe_onboarding_complete, business_stripe_payouts_enabled, nfc_token, nfc_status, accepts_bookings";
+  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, is_verified, is_active, subscription_tier, subscription_until, subscription_cancel_at_period_end, stripe_subscription_id, accepts_wallet, cashback_percent, payout_enabled, stripe_account_id, use_business_payment, has_business_payment_method, use_business_payout, business_stripe_onboarding_complete, business_stripe_payouts_enabled, nfc_token, nfc_status, accepts_bookings";
 
 /* ── Plan model ───────────────────────────────────────────────────────────── */
 

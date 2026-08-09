@@ -53,7 +53,7 @@ const ids = rows.map((r) => r.id).filter(isUuid);
 
 const { data: current, error } = await sb
   .from("local_businesses")
-  .select("id, name, opening_hours")
+  .select("id, name, opening_hours, opening_hours_until")
   .in("id", ids);
 if (error) { console.error(error.message); process.exit(1); }
 const existing = new Map((current ?? []).map((r) => [r.id, r]));
@@ -66,8 +66,6 @@ for (const r of rows) {
   if (!isUuid(r.id)) { problems.push(`${r.name || "(no name)"}: "${r.id}" is not an id — row misread`); continue; }
 
   const now = existing.get(r.id);
-  if (now?.opening_hours && Object.keys(now.opening_hours).length > 0) { skippedHasHours++; continue; }
-
   const hours = {};
   let bad = false;
   for (const d of DAYS) {
@@ -78,7 +76,35 @@ for (const r of rows) {
   if (bad) continue;
   if (Object.keys(hours).length === 0) { skippedEmpty++; continue; }
 
-  updates.push({ id: r.id, name: r.name, basis: r.basis, hours });
+  /*
+   * A row that already has hours is normally left alone — whoever put them
+   * there, most likely the owner, knows better than a script reading a
+   * website.
+   *
+   * The one exception is a row whose stored hours are EXACTLY what this file
+   * says, which means we wrote them ourselves on an earlier run. Then the only
+   * change is stamping on the season end date, and refusing would leave the
+   * four seasonal museums with no expiry — the very problem this is for.
+   * Anything else, including an owner correcting a single day, is left be.
+   */
+  const stored = now?.opening_hours ?? null;
+  const hasStored = stored && Object.keys(stored).length > 0;
+  if (hasStored) {
+    const same = JSON.stringify(Object.entries(stored).sort()) === JSON.stringify(Object.entries(hours).sort());
+    const dateAlreadyRight = (now?.opening_hours_until ?? null) === ((r.until || "").trim() || null);
+    if (!same || dateAlreadyRight) { skippedHasHours++; continue; }
+  }
+
+  // Seasonal hours carry the date they stop being true, so the planner can
+  // drop back to "check opening times" on its own instead of waiting for
+  // somebody to remember.
+  const until = (r.until || "").trim();
+  if (until && !/^\d{4}-\d{2}-\d{2}$/.test(until)) {
+    problems.push(`${r.name}: until "${until}" is not YYYY-MM-DD`);
+    continue;
+  }
+
+  updates.push({ id: r.id, name: r.name, basis: r.basis, hours, until: until || null });
 }
 
 const byBasis = {};
@@ -88,6 +114,7 @@ console.log(`${rows.length} rows in ${FILE.split("/").pop()}`);
 console.log(`  to apply:                 ${updates.length}   ${JSON.stringify(byBasis)}`);
 console.log(`  skipped (already has):    ${skippedHasHours}`);
 console.log(`  skipped (nothing filled): ${skippedEmpty}`);
+console.log(`  with a season end date:   ${updates.filter((u) => u.until).length}`);
 if (problems.length) {
   console.log(`\n${problems.length} row(s) rejected — fix and re-run:`);
   problems.slice(0, 20).forEach((p) => console.log(`  · ${p}`));
@@ -98,7 +125,10 @@ if (!process.env.SUPABASE_SERVICE_ROLE_KEY) { console.error("Writing needs SUPAB
 
 let ok = 0, failed = 0;
 for (const u of updates) {
-  const { error: e } = await sb.from("local_businesses").update({ opening_hours: u.hours }).eq("id", u.id);
+  const { error: e } = await sb
+    .from("local_businesses")
+    .update({ opening_hours: u.hours, opening_hours_until: u.until })
+    .eq("id", u.id);
   if (e) { failed++; console.error(`  ${u.name}: ${e.message}`); } else ok++;
 }
 console.log(`\nupdated: ${ok}, failed: ${failed}`);
