@@ -78,7 +78,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Bad request." }, { status: 400 });
   }
   if (!text || typeof text !== "string" || text.trim().length < 8) {
-    return Response.json({ error: "Tell Peerie Bot a wee bit more about your event." }, { status: 400 });
+    return Response.json({ error: "Tell Peerie Bot a bit more about your event." }, { status: 400 });
   }
 
   // Today's date in Shetland time, so relative dates ("Saturday 23rd August") resolve correctly.

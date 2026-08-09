@@ -451,7 +451,7 @@ export default function BusinessLandingPage() {
                 loyalty, tickets — are there when you&apos;re ready to grow into them.
               </p>
               <ul className="mt-5 flex flex-wrap gap-2">
-                {["Knitters", "Bakers", "Crofters", "Makers & crafters", "A wee café", "Home hairdresser", "Photographers", "Growers"].map((t) => (
+                {["Knitters", "Bakers", "Crofters", "Makers & crafters", "A café", "Home hairdresser", "Photographers", "Growers"].map((t) => (
                   <li key={t} className="rounded-pill bg-sand px-3 py-1.5 text-sm font-semibold text-ink-soft">{t}</li>
                 ))}
               </ul>

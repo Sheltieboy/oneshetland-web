@@ -86,7 +86,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Bad request." }, { status: 400 });
   }
   if (!text || typeof text !== "string" || text.trim().length < 8) {
-    return Response.json({ error: "Tell Peerie Bot a wee bit more about the job." }, { status: 400 });
+    return Response.json({ error: "Tell Peerie Bot a bit more about the job." }, { status: 400 });
   }
 
   const system =

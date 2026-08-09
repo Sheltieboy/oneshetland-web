@@ -143,7 +143,7 @@ export function GiftModal({
 
           <label className="block">
             <span className="mb-1 block text-sm font-semibold text-ink">Message (optional)</span>
-            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} maxLength={280} className="auth-input" placeholder="A wee note…" />
+            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} maxLength={280} className="auth-input" placeholder="A short note…" />
           </label>
 
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}

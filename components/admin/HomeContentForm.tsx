@@ -57,7 +57,7 @@ export function HomeContentForm({ initial }: { initial: HomeContent }) {
       <Card>
         <h3 className="font-display text-lg font-bold">Welcome tile</h3>
         <p className="mb-3 text-sm text-ink-muted">The intro copy box, top-left of the homepage bento. Leave blank to hide it behind a placeholder.</p>
-        <Field label="Headline" value={draft.welcome_title} onChange={(v) => set("welcome_title", v)} placeholder="e.g. Wir ain wee corner o da wab" />
+        <Field label="Headline" value={draft.welcome_title} onChange={(v) => set("welcome_title", v)} placeholder="e.g. Everything Shetland, in one place" />
         <TextArea label="Body copy" value={draft.welcome_body} onChange={(v) => set("welcome_body", v)} placeholder="A warm sentence or two introducing OneShetland." />
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Button text (optional)" value={draft.welcome_cta} onChange={(v) => set("welcome_cta", v)} placeholder="Explore" />

@@ -251,7 +251,7 @@ export function buildPlan(opts: {
     const leg = travelBetween(at, event, transport);
     const arrive = new Date(Math.max(addMinutes(cursor, leg.minutes).getTime(), eventStart.getTime()));
     if (arrive > end) { skipped.push({ name: event.name, reason: "finishes after you leave" }); continue; }
-    pushStop(event, arrive, leg, arrive > eventStart ? "You'll be a wee bit late — it starts before you can get there." : undefined);
+    pushStop(event, arrive, leg, arrive > eventStart ? "You'll be a little late — it starts before you can get there." : undefined);
   }
 
   // Then fill whatever is left of the day.

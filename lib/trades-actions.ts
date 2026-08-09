@@ -120,6 +120,18 @@ export async function postBrief(
     await sb.from("trade_brief_matches").insert(
       deliverable.map((m) => ({ brief_id: brief.id, business_id: m.id, status: "sent" })),
     );
+
+    /*
+     * Tell them. A tradesperson is up a ladder, not refreshing a dashboard —
+     * a lead seen three days later is one somebody else already took, and the
+     * person waiting decides OneShetland doesn't work.
+     *
+     * Deliberately not awaited for its result: the brief is already saved and
+     * on screen, and a slow or failing push must never make posting a job feel
+     * broken. Failures are logged inside the function.
+     */
+    void sb.functions.invoke("notify-trade-lead", { body: { brief_id: brief.id } })
+      .catch(() => { /* the lead is visible in the app regardless */ });
   }
 
   revalidatePath("/get-it-done");

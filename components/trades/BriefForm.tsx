@@ -142,9 +142,9 @@ export function BriefForm({
 
         {questions.length > 0 && (
           <div className="rounded-xl border border-line bg-sand/40 p-4">
-            <p className="text-sm font-semibold text-ink">
-              {PEERIE.name} reckons they&apos;ll ask you this
-            </p>
+            {/* {expr} on its own line loses the space that follows it in JSX,
+                which is how this shipped as "Peerie Botreckons". Keep it inline. */}
+            <p className="text-sm font-semibold text-ink">{PEERIE.name} will ask you this</p>
             <ul className="mt-2 space-y-1 text-sm text-ink-soft">
               {questions.map((q, i) => <li key={i}>· {q}</li>)}
             </ul>

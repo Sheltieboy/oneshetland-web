@@ -74,7 +74,7 @@ function scoreFor(
   if (availability === "booked_up") return null;
   if (availability === "emergency" && brief.urgency !== "emergency") return null;
 
-  /* A wee job below their minimum is a wasted call for both sides. Only
+  /* A small job below their minimum is a wasted call for both sides. Only
      filtered where we can be reasonably sure — an unsized job always goes. */
   const minJob = (b.trade_min_job_pence as number | null) ?? null;
   if (minJob && minJob > 20000 && brief.scale === "small") return null;
