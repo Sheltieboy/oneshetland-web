@@ -33,8 +33,16 @@ export type WeekAtAGlance = {
   revenuePence: number | null;
 };
 
+/** The actual things waiting, not just how many. */
+export type OrderRow = { id: string; totalPence: number; fulfilment: string; createdAt: string; who: string | null; items: string };
+export type BookingRow = { id: string; startsAt: string; service: string | null; who: string | null; pricePence: number };
+export type LeadRow = { matchId: string; title: string; location: string; urgency: string; createdAt: string };
+
 export type DashboardData = {
   code: string | null;
+  orders: OrderRow[];
+  bookings: BookingRow[];
+  leads: LeadRow[];
   needs: NeedsAction;
   week: WeekAtAGlance;
   /** Only show the leads line to a business that has said it's a trade. */
@@ -65,21 +73,29 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
       sb.from("local_business_codes")
         .select("current_code").eq("business_id", businessId).maybeSingle(),
 
-      // "Needs you" means exactly that: paid for and not yet dealt with.
-      sb.from("product_orders").select("id", { count: "exact", head: true })
-        .eq("business_id", businessId).eq("status", "paid"),
+      /* The rows themselves, not a count. A number that says "3 orders" and
+         nothing else still makes you click through to learn anything — which
+         is the whole complaint about the old page, just with a badge on it. */
+      sb.from("product_orders")
+        .select("id, total_pence, fulfilment, created_at, delivery_name, items:product_order_items(title, qty)")
+        .eq("business_id", businessId).eq("status", "paid")
+        .order("created_at", { ascending: false }).limit(5),
 
-      sb.from("book_bookings").select("id", { count: "exact", head: true })
+      sb.from("book_bookings")
+        .select("id, starts_at, price_pence, service:book_services(name), customer:profiles!book_bookings_customer_id_fkey(full_name)")
         .eq("business_id", businessId).eq("status", "confirmed")
-        .gte("starts_at", new Date().toISOString()),
+        .gte("starts_at", new Date().toISOString())
+        .order("starts_at", { ascending: true }).limit(5),
 
-      sb.from("trade_brief_matches").select("id", { count: "exact", head: true })
-        .eq("business_id", businessId).eq("status", "sent"),
+      sb.from("trade_brief_matches")
+        .select("id, created_at, trade_briefs(title, location_text, urgency)")
+        .eq("business_id", businessId).eq("status", "sent")
+        .order("created_at", { ascending: false }).limit(5),
 
       jobIds.length
         ? sb.from("job_applications").select("id", { count: "exact", head: true })
             .in("job_id", jobIds).eq("status", "applied")
-        : Promise.resolve({ count: 0 }),
+        : Promise.resolve({ count: 0 } as { count: number | null }),
 
       sb.from("local_businesses")
         .select("trade_categories, trade_availability, trade_availability_set_at")
@@ -87,6 +103,43 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
 
       sb.rpc("business_analytics", { p_business_id: businessId, p_days: 7 }),
     ]);
+
+  const rows = <T,>(r: PromiseSettledResult<{ data: unknown }>): T[] =>
+    r.status === "fulfilled" ? ((r.value.data ?? []) as T[]) : [];
+
+  /** PostgREST types an embedded row as an array; these are all to-one. */
+  const one = <T,>(v: unknown): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v as T)) ?? null;
+
+  const orders: OrderRow[] = rows<Record<string, unknown>>(ordersRes as PromiseSettledResult<{ data: unknown }>).map((o) => {
+    const items = (o.items ?? []) as { title: string; qty: number }[];
+    return {
+      id: o.id as string,
+      totalPence: (o.total_pence as number) ?? 0,
+      fulfilment: (o.fulfilment as string) ?? "",
+      createdAt: o.created_at as string,
+      who: (o.delivery_name as string | null) ?? null,
+      items: items.map((i) => `${i.qty}× ${i.title}`).join(", ") || "Order",
+    };
+  });
+
+  const bookings: BookingRow[] = rows<Record<string, unknown>>(bookingsRes as PromiseSettledResult<{ data: unknown }>).map((b) => ({
+    id: b.id as string,
+    startsAt: b.starts_at as string,
+    service: one<{ name: string | null }>(b.service)?.name ?? null,
+    who: one<{ full_name: string | null }>(b.customer)?.full_name ?? null,
+    pricePence: (b.price_pence as number) ?? 0,
+  }));
+
+  const leads: LeadRow[] = rows<Record<string, unknown>>(leadsRes as PromiseSettledResult<{ data: unknown }>).flatMap((m) => {
+    const br = one<{ title: string; location_text: string; urgency: string }>(m.trade_briefs);
+    return br ? [{
+      matchId: m.id as string,
+      title: br.title,
+      location: br.location_text,
+      urgency: br.urgency,
+      createdAt: m.created_at as string,
+    }] : [];
+  });
 
   const codeRow = codeRes.status === "fulfilled" ? codeRes.value.data : null;
   const biz = bizRes.status === "fulfilled" ? bizRes.value.data : null;
@@ -103,10 +156,13 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
 
   return {
     code: (codeRow as { current_code?: string } | null)?.current_code ?? null,
+    orders,
+    bookings,
+    leads,
     needs: {
-      orders: countOf(ordersRes as CountResult),
-      bookings: countOf(bookingsRes as CountResult),
-      leads: countOf(leadsRes as CountResult),
+      orders: orders.length,
+      bookings: bookings.length,
+      leads: leads.length,
       jobApplications: countOf(appsRes as CountResult),
     },
     week: {

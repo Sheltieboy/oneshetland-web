@@ -2,6 +2,14 @@ import Link from "next/link";
 import { AVAILABILITY_LABEL, AVAILABILITY_TTL_DAYS, availabilityIsFresh } from "@/lib/trades";
 import { type DashboardData } from "@/lib/business-dashboard.server";
 
+const money = (p: number) => `£${(p / 100).toFixed(2)}`;
+const when = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const ago = (iso: string) => {
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
+};
+
 /**
  * The top of the business dashboard: what needs you, and how the week went.
  *
@@ -21,38 +29,73 @@ const BIZ = "#7c3aed";
 export function DashboardTop({ data, base }: { data: DashboardData; base: string }) {
   const { needs, week, code } = data;
 
-  const actions = [
-    needs.orders && { href: `${base}/orders`, n: needs.orders, label: needs.orders === 1 ? "order to deal with" : "orders to deal with", tone: "amber" },
-    needs.bookings && { href: `${base}/bookings`, n: needs.bookings, label: needs.bookings === 1 ? "booking coming up" : "bookings coming up", tone: "sky" },
-    needs.leads && { href: `${base}/leads`, n: needs.leads, label: needs.leads === 1 ? "job lead waiting" : "job leads waiting", tone: "emerald" },
-    needs.jobApplications && { href: `${base}/jobs`, n: needs.jobApplications, label: needs.jobApplications === 1 ? "job application" : "job applications", tone: "violet" },
-  ].filter(Boolean) as { href: string; n: number; label: string; tone: string }[];
-
   const staleAvailability =
     data.isTrade && !!data.tradeAvailability && !availabilityIsFresh(data.tradeAvailabilitySetAt);
 
   return (
     <div className="space-y-4">
-      {/* ── Needs you ─────────────────────────────────────────────────── */}
-      {actions.length > 0 && (
-        <section>
-          <h2 className="eyebrow text-ink-muted">Needs you</h2>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            {actions.map((a) => (
-              <Link
-                key={a.href}
-                href={a.href}
-                className="flex items-center gap-3 rounded-xl border border-line bg-paper p-4 shadow-soft transition hover:shadow-lift"
-              >
-                <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl text-lg font-black ${TONE[a.tone]}`}>
-                  {a.n}
+      {/* ── What's waiting — the THINGS, not a count of them ──────────
+           A badge saying "3 orders" still makes you click through to learn
+           anything, which is the old page with a number on it. These are the
+           actual rows: who, what, how much, when. */}
+
+      {data.orders.length > 0 && (
+        <Panel title="Orders to deal with" href={`${base}/orders`} cta="All orders" tone="amber">
+          {data.orders.map((o) => (
+            <Row key={o.id} href={`${base}/orders`}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-ink">{o.items}</span>
+                <span className="block text-sm text-ink-muted">
+                  {o.who ?? "Customer"} · {o.fulfilment === "fetch" ? "Fetch delivery" : o.fulfilment === "post" ? "Post" : "Collection"} · {ago(o.createdAt)}
                 </span>
-                <span className="font-semibold text-ink">{a.label}</span>
-                <span className="ml-auto text-ink-faint" aria-hidden>→</span>
-              </Link>
-            ))}
-          </div>
-        </section>
+              </span>
+              <span className="shrink-0 font-bold text-ink">{money(o.totalPence)}</span>
+            </Row>
+          ))}
+        </Panel>
+      )}
+
+      {data.bookings.length > 0 && (
+        <Panel title="Coming up" href={`${base}/bookings`} cta="All bookings" tone="sky">
+          {data.bookings.map((b) => (
+            <Row key={b.id} href={`${base}/bookings`}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-ink">{b.service ?? "Booking"}</span>
+                <span className="block text-sm text-ink-muted">{b.who ?? "Customer"} · {when(b.startsAt)}</span>
+              </span>
+              {b.pricePence > 0 && <span className="shrink-0 font-bold text-ink">{money(b.pricePence)}</span>}
+            </Row>
+          ))}
+        </Panel>
+      )}
+
+      {data.leads.length > 0 && (
+        <Panel title="Job leads waiting" href={`${base}/leads`} cta="All leads" tone="emerald">
+          {data.leads.map((l) => (
+            <Row key={l.matchId} href={`${base}/leads`}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-semibold text-ink">
+                  {l.urgency === "emergency" && (
+                    <span className="mr-1.5 rounded-pill bg-rose-100 px-2 py-0.5 text-[11px] font-bold text-rose-800">Urgent</span>
+                  )}
+                  {l.title}
+                </span>
+                <span className="block text-sm text-ink-muted">{l.location} · {ago(l.createdAt)}</span>
+              </span>
+              <span className="shrink-0 text-sm font-semibold text-emerald-700">Answer →</span>
+            </Row>
+          ))}
+        </Panel>
+      )}
+
+      {needs.jobApplications > 0 && (
+        <Panel title="Job applications" href={`${base}/jobs`} cta="Open jobs" tone="violet">
+          <Row href={`${base}/jobs`}>
+            <span className="font-semibold text-ink">
+              {needs.jobApplications} {needs.jobApplications === 1 ? "person has" : "people have"} applied
+            </span>
+          </Row>
+        </Panel>
       )}
 
       {/* A trade whose availability has lapsed has silently stopped getting
@@ -109,6 +152,35 @@ const TONE: Record<string, string> = {
   sky: "bg-sky-100 text-sky-800",
   emerald: "bg-emerald-100 text-emerald-800",
   violet: "bg-violet-100 text-violet-800",
+};
+
+function Panel({
+  title, href, cta, tone, children,
+}: { title: string; href: string; cta: string; tone: string; children: React.ReactNode }) {
+  return (
+    <section className={`overflow-hidden rounded-xl border bg-paper shadow-soft ${PANEL[tone]}`}>
+      <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
+        <h2 className="font-display font-bold text-ink">{title}</h2>
+        <Link href={href} className="text-sm font-semibold text-ink-soft hover:text-ink">{cta} →</Link>
+      </div>
+      <div className="divide-y divide-line">{children}</div>
+    </section>
+  );
+}
+
+function Row({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link href={href} className="flex items-center gap-3 px-4 py-3 transition hover:bg-sand/50">
+      {children}
+    </Link>
+  );
+}
+
+const PANEL: Record<string, string> = {
+  amber: "border-amber-200",
+  sky: "border-sky-200",
+  emerald: "border-emerald-200",
+  violet: "border-violet-200",
 };
 
 function Stat({ label, value, hint, href }: { label: string; value: string; hint?: string; href: string }) {
