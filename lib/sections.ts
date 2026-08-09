@@ -85,6 +85,14 @@ export const SECTIONS: Section[] = [
     blurb: "Work across Shetland — permanent roles, seasonal posts and short-notice shifts.",
   },
   {
+    key: "get-it-done",
+    label: "Get it done",
+    href: "/get-it-done",
+    color: "#2a8b5c",
+    token: "jobs",
+    blurb: "Describe a job and see which trades actually have room — before you ring round.",
+  },
+  {
     key: "fetch",
     label: "Fetch",
     href: "/fetch",
@@ -118,7 +126,7 @@ export const PRIMARY_NAV = PRIMARY_NAV_ORDER
   .filter((s): s is Section => Boolean(s));
 
 /** Secondary sections tucked behind the "More" menu in the header. */
-const MORE_NAV_ORDER = ["spik", "boats", "memories", "fetch"];
+const MORE_NAV_ORDER = ["get-it-done", "spik", "boats", "memories", "fetch"];
 export const MORE_NAV = MORE_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
