@@ -98,6 +98,19 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
         </Panel>
       )}
 
+      {/* Nothing waiting is a legitimate state and has to LOOK like one.
+          Hiding every panel left a page that looked broken — which is exactly
+          how this read on a business with no activity yet. One calm line beats
+          both a blank space and a row of zero-badges. */}
+      {data.orders.length === 0 && data.bookings.length === 0 && data.leads.length === 0 && needs.jobApplications === 0 && (
+        <section className="rounded-xl border border-line bg-paper p-4 shadow-soft">
+          <p className="font-semibold text-ink">Nothing needs you right now</p>
+          <p className="mt-0.5 text-sm text-ink-muted">
+            Orders, bookings and job leads will appear here as they come in.
+          </p>
+        </section>
+      )}
+
       {/* A trade whose availability has lapsed has silently stopped getting
           work. That is the single most costly stale setting on the platform,
           so it is surfaced here rather than only inside the leads page. */}
