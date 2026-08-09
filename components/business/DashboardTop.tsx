@@ -32,8 +32,15 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
   const staleAvailability =
     data.isTrade && !!data.tradeAvailability && !availabilityIsFresh(data.tradeAvailabilitySetAt);
 
+  const nothingWaiting =
+    data.orders.length === 0 && data.bookings.length === 0 && data.leads.length === 0 && needs.jobApplications === 0;
+
+  /* Two columns from lg up. The panels are lists and want the width; the
+     numbers and the code are glanceable and don't — stacking everything full
+     width left half the screen empty and pushed the tiles below the fold. */
   return (
-    <div className="space-y-4">
+    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      <div className="space-y-4">
       {/* ── What's waiting — the THINGS, not a count of them ──────────
            A badge saying "3 orders" still makes you click through to learn
            anything, which is the old page with a number on it. These are the
@@ -102,7 +109,7 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
           Hiding every panel left a page that looked broken — which is exactly
           how this read on a business with no activity yet. One calm line beats
           both a blank space and a row of zero-badges. */}
-      {data.orders.length === 0 && data.bookings.length === 0 && data.leads.length === 0 && needs.jobApplications === 0 && (
+      {nothingWaiting && (
         <section className="rounded-xl border border-line bg-paper p-4 shadow-soft">
           <p className="font-semibold text-ink">Nothing needs you right now</p>
           <p className="mt-0.5 text-sm text-ink-muted">
@@ -125,10 +132,13 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
         </Link>
       )}
 
-      {/* ── The week ──────────────────────────────────────────────────── */}
+      </div>
+
+      {/* ── Right rail: the numbers, and the code ─────────────────────── */}
+      <div className="space-y-4">
       <section>
         <h2 className="eyebrow text-ink-muted">Last 7 days</h2>
-        <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mt-2 grid grid-cols-2 gap-3">
           <Stat label="Profile views" value={week.views.toLocaleString()} href={`${base}/analytics`} />
           <Stat label="Contacts" value={week.contacts.toLocaleString()} href={`${base}/analytics`} />
           <Stat label="Followers" value={week.followers.toLocaleString()} href={`${base}/analytics`} />
@@ -143,7 +153,7 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
       {/* ── The code, front and centre ────────────────────────────────── */}
       {code && (
         <section className="rounded-xl border border-line bg-paper p-4 shadow-soft">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-col gap-3">
             <div>
               <p className="eyebrow text-ink-muted">Today&apos;s business code</p>
               {/* Read aloud across a counter a dozen times a day, so it's set
@@ -156,6 +166,7 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
           </div>
         </section>
       )}
+      </div>
     </div>
   );
 }

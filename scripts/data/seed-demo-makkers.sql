@@ -121,23 +121,25 @@ values
    'A look round the studio, half an hour, free.', 30, 0, 0, 0, false, 'Visit', 2, true, 6)
 on conflict (id) do update set name = excluded.name, price_pence = excluded.price_pence, is_active = true;
 
+-- Times are anchored to date_trunc('day', …) so "+ 10 hours" means 10am.
+-- Anchoring to the current HOUR instead gave a workshop at 21:00.
 insert into public.book_bookings (id, business_id, service_id, customer_id, starts_at, ends_at, status, price_pence, deposit_pence, notes, created_at)
 values
   ('dddddddd-4100-0000-0000-000000000001', 'dddddddd-0000-0000-0000-000000000001', 'dddddddd-4000-0000-0000-000000000001', 'efb83e4b-6331-4c00-a019-ae0734b36db5',
-   date_trunc('hour', now()) + interval '1 day' + interval '10 hours',
-   date_trunc('hour', now()) + interval '1 day' + interval '13 hours',
+   date_trunc('day', now()) + interval '1 day' + interval '10 hours',
+   date_trunc('day', now()) + interval '1 day' + interval '13 hours',
    'confirmed', 4500, 1000, 'DEMO — complete beginner, left handed.', now() - interval '3 days'),
   ('dddddddd-4100-0000-0000-000000000002', 'dddddddd-0000-0000-0000-000000000001', 'dddddddd-4000-0000-0000-000000000002', 'efb83e4b-6331-4c00-a019-ae0734b36db5',
-   date_trunc('hour', now()) + interval '3 days' + interval '14 hours',
-   date_trunc('hour', now()) + interval '3 days' + interval '15 hours',
+   date_trunc('day', now()) + interval '3 days' + interval '14 hours',
+   date_trunc('day', now()) + interval '3 days' + interval '15 hours',
    'confirmed', 3000, 0, null, now() - interval '1 day'),
   ('dddddddd-4100-0000-0000-000000000003', 'dddddddd-0000-0000-0000-000000000001', 'dddddddd-4000-0000-0000-000000000003', 'efb83e4b-6331-4c00-a019-ae0734b36db5',
-   date_trunc('hour', now()) + interval '6 days' + interval '11 hours',
-   date_trunc('hour', now()) + interval '6 days' + interval '11 hours 30 minutes',
+   date_trunc('day', now()) + interval '6 days' + interval '11 hours',
+   date_trunc('day', now()) + interval '6 days' + interval '11 hours 30 minutes',
    'confirmed', 0, 0, 'DEMO — two visitors off the cruise ship.', now() - interval '6 hours'),
   ('dddddddd-4100-0000-0000-000000000004', 'dddddddd-0000-0000-0000-000000000001', 'dddddddd-4000-0000-0000-000000000001', 'efb83e4b-6331-4c00-a019-ae0734b36db5',
-   date_trunc('hour', now()) - interval '5 days' + interval '10 hours',
-   date_trunc('hour', now()) - interval '5 days' + interval '13 hours',
+   date_trunc('day', now()) - interval '5 days' + interval '10 hours',
+   date_trunc('day', now()) - interval '5 days' + interval '13 hours',
    'completed', 4500, 1000, null, now() - interval '12 days')
 on conflict (id) do update set starts_at = excluded.starts_at, ends_at = excluded.ends_at, status = excluded.status;
 

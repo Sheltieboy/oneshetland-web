@@ -56,7 +56,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   ];
 
   return (
-    <div className="mx-auto max-w-4xl px-5 py-10 sm:py-12">
+    <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
       <Link href="/account" className="text-sm font-semibold text-ink-soft hover:text-ink">← Account</Link>
 
       {mine.length > 1 && (
@@ -105,7 +105,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         return (
           <section key={group} className="mb-8">
             <h2 className="eyebrow mb-2 text-ink-muted">{group}</h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {inGroup.map((t) => {
                 const dim = t.locked || !t.built;
                 const inner = (
