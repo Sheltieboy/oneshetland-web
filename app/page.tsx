@@ -18,20 +18,15 @@ import { AudienceChip } from "@/components/home/AudienceChip";
 import { FeaturedShelf, OffersShelf, ShopRails, IslandLifeBand, HiringShelf } from "@/components/home/Shelves";
 import { getEventsInMonth } from "@/lib/events-data";
 import { GAMES, fetchLeaderboardWithTrend, type GameId } from "@/lib/games-data";
+import { getCruiseHomeCard } from "@/lib/cruise-data";
+import { buildHeroSignals } from "@/lib/home-signals";
 
 // Live community content — always fetch fresh for now.
 export const dynamic = "force-dynamic";
 
-const QUICK_CHIPS = [
-  { label: "What's On", href: "/whats-on" },
-  { label: "Eat & Drink", href: "/local" },
-  { label: "The Fleet", href: "/boats" },
-  { label: "Spik", href: "/spik" },
-];
-
 export default async function Home() {
   const now = new Date();
-  const [data, heroImage, personal, today, homeContent, account, monthEvents, shelves] = await Promise.all([
+  const [data, heroImage, personal, today, homeContent, account, monthEvents, shelves, cruiseCard] = await Promise.all([
     getHomeData(),
     getHeroImage(),
     getHomePersonal(),
@@ -42,10 +37,17 @@ export default async function Home() {
     getAccount(),
     getEventsInMonth(now.getFullYear(), now.getMonth()).catch(() => []),
     getHomeShelves(),
+    // Only used for the hero's "ships in today" signal. Never let it break the
+    // page — a missing cruise card just means one fewer pill.
+    getCruiseHomeCard().catch(() => null),
   ]);
   const audience = await getAudience();
   const visiting = audience === "visiting";
   const game = getTodaysGame();
+
+  // The hero pills — live signals, not section shortcuts. Pure over data we've
+  // already loaded, so it adds no database work.
+  const heroSignals = buildHeroSignals({ now, monthEvents, jobs: data.jobs, cruise: cruiseCard });
 
   // Top-5 leaderboard for whichever game is featured on the tile today.
   const featuredGameId = (Object.values(GAMES).find((g) => g.href === game.href)?.id) as GameId | undefined;
@@ -88,15 +90,17 @@ export default async function Home() {
               community hubs, jobs and more — one warm home for the islands.
             </p>
 
-            {/* Quick chips + wallet (signed-in) */}
+            {/* Live signals + wallet (signed-in). These are deliberately NOT
+                section shortcuts — the nav above already has those. Each pill
+                only shows when it has something to say. See lib/home-signals.ts */}
             <div className="mt-7 flex flex-wrap items-center gap-2.5">
-              {QUICK_CHIPS.map((c) => (
+              {heroSignals.map((s) => (
                 <Link
-                  key={c.href}
-                  href={c.href}
+                  key={s.key}
+                  href={s.href}
                   className="rounded-pill border border-paper/30 bg-paper/10 px-4 py-2 text-sm font-medium text-paper backdrop-blur-sm transition hover:bg-paper/20"
                 >
-                  {c.label}
+                  {s.label}
                 </Link>
               ))}
               {personal.signedIn && (
