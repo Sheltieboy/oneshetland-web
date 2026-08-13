@@ -36,7 +36,7 @@ export default function TermsPage() {
       </L>
 
       <L h="6. User-generated content — our zero-tolerance policy">
-        <p>Parts of OneShetland let you post content — listings, reviews, events, stories, photos, voice recordings, messages, comments, hub posts and profile information (&ldquo;user content&rdquo;). You keep ownership of your user content and grant us a worldwide, royalty-free licence to host, store and display it within the Service so we can run the platform. Where you choose to publish content publicly — such as a published event, offer or business listing — that licence also lets us feature it on OneShetland&rsquo;s official social media pages to promote it and the community; email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a> if you&rsquo;d rather your content weren&rsquo;t featured. You&rsquo;re responsible for what you post and must have the rights to share it.</p>
+        <p>Parts of OneShetland let you post content — listings, reviews, events, stories, photos, voice recordings, messages, comments, hub posts and profile information (&ldquo;user content&rdquo;). You keep ownership of your user content and grant us a worldwide, royalty-free licence to host, store and display it within the Service so we can run the platform. Where you choose to publish content publicly — such as a published event, offer or business listing — that licence also lets us feature it on OneShetland&rsquo;s official social media pages to promote it and the community; email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a> if you&rsquo;d rather your content weren&rsquo;t featured. You&rsquo;re responsible for what you post and must have the rights to share it.</p>
         <div className="rounded-card border border-rose-300 bg-rose-50 px-4 py-3 text-rose-900">
           <p className="font-semibold">There is zero tolerance for objectionable content and abusive behaviour on OneShetland.</p>
           <p className="mt-1">Objectionable content and abusive users are not welcome here. If you post objectionable content — including content that is hateful, harassing, threatening, defamatory, obscene, sexually explicit or otherwise abusive — or behave abusively towards other users, your content will be removed and your account may be suspended or permanently removed.</p>
@@ -44,7 +44,7 @@ export default function TermsPage() {
         <p className="font-semibold text-ink">Reporting and blocking.</p>
         <p>Every piece of user content and every user profile can be reported and blocked from within the app. To report content or a user, use the &ldquo;Report&rdquo; option on the post, message or profile; to block someone, use &ldquo;Block&rdquo; on their profile — blocking hides their content from you and prevents them contacting you.</p>
         <p className="font-semibold text-ink">Our commitment.</p>
-        <p>We review every report and act on objectionable content and abusive users — by removing the content and/or removing the user — within 24 hours of the report being made. You can also email us at <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a>. We may remove content or accounts at our discretion to keep the community safe.</p>
+        <p>We review every report and act on objectionable content and abusive users — by removing the content and/or removing the user — within 24 hours of the report being made. You can also email us at <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a>. We may remove content or accounts at our discretion to keep the community safe.</p>
       </L>
 
       <L h="7. Payments, fees and refunds">
@@ -92,7 +92,7 @@ export default function TermsPage() {
       </L>
 
       <L h="17. Contact">
-        <p>Questions about these terms? Email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a>. To report content or abuse, use the in-app Report option or email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a>.</p>
+        <p>Questions about these terms, or want to report content or abuse? Use the in-app Report option, or email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a> — it reaches Darren directly.</p>
       </L>
     </LegalLayout>
   );

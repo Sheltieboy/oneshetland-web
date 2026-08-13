@@ -15,7 +15,11 @@ export type MembershipPeriod = "once" | "month" | "year";
 export const HUB_TYPE_LABELS: Record<HubType, string> = {
   club: "Club",
   sports: "Sports club",
-  youth: "Youth group",
+  // "Youth organisation", not "Youth group": the Hub belongs to the organisation
+  // and is run by its adult leaders. OneShetland accounts are 18+, so this label
+  // must not read as an invitation for under-18s to sign up. (Under-18 members
+  // are a planned, invite-only feature — see the Young Islander workstream.)
+  youth: "Youth organisation",
   hall: "Hall / committee",
   charity: "Charity",
   society: "Society",

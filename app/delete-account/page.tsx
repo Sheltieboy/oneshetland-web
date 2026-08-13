@@ -38,12 +38,12 @@ export default async function DeleteAccountPage() {
       </L>
 
       <L h="Can&rsquo;t access the app?">
-        <p>If you can&rsquo;t sign in or no longer have the app installed, you can still ask us to delete your account. Email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a> from the email address linked to your account, with the subject &ldquo;<span className="font-semibold text-ink">Delete my account</span>&rdquo;. Tell us the name and email (and, if you can, the phone number) on the account so we can verify it&rsquo;s you.</p>
+        <p>If you can&rsquo;t sign in or no longer have the app installed, you can still ask us to delete your account. Email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a> from the email address linked to your account, with the subject &ldquo;<span className="font-semibold text-ink">Delete my account</span>&rdquo;. Tell us the name and email (and, if you can, the phone number) on the account so we can verify it&rsquo;s you.</p>
         <p>We&rsquo;ll confirm and complete your request within 30 days, and usually much sooner. We may need to verify your identity before deleting an account to protect against fraudulent requests.</p>
       </L>
 
       <L h="Questions">
-        <p>If you&rsquo;re unsure about anything, email <a href="mailto:support@oneshetland.com" className="font-semibold text-ink underline">support@oneshetland.com</a>. For more on how we handle your data, see our <a href="/privacy" className="font-semibold text-ink underline">Privacy policy</a>.</p>
+        <p>If you&rsquo;re unsure about anything, email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a>. For more on how we handle your data, see our <a href="/privacy" className="font-semibold text-ink underline">Privacy policy</a>.</p>
       </L>
     </LegalLayout>
   );
