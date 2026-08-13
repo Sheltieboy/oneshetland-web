@@ -148,7 +148,15 @@ export default async function WhatsOnPage({
                     {hasMore ? "+" : ""} event{visible.length === 1 ? "" : "s"}
                   </p>
                 </div>
+                {/* The key is load-bearing. EventsBrowser seeds its list from
+                    `initial` via useState, which React reads only on the first
+                    mount — so a filter change (a client-side navigation, not a
+                    remount) updated the count above but left the old rows on
+                    screen. Keying on the filters forces a fresh mount, which is
+                    the idiomatic way to reset component state when the inputs
+                    that define it change. */}
                 <EventsBrowser
+                  key={`${category ?? "all"}|${range}|${freeOnly ? "free" : "any"}`}
                   mode="list"
                   initial={visible}
                   category={category}

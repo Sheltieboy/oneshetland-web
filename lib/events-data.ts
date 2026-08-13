@@ -232,9 +232,21 @@ function rangeTo(range: DateRange): string | undefined {
 }
 
 /**
- * Upcoming published events (islands-wide), with optional category, date-range
- * and pagination. Mirrors the app's fetchPublishedEvents range semantics
- * (starts_at between now and the range upper bound).
+ * Upcoming AND in-progress published events (islands-wide), with optional
+ * category, date-range and pagination.
+ *
+ * "STILL ON" RATHER THAN "NOT YET STARTED".
+ * This used to filter `starts_at >= now`, which quietly dropped an event the
+ * moment it began — so a three-day festival was invisible on What's On for the
+ * entire three days it was actually running. Shetland has a lot of multi-day
+ * events, so that mattered rather a lot.
+ *
+ * An event now counts as current while it is still running:
+ *   - it has an end time that hasn't passed, OR
+ *   - it has no end time and hasn't started yet (a point-in-time event)
+ *
+ * The range's upper bound still applies to `starts_at`, so "Today" means
+ * "on today" — including a festival that began earlier in the week.
  */
 export async function getUpcomingEvents(
   opts: { category?: string; range?: DateRange; limit?: number; offset?: number } = {},
@@ -247,7 +259,7 @@ export async function getUpcomingEvents(
     .select(LIST_COLS)
     .eq("status", "published")
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    .gte("starts_at", now)
+    .or(`ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${now})`)
     .order("starts_at", { ascending: true });
   const to = rangeTo(opts.range ?? "all");
   if (to) q = q.lte("starts_at", to);
