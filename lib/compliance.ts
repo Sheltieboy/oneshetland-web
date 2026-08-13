@@ -20,7 +20,7 @@ type LogInput = {
   metadata?: Record<string, unknown>;
 };
 
-const LABELS: Record<ComplianceEventType, string> = {
+export const LABELS: Record<ComplianceEventType, string> = {
   "email.verified": "Confirmed email address",
   "terms.accepted": "Accepted Terms of Service",
   "privacy.accepted": "Accepted Privacy Policy",

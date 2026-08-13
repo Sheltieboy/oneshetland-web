@@ -11,7 +11,11 @@ import { safeNext } from "@/lib/redirect";
 function SignUpInner() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = safeNext(params.get("next"));
+  // A brand-new account lands in the join wizard. But if they were sent here
+  // from somewhere specific — mid-checkout, claiming a listing — honour that
+  // instead: finishing what they came to do beats a setup flow.
+  const rawNext = params.get("next");
+  const next = rawNext ? safeNext(rawNext) : "/welcome";
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -40,6 +44,11 @@ function SignUpInner() {
       options: {
         data: {
           full_name: fullName.trim(),
+          // Carried through so it survives email confirmation — with
+          // confirmation on there's no session here, so the phone and the
+          // consent record can only be written once they confirm. Picked up
+          // by recordSignupConsent() in the auth callback.
+          phone: phone.trim(),
           marketing_opt_in: marketing,
           terms_version: TERMS_VERSION,
           privacy_version: PRIVACY_VERSION,
