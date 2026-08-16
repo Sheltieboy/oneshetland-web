@@ -264,7 +264,9 @@ Update `stripe.price.local_pro` and `stripe.price.local_premium` in `/admin/conf
   photo), unlimited on Pro.
 - **Products → stay Premium.**
 - **`membership` → dropped.** See [Business membership](#business-membership-dropped).
-- **Partner alerts → approval-gated and free.** See [Partner alerts](#partner-alerts-free).
+- **Partner alerts → Premium, plus admin approval, plus an accepted usage policy.** No
+  longer sold as a £10 add-on. See
+  [Partner alerts](#partner-alerts-premium--approval--accepted-policy).
 - **NFC tile → the thank-you for an annual Premium**, not a shop item. This introduces
   **annual billing, which does not exist today** — see [Annual Premium](#annual-premium-new).
 - **Boost → contextual, not a page.** Surfaced wherever a business is looking at its own
@@ -286,7 +288,7 @@ for four reasons:
 
 Revisit only when a real business asks for it, and design against that business.
 
-### Partner alerts (free)
+### Partner alerts (Premium + approval + accepted policy)
 
 What it is: a business pushes an urgent message — the code's own examples are *"ferry
 updates, road closures, event changes"* — which appears on the OneShetland homepage to
@@ -296,12 +298,68 @@ approval **and** a £10/month add-on.
 Who it is for: ferry operators, the council, Lerwick Port Authority, large employers.
 Not a café.
 
-**The approval gate is the real control; the £10 is not.** Charging an organisation to
-warn the island that a ferry is cancelled is a bad look, and the revenue from the handful
-who would ever qualify is negligible. Keep approval, drop the charge.
+**The £10 add-on goes; three gates replace it.** Charging an organisation to warn the
+island that a ferry is cancelled is a bad look, and the revenue from the handful who
+would ever qualify is negligible. But this is the loudest channel on the platform and it
+needs to be hard to get, not merely expensive:
 
-Consequence: delete `supabase/functions/alert-addon-intent`, and remove "and a £10/month
-add-on" from `components/business/AlertsManager.tsx`.
+1. **Premium tier.** Not sold as an add-on, but not available on Free either.
+2. **Admin approval**, per business — the existing `AlertAccess` request/approve flow.
+3. **An accepted usage policy**, recorded per business with a timestamp, before the first
+   alert can be sent.
+
+The policy is the part that does not exist yet. It has to draw the line in concrete
+terms, because "urgent" is doing a lot of work: an alert is for something that changes
+what an islander does today — a cancelled ferry, a closed road, a venue change, severe
+weather. It is **not** for trading news. *"The coffee cart on the ferry isn't working"*
+is exactly the alert that must never be sent: it is true, it is mildly useful, and if it
+goes out then every alert after it is ignored.
+
+Suggested wording for the acceptance gate, to be written properly into `/legal`:
+
+> Alerts reach every OneShetland user immediately, including outside normal hours for
+> urgent kinds. Send one only when it changes what someone does today: cancelled or
+> delayed transport, a road closure, a venue or time change, severe weather, or a safety
+> notice. Never use alerts for offers, promotions, opening hours, stock, or minor service
+> changes — those belong in an offer, a notice, or your listing. Misuse withdraws access.
+
+Consequences for the build:
+
+- Delete `supabase/functions/alert-addon-intent`
+- Gate `/manage/alerts` on Premium (it currently has no tier gate at all)
+- Add policy acceptance (a column on `alert_access`, or a small `alert_policy_accepted_at`)
+  and block sending until it is set
+- Rewrite the copy in `components/business/AlertsManager.tsx`, which currently reads
+  "Requires approval and a £10/month add-on"
+
+---
+
+## Adjacent finding: event updates never reach ticket buyers by email
+
+Not a tier decision, but it becomes more pressing the moment **Events & ticketing is free**
+and more organisers start selling.
+
+**What already works.** An organiser can post an update to everyone holding a valid
+ticket, from both the app (`app/event-manage.tsx`) and the web
+(`components/business/BusinessEventManage.tsx`). It writes to `event_updates` and calls
+`notify-event-update`, which fans out to every holder of a `valid` ticket. Kinds are
+`urgent`, `cancellation`, `venue_change`, `time_change` and `weather`, and the urgent ones
+deliberately bypass quiet hours.
+
+**Where it actually lands.** `sendUserPushBulk` writes to `notification_log` — which is
+what the web `/notifications` inbox reads — and sends a push. So today it reaches the
+on-site inbox, and nothing else: **`push_tokens` is empty**, because the app is
+unpublished.
+
+**What is missing: email.** There is no email path in `notify-event-update`. A visitor who
+bought one ticket and will never return to the site has no way of learning the event was
+cancelled. That is the single worst failure mode in the ticketing rail, and it is live.
+
+**The fix is small, because the pattern already exists.** `hub-broadcast` takes a
+`channel` parameter and sends email as well as push. `notify-event-update` should do the
+same, with email forced on for `cancellation` regardless of preference. Note that
+`hub-broadcast` calls Postmark inline rather than using `_shared/send-email.ts`; the new
+work should use the shared helper, and hub-broadcast is worth tidying to match.
 
 ### Annual Premium (new)
 
@@ -348,9 +406,11 @@ reversal path when an event is cancelled.
 
 1. **Tier collapse** — `TIER_FEATURES`, page gates, listing richness, the For Business
    page, delete the add-on system. No new Stripe work beyond two new Prices.
-2. **Ticket payout hold** — independent of tiers, wanted before real money.
-3. **Annual Premium** — new Price, annual billing, NFC fulfilment view.
-4. **Metered Pro bookings** — metered Stripe price, usage reporting, £17 cap, upgrade nudge.
+2. **Email on event updates** — small, and the current gap means a cancelled event never
+   reaches the people who paid. Do this before promoting free ticketing.
+3. **Ticket payout hold** — independent of tiers, wanted before real money.
+4. **Annual Premium** — new Price, annual billing, NFC fulfilment view.
+5. **Metered Pro bookings** — metered Stripe price, usage reporting, £17 cap, upgrade nudge.
 
 ---
 
