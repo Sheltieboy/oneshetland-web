@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { effectiveAvailability, FREE_LEADS_PER_MONTH, hasUnlimitedLeads } from "@/lib/trades";
 import { TradeSettings } from "@/components/trades/TradeSettings";
 import { LeadCard } from "@/components/trades/LeadCard";
+import { HelpTip } from "@/components/help/HelpTip";
 
 /**
  * Job leads, inside the business management hub where everything else lives.
@@ -49,7 +50,10 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">
         ← {business.name}
       </Link>
-      <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl">Job leads</h1>
+      <h1 className="mt-3 font-display text-3xl font-bold sm:text-4xl flex items-center gap-2.5">
+          Job leads
+          <HelpTip topic="trade-availability" />
+        </h1>
       <p className="mt-1 text-ink-muted">
         Folk across Shetland looking for somebody to do a job.
       </p>

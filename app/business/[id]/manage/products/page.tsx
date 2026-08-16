@@ -5,6 +5,7 @@ import { tierMeets } from "@/lib/business-data";
 import { createClient } from "@/lib/supabase/server";
 import { ProductsManager } from "@/components/business/ProductsManager";
 import type { Product, ProductVariant, BusinessShipping } from "@/lib/shop-data";
+import { HelpTip } from "@/components/help/HelpTip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Products" };
@@ -32,7 +33,10 @@ export default async function ProductsPage({ params }: { params: Promise<{ id: s
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
       <div className="mt-3 mb-1 flex items-center justify-between gap-3">
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">Products</h1>
+        <h1 className="flex items-center gap-2.5 font-display text-3xl font-bold sm:text-4xl">
+          Products
+          <HelpTip topic="what-to-sell" />
+        </h1>
         <Link href={`/business/${business.id}/manage/orders`} className="rounded-pill border border-line px-4 py-1.5 text-sm font-bold text-ink-soft hover:bg-sand">Orders →</Link>
       </div>
       <p className="mb-6 text-sm text-ink-soft">Sell where Shetland already is — your products appear on your listing and across OneShetland. 5% per sale, and we promote your shop.</p>

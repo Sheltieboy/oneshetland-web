@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getAccount } from "@/lib/auth";
 import { BusinessCreateForm } from "@/components/directory/BusinessCreateForm";
+import { HelpTip } from "@/components/help/HelpTip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Add your business · Directory" };
@@ -29,7 +30,10 @@ export default async function NewBusinessPage({
 
       <div className="mt-6">
         <p className="eyebrow" style={{ color: DIR }}>OneShetland</p>
-        <h1 className="mt-1 font-display text-4xl font-bold">Add your business</h1>
+        <h1 className="mt-1 font-display text-4xl font-bold flex items-center gap-2.5">
+          Add your business
+          <HelpTip topic="add-business" />
+        </h1>
         <p className="mt-3 text-lg text-ink-soft">
           Free to list. Reach everyone in Shetland with your business, offers, events and services.
         </p>

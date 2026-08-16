@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getBusinessAnalytics } from "@/lib/analytics-business.server";
 import { AnalyticsUnlock } from "@/components/business/AnalyticsUnlock";
+import { HelpTip } from "@/components/help/HelpTip";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Analytics" };
@@ -33,7 +34,10 @@ export default async function BusinessAnalyticsPage({ params }: { params: Promis
   return (
     <div className="mx-auto max-w-4xl px-5 py-10 sm:py-12">
       <Link href={base} className="text-sm font-semibold text-ink-soft hover:text-ink">← Manage business</Link>
-      <h1 className="mt-4 font-display text-3xl font-bold text-ink">Analytics</h1>
+      <h1 className="mt-4 font-display text-3xl font-bold text-ink flex items-center gap-2.5">
+          Analytics
+          <HelpTip topic="analytics-revenue" />
+        </h1>
       <p className="mt-1 text-ink-soft">How people are finding and engaging with {business.name} — last 30 days.</p>
 
       {data?.is_admin_view && (

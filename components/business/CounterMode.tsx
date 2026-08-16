@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type BusinessCode } from "@/lib/business-data";
 import { refreshBusinessCode } from "@/lib/business-client";
+import { HelpTip } from "@/components/help/HelpTip";
 
 /**
  * CounterMode — the web twin of the app's Counter mode (app/local-counter.tsx).
@@ -97,7 +98,10 @@ export function CounterMode({
       <header className="flex items-center gap-4 px-6 py-4">
         <div className="min-w-0 flex-1">
           <p className="truncate font-display text-lg font-bold">{businessName}</p>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-white/55">Counter mode</p>
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-widest text-white/55">
+            Counter mode
+            <HelpTip topic="till-code" tone="dark" label="Help with the till code" />
+          </p>
         </div>
         <button
           onClick={tryLeave}

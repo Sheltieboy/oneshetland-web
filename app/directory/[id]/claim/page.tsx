@@ -4,6 +4,7 @@ import { getBusiness } from "@/lib/local-data";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { BusinessClaimForm } from "@/components/directory/BusinessClaimForm";
+import { HelpTip } from "@/components/help/HelpTip";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,10 @@ export default async function ClaimBusinessPage({ params }: { params: Promise<{ 
 
       <div className="mt-6">
         <p className="eyebrow" style={{ color: LOCAL }}>OneShetland</p>
-        <h1 className="mt-1 font-display text-4xl font-bold">Claim this listing</h1>
+        <h1 className="mt-1 flex items-center gap-2.5 font-display text-4xl font-bold">
+          Claim this listing
+          <HelpTip topic="claim-evidence" />
+        </h1>
         <p className="mt-3 text-lg text-ink-soft">
           Verify that you run this business to manage its details, offers, loyalty and bookings.
         </p>

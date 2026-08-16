@@ -15,6 +15,7 @@ import {
   previewSubscriptionChange, applySubscriptionChange, createBoostIntent,
   createBillingPortalLink, requestNfcTile,
 } from "@/lib/business-client";
+import { HelpTip } from "@/components/help/HelpTip";
 
 export function BillingManager({ business, addons = [], intentTier }: { business: ManagedBusiness; addons?: BusinessAddon[]; intentTier?: "pro" | "premium" }) {
   const router = useRouter();
@@ -203,7 +204,10 @@ export function BillingManager({ business, addons = [], intentTier }: { business
       {/* NFC */}
       {tierMeets(tier, "pro") && (
         <section className={card}>
-          <h2 className="font-display text-xl font-bold text-ink">NFC tap-to-stamp tile</h2>
+          <h2 className="flex items-center gap-2.5 font-display text-xl font-bold text-ink">
+            NFC tap-to-stamp tile
+            <HelpTip topic="nfc-tile" />
+          </h2>
           <p className="mt-1 text-sm text-ink-muted">
             {b.nfc_status === "active" ? "✓ Active — customers can tap to collect a stamp."
               : b.nfc_status === "dispatched" ? "Posted — stick it on the counter and tap it once with the app to activate."
