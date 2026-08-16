@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { createClient } from "@/lib/supabase/server";
 import { ProductsManager } from "@/components/business/ProductsManager";
 import type { Product, ProductVariant, BusinessShipping } from "@/lib/shop-data";
@@ -13,7 +13,7 @@ export const metadata = { title: "Products" };
 export default async function ProductsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "premium")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "products")) redirect(`/business/${business.id}/manage/billing`);
 
   const sb = await createClient(); // owner session — RLS shows hidden products too
   const [{ data: products }, { data: shipping }] = await Promise.all([

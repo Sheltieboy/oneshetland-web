@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
-import { getMyManagedBusinesses, getBusinessAddons } from "@/lib/business-data.server";
+import { getMyManagedBusinesses } from "@/lib/business-data.server";
 import { BIZ, TIER_LABELS, tierMeets } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
@@ -22,9 +22,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const { id } = await params;
   const { business, account } = await requireBusinessOwner(id);
   const dashboard = await getDashboardData(business.id);
-  const [mine, addons] = await Promise.all([getMyManagedBusinesses(account.id), getBusinessAddons(business.id)]);
+  const mine = await getMyManagedBusinesses(account.id);
   const base = `/business/${business.id}/manage`;
-  const enabled = (k: string) => addons.find((a) => a.addon_key === k)?.enabled;
   const pro = tierMeets(business.subscription_tier, "pro");
   const premium = tierMeets(business.subscription_tier, "premium");
 
@@ -33,25 +32,24 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
     { href: `${base}/counter`, group: "Serving", icon: "🧾", title: "Counter mode", desc: "Full-screen serving view · lockable with a staff PIN", built: true },
     { href: `${base}/billing`, group: "Money", icon: "💳", title: "Plan, payments & payouts", desc: "Subscription, business card & bank, NFC", built: true },
     { href: `${base}/profile`, group: "Being found", icon: "🏪", title: "Profile & branding", desc: "Name, description, photos, hours, links", built: true },
-    { href: `${base}/addons`, group: "Being found", icon: "🧩", title: "Add-ons & features", desc: "Turn features on and off", built: true },
-    { href: `${base}/analytics`, group: "Being found", icon: "📊", title: "Analytics", desc: "Views, engagement & revenue", built: true },
+    { href: `${base}/analytics`, group: "Being found", icon: "📊", title: "Analytics", desc: "Views, engagement & revenue", locked: !pro, built: true },
     { href: `${base}/offers`, group: "Being found", icon: "🏷️", title: "Offers", desc: "Time-limited deals", locked: !pro, built: true },
     { href: `${base}/loyalty`, group: "Serving", icon: "📇", title: "Loyalty programme", desc: "Stamps or points", locked: !pro, built: true },
     { href: `${base}/wallet`, group: "Money", icon: "💷", title: "Local Wallet", desc: "Accept payments, cashback, receipts", locked: !pro, built: true },
     { href: `${base}/transactions`, group: "Money", icon: "📒", title: "Money & transactions", desc: "Full statement · export for accounts", built: true },
-    { href: `${base}/alerts`, group: "Being found", icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland", built: true },
+    { href: `${base}/alerts`, group: "Being found", icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland · approval needed", locked: !premium, built: true },
     { href: `${base}/bookings`, group: "Serving", icon: "📅", title: "Bookings", desc: "Incoming appointments", locked: !premium, built: true },
     { href: `${base}/services`, group: "Serving", icon: "✂️", title: "Services", desc: "What people can book", locked: !premium, built: true },
     { href: `${base}/schedule`, group: "Serving", icon: "🗓️", title: "Availability", desc: "Weekly hours & overrides", locked: !premium, built: true },
     { href: `${base}/passes`, group: "Selling", icon: "🎟️", title: "Passes & packs", desc: "Coffee cards, class packs, day passes", locked: !premium, built: true },
     { href: `${base}/products`, group: "Selling", icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", locked: !premium, built: true },
     { href: `${base}/orders`, group: "Selling", icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", locked: !premium, built: true },
-    { href: `${base}/jobs`, group: "People", icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: !!enabled("jobs") },
+    { href: `${base}/jobs`, group: "People", icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: true },
     // Deliberately NOT tier-locked. A free listing that never rings is why
     // nobody claims theirs, and the trades most worth reaching are the ones
     // nobody has heard of — locking them out would defeat the whole point.
     { href: `${base}/leads`, group: "People", icon: "🔧", title: "Job leads", desc: "Folk looking for a tradesperson · say what you cover and when", built: true },
-    { href: `${base}/events`, group: "Selling", icon: "🎫", title: "Events", desc: "Create & manage ticketed events", built: !!enabled("events") },
+    { href: `${base}/events`, group: "Selling", icon: "🎫", title: "Events", desc: "Create & manage ticketed events", built: true },
     { href: `/directory/${business.slug || business.id}`, icon: "👁️", title: "View public profile", desc: "See your listing as customers do", group: "Being found", built: true },
   ];
 

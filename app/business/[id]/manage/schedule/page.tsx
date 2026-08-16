@@ -6,7 +6,7 @@ import {
   getBusinessAvailabilityRules,
   getBusinessUpcomingOverrides,
 } from "@/lib/business-data.server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { ScheduleManager } from "@/components/business/ScheduleManager";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -16,7 +16,7 @@ export const metadata = { title: "Schedule" };
 export default async function SchedulePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "premium")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "schedule")) redirect(`/business/${business.id}/manage/billing`);
 
   const [services, rules, overrides] = await Promise.all([
     getBusinessServicesBrief(business.id),

@@ -2,13 +2,11 @@ import Link from "next/link";
 import {
   TIER_LABELS,
   TIER_PRICE,
-  PLAN_FEATURES,
-  ADDON_META,
-  PREMIUM_ADDON_KEYS,
-  STANDARD_ADDON_KEYS,
-  EXTRA_ADDON_MONTHLY_PENCE,
+  TIER_PITCH,
+  PLAN_COMPARISON,
+  tierFor,
+  tierMeets,
   type SubscriptionTier,
-  type AddonKey,
 } from "@/lib/business-data";
 import { PhoneFrame, LaptopFrame } from "@/components/business/DeviceFrame";
 
@@ -22,26 +20,7 @@ export const metadata = {
 const LOCAL = "#7c3aed";
 const DIR = "#4f46e5";
 
-const EXTRA_ADDON_PRICE = `£${(EXTRA_ADDON_MONTHLY_PENCE / 100).toFixed(0)}/mo`;
 
-/* ── The listing-richness ladder, mirrored from lib/listing-tiers.ts copy ──── */
-const LISTING_LADDER: { tier: SubscriptionTier; unlocks: string }[] = [
-  {
-    tier: "free",
-    unlocks:
-      "Name, category and area, your logo, opening hours, one contact, a verified badge and a claim link.",
-  },
-  {
-    tier: "pro",
-    unlocks:
-      "Adds your story, a cover photo, extra contacts, a map pin, and offers, loyalty, hiring and Local Wallet on your listing.",
-  },
-  {
-    tier: "premium",
-    unlocks:
-      "Adds a featured badge, a photo gallery, events, a services catalogue, tickets and richer add-on sections.",
-  },
-];
 
 /* ── Where a business shows up across the ecosystem ─────────────────────────── */
 type Showcase = {
@@ -83,7 +62,7 @@ const SHOWCASE: Showcase[] = [
   },
   {
     title: "In-app bookings",
-    benefit: "Take appointments and reservations without a separate system — bookings land in your dashboard.",
+    benefit: "Take appointments and reservations without a separate system — bookings land in your dashboard, included with Premium.",
     device: "phone",
     src: "/business/bookings-phone.png",
     accent: LOCAL,
@@ -97,7 +76,7 @@ const SHOWCASE: Showcase[] = [
   },
   {
     title: "Events & tickets",
-    benefit: "List what you’ve got on and sell tickets across What’s On and your own listing.",
+    benefit: "List what you’ve got on and sell tickets across What’s On and your own listing — free, with a small fee per ticket sold.",
     device: "phone",
     src: "/business/events-phone.png",
     accent: "#d4921a",
@@ -118,7 +97,7 @@ const SHOWCASE: Showcase[] = [
   },
   {
     title: "Analytics dashboard",
-    benefit: "See views, searches and redemptions so you know what’s working — right in your business dashboard.",
+    benefit: "See views, searches and redemptions so you know what’s working — included from Pro upwards.",
     device: "laptop",
     src: "/business/dashboard-desktop.png",
     accent: DIR,
@@ -127,23 +106,16 @@ const SHOWCASE: Showcase[] = [
 
 /* ── Plans ──────────────────────────────────────────────────────────────────── */
 const PLAN_ORDER: SubscriptionTier[] = ["free", "pro", "premium"];
-const PLAN_TAGLINE: Record<SubscriptionTier, string> = {
-  free: "Get found — no cost, no catch.",
-  pro: "Sell to the islands with offers, loyalty and Wallet.",
-  premium: "Everything, plus a featured spot and bookings.",
-};
+
 const PLAN_CTA: Record<SubscriptionTier, string> = {
   free: "Start free",
   pro: "Choose Pro",
   premium: "Choose Premium",
 };
 
-function planLadder(tier: SubscriptionTier) {
-  return LISTING_LADDER.find((l) => l.tier === tier)!.unlocks;
-}
+/** What this tier includes — derived, so it can't under-describe a plan again. */
 function includedThrough(tier: SubscriptionTier) {
-  const rank: Record<SubscriptionTier, number> = { free: 0, pro: 1, premium: 2 };
-  return PLAN_FEATURES.filter((f) => rank[f.req] <= rank[tier]);
+  return PLAN_COMPARISON.filter((f) => tierMeets(tier, tierFor(f.feature)));
 }
 
 export default function BusinessLandingPage() {
@@ -301,14 +273,14 @@ export default function BusinessLandingPage() {
                     </span>
                   )}
                   <h3 className="font-display text-2xl font-bold text-ink">{TIER_LABELS[tier]}</h3>
-                  <p className="mt-1 text-sm text-ink-muted">{PLAN_TAGLINE[tier]}</p>
+                  <p className="mt-1 text-sm text-ink-muted">{TIER_PITCH[tier].headline}</p>
                   <p className="mt-4 font-display text-4xl font-bold" style={{ color: accent }}>
                     {TIER_PRICE[tier]}
                   </p>
 
                   <div className="mt-5 rounded-xl bg-sand/50 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">Your public listing</p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{planLadder(tier)}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">What you get</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{TIER_PITCH[tier].blurb}</p>
                   </div>
 
                   <ul className="mt-5 flex-1 space-y-2.5">
@@ -335,40 +307,16 @@ export default function BusinessLandingPage() {
                     {PLAN_CTA[tier]}
                   </Link>
                   <p className="mt-2 text-center text-xs text-ink-muted">
-                    {tier === "free" ? "Upgrade anytime from your dashboard." : "Create your listing, then pay — cancel anytime."}
+                    {tier === "free"
+                      ? "Upgrade anytime from your dashboard."
+                      : tier === "premium"
+                        ? "Or £290 a year — ten months for twelve, and we post you a tap-to-stamp tile."
+                        : "Create your listing, then pay — cancel anytime."}
                   </p>
                 </div>
               );
             })}
           </div>
-        </div>
-      </section>
-
-      {/* ── Add-ons ────────────────────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
-        <div className="max-w-2xl">
-          <p className="eyebrow" style={{ color: LOCAL }}>Add-ons</p>
-          <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Build exactly what you need</h2>
-          <p className="mt-3 text-lg text-ink-soft">
-            Premium includes your first premium add-on. Each extra is {EXTRA_ADDON_PRICE}. The rest come
-            free with your listing.
-          </p>
-        </div>
-
-        <h3 className="mt-10 font-display text-xl font-bold text-ink">Premium add-ons</h3>
-        <p className="mt-1 text-sm text-ink-muted">First one included with Premium · each additional {EXTRA_ADDON_PRICE}.</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PREMIUM_ADDON_KEYS.map((key) => (
-            <AddonCard key={key} addonKey={key} accent={LOCAL} tag="Premium" />
-          ))}
-        </div>
-
-        <h3 className="mt-12 font-display text-xl font-bold text-ink">Included with your listing</h3>
-        <p className="mt-1 text-sm text-ink-muted">Free with every plan.</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {STANDARD_ADDON_KEYS.map((key) => (
-            <AddonCard key={key} addonKey={key} accent={DIR} tag="Free" />
-          ))}
         </div>
       </section>
 
@@ -500,26 +448,3 @@ export default function BusinessLandingPage() {
 }
 
 /* ── Add-on card ────────────────────────────────────────────────────────────── */
-function AddonCard({ addonKey, accent, tag }: { addonKey: AddonKey; accent: string; tag: string }) {
-  const meta = ADDON_META[addonKey];
-  return (
-    <div className="flex gap-3.5 rounded-2xl border border-line bg-paper p-5 shadow-soft">
-      <span
-        className="grid h-11 w-11 shrink-0 place-items-center rounded-xl font-display text-base font-bold"
-        style={{ background: `${accent}14`, color: accent }}
-        aria-hidden
-      >
-        {meta.label.slice(0, 1)}
-      </span>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <h4 className="font-semibold text-ink">{meta.label}</h4>
-          <span className="rounded-pill px-2 py-0.5 text-[10px] font-bold" style={{ background: `${accent}14`, color: accent }}>
-            {tag}
-          </span>
-        </div>
-        <p className="mt-1 text-sm text-ink-muted">{meta.description}</p>
-      </div>
-    </div>
-  );
-}

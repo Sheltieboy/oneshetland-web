@@ -63,7 +63,7 @@ export type HelpTopicId =
   | "trade-availability"
   | "nfc-tile"
   | "booking-setup"
-  | "addons-tier"
+  | "plans-tier"
   | "analytics-revenue"
   | "add-business";
 
@@ -590,50 +590,54 @@ export const HELP_TOPICS: Record<HelpTopicId, Topic> = {
     ),
   },
 
-  "addons-tier": {
-    title: "Plans and add-ons",
-    subtitle: "What you're paying for, and what you're not",
+  "plans-tier": {
+    title: "What am I paying for?",
+    subtitle: "Three plans, one price each",
     accent: NAVY,
     diagram: (
-      <Figure caption="Your plan sets the floor. Add-ons are extras you switch on one at a time.">
-        <svg viewBox="0 0 420 96" className="w-full" role="img" aria-label="A plan gives you a set of features. Add-ons sit on top and are switched on individually.">
-          <rect x="8" y="12" width="180" height="72" rx="10" fill="#fff" stroke={NAVY} strokeWidth="2" />
-          <text x="24" y="36" fontSize="13" fontWeight="700" fill={NAVY} fontFamily="system-ui, sans-serif">Your plan</text>
-          <text x="24" y="55" fontSize="11.5" fill={INK_SOFT} fontFamily="system-ui, sans-serif">Free, Pro or Premium.</text>
-          <text x="24" y="70" fontSize="11.5" fill={INK_SOFT} fontFamily="system-ui, sans-serif">One monthly price.</text>
-          <text x="200" y="52" fontSize="20" fontWeight="700" fill={INK_SOFT} fontFamily="system-ui, sans-serif">+</text>
-          <rect x="232" y="12" width="180" height="72" rx="10" fill={SAND} stroke={LINE} strokeWidth="2" />
-          <text x="248" y="36" fontSize="13" fontWeight="700" fill={INK_SOFT} fontFamily="system-ui, sans-serif">Add-ons</text>
-          <text x="248" y="55" fontSize="11.5" fill={INK_SOFT} fontFamily="system-ui, sans-serif">Only the extras you</text>
-          <text x="248" y="70" fontSize="11.5" fill={INK_SOFT} fontFamily="system-ui, sans-serif">choose. Off by default.</text>
+      <Figure caption="Each plan contains the one below it. Nothing is bought separately.">
+        <svg viewBox="0 0 420 118" className="w-full" role="img" aria-label="Three stacked plans: Free to be found, Pro for the counter tools, Premium to sell.">
+          {[
+            { y: 6, w: 150, t: "Free", d: "Be found", c: INK_SOFT },
+            { y: 42, w: 260, t: "Pro", d: "Turn finders into regulars", c: TEAL },
+            { y: 78, w: 400, t: "Premium", d: "Sell as much as you like", c: LOCAL },
+          ].map((b) => (
+            <g key={b.t}>
+              <rect x="8" y={b.y} width={b.w} height="30" rx="8" fill="#fff" stroke={b.c} strokeWidth="2" />
+              <text x="22" y={b.y + 19} fontSize="12.5" fontWeight="700" fill={b.c} fontFamily="system-ui, sans-serif">{b.t}</text>
+              <text x={b.t === "Free" ? 68 : b.t === "Pro" ? 62 : 92} y={b.y + 19} fontSize="11.5" fill={INK_SOFT} fontFamily="system-ui, sans-serif">{b.d}</text>
+            </g>
+          ))}
         </svg>
       </Figure>
     ),
     body: (
       <>
         <P>
-          Your{" "}<strong className="font-semibold text-ink">plan</strong>{" "}is the monthly
-          subscription. Moving up a plan unlocks a set of things at once — loyalty, bookings,
-          selling — and each plan page lists exactly what.
+          One monthly price, and each plan includes everything in the one below it. There are no
+          add-ons to buy and nothing switched off that you have already paid for.
         </P>
         <P>
-         {" "}<strong className="font-semibold text-ink">Add-ons</strong>{" "}are separate extras you turn
-          on individually, like detailed analytics or urgent alerts. Nothing is on unless you
-          switched it on.
+         {" "}<strong className="font-semibold text-ink">Free</strong>{" "}is a proper page: your story,
+          photos, hours, contacts and map. You can post jobs and shifts and sell event tickets on it
+          without paying anything monthly — tickets carry a small fee per ticket instead.
         </P>
         <P>
-          Both renew monthly until you cancel, and you cancel from here — no phone call, no notice
-          period. You keep what you&apos;ve paid for until the end of the month you&apos;ve
-          already paid.
+         {" "}<strong className="font-semibold text-ink">Pro</strong>{" "}adds the counter tools — offers, a
+          loyalty card, tap-to-stamp, wallet payments, enquiries and your own numbers.
         </P>
         <P>
-          Being{" "}<strong className="font-semibold text-ink">listed</strong>{" "}in the directory is free
-          and always will be. None of this is needed to appear on OneShetland.
+         {" "}<strong className="font-semibold text-ink">Premium</strong>{" "}adds your own shop: products
+          and orders, services, bookings, passes, and a featured spot on the home screen.
+        </P>
+        <P>
+          Plans renew monthly until you cancel, and you cancel from here — no phone call, no notice
+          period. You keep what you have paid for until the end of that month. Being listed in the
+          directory is free and always will be.
         </P>
       </>
     ),
   },
-
   "analytics-revenue": {
     title: "Reading these numbers",
     subtitle: "Including why money may be blank",

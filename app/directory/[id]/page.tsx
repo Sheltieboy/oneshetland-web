@@ -76,10 +76,10 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const showGallery   = tierUnlocks(tier, "gallery");
   const showEvents    = tierUnlocks(tier, "events");
   const showServices  = tierUnlocks(tier, "services");
-  const showTickets   = tierUnlocks(tier, "tickets");
+  const showBookable  = tierUnlocks(tier, "bookable");
 
   const highlights = [
-    showTickets && b.accepts_bookings && { t: "Book online", s: "Reserve a slot" },
+    showBookable && b.accepts_bookings && { t: "Book online", s: "Reserve a slot" },
     showWallet && cashback && { t: `${cashback}% cashback`, s: "Pay with OneShetland" },
     showOffers && offers.length > 0 && { t: "Offers", s: `${offers.length} live just now` },
     showLoyalty && loyalty && { t: "Loyalty rewards", s: loyalty.type === "points" ? "Earn points" : "Collect stamps" },
@@ -241,7 +241,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             </section>
           )}
 
-          {showTickets && (
+          {showBookable && (
             <UnitItemsSection items={unitItems} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
           )}
 

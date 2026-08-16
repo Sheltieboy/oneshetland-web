@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BIZ, ALERT_COLORS, type AlertType, type AlertAccess, type PartnerAlert } from "@/lib/business-data";
-import { requestAlertAccess, createAlertAddonIntent, sendAlert, cancelAlert, forceExpireAlert } from "@/lib/business-client";
-import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
+import { requestAlertAccess, acceptAlertPolicy, sendAlert, cancelAlert, forceExpireAlert } from "@/lib/business-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const DURATIONS: { label: string; hours: number | null }[] = [
@@ -22,19 +21,14 @@ export function AlertsManager({ businessId, businessName, access, alerts }: {
   const [type, setType] = useState<AlertType>("info");
   const [message, setMessage] = useState("");
   const [hours, setHours] = useState<number | null>(4);
-  const [secret, setSecret] = useState<string | null>(null);   // PaymentIntent client secret when a card must be collected
   const [scheduleLater, setScheduleLater] = useState(false);
   const [scheduledFor, setScheduledFor] = useState("");        // datetime-local value
 
   async function request() { setBusy("req"); setError(null); try { await requestAlertAccess(businessId); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Failed."); } finally { setBusy(null); } }
-  async function activate() {
+  async function acceptPolicy() {
     setBusy("act"); setError(null);
-    try {
-      const res = await createAlertAddonIntent(businessId);
-      if (res?.activated) { router.refresh(); return; }          // saved card charged silently
-      if (res?.paymentIntent) { setSecret(res.paymentIntent); return; } // no card → collect one
-      throw new Error("Could not start activation.");
-    } catch (e) { setError(e instanceof Error ? e.message : "Failed."); } finally { setBusy(null); }
+    try { await acceptAlertPolicy(businessId); router.refresh(); }
+    catch (e) { setError(e instanceof Error ? e.message : "Failed."); } finally { setBusy(null); }
   }
   async function send() {
     if (!message.trim()) return setError("Write a message.");
@@ -95,7 +89,7 @@ export function AlertsManager({ businessId, businessName, access, alerts }: {
   if (!access) return (
     <div className={card}>
       <p className="font-bold text-ink">📣 Urgent alerts</p>
-      <p className="mt-1 text-sm text-ink-muted">Push urgent messages — ferry updates, road closures, event changes — to every OneShetland user. Requires approval and a £10/month add-on.</p>
+      <p className="mt-1 text-sm text-ink-muted">Push urgent messages — ferry updates, road closures, event changes — to every OneShetland user. Included with Premium, and we approve each business by hand.</p>
       {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
       <button onClick={request} disabled={busy === "req"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "req" ? "…" : "Request access"}</button>
     </div>
@@ -104,22 +98,25 @@ export function AlertsManager({ businessId, businessName, access, alerts }: {
   if (access.status === "rejected" || access.status === "suspended") return <div className={card}><p className="font-bold text-ink">Alerts unavailable</p><p className="mt-1 text-sm text-ink-muted">Your alert access is {access.status}. Contact OneShetland for help.</p></div>;
   if (access.status === "approved") return (
     <div className={card}>
-      <p className="font-bold text-ink">✅ Approved!</p>
-      <p className="mt-1 text-sm text-ink-muted">Activate the £10/month add-on to start sending alerts.</p>
+      <p className="font-bold text-ink">✅ Approved</p>
+      <p className="mt-1 text-sm text-ink-muted">One thing before your first alert — please read how these are meant to be used.</p>
+
+      <div className="mt-3 rounded-xl border border-line bg-cream/60 p-4 text-sm leading-relaxed text-ink-soft">
+        <p>
+          Alerts reach <strong className="text-ink">every OneShetland user immediately</strong>, and
+          urgent ones arrive outside normal hours. Send one only when it changes what somebody does
+          today: cancelled or delayed transport, a road closure, a venue or time change, severe
+          weather, or a safety notice.
+        </p>
+        <p className="mt-2">
+          Never use alerts for offers, promotions, opening hours, stock, or minor service changes —
+          those belong in an offer, a notice, or on your listing. If a broken coffee machine goes out
+          as an alert, the next genuine one gets ignored. Misuse withdraws access.
+        </p>
+      </div>
+
       {error && <p className="mt-2 text-sm text-rose-700">{error}</p>}
-      {secret ? (
-        <div className="mt-3 max-w-md">
-          <PaymentCheckout
-            clientSecret={secret}
-            amountPence={1000}
-            payLabel="Pay £10 & activate alerts"
-            onPaid={() => { setSecret(null); setTimeout(() => router.refresh(), 1500); }}
-            onCancel={() => setSecret(null)}
-          />
-        </div>
-      ) : (
-        <button onClick={activate} disabled={busy === "act"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "act" ? "…" : "Activate — £10/month"}</button>
-      )}
+      <button onClick={acceptPolicy} disabled={busy === "act"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "act" ? "…" : "I understand — enable alerts"}</button>
     </div>
   );
 

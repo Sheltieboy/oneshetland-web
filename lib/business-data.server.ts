@@ -7,7 +7,7 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import {
   BUSINESS_COLS,
-  type ManagedBusiness, type BusinessAddon, type LocalOffer, type LoyaltyProgram,
+  type ManagedBusiness, type LocalOffer, type LoyaltyProgram,
   type WalletReceipt, type PartnerAlert, type AlertAccess, type BusinessCode,
 } from "@/lib/business-data";
 import type { BookAvailabilityRule, BookSlotOverride } from "@/lib/book-data";
@@ -32,14 +32,6 @@ export async function getManagedBusiness(idOrSlug: string): Promise<ManagedBusin
   const { data } = await sb.from("local_businesses").select(BUSINESS_COLS)
     .eq(isUuid ? "id" : "slug", idOrSlug).maybeSingle();
   return (data ?? null) as ManagedBusiness | null;
-}
-
-export async function getBusinessAddons(businessId: string): Promise<BusinessAddon[]> {
-  const sb = await createServerClient();
-  return safe((async () => {
-    const { data } = await sb.from("business_addons").select("*").eq("business_id", businessId);
-    return (data ?? []) as BusinessAddon[];
-  })(), []);
 }
 
 export async function getBusinessOffers(businessId: string, includeExpired = false): Promise<LocalOffer[]> {
@@ -78,7 +70,7 @@ export async function getBusinessCode(businessId: string): Promise<BusinessCode 
 
 export async function getAlertAccess(businessId: string): Promise<AlertAccess | null> {
   const sb = await createServerClient();
-  const { data } = await sb.from("business_alert_access").select("id, business_id, status, requested_at, activated_at").eq("business_id", businessId).maybeSingle();
+  const { data } = await sb.from("business_alert_access").select("id, business_id, status, requested_at, activated_at, policy_accepted_at").eq("business_id", businessId).maybeSingle();
   return (data ?? null) as AlertAccess | null;
 }
 

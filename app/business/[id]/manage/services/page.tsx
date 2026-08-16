@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { ServicesManager } from "@/components/business/ServicesManager";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -11,7 +11,7 @@ export const metadata = { title: "Services" };
 export default async function ServicesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "premium")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "services")) redirect(`/business/${business.id}/manage/billing`);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { createClient } from "@/lib/supabase/server";
 import { OrdersInbox } from "@/components/business/OrdersInbox";
 
@@ -11,7 +11,7 @@ export const metadata = { title: "Shop orders" };
 export default async function OrdersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "premium")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "orders")) redirect(`/business/${business.id}/manage/billing`);
 
   const sb = await createClient();
   const { data: orders } = await sb

@@ -6,9 +6,9 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
-  BIZ, TIER_LABELS, TIER_PRICE, PLAN_FEATURES, ADDON_META, PREMIUM_ADDON_KEYS, EXTRA_ADDON_MONTHLY_PENCE,
-  tierMeets, isOnBoost, NFC_TILE_URL_PREFIX,
-  type ManagedBusiness, type BusinessAddon,
+  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE,
+  tierMeets, tierFor, isOnBoost, NFC_TILE_URL_PREFIX,
+  type ManagedBusiness,
 } from "@/lib/business-data";
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
@@ -17,14 +17,11 @@ import {
 } from "@/lib/business-client";
 import { HelpTip } from "@/components/help/HelpTip";
 
-export function BillingManager({ business, addons = [], intentTier }: { business: ManagedBusiness; addons?: BusinessAddon[]; intentTier?: "pro" | "premium" }) {
+export function BillingManager({ business, intentTier }: { business: ManagedBusiness; intentTier?: "pro" | "premium" }) {
   const router = useRouter();
   const confirm = useConfirm();
   const b = business;
   const tier = b.subscription_tier;
-  // Enabled premium add-ons → the first is included, each extra is £10/mo.
-  const enabledPremium = addons.filter((a) => a.enabled && PREMIUM_ADDON_KEYS.includes(a.addon_key));
-  const extraAddons = enabledPremium.slice(1); // billable extras (beyond the included one)
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pay, setPay] = useState<{ clientSecret: string; amountPence: number; label: string } | null>(null);
@@ -75,7 +72,7 @@ export function BillingManager({ business, addons = [], intentTier }: { business
         // New subscription → saved card charged silently, else collect via Elements.
         const intent = await createSubscriptionIntent(b.id, target);
         if (intent.activated) { router.refresh(); pollTier(); }
-        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: target === "pro" ? 1999 : 4999, label: `Subscribe to ${TIER_LABELS[target]}` });
+        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: target === "pro" ? 1200 : 2900, label: `Subscribe to ${TIER_LABELS[target]}` });
         else throw new Error("Could not start subscription.");
       }
     } catch (e) { fail(e); } finally { setBusy(null); }
@@ -158,22 +155,14 @@ export function BillingManager({ business, addons = [], intentTier }: { business
           <p className="mt-1 text-sm text-ink-muted">{isOnBoost(b) ? "Boost expires" : b.subscription_cancel_at_period_end ? "Cancels on" : "Renews"} {new Date(b.subscription_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
         )}
 
-        {/* Monthly breakdown — base + each extra premium add-on */}
-        {tier === "premium" && (
-          <div className="mt-3 rounded-xl border border-line bg-cream/60 p-3 text-sm">
-            <div className="flex justify-between"><span className="text-ink-soft">Premium plan</span><span className="font-semibold text-ink">£49.99</span></div>
-            {extraAddons.map((a) => (
-              <div key={a.addon_key} className="flex justify-between"><span className="text-ink-soft">+ Add-on: {ADDON_META[a.addon_key].label}</span><span className="font-semibold text-ink">£{(EXTRA_ADDON_MONTHLY_PENCE / 100).toFixed(2)}</span></div>
-            ))}
-            <div className="mt-1 flex justify-between border-t border-line pt-1.5"><span className="font-bold text-ink">Total</span><span className="font-extrabold text-ink">£{((4999 + extraAddons.length * EXTRA_ADDON_MONTHLY_PENCE) / 100).toFixed(2)}/mo</span></div>
-            {extraAddons.length === 0 && <p className="mt-1 text-xs text-ink-muted">Includes one premium add-on. Each additional add-on is £{(EXTRA_ADDON_MONTHLY_PENCE / 100).toFixed(0)}/mo.</p>}
-          </div>
-        )}
+
+        <p className="mt-2 text-sm text-ink-soft">{TIER_PITCH[tier].blurb}</p>
 
         <ul className="mt-3 space-y-1.5">
-          {PLAN_FEATURES.map((f) => {
-            const ok = tierMeets(tier, f.req);
-            return <li key={f.label} className={"flex items-center gap-2 text-sm " + (ok ? "text-ink" : "text-ink-faint")}>{ok ? "✅" : "🔒"} {f.label}{!ok && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{TIER_LABELS[f.req]}</span>}</li>;
+          {PLAN_COMPARISON.map((f) => {
+            const req = tierFor(f.feature);
+            const ok = tierMeets(tier, req);
+            return <li key={f.label} className={"flex items-center gap-2 text-sm " + (ok ? "text-ink" : "text-ink-faint")}>{ok ? "✅" : "🔒"} {f.label}{!ok && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{TIER_LABELS[req]}</span>}</li>;
           })}
         </ul>
 
@@ -192,7 +181,12 @@ export function BillingManager({ business, addons = [], intentTier }: { business
             </>
           )}
           {tier === "pro" && <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>}
-          {tier === "premium" && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">👑 All features unlocked.</p>}
+          {tier === "premium" && (
+            <>
+              <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">👑 All features unlocked.</p>
+              <p className="text-xs text-ink-muted">Paying yearly ({PREMIUM_ANNUAL_PRICE}) works out at ten months for twelve, and we post you an NFC tile. Coming soon — ask us to switch you over.</p>
+            </>
+          )}
         </div>
 
         {b.subscription_cancel_at_period_end && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Cancels at period end — you keep access until then.</p>}

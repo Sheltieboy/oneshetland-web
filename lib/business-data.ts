@@ -8,16 +8,6 @@ import type { OpeningHours } from "@/lib/opening-hours";
 
 export type SubscriptionTier = "free" | "pro" | "premium";
 
-export type AddonKey =
-  | "bookings" | "services" | "events" | "membership" | "products"
-  | "offers" | "stamps" | "enquiries" | "payments" | "featured" | "jobs";
-
-export const PREMIUM_ADDON_KEYS: AddonKey[] = ["bookings", "services", "events", "membership", "products"];
-export const STANDARD_ADDON_KEYS: AddonKey[] = ["offers", "stamps", "enquiries", "payments", "featured", "jobs"];
-export const EXTRA_ADDON_MONTHLY_PENCE = 1000; // £10 per additional premium add-on
-
-export type BusinessAddon = { id: string; business_id: string; addon_key: AddonKey; enabled: boolean; config: Record<string, unknown>; created_at: string };
-
 /** The full management view of a business (owner-readable row). */
 export type { OpeningHours } from "@/lib/opening-hours";
 
@@ -77,47 +67,42 @@ export const BUSINESS_COLS =
 
 /* ── Plan model ───────────────────────────────────────────────────────────── */
 
-export const TIER_LABELS: Record<SubscriptionTier, string> = { free: "Free", pro: "Pro", premium: "Premium" };
-export const TIER_PRICE: Record<SubscriptionTier, string> = { free: "£0", pro: "£19.99/mo", premium: "£49.99/mo" };
+/**
+ * The tier ladder lives in lib/listing-tiers.ts — the one file mirrored into the
+ * app repo, so both products agree on what a tier gets. Re-exported here so the
+ * management dashboard keeps importing from one place.
+ */
+export {
+  TIER_LABEL as TIER_LABELS,
+  TIER_PRICE,
+  TIER_PITCH,
+  TIER_FEATURES,
+  PLAN_COMPARISON,
+  PREMIUM_ANNUAL_PRICE,
+  FREE_GALLERY_LIMIT,
+  galleryLimit,
+  tierUnlocks,
+  normaliseTier,
+  type Feature,
+  type ListingFeature,
+  type ManageFeature,
+} from "@/lib/listing-tiers";
+
+import { TIER_FEATURES as TF, type Feature as Feat } from "@/lib/listing-tiers";
+
 const TIER_RANK: Record<SubscriptionTier, number> = { free: 0, pro: 1, premium: 2 };
 
 export function tierMeets(current: SubscriptionTier, required: SubscriptionTier): boolean {
   return TIER_RANK[current] >= TIER_RANK[required];
 }
 
-export const PLAN_FEATURES: { label: string; req: SubscriptionTier }[] = [
-  { label: "Directory listing", req: "free" },
-  { label: "Loyalty programme", req: "pro" },
-  { label: "Time-limited offers", req: "pro" },
-  { label: "Local Wallet payments", req: "pro" },
-  { label: "NFC tap-to-stamp tile", req: "pro" },
-  { label: "In-app bookings", req: "premium" },
-  { label: "Featured homepage spot", req: "premium" },
-];
+/** The tier a feature needs — for gating a manage page or writing an upgrade hint. */
+export function tierFor(feature: Feat): SubscriptionTier {
+  return TF[feature];
+}
 
 export function isOnBoost(b: Pick<ManagedBusiness, "subscription_tier" | "subscription_until" | "stripe_subscription_id">): boolean {
   return !b.stripe_subscription_id && b.subscription_tier === "pro" && !!b.subscription_until && new Date(b.subscription_until) > new Date();
-}
-
-/* ── Add-on metadata ──────────────────────────────────────────────────────── */
-
-export const ADDON_META: Record<AddonKey, { label: string; description: string; icon: string; isPremium: boolean }> = {
-  bookings: { label: "Bookings", description: "Take appointments and reservations in-app", icon: "📅", isPremium: true },
-  services: { label: "Services", description: "List bookable services with prices", icon: "🛠️", isPremium: true },
-  events: { label: "Events", description: "Create events and sell tickets", icon: "🎟️", isPremium: true },
-  membership: { label: "Membership", description: "Offer paid memberships", icon: "🪪", isPremium: true },
-  products: { label: "Products", description: "Showcase products for sale", icon: "🛍️", isPremium: true },
-  offers: { label: "Offers", description: "Time-limited deals and discounts", icon: "🏷️", isPremium: false },
-  stamps: { label: "Stamps & points", description: "Loyalty card with rewards", icon: "📇", isPremium: false },
-  enquiries: { label: "Enquiries", description: "Let customers message you", icon: "✉️", isPremium: false },
-  payments: { label: "Payments", description: "Accept Local Wallet payments", icon: "💳", isPremium: false },
-  featured: { label: "Featured promotion", description: "Boosted placement in Local", icon: "⭐", isPremium: false },
-  jobs: { label: "Jobs", description: "Post roles and take applications — free", icon: "💼", isPremium: false },
-};
-
-export function countExtraPremiumAddons(addons: BusinessAddon[]): number {
-  const enabledPremium = addons.filter((a) => a.enabled && PREMIUM_ADDON_KEYS.includes(a.addon_key)).length;
-  return Math.max(0, enabledPremium - 1);
 }
 
 /* ── Offers / loyalty types ───────────────────────────────────────────────── */
@@ -160,7 +145,7 @@ export function daysRemaining(iso: string): number {
 export type AlertType = "emergency" | "disruption" | "info";
 export type AlertAccessStatus = "requested" | "approved" | "active" | "rejected" | "suspended";
 export type PartnerAlert = { id: string; business_id: string; business_name: string; message: string; type: AlertType; is_active: boolean; starts_at: string; expires_at: string | null; created_at: string };
-export type AlertAccess = { id: string; business_id: string; status: AlertAccessStatus; requested_at: string; activated_at: string | null };
+export type AlertAccess = { id: string; business_id: string; status: AlertAccessStatus; requested_at: string; activated_at: string | null; policy_accepted_at: string | null };
 
 export const ALERT_COLORS: Record<AlertType, { color: string; bg: string; label: string; icon: string }> = {
   emergency: { color: "#FF3B30", bg: "#FFF2F1", label: "Emergency", icon: "⚠️" },

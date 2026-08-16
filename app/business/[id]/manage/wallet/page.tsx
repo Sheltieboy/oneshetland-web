@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getWalletReceipts, getBusinessCode } from "@/lib/business-data.server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { WalletManager } from "@/components/business/WalletManager";
 import { TillCode } from "@/components/business/TillCode";
 import { HelpTip } from "@/components/help/HelpTip";
@@ -13,7 +13,7 @@ export const metadata = { title: "Local Wallet" };
 export default async function WalletPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "pro")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "wallet")) redirect(`/business/${business.id}/manage/billing`);
   const [receipts, code] = await Promise.all([getWalletReceipts(business.id, 10), getBusinessCode(business.id)]);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">

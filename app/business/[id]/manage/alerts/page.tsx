@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { tierUnlocks } from "@/lib/business-data";
 import { getAlertAccess, getBusinessAlerts } from "@/lib/business-data.server";
 import { AlertsManager } from "@/components/business/AlertsManager";
 
@@ -9,6 +11,7 @@ export const metadata = { title: "Urgent alerts" };
 export default async function AlertsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  if (!tierUnlocks(business.subscription_tier, "alerts")) redirect(`/business/${business.id}/manage/billing`);
   const [access, alerts] = await Promise.all([getAlertAccess(business.id), getBusinessAlerts(business.id)]);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">

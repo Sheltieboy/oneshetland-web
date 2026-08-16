@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getLoyaltyProgram, getBusinessCode } from "@/lib/business-data.server";
-import { tierMeets } from "@/lib/business-data";
+import { tierUnlocks } from "@/lib/business-data";
 import { LoyaltyManager } from "@/components/business/LoyaltyManager";
 import { LoyaltyTill } from "@/components/business/LoyaltyTill";
 import { TillCode } from "@/components/business/TillCode";
@@ -16,7 +16,7 @@ export const metadata = { title: "Loyalty programme" };
 export default async function LoyaltyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
-  if (!tierMeets(business.subscription_tier, "pro")) redirect(`/business/${business.id}/manage/billing`);
+  if (!tierUnlocks(business.subscription_tier, "loyalty")) redirect(`/business/${business.id}/manage/billing`);
   const [program, code] = await Promise.all([
     getLoyaltyProgram(business.id),
     getBusinessCode(business.id),

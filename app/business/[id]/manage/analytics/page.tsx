@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { TIER_PRICE } from "@/lib/business-data";
 import { getBusinessAnalytics } from "@/lib/analytics-business.server";
-import { AnalyticsUnlock } from "@/components/business/AnalyticsUnlock";
 import { HelpTip } from "@/components/help/HelpTip";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +42,7 @@ export default async function BusinessAnalyticsPage({ params }: { params: Promis
 
       {data?.is_admin_view && (
         <div className="mt-4 rounded-card border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
-          Admin view — showing full analytics regardless of add-on status.
+          Admin view — showing full analytics regardless of the business's plan.
         </div>
       )}
 
@@ -119,7 +119,7 @@ export default async function BusinessAnalyticsPage({ params }: { params: Promis
           </div>
         </>
       ) : (
-        /* Upsell — full analytics behind the £10 add-on */
+        /* Upsell — full analytics is part of Pro */
         <div className="mt-8 rounded-card border-2 border-navy bg-navy/[0.03] p-6 text-center">
           <h2 className="font-display text-2xl font-bold text-ink">Unlock full analytics</h2>
           <p className="mx-auto mt-2 max-w-md text-ink-soft">
@@ -127,8 +127,8 @@ export default async function BusinessAnalyticsPage({ params }: { params: Promis
             sales &amp; revenue, loyalty performance and application numbers — everything you need to
             grow on OneShetland.
           </p>
-          <p className="mt-4 text-3xl font-bold text-ink">£10<span className="text-base font-normal text-ink-soft">/month</span> <span className="text-sm font-normal text-ink-soft">· any plan, including free</span></p>
-          <AnalyticsUnlock businessId={business.id} />
+          <p className="mt-4 text-3xl font-bold text-ink">Included with Pro<span className="block text-base font-normal text-ink-soft">{TIER_PRICE.pro}</span></p>
+          <Link href={`${base}/billing`} className="mt-5 inline-flex rounded-pill bg-navy px-6 py-3 font-bold text-paper transition hover:brightness-110">See plans →</Link>
         </div>
       )}
     </div>

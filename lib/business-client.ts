@@ -4,11 +4,11 @@
  * business-client.ts — browser-side writes + edge-function calls for the Manage
  * Business dashboard. Invokes the SAME edge functions the app uses so behaviour
  * matches: local-business-onboard, local-subscription-intent, local-subscription-change,
- * local-boost-checkout, local-billing-portal, create-setup-intent, alert-addon-intent.
+ * local-boost-checkout, local-billing-portal, create-setup-intent.
  */
 
 import { createClient } from "@/lib/supabase/client";
-import type { AddonKey, AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
+import type { AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
 
 async function invoke<T = Record<string, unknown>>(name: string, body?: Record<string, unknown>): Promise<T> {
   const sb = createClient();
@@ -67,15 +67,8 @@ export async function uploadBusinessMedia(businessId: string, kind: "logo" | "co
   return data.publicUrl;
 }
 
-export async function toggleAddon(businessId: string, key: AddonKey, enabled: boolean): Promise<void> {
-  const sb = createClient();
-  const { error } = await sb.from("business_addons").update({ enabled }).eq("business_id", businessId).eq("addon_key", key);
-  if (error) throw error;
-}
-
 export async function setAcceptsBookings(businessId: string, value: boolean): Promise<void> {
   await updateBusiness(businessId, { accepts_bookings: value });
-  await toggleAddon(businessId, "bookings", value).catch(() => { /* addon row may not exist */ });
 }
 
 export async function deactivateOffer(offerId: string): Promise<void> {
@@ -115,10 +108,6 @@ export const createBoostIntent = (businessId: string, weeks: 1 | 2 | 3) =>
 export const createBillingPortalLink = (businessId: string) =>
   invoke<{ url: string }>("local-billing-portal", { business_id: businessId });
 
-/** Reconcile the £10/mo add-on line item with the number of extra premium add-ons. */
-export const syncBusinessAddons = (businessId: string) =>
-  invoke<{ extras: number; billed: boolean }>("sync-business-addons", { business_id: businessId });
-
 export const createBusinessSetupIntent = (businessId: string) =>
   invoke<{ client_secret: string; customer_id?: string }>("create-setup-intent", { business_id: businessId });
 
@@ -130,11 +119,13 @@ export async function requestAlertAccess(businessId: string): Promise<void> {
   if (error) throw error;
 }
 
-export const createAlertAddonIntent = (businessId: string) =>
-  invoke<{ activated?: boolean; paymentIntent?: string }>("alert-addon-intent", { business_id: businessId });
-
-export const createAnalyticsAddonIntent = (businessId: string) =>
-  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string }>("analytics-addon-intent", { business_id: businessId });
+/** Owner accepts the alerts usage policy. The RPC re-checks ownership, prior
+ *  admin approval and Premium server-side, then moves access approved → active. */
+export async function acceptAlertPolicy(businessId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb.rpc("accept_alert_policy", { p_business_id: businessId });
+  if (error) throw error;
+}
 
 export async function sendAlert(p: { businessId: string; businessName: string; message: string; type: AlertType; expiresAt?: Date | null; scheduledFor?: Date | null }): Promise<void> {
   const sb = createClient();
