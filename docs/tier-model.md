@@ -251,9 +251,34 @@ that survive as purchases rather than subscriptions. See [open question 5](#open
 
 ### Stripe
 
-New live Prices at £12 and £29 (the old £19.99/£49.99 test Prices are not reused).
-Update `stripe.price.local_pro` and `stripe.price.local_premium` in `/admin/config`.
-`stripe.price.local_addon` becomes unused. The metered booking Price is added in phase 2.
+Prices are immutable, so a price change always means a **new** Price hung off the same
+Product, then archiving the old one. Never delete — archive.
+
+**Created in sandbox, 16 Aug 2026:**
+
+| Config key | Lookup key | Sandbox price id | Amount |
+|---|---|---|---|
+| `stripe.price.local_pro` | `local_pro_monthly` | `price_1U52dsCCZSiMQBCgxAtKpCYN` | £12/mo |
+| `stripe.price.local_premium` | `local_premium_monthly` | `price_1U52cgCCZSiMQBCgEeyHtDLG` | £29/mo |
+| *(none yet — phase 4)* | `local_premium_annual` | `price_1U52ewCCZSiMQBCgJri1DZwO` | £290/yr |
+
+⚠️ **These are sandbox ids and will not work with live keys.** All three must be recreated
+in live mode at go-live, and the config keys repointed. See `LAUNCH_CHECKLIST.md` §1.
+
+**Do not set the config keys until the tier collapse ships.** `admin_config` currently
+holds no `stripe.*` rows at all, so everything resolves through the Supabase secrets set
+earlier. Repointing `local_pro` to the £12 price before the For Business page is updated
+would mean advertising £19.99 and charging £12. Harmless while Stripe is in test mode with
+zero subscriptions, but it should go out as one change.
+
+The annual price has no config key because **no code reads one yet** — `local_premium_annual`
+is created and waiting for phase 4.
+
+**Becoming unused** once the add-on system goes: `stripe.price.addon`,
+`stripe.price.alert_addon`, `stripe.price.analytics_addon`, `stripe.price.local_addon`.
+Archive after the tier change ships, not before.
+
+The metered booking Price (95p, usage-based) is created in phase 5, not now.
 
 ---
 
