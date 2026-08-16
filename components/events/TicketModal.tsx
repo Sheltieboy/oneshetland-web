@@ -8,9 +8,11 @@ import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
 
 const EVENTS = "#d4921a";
+// Buyer-facing booking fee — 95p per ticket plus 1.5% of face value.
 // Must match the app (app/event-ticket-checkout.tsx) and the create-event-ticket-intent
 // edge function, which is authoritative for the actual charge.
-const BOOKING_FEE_PENCE = 95;
+const BOOKING_FEE_PENCE = 95;   // per ticket
+const BOOKING_FEE_BPS = 150;    // 1.5% of face value, in basis points
 
 function gbp(pence: number) {
   return pence <= 0 ? "Free" : `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
@@ -83,7 +85,9 @@ export function TicketModal({
     0,
   );
   const isPaid = faceValuePence > 0;
-  const bookingFeePence = isPaid ? BOOKING_FEE_PENCE * totalTickets : 0;
+  const bookingFeePence = isPaid
+    ? BOOKING_FEE_PENCE * totalTickets + Math.floor((faceValuePence * BOOKING_FEE_BPS) / 10_000)
+    : 0;
   const totalPence = faceValuePence + bookingFeePence;
   const canWallet = walletPence != null && isPaid && walletPence >= totalPence;
 
