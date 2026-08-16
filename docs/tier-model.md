@@ -112,10 +112,16 @@ The counter tools. For any business with repeat custom.
 page. In a market of ~23,000 people the constraint is adoption, not margin — and the old
 pricing sat awkwardly beside the "tiny fees, 95p, not grabby percentages" positioning.
 
-**There is no migration cost whatsoever.** Measured 16 Aug 2026: 528 businesses on Free,
-0 on Pro, 1 on Premium (the `DEMO — Shetland Makkers` seed), and **zero live Stripe
-subscriptions**. Nobody is paying anything. Only five add-ons are enabled anywhere, all
-of them from the free "standard" set, all on the demo business.
+**There is effectively no migration cost.** Measured 16 Aug 2026: **528 businesses on
+Free, 0 on Pro, 1 on Premium** — and that one is the `DEMO — Shetland Makkers` seed. Only
+five add-ons are enabled anywhere, all from the free "standard" set, all on the demo.
+
+⚠️ An earlier draft of this document claimed "zero live Stripe subscriptions" as a
+measured fact. That query was run with the anon key, which RLS correctly filters, so an
+empty result could not be distinguished from a filtered one — it was not evidence. The
+tier counts above *were* permitted reads and are sound, and they carry the same
+conclusion: with nobody on Pro and only the demo seed on Premium, at most one
+subscription can exist. Confirm in the Stripe dashboard if it ever matters.
 
 This is the cheapest moment this change will ever be, and it is not close.
 
