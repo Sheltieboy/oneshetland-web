@@ -20,7 +20,7 @@ import { WalletTopUpButton } from "@/components/local/WalletTopUpButton";
 import { FollowButton } from "@/components/local/FollowButton";
 import { LoyaltyProgress } from "@/components/local/LoyaltyProgress";
 import { BusinessLocationMap } from "@/components/local/BusinessLocationMap";
-import { tierUnlocks } from "@/lib/listing-tiers";
+import { tierUnlocks, galleryLimit } from "@/lib/listing-tiers";
 import { getShopProducts } from "@/lib/shop-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { businessSchema, breadcrumbSchema } from "@/lib/seo-schema";
@@ -74,6 +74,9 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const showWallet    = tierUnlocks(tier, "wallet");
   const showFeatured  = tierUnlocks(tier, "featuredBadge");
   const showGallery   = tierUnlocks(tier, "gallery");
+  // Free shows a capped number of photos rather than none — three good photos is
+  // still a proper listing, and the fourth is a reason to upgrade.
+  const galleryCap    = galleryLimit(tier);
   const showEvents    = tierUnlocks(tier, "events");
   const showServices  = tierUnlocks(tier, "services");
   const showBookable  = tierUnlocks(tier, "bookable");        // "Book online" CTA — Pro
@@ -336,7 +339,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             <section>
               <h2 className="font-display text-2xl font-bold">Photos</h2>
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {((b as { gallery_urls?: string[] }).gallery_urls ?? []).map((url, i) => (
+                {((b as { gallery_urls?: string[] }).gallery_urls ?? []).slice(0, galleryCap ?? undefined).map((url, i) => (
                   <div key={i} className="aspect-square overflow-hidden rounded-xl">
                     <img src={url} alt="" className="h-full w-full object-cover" />
                   </div>
