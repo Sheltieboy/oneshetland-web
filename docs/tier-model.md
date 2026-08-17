@@ -1,9 +1,14 @@
 # Business tier model
 
-**Status:** agreed, not yet implemented · **Decided:** 16 August 2026
+**Status:** shipped 16 August 2026 · see [Build order](#build-order) for what remains
 
 This is the specification for OneShetland's business subscription tiers. It replaces
 four overlapping mechanisms with one.
+
+The tier collapse itself is live in both repos. Annual Premium and metered Pro bookings
+are specified here but not built; the ticket payout hold was specified, then dropped —
+the reasoning is kept rather than deleted, because it is the kind of decision that gets
+re-proposed.
 
 ---
 
@@ -83,7 +88,7 @@ The counter tools. For any business with repeat custom.
 - Enquiries
 - Photo gallery
 - **Analytics** (absorbed from the separately-sold add-on)
-- **Bookings, metered** — see [Metered bookings](#metered-bookings-phase-2)
+- **Bookings, metered** — specified but NOT built, see [Metered bookings](#metered-bookings-phase-2)
 
 > Analytics moves in rather than being sold separately: charging a business extra to see
 > its own customer numbers cuts against "community-first, not extractive."
