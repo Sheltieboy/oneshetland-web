@@ -13,7 +13,7 @@ import {
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
   previewSubscriptionChange, applySubscriptionChange, createBoostIntent,
-  createBillingPortalLink, requestNfcTile,
+  createBillingPortalLink, requestNfcTile, type BillingPeriod,
 } from "@/lib/business-client";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -22,6 +22,13 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
   const confirm = useConfirm();
   const b = business;
   const tier = b.subscription_tier;
+  // Are they on yearly billing? No column records it, and none is needed: a
+  // monthly subscription always renews within ~31 days, so a renewal date more
+  // than 90 days out can only be an annual plan. An inference, but not a guess.
+  const annualSubscriber =
+    tier === "premium" &&
+    !!b.subscription_until &&
+    new Date(b.subscription_until).getTime() - Date.now() > 90 * 86_400_000;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pay, setPay] = useState<{ clientSecret: string; amountPence: number; label: string } | null>(null);
@@ -59,20 +66,29 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
   }
 
   /* Upgrade / change plan */
-  async function upgrade(target: "pro" | "premium") {
-    setBusy(target); setError(null);
+  async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly") {
+    const annual = target === "premium" && period === "annual";
+    const label = `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
+    setBusy(annual ? `${target}-annual` : target); setError(null);
     try {
       if (b.stripe_subscription_id && !isOnBoost(b)) {
-        // Existing subscriber → prorated change on the saved card.
-        const preview = await previewSubscriptionChange(b.id, target);
-        if (!preview.noChange && !(await confirm({ title: `Switch to ${TIER_LABELS[target]}?`, body: `You'll be charged about £${(preview.previewAmountPence / 100).toFixed(2)} now (prorated).`, confirmLabel: "Switch plan" }))) { setBusy(null); return; }
-        await applySubscriptionChange(b.id, target);
+        // Existing subscriber → prorated change on the saved card. Switching
+        // monthly↔yearly on the same tier goes down this path too: the tier is
+        // unchanged but the price isn't, so Stripe still prorates it.
+        const preview = await previewSubscriptionChange(b.id, target, period);
+        if (preview.noChange) { setError(`You're already on ${label}.`); setBusy(null); return; }
+        const charge = preview.previewAmountPence;
+        const money = charge >= 0
+          ? `You'll be charged about £${(charge / 100).toFixed(2)} now (prorated).`
+          : `You'll be credited about £${(Math.abs(charge) / 100).toFixed(2)} against your next bill.`;
+        if (!(await confirm({ title: `Switch to ${label}?`, body: money, confirmLabel: "Switch plan" }))) { setBusy(null); return; }
+        await applySubscriptionChange(b.id, target, period);
         router.refresh();
       } else {
         // New subscription → saved card charged silently, else collect via Elements.
-        const intent = await createSubscriptionIntent(b.id, target);
+        const intent = await createSubscriptionIntent(b.id, target, period);
         if (intent.activated) { router.refresh(); pollTier(); }
-        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: target === "pro" ? 1200 : 2900, label: `Subscribe to ${TIER_LABELS[target]}` });
+        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? 29000 : target === "pro" ? 1200 : 2900, label: `Subscribe to ${label}` });
         else throw new Error("Could not start subscription.");
       }
     } catch (e) { fail(e); } finally { setBusy(null); }
@@ -171,6 +187,7 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
             <>
               <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
+              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline">{busy === "premium-annual" ? "…" : `Premium yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
               <div className="mt-3 rounded-xl border border-line p-3">
                 <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
                 <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
@@ -180,11 +197,21 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
               </div>
             </>
           )}
-          {tier === "pro" && <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>}
+          {tier === "pro" && (
+            <>
+              <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>
+              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium-annual" ? "…" : `Or yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
+            </>
+          )}
           {tier === "premium" && (
             <>
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">👑 All features unlocked.</p>
-              <p className="text-xs text-ink-muted">Paying yearly ({PREMIUM_ANNUAL_PRICE}) works out at ten months for twelve, and we post you an NFC tile. Coming soon — ask us to switch you over.</p>
+              {!annualSubscriber && (
+                <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
+                  {busy === "premium-annual" ? "…" : `Switch to yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}
+                </button>
+              )}
+              {annualSubscriber && <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free, and your NFC tile is included.</p>}
             </>
           )}
         </div>

@@ -25,6 +25,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/homepage", label: "Homepage" },
     { href: "/admin/compliance", label: "Compliance log" },
     { href: "/admin/email", label: "Email centre" },
+    { href: "/admin/nfc", label: "NFC tiles", badgeKey: "nfcToPost" },
     { href: "/admin/config", label: "Configuration" },
     { href: "/admin/regions", label: "Regions" },
   ] },

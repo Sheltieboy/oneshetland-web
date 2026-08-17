@@ -46,11 +46,11 @@ async function count(table: string, build?: (q: any) => any): Promise<number> {
 export interface AdminStats {
   users: number; pendingDrivers: number; openRequests: number; activeRuns: number;
   pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number; openReports: number;
-  pendingVesselPhotos: number; pendingVesselSubmissions: number;
+  pendingVesselPhotos: number; pendingVesselSubmissions: number; nfcToPost: number;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions] = await Promise.all([
+  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost] = await Promise.all([
     count("profiles"),
     count("driver_profiles", (q) => q.eq("driver_status", "pending")),
     count("delivery_requests", (q) => q.eq("status", "pending")),
@@ -62,8 +62,9 @@ export async function getAdminStats(): Promise<AdminStats> {
     count("content_reports", (q) => q.eq("status", "open")),
     count("media_assets", (q) => q.eq("approval_status", "pending")),
     count("vessel_submissions", (q) => q.eq("submission_status", "pending")),
+    count("local_businesses", (q) => q.eq("nfc_status", "requested")),
   ]);
-  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions };
+  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost };
 }
 
 /* ── Helper: attach profiles by id ───────────────────────────────────────── */
@@ -329,6 +330,27 @@ export async function getDisputes(status: "open" | "resolved" | "all" = "all") {
       .eq("dispute_raised", true).order("created_at", { ascending: false }).limit(200);
     if (status === "open") q = q.is("customer_confirmed", null);
     else if (status === "resolved") q = q.not("customer_confirmed", "is", null);
+    const { data } = await q;
+    return (data ?? []) as Record<string, unknown>[];
+  })(), [] as Record<string, unknown>[]);
+}
+
+/* ── NFC tiles owed ──────────────────────────────────────────────────────────
+ *
+ * The only thing on the platform where somebody is owed a PHYSICAL object, so
+ * it needs a queue rather than a status column nobody looks at. A tile that was
+ * requested and never posted is an invisible broken promise — worse for a
+ * yearly Premium subscriber, who was told the tile was part of what they paid
+ * for.
+ */
+export async function getNfcQueue(status: "requested" | "dispatched" | "active" | "all" = "requested") {
+  return safe((async () => {
+    const sb = await createServerClient();
+    let q = sb.from("local_businesses")
+      .select("id, name, slug, address, phone, email, subscription_tier, subscription_until, nfc_status, nfc_token")
+      .not("nfc_status", "eq", "none")
+      .order("name");
+    if (status !== "all") q = q.eq("nfc_status", status);
     const { data } = await q;
     return (data ?? []) as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);

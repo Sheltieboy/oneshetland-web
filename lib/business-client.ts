@@ -93,14 +93,17 @@ export async function upsertLoyaltyProgram(businessId: string, input: {
 export const createBusinessOnboardingLink = (businessId: string) =>
   invoke<{ url: string; account_id?: string }>("local-business-onboard", { business_id: businessId });
 
-export const createSubscriptionIntent = (businessId: string, tier: "pro" | "premium") =>
-  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>("local-subscription-intent", { business_id: businessId, tier });
+/** Annual is Premium-only; passing it with "pro" quietly gets monthly Pro. */
+export type BillingPeriod = "monthly" | "annual";
 
-export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium") =>
-  invoke<{ previewAmountPence: number; currency: string; nextRenewalAt: string | null; noChange?: boolean }>("local-subscription-change", { business_id: businessId, tier, preview: true });
+export const createSubscriptionIntent = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
+  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>("local-subscription-intent", { business_id: businessId, tier, period });
 
-export const applySubscriptionChange = (businessId: string, tier: "pro" | "premium") =>
-  invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, preview: false });
+export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
+  invoke<{ previewAmountPence: number; currency: string; nextRenewalAt: string | null; noChange?: boolean; currentTier?: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: true });
+
+export const applySubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
+  invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: false });
 
 export const createBoostIntent = (businessId: string, weeks: 1 | 2 | 3) =>
   invoke<{ charged?: boolean; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>("local-boost-checkout", { business_id: businessId, weeks });
