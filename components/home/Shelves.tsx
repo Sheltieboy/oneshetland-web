@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { tierUnlocks } from "@/lib/listing-tiers";
 import { SafeImage } from "@/components/ui/SafeImage";
 import type { HomeOffer, HomeSpik } from "@/lib/home-data";
 import { offerBadge } from "@/lib/home-data";
@@ -39,7 +40,13 @@ function ShelfHeader({ eyebrow, title, href, cta, accent }: { eyebrow: string; t
 }
 
 const bizHref = (b: ShelfBusiness) => `/directory/${b.slug || b.id}`;
-const isPaid = (b: ShelfBusiness) => b.subscription_tier === "premium" || b.subscription_tier === "pro";
+/**
+ * "★ Featured" is sold as a Premium benefit, so only Premium may wear it.
+ * This previously returned true for Pro as well, which gave every Pro business
+ * a badge the plans page charges £29 for. Appearing in the shelf at all is a
+ * separate thing — paid businesses are still surfaced first by home-data.
+ */
+const isFeatured = (b: ShelfBusiness) => tierUnlocks(b.subscription_tier, "featuredBadge");
 
 function BizInitial({ name, className = "" }: { name: string; className?: string }) {
   return <span className={`grid h-full w-full place-items-center font-display text-lg font-bold text-ink-soft ${className}`}>{name.slice(0, 1)}</span>;
@@ -62,9 +69,9 @@ function FeaturedCard({ b, big = false }: { b: ShelfBusiness; big?: boolean }) {
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/5" />
       <span
         className="absolute left-4 top-4 rounded-pill px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-white"
-        style={{ background: isPaid(b) ? LOCAL : "rgba(20,34,44,0.65)" }}
+        style={{ background: isFeatured(b) ? LOCAL : "rgba(20,34,44,0.65)" }}
       >
-        {isPaid(b) ? "★ Featured" : "New on OneShetland"}
+        {isFeatured(b) ? "★ Featured" : "New on OneShetland"}
       </span>
       <div className="relative mt-auto flex w-full items-end gap-3 p-5 text-paper">
         {b.logo_url && (
@@ -173,7 +180,7 @@ function Rail({ title, href, items }: { title: string; href: string; items: Shel
               ) : (
                 <BizInitial name={b.name} />
               )}
-              {isPaid(b) && (
+              {isFeatured(b) && (
                 <span className="absolute left-2 top-2 rounded-pill px-2 py-0.5 text-[10px] font-bold uppercase text-white" style={{ background: DIRECTORY }}>★</span>
               )}
             </div>

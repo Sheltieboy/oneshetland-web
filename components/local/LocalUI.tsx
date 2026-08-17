@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { tierUnlocks } from "@/lib/listing-tiers";
 import { CATEGORY_LABEL, offerBadge, type Business, type Offer } from "@/lib/local-data";
 
 const LOCAL = "#7c3aed";
@@ -67,7 +68,7 @@ export function BusinessCard({ b, productThumbs }: { b: Business; productThumbs?
           ) : (
             <div className="h-full w-full" style={{ background: `linear-gradient(135deg, ${accent}, ${accent}99)` }} />
           )}
-          {b.subscription_tier === "premium" && (
+          {tierUnlocks(b.subscription_tier, "featuredBadge") && (
             <span className="absolute right-3 top-3 rounded-pill bg-paper/95 px-2.5 py-1 text-xs font-bold text-local shadow-sm">
               ★ Featured
             </span>

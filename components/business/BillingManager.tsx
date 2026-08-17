@@ -6,7 +6,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
-  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, BOOKING_CAP_PENCE,
+  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, PREMIUM_ANNUAL_PENCE, TIER_PRICE_PENCE, BOOKING_CAP_PENCE,
   tierMeets, tierFor, tierUnlocks, isOnBoost, NFC_TILE_URL_PREFIX,
   type ManagedBusiness,
 } from "@/lib/business-data";
@@ -93,7 +93,7 @@ export function BillingManager({ business, intentTier, meter }: {
         // New subscription → saved card charged silently, else collect via Elements.
         const intent = await createSubscriptionIntent(b.id, target, period);
         if (intent.activated) { router.refresh(); pollTier(); }
-        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? 29000 : target === "pro" ? 1200 : 2900, label: `Subscribe to ${label}` });
+        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
         else throw new Error("Could not start subscription.");
       }
     } catch (e) { fail(e); } finally { setBusy(null); }
