@@ -9,10 +9,8 @@ Everything in this document is built. The ticket payout hold was specified and t
 dropped — the reasoning is kept rather than deleted, because it is the kind of decision
 that gets re-proposed.
 
-⚠️ Two things need doing outside the code before the last piece works: create a **metered
-£0.95 Price** in Stripe and set it as `stripe.price.booking_meter`. Until that key exists
-the booking meter counts and caps correctly but reports nothing — deliberately the safe
-way round.
+All four Stripe Prices exist in sandbox and are recorded under [Stripe](#stripe), including
+the £0.95 booking meter and the Billing Meter behind it.
 
 ---
 
@@ -276,19 +274,16 @@ Product, then archiving the old one. Never delete — archive.
 |---|---|---|---|
 | `stripe.price.local_pro` | `local_pro_monthly` | `price_1U52dsCCZSiMQBCgxAtKpCYN` | £12/mo |
 | `stripe.price.local_premium` | `local_premium_monthly` | `price_1U52cgCCZSiMQBCgEeyHtDLG` | £29/mo |
-| *(none yet — phase 4)* | `local_premium_annual` | `price_1U52ewCCZSiMQBCgJri1DZwO` | £290/yr |
+| `stripe.price.local_premium_annual` | `local_premium_annual` | `price_1U52ewCCZSiMQBCgJri1DZwO` | £290/yr |
+| `stripe.price.booking_meter` | `booking_meter` | `price_1U5WRgCCZSiMQBCgPjPIcvyl` | £0.95/booking |
 
-⚠️ **These are sandbox ids and will not work with live keys.** All three must be recreated
+⚠️ **These are sandbox ids and will not work with live keys.** All four must be recreated
 in live mode at go-live, and the config keys repointed. See `LAUNCH_CHECKLIST.md` §1.
 
-**Do not set the config keys until the tier collapse ships.** `admin_config` currently
-holds no `stripe.*` rows at all, so everything resolves through the Supabase secrets set
-earlier. Repointing `local_pro` to the £12 price before the For Business page is updated
-would mean advertising £19.99 and charging £12. Harmless while Stripe is in test mode with
-zero subscriptions, but it should go out as one change.
-
-The annual price has no config key because **no code reads one yet** — `local_premium_annual`
-is created and waiting for phase 4.
+The booking meter needs more than a Price: it is backed by a **Billing Meter** (name
+`Bookings`, event name `booking`, aggregation **Sum**), which must also be recreated in
+live mode and linked to the live Price. Sum is not optional — `meter-bookings` reports
+increments, so any other aggregation would bill the wrong number.
 
 **Becoming unused** once the add-on system goes: `stripe.price.addon`,
 `stripe.price.alert_addon`, `stripe.price.analytics_addon`, `stripe.price.local_addon`.
@@ -471,9 +466,8 @@ with OneShetland as the backstop. If payouts are ever held, that copy must chang
 3. ~~**Ticket payout hold**~~ — ❌ dropped, see [Ticket payout timing](#ticket-payout-timing-decided-no-hold).
 4. ~~**Annual Premium**~~ — ✅ shipped. Yearly can be chosen from Free or Pro and switched
    to from monthly with proration; `/admin/nfc` queues the tiles it promises.
-5. ~~**Metered Pro bookings**~~ — ✅ shipped, but **inert until a metered £0.95 Price is
-   created in Stripe and set as `stripe.price.booking_meter`**. Without it the meter counts
-   and caps correctly and reports nothing.
+5. ~~**Metered Pro bookings**~~ — ✅ shipped. The Price and its Billing Meter exist in
+   sandbox; set `stripe.price.booking_meter` in `/admin/config` to switch it on.
 
 Also shipped alongside, not originally on this list:
 
