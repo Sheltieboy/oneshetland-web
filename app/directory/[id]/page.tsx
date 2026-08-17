@@ -76,7 +76,8 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
   const showGallery   = tierUnlocks(tier, "gallery");
   const showEvents    = tierUnlocks(tier, "events");
   const showServices  = tierUnlocks(tier, "services");
-  const showBookable  = tierUnlocks(tier, "bookable");
+  const showBookable  = tierUnlocks(tier, "bookable");        // "Book online" CTA — Pro
+  const showPasses    = tierUnlocks(tier, "passesOnListing"); // passes / unit items — Premium
 
   const highlights = [
     showBookable && b.accepts_bookings && { t: "Book online", s: "Reserve a slot" },
@@ -241,7 +242,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             </section>
           )}
 
-          {showBookable && (
+          {showPasses && (
             <UnitItemsSection items={unitItems} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
           )}
 

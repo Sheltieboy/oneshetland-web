@@ -62,7 +62,7 @@ const SHOWCASE: Showcase[] = [
   },
   {
     title: "In-app bookings",
-    benefit: "Take appointments and reservations without a separate system — bookings land in your dashboard, included with Premium.",
+    benefit: "Take appointments and reservations without a separate system — bookings land in your dashboard. On Pro they’re 95p each, capped monthly; on Premium there’s no fee at all.",
     device: "phone",
     src: "/business/bookings-phone.png",
     accent: LOCAL,
@@ -115,7 +115,7 @@ const PLAN_CTA: Record<SubscriptionTier, string> = {
 
 /** What this tier includes — derived, so it can't under-describe a plan again. */
 function includedThrough(tier: SubscriptionTier) {
-  return PLAN_COMPARISON.filter((f) => tierMeets(tier, tierFor(f.feature)));
+  return PLAN_COMPARISON.filter((f) => tierMeets(tier, f.tier));
 }
 
 export default function BusinessLandingPage() {

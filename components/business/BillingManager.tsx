@@ -6,7 +6,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
-  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE,
+  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, BOOKING_CAP_PENCE,
   tierMeets, tierFor, isOnBoost, NFC_TILE_URL_PREFIX,
   type ManagedBusiness,
 } from "@/lib/business-data";
@@ -17,7 +17,12 @@ import {
 } from "@/lib/business-client";
 import { HelpTip } from "@/components/help/HelpTip";
 
-export function BillingManager({ business, intentTier }: { business: ManagedBusiness; intentTier?: "pro" | "premium" }) {
+export function BillingManager({ business, intentTier, meter }: {
+  business: ManagedBusiness;
+  intentTier?: "pro" | "premium";
+  /** Pro only — bookings billed this month, and whether the cap is reached. */
+  meter?: { billed: number; feePence: number; capped: boolean } | null;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const b = business;
@@ -176,7 +181,7 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
 
         <ul className="mt-3 space-y-1.5">
           {PLAN_COMPARISON.map((f) => {
-            const req = tierFor(f.feature);
+            const req = f.tier;
             const ok = tierMeets(tier, req);
             return <li key={f.label} className={"flex items-center gap-2 text-sm " + (ok ? "text-ink" : "text-ink-faint")}>{ok ? "✅" : "🔒"} {f.label}{!ok && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{TIER_LABELS[req]}</span>}</li>;
           })}
@@ -196,6 +201,23 @@ export function BillingManager({ business, intentTier }: { business: ManagedBusi
                 </div>
               </div>
             </>
+          )}
+          {tier === "pro" && meter && meter.billed > 0 && (
+            <div className={"rounded-xl border p-3 text-sm " + (meter.capped ? "border-emerald-300 bg-emerald-50" : "border-line bg-cream/60")}>
+              <p className="font-semibold text-ink">
+                {meter.billed} booking{meter.billed === 1 ? "" : "s"} this month · £{(meter.feePence / 100).toFixed(2)} in booking fees
+              </p>
+              {meter.capped ? (
+                <p className="mt-1 text-ink-soft">
+                  You&apos;ve hit the monthly cap, so every booking from here is free — we don&apos;t let Pro cost more
+                  than Premium. At this rate Premium is the cheaper plan and removes the fee entirely.
+                </p>
+              ) : (
+                <p className="mt-1 text-ink-soft">
+                  95p a booking, capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month — Pro will never cost you more than Premium would have.
+                </p>
+              )}
+            </div>
           )}
           {tier === "pro" && (
             <>

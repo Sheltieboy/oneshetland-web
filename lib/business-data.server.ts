@@ -120,3 +120,24 @@ export async function getBusinessUpcomingOverrides(businessId: string): Promise<
     return (data ?? []) as BookSlotOverride[];
   })(), []);
 }
+
+/* ── Booking meter (Pro) ─────────────────────────────────────────────────────
+ *
+ * Bookings cost Pro 95p each, capped at 17 a month so a Pro month can never
+ * exceed what Premium would have cost. This is what the dashboard needs to say
+ * so instead of a surprise on the invoice.
+ */
+import { BOOKING_FEE_PENCE, BOOKING_CAP_UNITS } from "@/lib/listing-tiers";
+
+export async function getBookingMeter(businessId: string): Promise<{ billed: number; feePence: number; capped: boolean }> {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data } = await sb.rpc("booking_meter_count", { p_business_id: businessId });
+    const billed = typeof data === "number" ? data : 0;
+    return {
+      billed,
+      feePence: Math.min(billed, BOOKING_CAP_UNITS) * BOOKING_FEE_PENCE,
+      capped: billed >= BOOKING_CAP_UNITS,
+    };
+  })(), { billed: 0, feePence: 0, capped: false });
+}

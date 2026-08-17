@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { getBookingMeter } from "@/lib/business-data.server";
 import { BillingManager } from "@/components/business/BillingManager";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -17,6 +18,7 @@ export default async function BillingPage({
   const { plan } = await searchParams;
   const intentTier = plan === "pro" || plan === "premium" ? plan : undefined;
   const { business } = await requireBusinessOwner(id);
+  const meter = business.subscription_tier === "pro" ? await getBookingMeter(business.id) : null;
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
@@ -24,7 +26,7 @@ export default async function BillingPage({
           Plan, payments &amp; payouts
           <HelpTip topic="plans-tier" />
         </h1>
-      <BillingManager business={business} intentTier={intentTier} />
+      <BillingManager business={business} intentTier={intentTier} meter={meter} />
     </div>
   );
 }
