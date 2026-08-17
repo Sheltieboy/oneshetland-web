@@ -407,7 +407,7 @@ The commercial logic is sound — an annual commitment is exactly what justifies
 someone hardware. But it is **new scope**, not part of the tier collapse, and should be
 its own phase.
 
-### Ticket payout timing (agreed)
+### Ticket payout timing (decided: no hold)
 
 Free ticketing means an unsubscribed business can take real money. The fee is not the
 issue (95p + 1.5% is honest). The exposure is that **we are the merchant of record** on
@@ -422,26 +422,55 @@ The residual risk is a *legitimate* business taking ticket money for an event mo
 being paid immediately, and then cancelling or folding — leaving us to refund buyers from
 platform funds and chase the business.
 
-**Agreed: hold organiser payout until after the event date** (the standard approach — it
-is what Eventbrite does). That addresses the real risk and needs no tier-based
-restriction, so free ticketing ships as specified.
+**Decided 16 Aug 2026: do NOT hold payouts. Organisers are paid at point of sale, as
+now.** An earlier version of this document agreed the opposite; that was wrong, and the
+reasoning below is why.
 
-This is its own build, separate from the tier collapse: the ticket rail currently uses a
-destination charge that transfers on payment, so it needs to become a
-`transfer_data`-less charge plus a scheduled transfer after the event date, with a
-reversal path when an event is cancelled.
+Holding is not one change but three — hold, scheduled transfer after the event, **and
+automatic refunds on cancellation**. The third is not optional: once the platform holds
+the money, the buyer cannot chase an organiser who was never paid, so the platform must
+refund. Holding without that is strictly worse than not holding.
+
+The refund side would be automatic and costs no ongoing effort — a cancellation refunds
+every holder to their card with nobody in the loop. That was not the problem.
+
+The problem is **organiser cash flow**. A hall committee selling tickets six weeks out
+often needs that money now, to pay the band, the PA hire and the licence. Eventbrite can
+hold funds because its organisers are businesses with float; Fetlar Hall is not. A blanket
+hold takes working capital from exactly the community groups the platform is trying to
+attract.
+
+And the risk it insures against is small here. In a place of 23,000 where the organiser is
+a venue, a hall committee or a known business, absconding with ticket money carries a
+total reputational cost — and Stripe Connect has already identity-verified them. Note the
+platform is merchant of record either way, so chargeback exposure is unchanged by this
+decision.
+
+Revisit only if one of these appears: an organiser selling months ahead at real volume (a
+festival), a non-local organiser with no reputational stake, or an actual incident.
+
+Consequence: the `events.cancelled` email correctly names the organiser as the refunder,
+with OneShetland as the backstop. If payouts are ever held, that copy must change with it.
 
 ---
 
 ## Build order
 
-1. **Tier collapse** — `TIER_FEATURES`, page gates, listing richness, the For Business
-   page, delete the add-on system. No new Stripe work beyond two new Prices.
-2. **Email on event updates** — small, and the current gap means a cancelled event never
-   reaches the people who paid. Do this before promoting free ticketing.
-3. **Ticket payout hold** — independent of tiers, wanted before real money.
-4. **Annual Premium** — new Price, annual billing, NFC fulfilment view.
+1. ~~**Tier collapse**~~ — ✅ shipped 16 Aug 2026.
+2. ~~**Email on event updates**~~ — ✅ shipped 16 Aug 2026.
+3. ~~**Ticket payout hold**~~ — ❌ dropped, see [Ticket payout timing](#ticket-payout-timing-decided-no-hold).
+4. **Annual Premium** — the safety plumbing is done (the webhook and checkout both know
+   the annual price). Still to build: the monthly/annual choice on the billing screen and
+   plans page, monthly ↔ annual switching in `local-subscription-change` including the
+   proration preview, and an NFC fulfilment view showing who is owed a tile.
 5. **Metered Pro bookings** — metered Stripe price, usage reporting, £17 cap, upgrade nudge.
+
+Also shipped alongside, not originally on this list:
+
+- **Ticket fee is 95p + 1.5%**, so tickets above ~£49 stop losing money.
+- **An unrecognised Stripe price no longer means "not paying"** — an active subscription
+  on an unknown price keeps its tier and logs loudly, instead of silently dropping the
+  business to free.
 
 ---
 
