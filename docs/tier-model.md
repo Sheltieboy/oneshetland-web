@@ -459,6 +459,16 @@ with OneShetland as the backstop. If payouts are ever held, that copy must chang
 
 ---
 
+## Testing
+
+Logic is covered by `oneshetland-delivers/supabase/scripts/verify-metering.sql` and the
+scenario suite. The four things needing live Stripe or Postmark state — metered billing,
+event-update email, annual switching, and the unrecognised-price safety net — have a
+step-by-step plan in [tier-manual-tests.md](./tier-manual-tests.md), including how to tell
+when each has silently failed rather than passed.
+
+---
+
 ## Build order
 
 1. ~~**Tier collapse**~~ — ✅ shipped 16 Aug 2026.
