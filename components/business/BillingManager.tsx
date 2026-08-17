@@ -7,7 +7,7 @@ import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, BOOKING_CAP_PENCE,
-  tierMeets, tierFor, isOnBoost, NFC_TILE_URL_PREFIX,
+  tierMeets, tierFor, tierUnlocks, isOnBoost, NFC_TILE_URL_PREFIX,
   type ManagedBusiness,
 } from "@/lib/business-data";
 import {
@@ -244,8 +244,8 @@ export function BillingManager({ business, intentTier, meter }: {
         )}
       </section>
 
-      {/* NFC */}
-      {tierMeets(tier, "pro") && (
+      {/* NFC — gated on the feature, not on "has any paid plan". */}
+      {tierUnlocks(tier, "nfc") && (
         <section className={card}>
           <h2 className="flex items-center gap-2.5 font-display text-xl font-bold text-ink">
             NFC tap-to-stamp tile

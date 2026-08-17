@@ -154,9 +154,9 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
             <p className="text-sm text-ink-soft">
               <span className="font-semibold text-ink">This is your listing.</span>{" "}
               {tier === "free"
-                ? "Upgrade to add a cover photo, gallery, offers, loyalty and a featured spot."
+                ? "Upgrade to add offers, a loyalty card, wallet payments and bookings."
                 : tier !== "premium"
-                  ? "Go Premium to add bookings, a gallery and a featured homepage spot."
+                  ? "Go Premium to sell products and passes, drop the per-booking fee, and get a featured spot."
                   : "Manage your listing, sales and money."}
             </p>
             <div className="flex shrink-0 flex-wrap gap-2">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getMyManagedBusinesses } from "@/lib/business-data.server";
-import { BIZ, TIER_LABELS, tierMeets } from "@/lib/business-data";
+import { BIZ, TIER_LABELS, tierMeets, tierUnlocks, tierFor, type Feature } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
 
@@ -14,7 +14,12 @@ export const metadata = { title: "Manage business" };
  * serving somebody now, money, being found, selling, hiring.
  */
 type Group = "Serving" | "Money" | "Being found" | "Selling" | "People";
-type Tile = { href: string; icon: string; title: string; desc: string; group: Group; locked?: boolean; built?: boolean };
+type Tile = {
+  href: string; icon: string; title: string; desc: string; group: Group;
+  /** Which feature gates this tile. Omitted = available on every tier. */
+  feature?: Feature;
+  built?: boolean;
+};
 
 const GROUP_ORDER: Group[] = ["Serving", "Money", "Being found", "Selling", "People"];
 
@@ -24,7 +29,6 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const dashboard = await getDashboardData(business.id);
   const mine = await getMyManagedBusinesses(account.id);
   const base = `/business/${business.id}/manage`;
-  const pro = tierMeets(business.subscription_tier, "pro");
   const premium = tierMeets(business.subscription_tier, "premium");
 
   const tiles: Tile[] = [
@@ -32,18 +36,18 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
     { href: `${base}/counter`, group: "Serving", icon: "🧾", title: "Counter mode", desc: "Full-screen serving view · lockable with a staff PIN", built: true },
     { href: `${base}/billing`, group: "Money", icon: "💳", title: "Plan, payments & payouts", desc: "Subscription, business card & bank, NFC", built: true },
     { href: `${base}/profile`, group: "Being found", icon: "🏪", title: "Profile & branding", desc: "Name, description, photos, hours, links", built: true },
-    { href: `${base}/analytics`, group: "Being found", icon: "📊", title: "Analytics", desc: "Views, engagement & revenue", locked: !pro, built: true },
-    { href: `${base}/offers`, group: "Being found", icon: "🏷️", title: "Offers", desc: "Time-limited deals", locked: !pro, built: true },
-    { href: `${base}/loyalty`, group: "Serving", icon: "📇", title: "Loyalty programme", desc: "Stamps or points", locked: !pro, built: true },
-    { href: `${base}/wallet`, group: "Money", icon: "💷", title: "Local Wallet", desc: "Accept payments, cashback, receipts", locked: !pro, built: true },
+    { href: `${base}/analytics`, group: "Being found", icon: "📊", title: "Analytics", desc: "Views, engagement & revenue", feature: "analytics", built: true },
+    { href: `${base}/offers`, group: "Being found", icon: "🏷️", title: "Offers", desc: "Time-limited deals", feature: "offers", built: true },
+    { href: `${base}/loyalty`, group: "Serving", icon: "📇", title: "Loyalty programme", desc: "Stamps or points", feature: "loyalty", built: true },
+    { href: `${base}/wallet`, group: "Money", icon: "💷", title: "Local Wallet", desc: "Accept payments, cashback, receipts", feature: "wallet", built: true },
     { href: `${base}/transactions`, group: "Money", icon: "📒", title: "Money & transactions", desc: "Full statement · export for accounts", built: true },
-    { href: `${base}/alerts`, group: "Being found", icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland · approval needed", locked: !premium, built: true },
-    { href: `${base}/bookings`, group: "Serving", icon: "📅", title: "Bookings", desc: "Incoming appointments", locked: !premium, built: true },
-    { href: `${base}/services`, group: "Serving", icon: "✂️", title: "Services", desc: "What people can book", locked: !premium, built: true },
-    { href: `${base}/schedule`, group: "Serving", icon: "🗓️", title: "Availability", desc: "Weekly hours & overrides", locked: !premium, built: true },
-    { href: `${base}/passes`, group: "Selling", icon: "🎟️", title: "Passes & packs", desc: "Coffee cards, class packs, day passes", locked: !premium, built: true },
-    { href: `${base}/products`, group: "Selling", icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", locked: !premium, built: true },
-    { href: `${base}/orders`, group: "Selling", icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", locked: !premium, built: true },
+    { href: `${base}/alerts`, group: "Being found", icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland · approval needed", feature: "alerts", built: true },
+    { href: `${base}/bookings`, group: "Serving", icon: "📅", title: "Bookings", desc: "Incoming appointments · 95p each on Pro", feature: "bookings", built: true },
+    { href: `${base}/services`, group: "Serving", icon: "✂️", title: "Services", desc: "What people can book", feature: "services", built: true },
+    { href: `${base}/schedule`, group: "Serving", icon: "🗓️", title: "Availability", desc: "Weekly hours & overrides", feature: "schedule", built: true },
+    { href: `${base}/passes`, group: "Selling", icon: "🎟️", title: "Passes & packs", desc: "Coffee cards, class packs, day passes", feature: "passes", built: true },
+    { href: `${base}/products`, group: "Selling", icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", feature: "products", built: true },
+    { href: `${base}/orders`, group: "Selling", icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", feature: "orders", built: true },
     { href: `${base}/jobs`, group: "People", icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: true },
     // Deliberately NOT tier-locked. A free listing that never rings is why
     // nobody claims theirs, and the trades most worth reaching are the ones
@@ -87,8 +91,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
             </p>
             <p className="mt-0.5 text-sm text-ink-soft">
               {business.subscription_tier === "free"
-                ? "Add offers, a loyalty card, Local Wallet payments, bookings and a featured homepage spot."
-                : "Add in-app bookings, sell passes & tickets, and a featured spot on the home screen."}
+                ? "Add offers, a loyalty card, Local Wallet payments, your own numbers and bookings at 95p each."
+                : "Take bookings with no per-booking fee, sell products and passes, and get a featured spot on the home screen."}
             </p>
           </div>
           <Link href={`${base}/billing`} className="shrink-0 rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft transition hover:brightness-110" style={{ background: BIZ }}>
@@ -105,19 +109,20 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
             <h2 className="eyebrow mb-2 text-ink-muted">{group}</h2>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {inGroup.map((t) => {
-                const dim = t.locked || !t.built;
+                const locked = !!t.feature && !tierUnlocks(business.subscription_tier, t.feature);
+                const dim = locked || !t.built;
                 const inner = (
                   <div className={"flex h-full items-start gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition " + (dim ? "opacity-60" : "hover:-translate-y-0.5 hover:shadow-lift")}>
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl" style={{ background: `${BIZ}1a` }}>{t.icon}</span>
                     <div className="min-w-0">
-                      <p className="font-bold text-ink">{t.title} {t.locked && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted align-middle">{business.subscription_tier === "free" ? "Pro" : "Premium"}</span>}</p>
-                      <p className="text-sm text-ink-muted">{t.desc}{!t.built && !t.locked ? " · coming soon" : ""}</p>
+                      <p className="font-bold text-ink">{t.title} {locked && t.feature && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted align-middle">{TIER_LABELS[tierFor(t.feature)]}</span>}</p>
+                      <p className="text-sm text-ink-muted">{t.desc}{!t.built && !locked ? " · coming soon" : ""}</p>
                     </div>
                   </div>
                 );
-                return t.built && !t.locked
+                return t.built && !locked
                   ? <Link key={t.title} href={t.href} className="block">{inner}</Link>
-                  : <div key={t.title}>{t.locked ? <Link href={`${base}/billing`} className="block">{inner}</Link> : inner}</div>;
+                  : <div key={t.title}>{locked ? <Link href={`${base}/billing`} className="block">{inner}</Link> : inner}</div>;
               })}
             </div>
           </section>
