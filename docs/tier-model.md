@@ -1,14 +1,18 @@
 # Business tier model
 
-**Status:** shipped 16 August 2026 · see [Build order](#build-order) for what remains
+**Status:** fully implemented, 16 August 2026
 
 This is the specification for OneShetland's business subscription tiers. It replaces
 four overlapping mechanisms with one.
 
-The tier collapse itself is live in both repos. Annual Premium and metered Pro bookings
-are specified here but not built; the ticket payout hold was specified, then dropped —
-the reasoning is kept rather than deleted, because it is the kind of decision that gets
-re-proposed.
+Everything in this document is built. The ticket payout hold was specified and then
+dropped — the reasoning is kept rather than deleted, because it is the kind of decision
+that gets re-proposed.
+
+⚠️ Two things need doing outside the code before the last piece works: create a **metered
+£0.95 Price** in Stripe and set it as `stripe.price.booking_meter`. Until that key exists
+the booking meter counts and caps correctly but reports nothing — deliberately the safe
+way round.
 
 ---
 
@@ -88,20 +92,21 @@ The counter tools. For any business with repeat custom.
 - Enquiries
 - Photo gallery
 - **Analytics** (absorbed from the separately-sold add-on)
-- **Bookings, metered** — specified but NOT built, see [Metered bookings](#metered-bookings-phase-2)
+- **Bookings, services and availability, metered** — see [Metered bookings](#metered-bookings-phase-2)
 
 > Analytics moves in rather than being sold separately: charging a business extra to see
 > its own customer numbers cuts against "community-first, not extractive."
 
 ### Premium — *"Sell as much as you like"* · £29/mo
 
-- Everything in Pro
+- Everything in Pro, **with the per-booking fee removed**
 - Products & orders (5% per sale)
-- Services
-- Bookings & schedule, **unmetered**
 - Passes & packs
-- Membership
 - Featured homepage spot
+
+> Bookings, services and availability moved **down** to Pro during the build: they are one
+> feature, not three, and you cannot take a booking without saying what is bookable and
+> when. Premium's differentiator is the fee disappearing, plus the shop.
 
 ---
 
@@ -167,7 +172,7 @@ The arithmetic sells the upgrade without anyone having to be persuaded:
 | **18** | **£29.10** ← crossover | £29 |
 | 40 | £50.00 | £29 |
 
-**Cap the metered fees at £17/mo** — the exact Pro→Premium gap. A Pro business can then
+**Cap at 17 bookings a month** (£16.15) — landing just under the Pro→Premium gap. A Pro business can then
 never pay more than Premium would have cost. On hitting the cap, the dashboard says
 "you're busy enough that Premium is now cheaper — want to switch?"
 
@@ -464,11 +469,11 @@ with OneShetland as the backstop. If payouts are ever held, that copy must chang
 1. ~~**Tier collapse**~~ — ✅ shipped 16 Aug 2026.
 2. ~~**Email on event updates**~~ — ✅ shipped 16 Aug 2026.
 3. ~~**Ticket payout hold**~~ — ❌ dropped, see [Ticket payout timing](#ticket-payout-timing-decided-no-hold).
-4. **Annual Premium** — the safety plumbing is done (the webhook and checkout both know
-   the annual price). Still to build: the monthly/annual choice on the billing screen and
-   plans page, monthly ↔ annual switching in `local-subscription-change` including the
-   proration preview, and an NFC fulfilment view showing who is owed a tile.
-5. **Metered Pro bookings** — metered Stripe price, usage reporting, £17 cap, upgrade nudge.
+4. ~~**Annual Premium**~~ — ✅ shipped. Yearly can be chosen from Free or Pro and switched
+   to from monthly with proration; `/admin/nfc` queues the tiles it promises.
+5. ~~**Metered Pro bookings**~~ — ✅ shipped, but **inert until a metered £0.95 Price is
+   created in Stripe and set as `stripe.price.booking_meter`**. Without it the meter counts
+   and caps correctly and reports nothing.
 
 Also shipped alongside, not originally on this list:
 
