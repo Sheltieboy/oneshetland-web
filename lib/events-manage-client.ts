@@ -159,11 +159,44 @@ export async function updateBusinessEvent(
   await syncTicketTypes(sb, eventId, input.ticket_mode, input.ticket_types);
 }
 
-/** Change just the event status (publish / unpublish / postpone / cancel / archive). */
+/**
+ * Change just the event status (publish / unpublish / postpone / cancel / archive).
+ *
+ * Cancelling and postponing TELL THE TICKET HOLDERS. They used to be a silent
+ * row update: somebody holding a paid ticket got no email, no notification, and
+ * — because cancelling also hides the event — watched it disappear from "My
+ * tickets" with no explanation. Their money had not disappeared.
+ *
+ * This routes through the same event_updates + notify-event-update path as
+ * posting an update by hand, so there is one way ticket holders hear about a
+ * change rather than two, only one of which anybody would think to use.
+ */
 export async function setEventStatus(eventId: string, status: EventStatus): Promise<void> {
   const sb = createClient();
   const { error } = await sb.from("events").update({ status }).eq("id", eventId);
   if (error) throw error;
+
+  if (status !== "cancelled" && status !== "postponed") return;
+
+  const cancelled = status === "cancelled";
+  const { data: upd } = await sb
+    .from("event_updates")
+    .insert({
+      event_id: eventId,
+      kind: cancelled ? "cancellation" : "time_change",
+      title: cancelled ? "Event cancelled" : "Event postponed",
+      body: cancelled
+        ? "The organiser has cancelled this event."
+        : "The organiser has postponed this event. A new date will follow.",
+    })
+    .select("id")
+    .single();
+
+  // Best-effort: the status change has already saved, and failing here must not
+  // make the organiser think the cancellation didn't take.
+  if (upd?.id) {
+    sb.functions.invoke("notify-event-update", { body: { update_id: upd.id } }).catch(() => {});
+  }
 }
 
 /**
