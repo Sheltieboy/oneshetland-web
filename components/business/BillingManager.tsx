@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, PREMIUM_ANNUAL_PENCE, TIER_PRICE_PENCE, BOOKING_CAP_PENCE, BOOKING_CAP_UNITS,
   tierMeets, tierFor, tierUnlocks, isOnBoost, NFC_TILE_URL_PREFIX,
-  type ManagedBusiness,
+  type ManagedBusiness, type SubscriptionTier,
 } from "@/lib/business-data";
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
@@ -36,6 +37,7 @@ export function BillingManager({ business, intentTier, meter }: {
     !!b.subscription_until &&
     new Date(b.subscription_until).getTime() - Date.now() > 90 * 86_400_000;
   const [busy, setBusy] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pay, setPay] = useState<{ clientSecret: string; amountPence: number; label: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -149,7 +151,8 @@ export function BillingManager({ business, intentTier, meter }: {
         );
         if (!(await confirm({ title: `Switch to ${label}?`, body: money, confirmLabel: "Switch plan" }))) { setBusy(null); return; }
         await applySubscriptionChange(b.id, target, period);
-        router.refresh();
+        // The tier lands via the webhook, not this call — wait for it.
+        pollTier(target);
       } else {
         // New subscription → saved card charged silently, else collect via Elements.
         const intent = await createSubscriptionIntent(b.id, target, period);
@@ -181,9 +184,35 @@ export function BillingManager({ business, intentTier, meter }: {
     try { await requestNfcTile(b.id); router.refresh(); } catch (e) { fail(e); } finally { setBusy(null); }
   }
 
-  function pollTier() {
+  /**
+   * Wait for the webhook to catch up, then refresh.
+   *
+   * Changing plan returns as soon as Stripe accepts it, but the tier in our
+   * database is written by the webhook a moment later — so refreshing straight
+   * away showed the OLD plan and left people reloading by hand to see what they
+   * had just done.
+   *
+   * This watches the row and refreshes the instant it changes, rather than
+   * blind-refreshing on a timer. Gives up after ~20s and refreshes anyway, since
+   * a webhook that slow is a problem the spinner can't fix.
+   */
+  function pollTier(expected?: SubscriptionTier) {
     let n = 0;
-    pollRef.current = setInterval(() => { n++; router.refresh(); if (n >= 6 && pollRef.current) clearInterval(pollRef.current); }, 2500);
+    const stop = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } setSyncing(false); };
+    setSyncing(true);
+    pollRef.current = setInterval(async () => {
+      n++;
+      if (expected) {
+        try {
+          const sb = createClient();
+          const { data } = await sb.from("local_businesses").select("subscription_tier").eq("id", b.id).maybeSingle();
+          if (data?.subscription_tier === expected) { router.refresh(); stop(); return; }
+        } catch { /* fall through to the timer */ }
+      } else {
+        router.refresh();
+      }
+      if (n >= 10) { router.refresh(); stop(); }
+    }, 2000);
   }
 
   const card = "rounded-card border border-line bg-paper p-5 shadow-soft";
@@ -330,6 +359,12 @@ export function BillingManager({ business, intentTier, meter }: {
             </>
           )}
         </div>
+
+        {syncing && (
+          <p className="mt-3 rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft">
+            Updating your plan… this takes a couple of seconds.
+          </p>
+        )}
 
         {b.subscription_cancel_at_period_end && (
           <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
