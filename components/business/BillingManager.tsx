@@ -87,10 +87,34 @@ export function BillingManager({ business, intentTier, meter }: {
         // unchanged but the price isn't, so Stripe still prorates it.
         const preview = await previewSubscriptionChange(b.id, target, period);
         if (preview.noChange) { setError(`You're already on ${label}.`); setBusy(null); return; }
+        // Itemise it. "You'll be charged about £14.87 (prorated)" tells somebody
+        // the number but not what it IS — and then the plan price they signed up
+        // to never matches the first payment, which reads like a mistake.
         const charge = preview.previewAmountPence;
-        const money = charge >= 0
-          ? `You'll be charged about £${(charge / 100).toFixed(2)} now (prorated).`
-          : `You'll be credited about £${(Math.abs(charge) / 100).toFixed(2)} against your next bill.`;
+        const fullPrice = annual ? PREMIUM_ANNUAL_PRICE : TIER_PRICE[target];
+        const renews = preview.nextRenewalAt
+          ? new Date(preview.nextRenewalAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+          : null;
+        const money = (
+          <div className="space-y-2">
+            <dl className="space-y-1 text-sm tabular-nums">
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-ink-soft">{charge >= 0 ? "To pay today" : "Credit to your account"}</dt>
+                <dd className="font-bold text-ink">£{(Math.abs(charge) / 100).toFixed(2)}</dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-4">
+                <dt className="text-ink-soft">Then {label}</dt>
+                <dd className="font-bold text-ink">{fullPrice}</dd>
+              </div>
+            </dl>
+            <p className="text-xs text-ink-muted">
+              {charge >= 0
+                ? `Today's amount covers the rest of this billing period only — you're paying the difference between your old plan and the new one for the days that are left.`
+                : `You've paid ahead on your old plan, so that goes back on your account rather than being refunded.`}
+              {renews ? ` Full price starts ${renews}.` : ""}
+            </p>
+          </div>
+        );
         if (!(await confirm({ title: `Switch to ${label}?`, body: money, confirmLabel: "Switch plan" }))) { setBusy(null); return; }
         await applySubscriptionChange(b.id, target, period);
         router.refresh();
