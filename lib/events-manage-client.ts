@@ -7,6 +7,7 @@
  */
 
 import { createClient } from "@/lib/supabase/client";
+import { errorMessage } from "@/lib/errors";
 import type { EventStatus, EventUpdateKind } from "./events-data";
 
 export type TicketMode = "none" | "oneshetland" | "external";
@@ -178,24 +179,28 @@ export async function setEventStatus(eventId: string, status: EventStatus): Prom
 
   if (status !== "cancelled" && status !== "postponed") return;
 
+  // Reuse postEventUpdate rather than inserting here. The first version of this
+  // duplicated the insert and left out author_id, which event_updates_owner_write
+  // requires — so RLS refused it, the error was discarded, and cancelling an
+  // event silently told nobody while appearing to work.
   const cancelled = status === "cancelled";
-  const { data: upd } = await sb
-    .from("event_updates")
-    .insert({
-      event_id: eventId,
+  try {
+    await postEventUpdate({
+      eventId,
       kind: cancelled ? "cancellation" : "time_change",
       title: cancelled ? "Event cancelled" : "Event postponed",
       body: cancelled
         ? "The organiser has cancelled this event."
         : "The organiser has postponed this event. A new date will follow.",
-    })
-    .select("id")
-    .single();
-
-  // Best-effort: the status change has already saved, and failing here must not
-  // make the organiser think the cancellation didn't take.
-  if (upd?.id) {
-    sb.functions.invoke("notify-event-update", { body: { update_id: upd.id } }).catch(() => {});
+      is_urgent: true,
+    });
+  } catch (e) {
+    // The status change HAS saved. Say so plainly, because the organiser needs
+    // to know the difference between "it didn't cancel" and "it cancelled but
+    // the people holding tickets weren't told" — the second needs them to act.
+    throw new Error(
+      `The event is ${status}, but we couldn't notify ticket holders: ${errorMessage(e)}. Please post an update manually.`,
+    );
   }
 }
 
