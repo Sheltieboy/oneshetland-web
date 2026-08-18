@@ -6,7 +6,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
-  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, PREMIUM_ANNUAL_PENCE, TIER_PRICE_PENCE, BOOKING_CAP_PENCE,
+  BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, PREMIUM_ANNUAL_PENCE, TIER_PRICE_PENCE, BOOKING_CAP_PENCE, BOOKING_CAP_UNITS,
   tierMeets, tierFor, tierUnlocks, isOnBoost, NFC_TILE_URL_PREFIX,
   type ManagedBusiness,
 } from "@/lib/business-data";
@@ -202,24 +202,38 @@ export function BillingManager({ business, intentTier, meter }: {
               </div>
             </>
           )}
+          {/* This month's bill, as a statement rather than a sentence. A business
+              looking at a screen about money wants the arithmetic laid out and a
+              total, not a paragraph it has to parse. */}
           {tier === "pro" && meter && meter.booked > 0 && (
-            <div className={"rounded-xl border p-3 text-sm " + (meter.capped ? "border-emerald-300 bg-emerald-50" : "border-line bg-cream/60")}>
-              <p className="font-semibold text-ink">
-                {meter.booked} booking{meter.booked === 1 ? "" : "s"} this month · £{(meter.feePence / 100).toFixed(2)} in booking fees
+            <div className="rounded-xl border border-line bg-cream/60 p-4">
+              <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-muted">This month so far</p>
+              <dl className="space-y-1 text-sm tabular-nums">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-ink-soft">Pro plan</dt>
+                  <dd className="font-semibold text-ink">£{(TIER_PRICE_PENCE.pro / 100).toFixed(2)}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-ink-soft">
+                    {meter.booked} booking{meter.booked === 1 ? "" : "s"} × 95p
+                    {meter.capped && <span className="ml-1.5 rounded-pill bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-emerald-800">capped</span>}
+                  </dt>
+                  <dd className="font-semibold text-ink">£{(meter.feePence / 100).toFixed(2)}</dd>
+                </div>
+                <div className="mt-1 flex items-baseline justify-between gap-4 border-t border-line pt-2">
+                  <dt className="font-bold text-ink">Total this month</dt>
+                  <dd className="font-extrabold text-ink">£{((TIER_PRICE_PENCE.pro + meter.feePence) / 100).toFixed(2)}</dd>
+                </div>
+              </dl>
+              <p className="mt-2.5 border-t border-line pt-2 text-xs leading-relaxed text-ink-muted">
+                {meter.capped
+                  ? `Every booking past ${BOOKING_CAP_UNITS} this month is free — Pro never costs more than Premium's ${TIER_PRICE.premium}. At this rate Premium is cheaper and drops the fee entirely.`
+                  : `Booking fees stop at £${(BOOKING_CAP_PENCE / 100).toFixed(2)} a month, so Pro never costs more than Premium's ${TIER_PRICE.premium}.`}
+                {meter.billed < meter.booked && ` ${meter.booked - meter.billed} booking${meter.booked - meter.billed === 1 ? "" : "s"} not yet on an invoice.`}
               </p>
-              {meter.capped ? (
-                <p className="mt-1 text-ink-soft">
-                  You&apos;ve hit the monthly cap, so every booking from here is free — we don&apos;t let Pro cost more
-                  than Premium. At this rate Premium is the cheaper plan and removes the fee entirely.
-                </p>
-              ) : (
-                <p className="mt-1 text-ink-soft">
-                  95p a booking, capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month — Pro will never cost you more than Premium would have.
-                  {meter.billed < meter.booked && ` ${meter.booked - meter.billed} not yet on an invoice — they'll appear on your next one.`}
-                </p>
-              )}
             </div>
           )}
+
           {tier === "pro" && (
             <>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>
