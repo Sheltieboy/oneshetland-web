@@ -124,20 +124,38 @@ export async function getBusinessUpcomingOverrides(businessId: string): Promise<
 /* ── Booking meter (Pro) ─────────────────────────────────────────────────────
  *
  * Bookings cost Pro 95p each, capped at 17 a month so a Pro month can never
- * exceed what Premium would have cost. This is what the dashboard needs to say
- * so instead of a surprise on the invoice.
+ * exceed what Premium would have cost.
+ *
+ * `booked` is what the business is ACCRUING this month — the number they care
+ * about. `billed` is how much of it has reached Stripe, which is a background
+ * job's business, not theirs. Showing only `billed` meant taking four bookings
+ * and being told £0 until the reporter next ran.
  */
 import { BOOKING_FEE_PENCE, BOOKING_CAP_UNITS } from "@/lib/listing-tiers";
 
-export async function getBookingMeter(businessId: string): Promise<{ billed: number; feePence: number; capped: boolean }> {
+export type BookingMeter = {
+  /** Bookings taken this month (excluding cancellations). */
+  booked: number;
+  /** Of those, how many have been reported to Stripe. */
+  billed: number;
+  /** What this month's bookings cost, capped. */
+  feePence: number;
+  capped: boolean;
+};
+
+export async function getBookingMeter(businessId: string): Promise<BookingMeter> {
   return safe((async () => {
     const sb = await createServerClient();
-    const { data } = await sb.rpc("booking_meter_count", { p_business_id: businessId });
-    const billed = typeof data === "number" ? data : 0;
+    const { data } = await sb.rpc("booking_meter_status", { p_business_id: businessId });
+    const row = Array.isArray(data) ? data[0] : data;
+    const booked = Number(row?.booked ?? 0);
+    const billed = Number(row?.billed ?? 0);
     return {
+      booked,
       billed,
-      feePence: Math.min(billed, BOOKING_CAP_UNITS) * BOOKING_FEE_PENCE,
-      capped: billed >= BOOKING_CAP_UNITS,
+      feePence: Math.min(booked, BOOKING_CAP_UNITS) * BOOKING_FEE_PENCE,
+      capped: booked >= BOOKING_CAP_UNITS,
     };
-  })(), { billed: 0, feePence: 0, capped: false });
+  })(), { booked: 0, billed: 0, feePence: 0, capped: false });
 }
+

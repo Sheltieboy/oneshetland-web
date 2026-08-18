@@ -20,8 +20,8 @@ import { HelpTip } from "@/components/help/HelpTip";
 export function BillingManager({ business, intentTier, meter }: {
   business: ManagedBusiness;
   intentTier?: "pro" | "premium";
-  /** Pro only — bookings billed this month, and whether the cap is reached. */
-  meter?: { billed: number; feePence: number; capped: boolean } | null;
+  /** Pro only — bookings taken this month and what they cost. */
+  meter?: { booked: number; billed: number; feePence: number; capped: boolean } | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -202,10 +202,10 @@ export function BillingManager({ business, intentTier, meter }: {
               </div>
             </>
           )}
-          {tier === "pro" && meter && meter.billed > 0 && (
+          {tier === "pro" && meter && meter.booked > 0 && (
             <div className={"rounded-xl border p-3 text-sm " + (meter.capped ? "border-emerald-300 bg-emerald-50" : "border-line bg-cream/60")}>
               <p className="font-semibold text-ink">
-                {meter.billed} booking{meter.billed === 1 ? "" : "s"} this month · £{(meter.feePence / 100).toFixed(2)} in booking fees
+                {meter.booked} booking{meter.booked === 1 ? "" : "s"} this month · £{(meter.feePence / 100).toFixed(2)} in booking fees
               </p>
               {meter.capped ? (
                 <p className="mt-1 text-ink-soft">
@@ -215,6 +215,7 @@ export function BillingManager({ business, intentTier, meter }: {
               ) : (
                 <p className="mt-1 text-ink-soft">
                   95p a booking, capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month — Pro will never cost you more than Premium would have.
+                  {meter.billed < meter.booked && ` ${meter.booked - meter.billed} not yet on an invoice — they'll appear on your next one.`}
                 </p>
               )}
             </div>

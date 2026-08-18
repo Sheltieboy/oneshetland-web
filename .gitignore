@@ -42,3 +42,6 @@ next-env.d.ts
 
 # Word/Office temp lock files
 ~$*
+
+# Supabase CLI scratch — never commit
+supabase/.temp/
