@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { errorMessage } from "@/lib/errors";
 import { EVENT_CATEGORIES } from "@/lib/events-data";
 import { AiGlow } from "@/components/ai/AiGlow";
 import { PEERIE, RING_COLOURS } from "@/lib/peerie";
@@ -190,7 +191,7 @@ export function BusinessEventForm({
       router.push(`/business/${businessId}/manage/events/${targetId}`);
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not save the event.");
+      setError(errorMessage(e, "Could not save the event."));
       setBusy(false);
     }
   }
