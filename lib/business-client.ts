@@ -114,6 +114,21 @@ export const setSubscriptionCancellation = (businessId: string, cancel: boolean)
     "local-subscription-cancel", { business_id: businessId, resume: !cancel },
   );
 
+export type SubscriptionInvoice = {
+  id: string;
+  number: string | null;
+  created: string | null;
+  amountPence: number;
+  currency: string;
+  status: string;
+  pdfUrl: string | null;
+  hostedUrl: string | null;
+};
+
+/** Read live from Stripe — we deliberately don't mirror billing history locally. */
+export const listSubscriptionInvoices = (businessId: string, limit = 12) =>
+  invoke<{ invoices: SubscriptionInvoice[] }>("local-subscription-invoices", { business_id: businessId, limit });
+
 export const createBillingPortalLink = (businessId: string) =>
   invoke<{ url: string }>("local-billing-portal", { business_id: businessId });
 

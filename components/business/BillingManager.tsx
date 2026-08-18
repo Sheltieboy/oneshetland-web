@@ -16,6 +16,7 @@ import {
   createBillingPortalLink, requestNfcTile, setSubscriptionCancellation, type BillingPeriod,
 } from "@/lib/business-client";
 import { HelpTip } from "@/components/help/HelpTip";
+import { InvoiceHistory } from "@/components/business/InvoiceHistory";
 
 export function BillingManager({ business, intentTier, meter }: {
   business: ManagedBusiness;
@@ -335,11 +336,14 @@ export function BillingManager({ business, intentTier, meter }: {
             {/* Stripe's portal still holds invoices and card management. Named for
                 what it's actually for now that cancelling lives here. */}
             <button onClick={manageSubscription} disabled={busy === "portal"} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline">
-              {busy === "portal" ? "Opening…" : "Invoices & payment methods"}
+              {busy === "portal" ? "Opening…" : "Manage payment methods"}
             </button>
           </div>
         )}
       </section>
+
+      {/* Invoices — only meaningful once there is a Stripe customer behind them. */}
+      {(tierMeets(tier, "pro") || b.stripe_subscription_id) && <InvoiceHistory businessId={b.id} />}
 
       {/* NFC — gated on the feature, not on "has any paid plan". */}
       {tierUnlocks(tier, "nfc") && (
