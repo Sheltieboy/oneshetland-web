@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
 import { setAcceptsBookings } from "@/lib/business-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { ServicesManager } from "@/components/business/ServicesManager";
+import { ScheduleManager } from "@/components/business/ScheduleManager";
+import type { BookAvailabilityRule, BookSlotOverride } from "@/lib/book-data";
 import {
   fetchBusinessBookings,
   updateBookingStatus,
@@ -27,7 +30,13 @@ function fmtDateTime(iso: string): string {
   return d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-export function BookingsManager({ business, servicesCount }: { business: ManagedBusiness; servicesCount: number }) {
+export function BookingsManager({ business, servicesCount, services, rules, overrides }: {
+  business: ManagedBusiness;
+  servicesCount: number;
+  services: { id: string; name: string }[];
+  rules: BookAvailabilityRule[];
+  overrides: BookSlotOverride[];
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const [busy, setBusy] = useState(false);
@@ -36,6 +45,15 @@ export function BookingsManager({ business, servicesCount }: { business: Managed
   const [bookings, setBookings] = useState<OwnerBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+
+  // A business is bookable only when it has something to book AND hours to book
+  // it in. Both were previously on other screens with nothing linking them.
+  const hasHours = rules.length > 0;
+  const missing = [
+    servicesCount === 0 ? "add a service" : null,
+    !hasHours ? "set your hours" : null,
+  ].filter(Boolean) as string[];
+  const ready = missing.length === 0;
 
   const load = useCallback(async () => {
     try {
@@ -125,22 +143,60 @@ export function BookingsManager({ business, servicesCount }: { business: Managed
     <div className="space-y-5">
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
-      {/* Accept bookings toggle + services count */}
-      <div className="space-y-4 rounded-card border border-line bg-paper p-5 shadow-soft">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="font-semibold text-ink">Accept bookings</p>
-            <p className="text-sm text-ink-muted">{business.accepts_bookings ? "Live — customers can book your services." : "Turn on to let customers book in-app."}</p>
+      {/* ── The three steps, in the order you'd actually do them ──────────── */}
+      <Step
+        n={1}
+        title="What people can book"
+        done={servicesCount > 0}
+        hint={servicesCount > 0 ? `${servicesCount} service${servicesCount === 1 ? "" : "s"}` : "None yet"}
+        anchor="services"
+      >
+        <ServicesManager businessId={business.id} />
+      </Step>
+
+      <Step
+        n={2}
+        title="When you're available"
+        done={hasHours}
+        hint={hasHours ? `${rules.length} weekly rule${rules.length === 1 ? "" : "s"}` : "No hours set"}
+        anchor="availability"
+      >
+        <ScheduleManager businessId={business.id} services={services} rules={rules} overrides={overrides} />
+      </Step>
+
+      {/* ── 3. Go live ─────────────────────────────────────────────────────── */}
+      {/* Disabled until the two above are done. Switching this on with nothing
+          to book is worse than being invisible: a customer clicks through and
+          finds an empty calendar. */}
+      <section id="go-live" className="rounded-card border border-line bg-paper p-5 shadow-soft">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 font-semibold text-ink">
+              <StepNumber n={3} done={business.accepts_bookings} />
+              Go live
+            </p>
+            <p className="mt-1 text-sm text-ink-muted">
+              {business.accepts_bookings
+                ? "Live — customers can book your services."
+                : ready
+                  ? "Ready. Switch on and folk can start booking."
+                  : missing.length === 2
+                    ? "Add a service and set your hours first."
+                    : `Nearly there — ${missing[0]} first.`}
+            </p>
           </div>
-          <button type="button" onClick={() => toggle(!business.accepts_bookings)} disabled={busy} className="relative inline-flex h-6 w-11 items-center rounded-full transition disabled:opacity-50" style={{ background: business.accepts_bookings ? BIZ : "var(--color-line-strong)" }}>
+          <button
+            type="button"
+            onClick={() => toggle(!business.accepts_bookings)}
+            disabled={busy || (!ready && !business.accepts_bookings)}
+            title={!ready && !business.accepts_bookings ? "Finish steps 1 and 2 first" : undefined}
+            className="relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ background: business.accepts_bookings ? BIZ : "var(--color-line-strong)" }}
+          >
             <span className={"inline-block h-5 w-5 transform rounded-full bg-white shadow transition " + (business.accepts_bookings ? "translate-x-5" : "translate-x-0.5")} />
           </button>
         </div>
-        <div className="rounded-xl border border-line p-4">
-          <p className="text-sm font-semibold text-ink">{servicesCount} service{servicesCount === 1 ? "" : "s"} set up</p>
-          <p className="mt-1 text-xs text-ink-muted">Manage your offerings from the <a href={`/business/${business.id}/manage/services`} className="font-semibold underline" style={{ color: BIZ }}>Services</a> and <a href={`/business/${business.id}/manage/schedule`} className="font-semibold underline" style={{ color: BIZ }}>Availability</a> screens.</p>
-        </div>
-      </div>
+      </section>
 
       {/* Upcoming */}
       <section className="space-y-3">
@@ -162,5 +218,47 @@ export function BookingsManager({ business, servicesCount }: { business: Managed
         </section>
       )}
     </div>
+  );
+}
+
+/* ── Step scaffolding ───────────────────────────────────────────────────────
+ * The number and tick exist so the sequence is legible at a glance. The whole
+ * reason this page was rebuilt is that the order was invisible: you could do
+ * the two obvious things and still be unbookable, with nothing saying why.
+ */
+
+function StepNumber({ n, done }: { n: number; done: boolean }) {
+  return (
+    <span
+      className="grid h-5 w-5 shrink-0 place-items-center rounded-full text-[11px] font-bold text-white"
+      style={{ background: done ? "#10B981" : "var(--color-line-strong)" }}
+      aria-hidden
+    >
+      {done ? "✓" : n}
+    </span>
+  );
+}
+
+function Step({ n, title, done, hint, anchor, children }: {
+  n: number;
+  title: string;
+  done: boolean;
+  hint: string;
+  anchor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={anchor} className="rounded-card border border-line bg-paper p-5 shadow-soft">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <p className="flex items-center gap-2 font-semibold text-ink">
+          <StepNumber n={n} done={done} />
+          {title}
+        </p>
+        <span className={"rounded-pill px-2.5 py-0.5 text-xs font-semibold " + (done ? "bg-emerald-50 text-emerald-700" : "bg-sand text-ink-muted")}>
+          {hint}
+        </span>
+      </div>
+      {children}
+    </section>
   );
 }

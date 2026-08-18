@@ -1,38 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireBusinessOwner } from "@/lib/business-server";
-import {
-  getBusinessServicesBrief,
-  getBusinessAvailabilityRules,
-  getBusinessUpcomingOverrides,
-} from "@/lib/business-data.server";
-import { tierUnlocks } from "@/lib/business-data";
-import { ScheduleManager } from "@/components/business/ScheduleManager";
-import { HelpTip } from "@/components/help/HelpTip";
 
-export const dynamic = "force-dynamic";
-export const metadata = { title: "Schedule" };
-
-export default async function SchedulePage({ params }: { params: Promise<{ id: string }> }) {
+/**
+ * Merged into the Bookings page. Kept as a redirect rather than deleted so
+ * existing links, bookmarks and the app's deep links keep working — and because
+ * splitting these out is what made taking bookings impossible to complete.
+ */
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { business } = await requireBusinessOwner(id);
-  if (!tierUnlocks(business.subscription_tier, "schedule")) redirect(`/business/${business.id}/manage/billing`);
-
-  const [services, rules, overrides] = await Promise.all([
-    getBusinessServicesBrief(business.id),
-    getBusinessAvailabilityRules(business.id),
-    getBusinessUpcomingOverrides(business.id),
-  ]);
-
-  return (
-    <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
-      <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
-      <h1 className="mt-3 mb-2 font-display text-3xl font-bold sm:text-4xl flex items-center gap-2.5">
-          Schedule
-          <HelpTip topic="booking-setup" />
-        </h1>
-      <p className="mb-6 text-ink-muted">Set your bookable weekly hours and one-off date overrides. These drive the slots customers can pick.</p>
-      <ScheduleManager businessId={business.id} services={services} rules={rules} overrides={overrides} />
-    </div>
-  );
+  redirect(`/business/${id}/manage/bookings#availability`);
 }
