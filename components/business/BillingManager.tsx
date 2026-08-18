@@ -13,7 +13,7 @@ import {
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
   previewSubscriptionChange, applySubscriptionChange, createBoostIntent,
-  createBillingPortalLink, requestNfcTile, type BillingPeriod,
+  createBillingPortalLink, requestNfcTile, setSubscriptionCancellation, type BillingPeriod,
 } from "@/lib/business-client";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -68,6 +68,37 @@ export function BillingManager({ business, intentTier, meter }: {
       if (popup && !popup.closed) { popup.location.href = url; pollRef.current = setInterval(() => { if (popup.closed) { clearInterval(pollRef.current!); router.refresh(); } }, 700); }
       else window.location.href = url;
     } catch (e) { popup?.close(); fail(e); } finally { setBusy(null); }
+  }
+
+  /* Cancel, or take a cancellation back */
+  async function setCancellation(cancel: boolean) {
+    const endsOn = b.subscription_until
+      ? new Date(b.subscription_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+      : "the end of your paid period";
+    if (cancel) {
+      const ok = await confirm({
+        title: `Cancel ${TIER_LABELS[tier]}?`,
+        body: (
+          <div className="space-y-2 text-sm">
+            <p className="text-ink">
+              You&apos;ll keep everything until <strong>{endsOn}</strong> — you&apos;ve paid for it. Nothing is
+              charged after that.
+            </p>
+            <p className="text-ink-soft">
+              Your listing, photos, opening hours, jobs and event tickets are all free and stay exactly as they are.
+              You can change your mind any time before then.
+            </p>
+          </div>
+        ),
+        confirmLabel: "Cancel my plan",
+        cancelLabel: "Keep it",
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    setBusy("cancel"); setError(null);
+    try { await setSubscriptionCancellation(b.id, cancel); router.refresh(); }
+    catch (e) { fail(e); } finally { setBusy(null); }
   }
 
   /* Upgrade / change plan */
@@ -282,9 +313,31 @@ export function BillingManager({ business, intentTier, meter }: {
           )}
         </div>
 
-        {b.subscription_cancel_at_period_end && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">Cancels at period end — you keep access until then.</p>}
+        {b.subscription_cancel_at_period_end && (
+          <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <p className="font-semibold">
+              Ending{b.subscription_until ? ` on ${new Date(b.subscription_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}
+            </p>
+            <p className="mt-0.5">You keep {TIER_LABELS[tier]} until then, and won&apos;t be charged again.</p>
+            <button onClick={() => setCancellation(false)} disabled={busy === "cancel"} className="mt-2 rounded-pill bg-amber-900 px-4 py-1.5 text-xs font-bold text-white disabled:opacity-50">
+              {busy === "cancel" ? "…" : "Keep my plan"}
+            </button>
+          </div>
+        )}
+
         {tierMeets(tier, "pro") && (
-          <button onClick={manageSubscription} disabled={busy === "portal"} className="mt-3 w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "portal" ? "Opening…" : "Manage subscription · cancel · billing"}</button>
+          <div className="mt-3 space-y-2">
+            {!b.subscription_cancel_at_period_end && !isOnBoost(b) && (
+              <button onClick={() => setCancellation(true)} disabled={busy === "cancel"} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-sand hover:text-ink disabled:opacity-50">
+                {busy === "cancel" ? "…" : "Cancel my plan"}
+              </button>
+            )}
+            {/* Stripe's portal still holds invoices and card management. Named for
+                what it's actually for now that cancelling lives here. */}
+            <button onClick={manageSubscription} disabled={busy === "portal"} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+              {busy === "portal" ? "Opening…" : "Invoices & payment methods"}
+            </button>
+          </div>
         )}
       </section>
 

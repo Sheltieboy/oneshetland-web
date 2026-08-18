@@ -108,6 +108,12 @@ export const applySubscriptionChange = (businessId: string, tier: "pro" | "premi
 export const createBoostIntent = (businessId: string, weeks: 1 | 2 | 3) =>
   invoke<{ charged?: boolean; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>("local-boost-checkout", { business_id: businessId, weeks });
 
+/** Cancel at period end, or take a pending cancellation back. */
+export const setSubscriptionCancellation = (businessId: string, cancel: boolean) =>
+  invoke<{ ok: boolean; cancel_at_period_end: boolean; ends_at: string | null }>(
+    "local-subscription-cancel", { business_id: businessId, resume: !cancel },
+  );
+
 export const createBillingPortalLink = (businessId: string) =>
   invoke<{ url: string }>("local-billing-portal", { business_id: businessId });
 
