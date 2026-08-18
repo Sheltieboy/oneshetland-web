@@ -309,7 +309,24 @@ export function BillingManager({ business, intentTier, meter }: {
                   {busy === "premium-annual" ? "…" : `Switch to yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}
                 </button>
               )}
-              {annualSubscriber && <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free, and your NFC tile is included.</p>}
+              {annualSubscriber && (
+                <>
+                  <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free, and your NFC tile is included.</p>
+                  <button onClick={() => upgrade("premium", "monthly")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
+                    {busy === "premium" ? "…" : `Switch to monthly · ${TIER_PRICE.premium}`}
+                  </button>
+                </>
+              )}
+              {/* Moving DOWN was only possible by cancelling, which loses the
+                  renewal date and the card on file. Stepping back a tier is a
+                  normal thing to want and shouldn't cost you your subscription. */}
+              <button onClick={() => upgrade("pro")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 transition hover:text-ink hover:underline disabled:opacity-50">
+                {busy === "pro" ? "…" : `Move down to Pro · ${TIER_PRICE.pro}`}
+              </button>
+              <p className="text-center text-xs text-ink-muted">
+                On Pro you keep the counter tools and bookings, at 95p a booking capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month.
+                You&apos;d lose products, passes and the featured spot.
+              </p>
             </>
           )}
         </div>
