@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { listSubscriptionInvoices, type SubscriptionInvoice } from "@/lib/business-client";
+import { listSubscriptionInvoices, type SubscriptionInvoice, type SubscriptionCard } from "@/lib/business-client";
 import { errorMessage } from "@/lib/errors";
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -21,12 +21,13 @@ const STATUS: Record<string, { label: string; className: string }> = {
  */
 export function InvoiceHistory({ businessId }: { businessId: string }) {
   const [invoices, setInvoices] = useState<SubscriptionInvoice[] | null>(null);
+  const [card, setCard] = useState<SubscriptionCard | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setBusy(true); setError(null);
-    try { setInvoices((await listSubscriptionInvoices(businessId)).invoices); }
+    try { const r = await listSubscriptionInvoices(businessId); setInvoices(r.invoices); setCard(r.card); }
     catch (e) { setError(errorMessage(e, "Could not load your invoices.")); }
     finally { setBusy(false); }
   }, [businessId]);
@@ -40,6 +41,19 @@ export function InvoiceHistory({ businessId }: { businessId: string }) {
     <section className="rounded-card border border-line bg-paper p-5 shadow-soft">
       <h2 className="font-display text-xl font-bold text-ink">Invoices</h2>
       <p className="mt-1 text-sm text-ink-muted">Every subscription payment, with a receipt you can hand to your accountant.</p>
+
+      {/* Which card this actually comes off. Businesses often have several saved
+          and no way to tell which one is paying — brand and last four is all
+          Stripe will give us, and all anyone needs to recognise their own card. */}
+      {card && (
+        <p className="mt-3 rounded-lg bg-sand/60 px-3 py-2 text-sm text-ink-soft">
+          Charged to <span className="font-semibold capitalize text-ink">{card.brand}</span>
+          {" "}ending <span className="font-semibold tabular-nums text-ink">{card.last4}</span>
+          {card.expMonth && card.expYear
+            ? <> · expires {String(card.expMonth).padStart(2, "0")}/{String(card.expYear).slice(-2)}</>
+            : null}
+        </p>
+      )}
 
       {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 

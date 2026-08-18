@@ -125,9 +125,15 @@ export type SubscriptionInvoice = {
   hostedUrl: string | null;
 };
 
+/** Brand and last four only — all Stripe gives without PCI scope, and all a
+ *  business needs to answer "which card is this coming off?". */
+export type SubscriptionCard = { brand: string; last4: string; expMonth: number; expYear: number };
+
 /** Read live from Stripe — we deliberately don't mirror billing history locally. */
 export const listSubscriptionInvoices = (businessId: string, limit = 12) =>
-  invoke<{ invoices: SubscriptionInvoice[] }>("local-subscription-invoices", { business_id: businessId, limit });
+  invoke<{ invoices: SubscriptionInvoice[]; card: SubscriptionCard | null }>(
+    "local-subscription-invoices", { business_id: businessId, limit },
+  );
 
 export const createBillingPortalLink = (businessId: string) =>
   invoke<{ url: string }>("local-billing-portal", { business_id: businessId });
