@@ -121,9 +121,11 @@ export function BillingManager({ business, intentTier, meter }: {
         // unchanged but the price isn't, so Stripe still prorates it.
         const preview = await previewSubscriptionChange(b.id, target, period);
         if (preview.noChange) { setError(`You're already on ${label}.`); setBusy(null); return; }
-        // Itemise it. "You'll be charged about £14.87 (prorated)" tells somebody
-        // the number but not what it IS — and then the plan price they signed up
-        // to never matches the first payment, which reads like a mistake.
+        // Itemise it — and get the timing right. Plan changes use
+        // create_prorations, so NOTHING is charged on the day: the adjustment
+        // lands on the next invoice. The first version of this said "to pay
+        // today", which was simply untrue and the sort of thing somebody checks
+        // their bank for.
         const charge = preview.previewAmountPence;
         const fullPrice = annual ? PREMIUM_ANNUAL_PRICE : TIER_PRICE[target];
         const renews = preview.nextRenewalAt
@@ -133,19 +135,20 @@ export function BillingManager({ business, intentTier, meter }: {
           <div className="space-y-2">
             <dl className="space-y-1 text-sm tabular-nums">
               <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-ink-soft">{charge >= 0 ? "To pay today" : "Credit to your account"}</dt>
-                <dd className="font-bold text-ink">£{(Math.abs(charge) / 100).toFixed(2)}</dd>
+                <dt className="text-ink-soft">Ongoing price</dt>
+                <dd className="font-bold text-ink">{fullPrice}</dd>
               </div>
               <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-ink-soft">Then {label}</dt>
-                <dd className="font-bold text-ink">{fullPrice}</dd>
+                <dt className="text-ink-soft">{charge >= 0 ? "Added to your next bill" : "Credited on your next bill"}</dt>
+                <dd className="font-bold text-ink">£{(Math.abs(charge) / 100).toFixed(2)}</dd>
               </div>
             </dl>
             <p className="text-xs text-ink-muted">
+              Nothing is charged today.{" "}
               {charge >= 0
-                ? `Today's amount covers the rest of this billing period only — you're paying the difference between your old plan and the new one for the days that are left.`
-                : `You've paid ahead on your old plan, so that goes back on your account rather than being refunded.`}
-              {renews ? ` Full price starts ${renews}.` : ""}
+                ? `That adjustment covers the days left on your old plan versus the new one.`
+                : `You've paid ahead on your old plan, so that comes off what you owe next.`}
+              {renews ? ` Your next bill is ${renews}.` : ""}
             </p>
           </div>
         );
