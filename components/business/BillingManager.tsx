@@ -76,7 +76,12 @@ export function BillingManager({ business, intentTier, meter }: {
     const label = `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
     setBusy(annual ? `${target}-annual` : target); setError(null);
     try {
-      if (b.stripe_subscription_id && !isOnBoost(b)) {
+      // A business on FREE has no live subscription to change, whatever id the
+      // row still carries. Trusting a stale id sent it down the "change plan"
+      // path, which found the cancelled subscription still on the Pro price and
+      // answered "you're already on Pro" — leaving it unable to buy anything.
+      const hasLiveSubscription = !!b.stripe_subscription_id && tier !== "free" && !isOnBoost(b);
+      if (hasLiveSubscription) {
         // Existing subscriber → prorated change on the saved card. Switching
         // monthly↔yearly on the same tier goes down this path too: the tier is
         // unchanged but the price isn't, so Stripe still prorates it.
