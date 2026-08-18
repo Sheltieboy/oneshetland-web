@@ -16,7 +16,7 @@ type TicketRow = {
   status: string | null;
   attendee_name: string | null;
   checked_in_at: string | null;
-  event: { id: string; title: string; starts_at: string | null; venue: string | null } | null;
+  event: { id: string; title: string; starts_at: string | null; venue: string | null; status: string | null } | null;
   ticket_type: { name: string | null } | null;
 };
 
@@ -35,7 +35,7 @@ export default async function MyTicketsPage() {
     // Only PAID tickets belong in "My tickets". Unpaid rows are created with
     // status 'pending_payment' the moment checkout starts; without this filter a
     // customer who backs out before paying still saw the tickets as theirs.
-    .select("id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, venue), ticket_type:event_ticket_types(name)")
+    .select("id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, venue, status), ticket_type:event_ticket_types(name)")
     .eq("holder_id", account.id)
     .in("status", ["valid", "used"])
     .order("created_at", { ascending: false });
@@ -43,11 +43,11 @@ export default async function MyTicketsPage() {
   const tickets = (data ?? []) as unknown as TicketRow[];
 
   // Group by event, most recent event first (already ordered by created_at desc).
-  const byEvent = new Map<string, { title: string; when: string; venue: string | null; items: TicketRow[] }>();
+  const byEvent = new Map<string, { title: string; when: string; venue: string | null; status: string | null; items: TicketRow[] }>();
   for (const t of tickets) {
     const key = t.event?.id ?? "unknown";
     if (!byEvent.has(key)) {
-      byEvent.set(key, { title: t.event?.title ?? "Event", when: t.event?.starts_at ?? "", venue: t.event?.venue ?? null, items: [] });
+      byEvent.set(key, { title: t.event?.title ?? "Event", when: t.event?.starts_at ?? "", venue: t.event?.venue ?? null, status: t.event?.status ?? null, items: [] });
     }
     byEvent.get(key)!.items.push(t);
   }
@@ -78,9 +78,18 @@ export default async function MyTicketsPage() {
                 <span className="shrink-0 text-sm text-ink-muted">{grp.items.length} ticket{grp.items.length === 1 ? "" : "s"}</span>
               </div>
               {grp.when && <p className="mt-0.5 text-sm text-ink-muted">{fmt(grp.when)}{grp.venue ? ` · ${grp.venue}` : ""}</p>}
+              {(grp.status === "cancelled" || grp.status === "postponed") && (
+                <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+                  {grp.status === "cancelled"
+                    ? "This event has been cancelled. Refunds come from the organiser — contact us if you haven't heard from them."
+                    : "This event has been postponed. The organiser will confirm a new date."}
+                </p>
+              )}
               <div className="mt-4 space-y-2">
                 {grp.items.map((t) => {
                   const used = !!t.checked_in_at || t.status === "used" || t.status === "checked_in";
+                  // A ticket to an event that is not happening must not read "Valid".
+                  const eventOff = grp.status === "cancelled" || grp.status === "postponed";
                   return (
                     <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-sand/40 px-4 py-3">
                       <div className="min-w-0">
@@ -96,7 +105,7 @@ export default async function MyTicketsPage() {
                           className="rounded-pill px-2.5 py-1 text-xs font-bold"
                           style={used ? { background: "#E5E7EB", color: "#6B7280" } : { background: "#DCFCE7", color: "#065F46" }}
                         >
-                          {used ? "Used" : "Valid"}
+                          {eventOff ? (grp.status === "cancelled" ? "Cancelled" : "Postponed") : used ? "Used" : "Valid"}
                         </span>
                       </div>
                     </div>
