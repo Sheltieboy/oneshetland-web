@@ -24,8 +24,21 @@ export function ConfigEditor({ rows }: { rows: Row[] }) {
     try {
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
-      // Upsert so this also works for keys that don't have a row yet.
-      await sb.from("admin_config").upsert({ key, value: value ?? vals[key], updated_by: user?.id ?? null }, { onConflict: "key" });
+      // UPDATE, not upsert. The upsert omitted `category`, which is NOT NULL —
+      // and Postgres validates the insert tuple even when the row already exists
+      // and the conflict resolves to an update. So every save failed, the error
+      // was discarded, "Saved ✓" appeared, and the refresh put the old value
+      // back. Editing a row that is on screen is an update; addKey handles the
+      // genuinely-new case and already supplies a category.
+      const { error, count } = await sb
+        .from("admin_config")
+        .update({ value: value ?? vals[key], updated_by: user?.id ?? null }, { count: "exact" })
+        .eq("key", key);
+      if (error) { notify({ title: "Couldn't save", body: error.message, tone: "error" }); return; }
+      if (!count) {
+        notify({ title: "Nothing saved", body: `No row for "${key}". Use "Add or set a key" instead.`, tone: "error" });
+        return;
+      }
       setSaved(key); setTimeout(() => setSaved(null), 1500);
       router.refresh();
     } finally { setBusy(null); }
