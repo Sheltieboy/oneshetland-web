@@ -181,8 +181,15 @@ export async function payWithWallet(
   amountPence: number,
 ): Promise<{ balance_pence: number; cashback_pence: number }> {
   const sb = createClient();
+  // A fresh id per payment ATTEMPT — the server claims it before debiting, so a
+  // double-click or a retry cannot pay twice, while a genuine second payment
+  // carries a new id and goes through.
+  const clientRequestId =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `pay-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const { data, error } = await sb.functions.invoke("local-wallet-pay", {
-    body: { code, amount_pence: amountPence },
+    body: { code, amount_pence: amountPence, client_request_id: clientRequestId },
   });
   if (error) return invokeError(error);
   return data as { balance_pence: number; cashback_pence: number };
