@@ -25,8 +25,9 @@ export interface MyReferrals {
   earned_pence: number;
 }
 
-async function myCode(sb: ReturnType<typeof createClient>, userId: string): Promise<string> {
-  const { data, error } = await sb.rpc("ensure_referral_code", { p_user: userId });
+/** Identity comes from the session (auth.uid()), not from an argument. */
+async function myCode(sb: ReturnType<typeof createClient>): Promise<string> {
+  const { data, error } = await sb.rpc("ensure_referral_code");
   if (error) throw error;
   return data as string;
 }
@@ -35,7 +36,7 @@ export async function fetchMyReferrals(): Promise<MyReferrals> {
   const sb = createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) throw new Error("Sign in to see your referrals.");
-  const code = await myCode(sb, auth.user.id);
+  const code = await myCode(sb);
   const { data, error } = await sb
     .from("referrals")
     .select("id, status, referrer_reward_pence, created_at, referee:profiles!referrals_referee_id_fkey(display_name, full_name)")

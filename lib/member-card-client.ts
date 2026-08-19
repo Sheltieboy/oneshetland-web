@@ -26,7 +26,9 @@ export async function getMyMemberCode(): Promise<string> {
   const sb = createClient();
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) throw new Error("Sign in to see your card.");
-  const { data, error } = await sb.rpc("ensure_member_code", { p_user: auth.user.id });
+  // No user id: the RPC reads auth.uid() from the session, so there is no
+  // parameter that could ask for somebody else's code.
+  const { data, error } = await sb.rpc("ensure_member_code");
   if (error) throw error;
   return data as string;
 }
