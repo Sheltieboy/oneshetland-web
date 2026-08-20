@@ -23,9 +23,19 @@ export type TicketPurchaseStart =
 export async function startTicketPurchase(
   eventId: string,
   lineItems: LineItem[],
-  opts: { useSavedCard?: boolean; payWithWallet?: boolean } = {},   // default to the buyer's saved card (server falls back to the card form if none) — matches the app
+  opts: {
+    useSavedCard?: boolean;
+    payWithWallet?: boolean;
+    /**
+     * One id per logical checkout, minted by the COMPONENT (see
+     * lib/checkout-attempt.ts) and reused across retries of that same checkout.
+     * Deliberately not generated in here: a fresh id per HTTP call would give
+     * every retry a new key and remove the protection entirely.
+     */
+    clientRequestId?: string;
+  } = {},   // default to the buyer's saved card (server falls back to the card form if none) — matches the app
 ): Promise<TicketPurchaseStart> {
-  const { useSavedCard = true, payWithWallet = false } = opts;
+  const { useSavedCard = true, payWithWallet = false, clientRequestId } = opts;
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-event-ticket-intent", {
     body: {
@@ -33,6 +43,7 @@ export async function startTicketPurchase(
       line_items: lineItems,
       use_saved_card: payWithWallet ? false : useSavedCard,
       pay_with_wallet: payWithWallet,
+      ...(clientRequestId ? { client_request_id: clientRequestId } : {}),
     },
   });
   if (error) return invokeError(error);

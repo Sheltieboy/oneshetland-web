@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib/events-client";
+import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
 
 const EVENTS = "#d4921a";
@@ -91,15 +92,32 @@ export function TicketModal({
   const totalPence = faceValuePence + bookingFeePence;
   const canWallet = walletPence != null && isPaid && walletPence >= totalPence;
 
+  // ── Checkout attempt id ──────────────────────────────────────────────────
+  // Minted once for the purchase the buyer is making, and reused if they click
+  // through again after a failure — that is what stops a retry creating a
+  // second order and holding the seats twice. Held in a ref rather than state
+  // so re-rendering cannot mint a new one mid-checkout. Cleared when the basket
+  // changes (a different basket is a different purchase, and reusing the id
+  // would be rejected as a conflict) and once the purchase is done.
+  const attemptRef = useRef<string | null>(null);
+  const attemptId = () => (attemptRef.current ??= newCheckoutAttemptId());
+  useEffect(() => { attemptRef.current = null; }, [qty]);
+
   async function proceed(viaWallet = false) {
     if (lineItems.length === 0) return;
     if (!isLoggedIn) { window.location.href = signInHref; return; }
     setBusy(true);
     setError(null);
     try {
-      const result = await startTicketPurchase(eventId, lineItems, viaWallet ? { payWithWallet: true } : {});
+      const result = await startTicketPurchase(eventId, lineItems, {
+        ...(viaWallet ? { payWithWallet: true } : {}),
+        clientRequestId: attemptId(),
+      });
       if ("free" in result || "charged" in result) {
         setTicketCount(totalTickets);
+        // Done — the next purchase is a genuinely new checkout and must mint a
+        // fresh id, or it would be refused as a replay of this one.
+        attemptRef.current = null;
         setStep("done");
       } else {
         setClientSecret(result.clientSecret);
