@@ -1,4 +1,5 @@
 import { askPeerieBot } from "@/lib/plan-ai.server";
+import { guardAi } from "@/lib/ai-guard.server";
 import { getPlannerCandidates } from "@/lib/planner-data";
 import { buildPlan, schedulePicks, fmtTime, describeLeg, LERWICK, type Interest, type Transport } from "@/lib/planner";
 
@@ -29,12 +30,13 @@ export const dynamic = "force-dynamic";
  *     candidates.
  */
 export async function POST(request: Request) {
-  let body: Record<string, unknown>;
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Bad request." }, { status: 400 });
-  }
+  // The most expensive route here, and it had no authentication at all. It also
+  // takes `candidates` straight from the caller and hands them to the model, so
+  // the prompt size is whatever the caller chooses — 128 KB bounds that, and
+  // the list is capped at 45 items below.
+  const gate = await guardAi(request, { route: "plan-day", maxBodyBytes: 128_000, maxFieldChars: 2_000 });
+  if (!gate.ok) return gate.response;
+  const body = gate.body;
 
   const from = typeof body.from === "string" ? body.from : "09:00";
   const to = typeof body.to === "string" ? body.to : "17:00";

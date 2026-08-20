@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { guardAi, aiProviderFailure } from "@/lib/ai-guard.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,18 +49,17 @@ const SCHEMA = {
 } as const;
 
 export async function POST(request: Request) {
+  // Signed in, sized, and inside quota — or no Anthropic call happens at all.
+  const gate = await guardAi(request, { route: "parse-shift", maxBodyBytes: 32_000, maxFieldChars: 8_000 });
+  if (!gate.ok) return gate.response;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "Peerie Bot isn't switched on yet (missing API key)." }, { status: 503 });
   }
 
-  let text = "";
-  try {
-    ({ text } = await request.json());
-  } catch {
-    return Response.json({ error: "Bad request." }, { status: 400 });
-  }
-  if (!text || typeof text !== "string" || text.trim().length < 8) {
+  const text = typeof gate.body.text === "string" ? gate.body.text : "";
+  if (text.trim().length < 8) {
     return Response.json({ error: "Tell Peerie Bot a bit more about the shift." }, { status: 400 });
   }
 
@@ -87,7 +87,6 @@ export async function POST(request: Request) {
     if (!block) return Response.json({ error: "Peerie Bot couldn't read that — try rephrasing." }, { status: 502 });
     return Response.json(JSON.parse(block.text));
   } catch (e) {
-    console.error("[parse-shift] Peerie Bot error:", e);
-    return Response.json({ error: "Peerie Bot had a hiccup — please try again." }, { status: 502 });
+    return aiProviderFailure("parse-shift", e);
   }
 }

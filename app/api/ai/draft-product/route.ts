@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@/lib/supabase/server";
+import { guardAi, aiProviderFailure } from "@/lib/ai-guard.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,21 +28,24 @@ const SCHEMA = {
 } as const;
 
 export async function POST(request: Request) {
+  // Signed in, sized, and inside quota. This route already checked the session
+  // and the owner; what it lacked was any bound on `rough` and any ceiling on
+  // how often one account could call it.
+  const gate = await guardAi(request, { route: "draft-product", maxBodyBytes: 16_000, maxFieldChars: 4_000 });
+  if (!gate.ok) return gate.response;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "Peerie Bot isn't switched on yet (missing API key)." }, { status: 503 });
 
-  let businessId = "", rough = "";
-  try {
-    const body = await request.json();
-    businessId = String(body.business_id ?? "");
-    rough = String(body.rough ?? "").trim();
-  } catch { /* fall through */ }
+  const businessId = String(gate.body.business_id ?? "");
+  const rough = String(gate.body.rough ?? "").trim();
   if (!businessId || !rough) return Response.json({ error: "Tell Peerie Bot a bit about the product first." }, { status: 400 });
 
-  // Only the owner of this business (or an admin) may draft for it.
-  const sb = await createClient();
-  const { data: { user } } = await sb.auth.getUser();
-  if (!user) return Response.json({ error: "Not signed in." }, { status: 401 });
+  // Authentication is not authorisation: only the owner of THIS business (or an
+  // admin) may draft for it, or one signed-in user could read another's
+  // business name into a prompt.
+  const sb = gate.supabase;
+  const user = gate.user;
   const { data: biz } = await sb.from("local_businesses").select("id, name, owner_id").eq("id", businessId).maybeSingle();
   if (!biz) return Response.json({ error: "Business not found." }, { status: 404 });
   const { data: profile } = await sb.from("profiles").select("role").eq("id", user.id).maybeSingle();
@@ -66,7 +69,6 @@ export async function POST(request: Request) {
     if (!tool || tool.type !== "tool_use") throw new Error("no tool output");
     return Response.json({ draft: tool.input });
   } catch (err) {
-    console.error("[draft-product] failed:", err);
-    return Response.json({ error: "Peerie Bot had a moment — try again." }, { status: 502 });
+    return aiProviderFailure("draft-product", err);
   }
 }

@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { guardAi, aiProviderFailure } from "@/lib/ai-guard.server";
 import { isAdmin } from "@/lib/admin-data.server";
 import { ONESHETLAND_CONTEXT } from "@/lib/peerie-bot-context";
 
@@ -16,16 +17,20 @@ export const dynamic = "force-dynamic";
  */
 
 export async function POST(request: Request) {
+  // Signed in, sized, and inside quota first — admin or not, this route spends
+  // the Anthropic key, and an admin account is still a single credential that
+  // should not be able to run it in a loop for ever.
+  const gate = await guardAi(request, { route: "draft-social", maxBodyBytes: 8_000, maxFieldChars: 500 });
+  if (!gate.ok) return gate.response;
+
+  // Authorisation, on top of authentication: this one is admin-only.
   if (!(await isAdmin())) return Response.json({ error: "Not allowed." }, { status: 403 });
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "Peerie Bot isn't switched on yet (missing API key)." }, { status: 503 });
 
-  let seed = "", words = 40;
-  try {
-    const body = await request.json();
-    seed = String(body.seed ?? "").trim();
-    words = Math.min(Math.max(Number(body.words) || 40, 10), 200);
-  } catch { /* defaults */ }
+  const seed = String(gate.body.seed ?? "").trim();
+  const words = Math.min(Math.max(Number(gate.body.words) || 40, 10), 200);
   if (!seed) return Response.json({ error: "Give Peerie Bot a word or phrase to work from." }, { status: 400 });
 
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });

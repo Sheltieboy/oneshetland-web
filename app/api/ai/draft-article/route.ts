@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { guardAi, aiProviderFailure } from "@/lib/ai-guard.server";
 import { publicClient } from "@/lib/supabase/public";
 
 export const runtime = "nodejs";
@@ -30,11 +31,16 @@ const SCHEMA = {
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
 
 export async function POST(request: Request) {
+  // Had no authentication of any kind. Its only caller is the admin article
+  // editor, so a signed-in session plus a quota is exactly the shape it needed.
+  const gate = await guardAi(request, { route: "draft-article", maxBodyBytes: 8_000, maxFieldChars: 100 });
+  if (!gate.ok) return gate.response;
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return Response.json({ error: "Peerie Bot isn't switched on yet (missing API key)." }, { status: 503 });
 
-  let recipe = "spik_word", word = "";
-  try { ({ recipe = "spik_word", word = "" } = await request.json()); } catch { /* defaults */ }
+  const recipe = typeof gate.body.recipe === "string" ? gate.body.recipe : "spik_word";
+  const word = typeof gate.body.word === "string" ? gate.body.word : "";
   if (recipe !== "spik_word") return Response.json({ error: "Unknown recipe." }, { status: 400 });
 
   // Pull the source word from the dictionary (a specific word, or a rich random one).
@@ -102,7 +108,6 @@ export async function POST(request: Request) {
       source: { recipe: "spik_word", word: facts.word, word_id: facts.id, word_slug: facts.slug },
     });
   } catch (e) {
-    console.error("[draft-article] Peerie Bot error:", e);
-    return Response.json({ error: "Peerie Bot had a hiccup — please try again." }, { status: 502 });
+    return aiProviderFailure("draft-article", e);
   }
 }
