@@ -115,6 +115,10 @@ export type UnitItem = {
   category: string | null;
 };
 
+/** The public business page. Safe columns only — no owner, no Stripe, no NFC. */
+const DETAIL_COLS =
+  "id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, is_verified, is_active, is_claimed, verified_at, claimed_at, created_at, accepts_wallet, accepts_bookings, cashback_percent, payout_enabled, subscription_tier, subscription_until, can_publish_urgent, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, planner_context_source, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials";
+
 const LIST_COLS =
   "id, name, category, description, address, tags, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
 
@@ -413,7 +417,9 @@ export async function getBusiness(idOrSlug: string): Promise<Business | null> {
     const col = UUID.test(idOrSlug) ? "id" : "slug";
     const { data } = await sb
       .from("local_businesses")
-      .select("*")
+      // Named columns, not "*": under column-level grants `select *` is denied,
+      // and naming them is what keeps a newly added sensitive column private.
+      .select(DETAIL_COLS)
       .eq(col, idOrSlug)
       .eq("is_active", true)
       .maybeSingle();

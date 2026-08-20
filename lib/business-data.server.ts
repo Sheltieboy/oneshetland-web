@@ -31,7 +31,17 @@ export async function getManagedBusiness(idOrSlug: string): Promise<ManagedBusin
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
   const { data } = await sb.from("local_businesses").select(BUSINESS_COLS)
     .eq(isUuid ? "id" : "slug", idOrSlug).maybeSingle();
-  return (data ?? null) as ManagedBusiness | null;
+  const row = data as Record<string, unknown> | null;
+  if (!row) return null;
+
+  // The private half is fetched separately and only succeeds for this
+  // business's owner or a platform admin — the check column grants cannot make,
+  // because `authenticated` is everybody. A non-owner simply gets the public
+  // half, which is what they are entitled to.
+  const { data: priv } = await sb.rpc("business_private_fields", { p_business_id: row.id as string })
+    .maybeSingle<Record<string, unknown>>();
+
+  return { ...row, ...(priv ?? {}) } as unknown as ManagedBusiness;
 }
 
 export async function getBusinessOffers(businessId: string, includeExpired = false): Promise<LocalOffer[]> {

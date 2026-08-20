@@ -114,7 +114,7 @@ export function BillingManager({ business, intentTier, meter }: {
       // row still carries. Trusting a stale id sent it down the "change plan"
       // path, which found the cancelled subscription still on the Pro price and
       // answered "you're already on Pro" — leaving it unable to buy anything.
-      const hasLiveSubscription = !!b.stripe_subscription_id && tier !== "free" && !isOnBoost(b);
+      const hasLiveSubscription = b.subscription_connected && tier !== "free" && !isOnBoost(b);
       if (hasLiveSubscription) {
         // Existing subscriber → prorated change on the saved card. Switching
         // monthly↔yearly on the same tier goes down this path too: the tier is
@@ -398,7 +398,7 @@ export function BillingManager({ business, intentTier, meter }: {
       </section>
 
       {/* Invoices — only meaningful once there is a Stripe customer behind them. */}
-      {(tierMeets(tier, "pro") || b.stripe_subscription_id) && <InvoiceHistory businessId={b.id} />}
+      {(tierMeets(tier, "pro") || b.subscription_connected) && <InvoiceHistory businessId={b.id} />}
 
       {/* NFC — gated on the feature, not on "has any paid plan". */}
       {tierUnlocks(tier, "nfc") && (

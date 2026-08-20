@@ -80,10 +80,12 @@ export async function confirmShiftBoost(
 /** Does the business have a card on file? (decides whether to offer its card) */
 export async function businessHasCard(businessId: string): Promise<boolean> {
   const sb = createClient();
+  // Whether a business has a card on file is owner-private: it says something
+  // about their payment setup, and only they need to know it. The RPC refuses
+  // anyone who does not own this business, so a non-owner gets false rather
+  // than an answer about somebody else's account.
   const { data } = await sb
-    .from("local_businesses")
-    .select("has_business_payment_method")
-    .eq("id", businessId)
-    .maybeSingle();
-  return !!(data as { has_business_payment_method: boolean } | null)?.has_business_payment_method;
+    .rpc("business_private_fields", { p_business_id: businessId })
+    .maybeSingle<{ has_business_payment_method: boolean }>();
+  return !!data?.has_business_payment_method;
 }

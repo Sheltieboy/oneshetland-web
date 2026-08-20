@@ -43,12 +43,10 @@ export type ManagedBusiness = {
   subscription_tier: SubscriptionTier;
   subscription_until: string | null;
   subscription_cancel_at_period_end: boolean | null;
-  stripe_subscription_id: string | null;
   // Wallet + central/business payout
   accepts_wallet: boolean;
   cashback_percent: number;
   payout_enabled: boolean;
-  stripe_account_id: string | null;
   // Per-business payment/payout overrides (026)
   use_business_payment: boolean;
   has_business_payment_method: boolean;
@@ -57,13 +55,22 @@ export type ManagedBusiness = {
   business_stripe_payouts_enabled: boolean;
   // NFC
   nfc_token: string | null;
+  /** True when a Stripe subscription exists. Replaces reading the id itself —
+   *  every consumer only ever checked whether it was set. */
+  subscription_connected: boolean;
+  stripe_connected: boolean;
+  business_stripe_connected: boolean;
   nfc_status: "none" | "requested" | "dispatched" | "active";
   // Bookings
   accepts_bookings: boolean;
 };
 
 export const BUSINESS_COLS =
-  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, is_verified, is_active, subscription_tier, subscription_until, subscription_cancel_at_period_end, stripe_subscription_id, accepts_wallet, cashback_percent, payout_enabled, stripe_account_id, use_business_payment, has_business_payment_method, use_business_payout, business_stripe_onboarding_complete, business_stripe_payouts_enabled, nfc_token, nfc_status, accepts_bookings";
+  // Safe columns only. The private half — NFC token, Stripe state, payment
+  // flags — now comes from business_private_fields(), which checks that the
+  // caller actually owns this business. `authenticated` is every signed-in
+  // user, so a column grant could never have been the ownership boundary.
+  "id, owner_id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, is_verified, is_active, subscription_tier, subscription_until, accepts_wallet, cashback_percent, payout_enabled, accepts_bookings";
 
 /* ── Plan model ───────────────────────────────────────────────────────────── */
 
@@ -106,8 +113,10 @@ export function tierFor(feature: Feat): SubscriptionTier {
   return TF[feature];
 }
 
-export function isOnBoost(b: Pick<ManagedBusiness, "subscription_tier" | "subscription_until" | "stripe_subscription_id">): boolean {
-  return !b.stripe_subscription_id && b.subscription_tier === "pro" && !!b.subscription_until && new Date(b.subscription_until) > new Date();
+export function isOnBoost(b: Pick<ManagedBusiness, "subscription_tier" | "subscription_until" | "subscription_connected">): boolean {
+  // A boost is Pro access with no subscription behind it. Reads the derived
+  // flag now — the id was only ever checked for existence.
+  return !b.subscription_connected && b.subscription_tier === "pro" && !!b.subscription_until && new Date(b.subscription_until) > new Date();
 }
 
 /* ── Offers / loyalty types ───────────────────────────────────────────────── */

@@ -346,12 +346,9 @@ export async function getDisputes(status: "open" | "resolved" | "all" = "all") {
 export async function getNfcQueue(status: "requested" | "dispatched" | "active" | "all" = "requested") {
   return safe((async () => {
     const sb = await createServerClient();
-    let q = sb.from("local_businesses")
-      .select("id, name, slug, address, phone, email, subscription_tier, subscription_until, nfc_status, nfc_token")
-      .not("nfc_status", "eq", "none")
-      .order("name");
-    if (status !== "all") q = q.eq("nfc_status", status);
-    const { data } = await q;
+    // nfc_token is not selectable by any client role now, so the dispatch queue
+    // goes through an admin-checked function instead of a table read.
+    const { data } = await sb.rpc("admin_nfc_queue", { p_status: status });
     return (data ?? []) as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);
 }
