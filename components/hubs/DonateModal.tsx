@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startDonation, confirmDonation, type GiftAid } from "@/lib/hubs-client";
 import { fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
+import { useAttemptId } from "@/lib/use-attempt-id";
 import { gbp } from "@/lib/stripe";
 
 const PRESETS = [500, 1000, 2000, 5000];
@@ -44,6 +45,8 @@ export function DonateModal({
   const [walletPence, setWalletPence] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Changing the amount makes it a different donation.
+  const attemptId = useAttemptId(`${campaignId}|${amount}|${custom}`);
 
   const pence = custom ? Math.round(parseFloat(custom) * 100) : amount;
   const validAmount = pence >= 100;
@@ -94,7 +97,7 @@ export function DonateModal({
     setError(null);
     setBusy(true);
     try {
-      await walletCheckout({ type: "hub_donation", campaign_id: campaignId, amount_pence: pence, message, anonymous, gift_aid: giftAid ? ga : null });
+      await walletCheckout({ type: "hub_donation", campaign_id: campaignId, amount_pence: pence, message, anonymous, gift_aid: giftAid ? ga : null }, attemptId());
       setStep("done");
       router.refresh();
     } catch (e) {

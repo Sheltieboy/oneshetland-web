@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startUnitPurchase, confirmUnitPurchase, fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
+import { useAttemptId } from "@/lib/use-attempt-id";
 import { gbp } from "@/lib/stripe";
 import { type UnitItem } from "@/lib/local-data";
 
@@ -28,6 +29,8 @@ export function BuyUnitModal({
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "pay" | "done">("form");
+  // One reference per item being bought.
+  const attemptId = useAttemptId(item.id);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [piId, setPiId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
@@ -70,7 +73,7 @@ export function BuyUnitModal({
     setError(null);
     setBusy(true);
     try {
-      const res = await walletCheckout({ type: "unit_purchase", unit_item_id: item.id });
+      const res = await walletCheckout({ type: "unit_purchase", unit_item_id: item.id }, attemptId());
       setConfirm({ ok: res.ok, purchase_id: res.purchase_id ?? "", uses_remaining: res.uses_remaining ?? 0, expires_at: res.expires_at ?? null });
       setStep("done");
       router.refresh();

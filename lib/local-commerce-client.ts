@@ -179,17 +179,16 @@ export async function fetchWalletBalance(): Promise<number> {
 export async function payWithWallet(
   code: string,
   amountPence: number,
+  attemptId: string,
 ): Promise<{ balance_pence: number; cashback_pence: number }> {
   const sb = createClient();
-  // A fresh id per payment ATTEMPT — the server claims it before debiting, so a
-  // double-click or a retry cannot pay twice, while a genuine second payment
-  // carries a new id and goes through.
-  const clientRequestId =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `pay-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  // The attempt id is now a PARAMETER, minted by the component at the moment
+  // the customer commits to paying. It used to be minted here, which meant a
+  // second click produced a second id and therefore a second payment — the
+  // claim only ever protected against transport-level retries, never against
+  // the person tapping twice.
   const { data, error } = await sb.functions.invoke("local-wallet-pay", {
-    body: { code, amount_pence: amountPence, client_request_id: clientRequestId },
+    body: { code, amount_pence: amountPence, client_request_id: attemptId },
   });
   if (error) return invokeError(error);
   return data as { balance_pence: number; cashback_pence: number };
@@ -204,9 +203,15 @@ export type WalletCheckoutBody =
 
 export async function walletCheckout(
   body: WalletCheckoutBody,
+  attemptId: string,
 ): Promise<{ ok: boolean; balance_pence: number; purchase_id?: string; uses_remaining?: number; expires_at?: string | null; member_no?: string | null; paid_until?: string | null }> {
   const sb = createClient();
-  const { data, error } = await sb.functions.invoke("wallet-checkout", { body });
+  // Required by the server. Without it every flow debited on a null key, so a
+  // double-click was two purchases. Minted once per purchase by the caller, not
+  // once per request here — a retry must carry the SAME id.
+  const { data, error } = await sb.functions.invoke("wallet-checkout", {
+    body: { ...body, client_request_id: attemptId },
+  });
   if (error) return invokeError(error);
   return data;
 }

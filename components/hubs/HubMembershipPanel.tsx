@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { joinHub, leaveHub, startMembershipPayment, confirmMembership } from "@/lib/hubs-client";
 import { fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
+import { useAttemptId } from "@/lib/use-attempt-id";
 import { membershipPrice, isMembershipActive, type HubMembershipType, type HubMember, type JoinMode } from "@/lib/hubs-data";
 
 export function HubMembershipPanel({
@@ -35,6 +36,8 @@ export function HubMembershipPanel({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [walletPence, setWalletPence] = useState<number | null>(null);
+  // Choosing a different tier is a different purchase.
+  const attemptId = useAttemptId(payTier?.id ?? null);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -192,7 +195,7 @@ export function HubMembershipPanel({
     setBusy(true);
     setError(null);
     try {
-      await walletCheckout({ type: "hub_membership", membership_type_id: tier.id });
+      await walletCheckout({ type: "hub_membership", membership_type_id: tier.id }, attemptId());
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not pay from your wallet.");

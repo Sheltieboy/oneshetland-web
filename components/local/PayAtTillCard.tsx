@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { gbp } from "@/lib/stripe";
 import { payWithWallet } from "@/lib/local-commerce-client";
+import { useAttemptId } from "@/lib/use-attempt-id";
 
 const LOCAL = "#7c3aed";
 
@@ -33,6 +34,8 @@ export function PayAtTillCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ balance_pence: number; cashback_pence: number } | null>(null);
+  // A different amount or a different till code is a different payment.
+  const attemptId = useAttemptId(`${code}|${amount}`);
 
   const amountPence = Math.round((parseFloat(amount) || 0) * 100);
   const balance = balancePence ?? 0;
@@ -44,7 +47,7 @@ export function PayAtTillCard({
     setError(null);
     setBusy(true);
     try {
-      const res = await payWithWallet(code, amountPence);
+      const res = await payWithWallet(code, amountPence, attemptId());
       setDone(res);
       setAmount("");
       setCode("");
