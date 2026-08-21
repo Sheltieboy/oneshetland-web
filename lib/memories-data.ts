@@ -113,22 +113,34 @@ async function signPaths(
 /* ── Hero helper ─────────────────────────────────────────────────────────── */
 
 async function attachHeroes(pins: MemoryPin[]): Promise<MemoryPin[]> {
-  const need = pins.filter((p) => !p.hero_url).map((p) => p.id);
-  if (!need.length) return pins;
+  if (!pins.length) return pins;
   const sb = publicClient();
-  const { data } = await sb.from("memory_media").select("memory_id, kind, url, thumb_url, storage_path").in("memory_id", need).order("display_order", { ascending: true });
+
+  // Signs for EVERY pin, not only the ones missing a hero.
+  //
+  // fetch_memory_pins already returns hero_url — selected straight from
+  // memory_media.url, which is the legacy public URL. The previous version of
+  // this function treated that as "already done" and skipped signing, so the
+  // list page kept rendering /object/public/ links while the detail page
+  // rendered signed ones. Those links stop resolving the moment the bucket
+  // becomes private, so the hero has to be signed like everything else.
+  const { data } = await sb.from("memory_media")
+    .select("memory_id, kind, url, thumb_url, storage_path")
+    .in("memory_id", pins.map((p) => p.id))
+    .order("display_order", { ascending: true });
   const rows = (data ?? []) as { memory_id: string; kind: string; url: string; thumb_url: string | null; storage_path: string | null }[];
   const signed = await signPaths(sb, rows.map((m) => m.storage_path ?? ""));
+
   const map: Record<string, { url: string; kind: string }> = {};
   for (const m of rows) {
-    if (!map[m.memory_id] && (m.kind === "photo" || m.kind === "video")) {
-      // thumb_url is a public URL from before the bucket was private; the
-      // signed object is the one that actually resolves now.
-      const url = (m.storage_path && signed[m.storage_path]) || m.thumb_url || m.url;
-      if (url) map[m.memory_id] = { url, kind: m.kind };
-    }
+    if (map[m.memory_id]) continue;
+    if (m.kind !== "photo" && m.kind !== "video") continue;
+    // A signed URL if we could get one; the legacy fields only as a last
+    // resort, for a row that has no storage_path at all.
+    const url = (m.storage_path && signed[m.storage_path]) || m.thumb_url || m.url;
+    if (url) map[m.memory_id] = { url, kind: m.kind };
   }
-  return pins.map((p) => p.hero_url ? p : { ...p, hero_url: map[p.id]?.url ?? null, hero_kind: map[p.id]?.kind ?? null });
+  return pins.map((p) => map[p.id] ? { ...p, hero_url: map[p.id].url, hero_kind: map[p.id].kind } : p);
 }
 
 /* ── Reads ───────────────────────────────────────────────────────────────── */
