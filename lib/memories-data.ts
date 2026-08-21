@@ -118,12 +118,15 @@ async function attachHeroes(pins: MemoryPin[]): Promise<MemoryPin[]> {
 
   // Signs for EVERY pin, not only the ones missing a hero.
   //
-  // fetch_memory_pins already returns hero_url — selected straight from
-  // memory_media.url, which is the legacy public URL. The previous version of
-  // this function treated that as "already done" and skipped signing, so the
-  // list page kept rendering /object/public/ links while the detail page
-  // rendered signed ones. Those links stop resolving the moment the bucket
-  // becomes private, so the hero has to be signed like everything else.
+  // fetch_memory_pins used to return hero_url straight from memory_media.url —
+  // the legacy public URL. An earlier version of this function treated that as
+  // "already done" and skipped signing, so the list page kept rendering
+  // /object/public/ links while the detail page rendered signed ones, and those
+  // links died the moment the bucket became private. Migration 20260821270000
+  // has since stopped the RPC serving that column at all: it returns hero_path
+  // and a null hero_url. Signing every pin here is what fills it, and it also
+  // covers the two fallback paths below, which read the memories table directly
+  // and never had a hero of their own.
   const { data } = await sb.from("memory_media")
     .select("memory_id, kind, url, thumb_url, storage_path")
     .in("memory_id", pins.map((p) => p.id))
