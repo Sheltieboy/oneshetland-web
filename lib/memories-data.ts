@@ -72,16 +72,61 @@ export const REACTIONS: { kind: ReactionKind; icon: string; label: string }[] = 
   { kind: "compass", icon: "🧭", label: "Helpful" }, { kind: "scroll", icon: "📜", label: "Heritage" },
 ];
 
+/* ── Media URLs ──────────────────────────────────────────────────────────── */
+
+/**
+ * memories-media is a PRIVATE bucket, so a memory's photos and audio are not
+ * served from a guessable /object/public/ URL. They are signed for at read time
+ * instead, and the signing itself is authorised by storage RLS:
+ *
+ *   viewer's session → can_view_memory() → public.memories RLS → signed URL
+ *
+ * That means a public memory signs for anyone (including anonymous visitors,
+ * which is why this works with the anon-key publicClient), and a community or
+ * private one only signs for someone the memories policy already lets read the
+ * row. There is no second definition of "private" here — the database decides.
+ *
+ * TTL is one hour. Long enough that a page render and its images comfortably
+ * share one URL, short enough that changing a memory to private takes effect
+ * within the hour for URLs already handed out. Do not raise it for caching:
+ * an hour IS the revocation delay.
+ */
+const MEDIA_TTL_SECONDS = 3600;
+
+async function signPaths(
+  sb: ReturnType<typeof publicClient>,
+  paths: string[],
+): Promise<Record<string, string>> {
+  const wanted = [...new Set(paths.filter(Boolean))];
+  if (!wanted.length) return {};
+  const { data } = await sb.storage.from("memories-media").createSignedUrls(wanted, MEDIA_TTL_SECONDS);
+  const out: Record<string, string> = {};
+  for (const r of data ?? []) {
+    // createSignedUrls reports per-path failures rather than throwing: a path
+    // the viewer may not see comes back with an error and no signedUrl, which
+    // is exactly the outcome we want — it simply does not appear in the map.
+    if (r.path && r.signedUrl) out[r.path] = r.signedUrl;
+  }
+  return out;
+}
+
 /* ── Hero helper ─────────────────────────────────────────────────────────── */
 
 async function attachHeroes(pins: MemoryPin[]): Promise<MemoryPin[]> {
   const need = pins.filter((p) => !p.hero_url).map((p) => p.id);
   if (!need.length) return pins;
   const sb = publicClient();
-  const { data } = await sb.from("memory_media").select("memory_id, kind, url, thumb_url").in("memory_id", need).order("display_order", { ascending: true });
+  const { data } = await sb.from("memory_media").select("memory_id, kind, url, thumb_url, storage_path").in("memory_id", need).order("display_order", { ascending: true });
+  const rows = (data ?? []) as { memory_id: string; kind: string; url: string; thumb_url: string | null; storage_path: string | null }[];
+  const signed = await signPaths(sb, rows.map((m) => m.storage_path ?? ""));
   const map: Record<string, { url: string; kind: string }> = {};
-  for (const m of (data ?? []) as { memory_id: string; kind: string; url: string; thumb_url: string | null }[]) {
-    if (!map[m.memory_id] && (m.kind === "photo" || m.kind === "video")) map[m.memory_id] = { url: m.thumb_url || m.url, kind: m.kind };
+  for (const m of rows) {
+    if (!map[m.memory_id] && (m.kind === "photo" || m.kind === "video")) {
+      // thumb_url is a public URL from before the bucket was private; the
+      // signed object is the one that actually resolves now.
+      const url = (m.storage_path && signed[m.storage_path]) || m.thumb_url || m.url;
+      if (url) map[m.memory_id] = { url, kind: m.kind };
+    }
   }
   return pins.map((p) => p.hero_url ? p : { ...p, hero_url: map[p.id]?.url ?? null, hero_kind: map[p.id]?.kind ?? null });
 }
@@ -142,6 +187,14 @@ export async function getMemoryDetail(id: string): Promise<Memory | null> {
       safe(sb.from("memories").select("id, title, place_name, era, tags, media_count, comment_count, reaction_count, child_count, lat, lng, created_at").eq("parent_id", id).eq("is_hidden", false).order("created_at", { ascending: true }).then((r) => r.data ?? []), [] as unknown[]),
       safe(sb.from("memory_reactions").select("kind").eq("memory_id", id).then((r) => r.data ?? []), [] as unknown[]),
     ]);
+    // Media is signed for this viewer. A path they may not see simply does not
+    // come back signed, so the item renders without a URL rather than leaking.
+    const mediaRows = media as MemoryMedia[];
+    const signedMedia = await signPaths(sb, mediaRows.map((m) => m.storage_path ?? ""));
+    for (const m of mediaRows) {
+      if (m.storage_path && signedMedia[m.storage_path]) m.url = signedMedia[m.storage_path];
+    }
+
     // Attach author profiles by id (no embed — robust under RLS)
     const commentRows = comments as MemoryComment[];
     const ids = [...new Set([(memory as Memory).author_id, ...commentRows.map((c) => c.author_id)].filter(Boolean))];

@@ -90,7 +90,10 @@ export function MemoryComposer({ isLoggedIn, parentId, existing }: { isLoggedIn:
         const path = `${memoryId}/${d.kind}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await sb.storage.from("memories-media").upload(path, d.file, { upsert: true, contentType: d.file.type || undefined });
         if (upErr) throw upErr;
-        const url = sb.storage.from("memories-media").getPublicUrl(path).data.publicUrl;
+        // memories-media is private: there is no public URL to store. The
+        // durable identity is storage_path, and readers sign for it at render
+        // time under the viewer's own permissions (lib/memories-data.ts).
+        const url = "";
         await sb.from("memory_media").insert({
           memory_id: memoryId, uploader_id: user.id, kind: d.kind, url, storage_path: path,
           duration_seconds: d.durationSec ?? null, display_order: i, transcript_status: d.kind === "audio" ? "pending" : "none",
