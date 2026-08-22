@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { getPaymentState } from "@/lib/payment-state";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { ConnectPayoutsButton } from "@/components/payments/ConnectPayoutsButton";
 
@@ -15,23 +16,10 @@ export default async function PaymentsPage() {
   if (!account) redirect("/sign-in?next=/account/payments");
 
   const sb = await createClient();
-  // Payout state can live on profiles (the webhook's source of truth) OR on
-  // driver_profiles (where the Fetch driver onboarding historically wrote the
-  // Connect account). Read both and coalesce, so a driver who connected in the
-  // app isn't shown "Not connected" — and stuck — on the web.
-  const [{ data }, { data: dp }] = await Promise.all([
-    sb.from("profiles")
-      .select("has_payment_method, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
-      .eq("id", account.id).maybeSingle(),
-    sb.from("driver_profiles")
-      .select("stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
-      .eq("id", account.id).maybeSingle(),
-  ]);
-  const hasCard = !!data?.has_payment_method;
-  const payoutAccountId = data?.stripe_account_id || dp?.stripe_account_id;
-  const onboardingComplete = !!(data?.stripe_onboarding_complete || dp?.stripe_onboarding_complete);
-  const payoutsConnected = !!(data?.stripe_payouts_enabled || dp?.stripe_payouts_enabled);
-  const payoutsPending = !!payoutAccountId && !onboardingComplete;
+  // ONE derivation, shared with the My Account summary — see lib/payment-state.ts
+  // for why these two screens used to disagree about the same user.
+  const { card_on_file: hasCard, payouts_connected: payoutsConnected, payouts_pending: payoutsPending } =
+    await getPaymentState(sb, account.id);
 
   // Businesses the user owns — for the optional per-business overrides note.
   const { data: businesses } = await sb.from("local_businesses")

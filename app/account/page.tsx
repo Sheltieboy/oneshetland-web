@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { getAccount } from "@/lib/auth";
 import { getMyBusinessesBasic } from "@/lib/account-data.server";
+import { createClient } from "@/lib/supabase/server";
+import { getPaymentState } from "@/lib/payment-state";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountOverview() {
   const account = (await getAccount())!; // layout guarantees signed-in
   const p = account.profile;
+  // Same derivation the Payments & banking page uses. This summary used to read
+  // profile fields that getAccount() never selected, so it told every user their
+  // card and payouts were not set up regardless of the truth.
+  const sb = await createClient();
+  const payments = await getPaymentState(sb, account.id);
   const businesses = await getMyBusinessesBasic(account.id);
 
   // Profile completeness
@@ -87,8 +94,8 @@ export default async function AccountOverview() {
           One card for everything you pay for, one bank account for everything you&apos;re paid.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payment card: {(p as { has_payment_method?: boolean })?.has_payment_method ? "added ✓" : "not set up"}</span>
-          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payouts: {(p as { stripe_payouts_enabled?: boolean })?.stripe_payouts_enabled ? "connected ✓" : "not connected"}</span>
+          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payment card: {payments.card_on_file ? "added ✓" : "not set up"}</span>
+          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payouts: {payments.payouts_connected ? "connected ✓" : payments.payouts_pending ? "verifying…" : "not connected"}</span>
         </div>
       </Link>
 
