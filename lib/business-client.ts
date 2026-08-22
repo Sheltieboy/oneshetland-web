@@ -9,6 +9,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
+import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 
 async function invoke<T = Record<string, unknown>>(name: string, body?: Record<string, unknown>): Promise<T> {
   const sb = createClient();
@@ -105,8 +106,17 @@ export const previewSubscriptionChange = (businessId: string, tier: "pro" | "pre
 export const applySubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
   invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: false });
 
-export const createBoostIntent = (businessId: string, weeks: 1 | 2 | 3) =>
-  invoke<{ charged?: boolean; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>("local-boost-checkout", { business_id: businessId, weeks });
+export async function createBoostIntent(businessId: string, weeks: 1 | 2 | 3) {
+  const data = await invoke<{ charged?: boolean; status?: string; clientSecret?: string; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>(
+    "local-boost-checkout", { business_id: businessId, weeks });
+  // A saved-card boost the issuer wants authenticated is PAUSED, not failed:
+  // complete THAT PaymentIntent rather than falling through to the card form.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...data, charged: true };
+  return data;
+}
 
 /** Cancel at period end, or take a pending cancellation back. */
 export const setSubscriptionCancellation = (businessId: string, cancel: boolean) =>

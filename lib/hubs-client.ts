@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 import type {
   HubType, JoinMode, NoticeVisibility, MembershipPeriod, HubMembershipType,
 } from "@/lib/hubs-data";
@@ -47,6 +48,13 @@ export async function startMembershipPayment(membershipTypeId: string, useSavedC
     body: { membership_type_id: membershipTypeId, use_saved_card: useSavedCard },
   });
   if (error) return invokeError(error);
+  // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
+  // Complete THAT PaymentIntent here — never start a second one. The card-form
+  // path carries no `status`, so it returns straight through unchanged.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...(data as object), charged: true } as PaymentStart;
   return data as PaymentStart;
 }
 
@@ -69,6 +77,13 @@ export async function startDonation(campaignId: string, amountPence: number, use
     body: { campaign_id: campaignId, amount_pence: amountPence, use_saved_card: useSavedCard, cover_fees: coverFees },
   });
   if (error) return invokeError(error);
+  // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
+  // Complete THAT PaymentIntent here — never start a second one. The card-form
+  // path carries no `status`, so it returns straight through unchanged.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...(data as object), charged: true } as PaymentStart;
   return data as PaymentStart;
 }
 

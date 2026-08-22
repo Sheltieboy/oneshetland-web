@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
+import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 
 function invokeError(error: { message: string; context?: { json?: () => Promise<{ error?: string }> } }): Promise<never> {
   return (async () => {
@@ -58,6 +59,13 @@ export async function startUnitPurchase(unitItemId: string, useSavedCard = true)
     body: { unit_item_id: unitItemId, use_saved_card: useSavedCard },
   });
   if (error) return invokeError(error);
+  // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
+  // Complete THAT PaymentIntent here — never start a second one. The card-form
+  // path carries no `status`, so it returns straight through unchanged.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...(data as object), charged: true } as UnitPurchaseStart;
   return data as UnitPurchaseStart;
 }
 
@@ -109,6 +117,13 @@ export async function startGift(
     },
   });
   if (error) return invokeError(error);
+  // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
+  // Complete THAT PaymentIntent here — never start a second one. The card-form
+  // path carries no `status`, so it returns straight through unchanged.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...(data as object), charged: true } as GiftStart;
   return data as GiftStart;
 }
 
@@ -139,6 +154,12 @@ export async function startWalletTopUp(amountPence: number, useSavedCard = true)
     body: { amount_pence: amountPence, use_saved_card: useSavedCard },
   });
   if (error) return invokeError(error as { message: string });
+  // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
+  // Complete THAT PaymentIntent here — never start a second one.
+  const settled = await settleSavedCardPayment(data as ScaStart);
+  if (settled.outcome === "cancelled") throw new Error("Payment cancelled — nothing was charged.");
+  if (settled.outcome === "failed") throw new Error(settled.message);
+  if (settled.outcome === "succeeded") return { ...(data as object), charged: true } as WalletTopUpStart;
   return data as WalletTopUpStart;
 }
 

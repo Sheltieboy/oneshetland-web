@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getBasket, setLineQty, clearBasket, basketItemsPence, subscribeBasket, type Basket } from "@/lib/basket";
 import { gbp, shippingQuote, type BusinessShipping } from "@/lib/shop-data";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
+import { settleSavedCardPayment, type PaymentStart as ScaStart } from "@/lib/stripe-sca";
 
 /**
  * /basket — basket + checkout in one place. One shop per checkout.
@@ -121,7 +122,14 @@ export default function BasketPage() {
         const body = ctx ? await ctx.json().catch(() => null) : null;
         throw new Error(body?.error ?? error.message ?? "Checkout failed");
       }
-      if (data.charged) { clearBasket(); setPlaced(data.order_id); return; }
+
+      // A saved-card charge the issuer wants authenticated is PAUSED, not failed:
+      // complete THAT PaymentIntent instead of starting a second order.
+      const settled = await settleSavedCardPayment(data as ScaStart);
+      if (settled.outcome === "cancelled") { setBusy(false); return; }
+      if (settled.outcome === "failed") throw new Error(settled.message);
+      const scaCharged = settled.outcome === "succeeded";
+      if (data.charged || scaCharged) { clearBasket(); setPlaced(data.order_id); return; }
       if (data.clientSecret) { setClientSecret(data.clientSecret); setPlaced(null); return; }
       throw new Error(data.error ?? "Checkout failed");
     } catch (e) {
