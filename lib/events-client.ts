@@ -3,11 +3,23 @@
 import { createClient } from "@/lib/supabase/client";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 
-function invokeError(error: { message: string; context?: { json?: () => Promise<{ error?: string }> } }): Promise<never> {
+function invokeError(error: { message: string; context?: { json?: () => Promise<{ error?: string; reason?: string; code?: string }> } }): Promise<never> {
   return (async () => {
     let msg = error.message;
-    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* */ }
-    throw new Error(msg);
+    let reason: string | undefined;
+    let code: string | undefined;
+    // supabase-js hides the function's JSON body behind a generic non-2xx
+    // message. The body is where the useful part lives.
+    try {
+      const b = await error.context?.json?.();
+      if (b?.error) msg = b.error;
+      reason = b?.reason;
+      code = b?.code;
+    } catch { /* fall back to the generic message */ }
+    const e = new Error(msg) as Error & { reason?: string; code?: string };
+    e.reason = reason;
+    e.code = code;
+    throw e;
   })();
 }
 

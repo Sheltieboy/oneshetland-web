@@ -7,6 +7,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib/events-client";
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
+import { describeCheckoutError } from "@/lib/checkout-errors";
 
 const EVENTS = "#d4921a";
 // Buyer-facing booking fee — 95p per ticket plus 1.5% of face value.
@@ -125,7 +126,7 @@ export function TicketModal({
         setStep("pay");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start checkout.");
+      setError(describeCheckoutError(e));
     } finally {
       setBusy(false);
     }
@@ -141,7 +142,7 @@ export function TicketModal({
       setStep("done");
       router.refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not confirm tickets.");
+      setError(describeCheckoutError(e));
     }
   }
 
