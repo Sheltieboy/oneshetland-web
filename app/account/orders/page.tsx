@@ -18,6 +18,16 @@ const STATUS_STYLE: Record<string, string> = {
   refunded: "bg-rose-100 text-rose-700",
 };
 
+/** How the goods reach the buyer, in the buyer's words. */
+const FULFILMENT_LABEL: Record<string, string> = {
+  collect: "Collect from the shop",
+  post: "By post",
+  fetch: "Delivered by a local driver",
+};
+
+/** The short reference a buyer quotes to a shop. Never the full row id. */
+const orderRef = (id: string) => id.slice(0, 8).toUpperCase();
+
 const BUYER_STATUS: Record<string, string> = {
   paid: "Order received",
   accepted: "Being prepared",
@@ -77,6 +87,10 @@ export default async function OrdersPage() {
               </div>
               <p className="mt-1.5 text-sm text-ink-soft">
                 {o.items.map((it) => `${it.qty} × ${it.title}${it.variant_name ? ` (${it.variant_name})` : ""}`).join(" · ")}
+              </p>
+              {/* How it reaches you, and the reference to quote the shop. */}
+              <p className="mt-1 text-xs text-ink-muted">
+                {FULFILMENT_LABEL[o.fulfilment] ?? o.fulfilment} · Ref {orderRef(o.id)}
               </p>
               {o.status === "posted" && o.tracking_ref && (
                 <p className="mt-1 text-xs text-ink-muted">Tracking: {o.tracking_ref}</p>

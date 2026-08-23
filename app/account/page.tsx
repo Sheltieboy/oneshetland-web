@@ -27,6 +27,7 @@ export default async function AccountOverview() {
     { href: "/account/security", title: "Security", desc: "Email and password" },
     { href: "/account/wallet", title: "Wallet", desc: "Your balance, top-ups and spending history" },
     { href: "/account/bookings", title: "My bookings", desc: "Your upcoming and past service bookings" },
+    { href: "/account/orders", title: "My orders", desc: "Things you've bought from Shetland shops" },
     { href: "/account/passes", title: "My passes", desc: "Passes and packs you've bought" },
     { href: "/account/tickets", title: "My tickets", desc: "Event tickets you've bought" },
     { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, ready to claim" },
