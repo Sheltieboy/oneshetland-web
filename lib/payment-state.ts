@@ -74,3 +74,19 @@ export async function getPaymentState(
     payouts_pending:   hasAccount && !onboarded,
   };
 }
+
+
+/**
+ * Client-side: has the signed-in buyer got a card on file?
+ *
+ * Reads the same column getPaymentState() derives card_on_file from, so a
+ * checkout and the Payments & banking screen cannot disagree about whether a
+ * card exists. It is only ever a hint for the REQUEST — the backend re-resolves
+ * the buyer's Stripe Customer from their own profile and asks Stripe for the
+ * payment method, so a client claiming a card it does not have simply gets
+ * "No saved card on file".
+ */
+export async function fetchCardOnFile(sb: SupabaseClient, userId: string): Promise<boolean> {
+  const { data } = await sb.from("profiles").select("has_payment_method").eq("id", userId).maybeSingle();
+  return !!data?.has_payment_method;
+}

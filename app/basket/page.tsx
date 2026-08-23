@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getBasket, setLineQty, clearBasket, basketItemsPence, subscribeBasket, type Basket } from "@/lib/basket";
 import { gbp, shippingQuote, type BusinessShipping } from "@/lib/shop-data";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
+import { fetchCardOnFile } from "@/lib/payment-state";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "@/lib/stripe-sca";
 
 /**
@@ -24,6 +25,13 @@ export default function BasketPage() {
   const [hydrated, setHydrated] = useState(false);
   const [ship, setShip] = useState<BusinessShipping | null>(null);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  // Whether to charge the card already on file, or ask for a new one. The web
+  // basket used to send neither, so create-product-order-intent saw
+  // use_saved_card undefined, took its card-form branch and returned a
+  // clientSecret — which is why a buyer with a perfectly good saved card was
+  // asked to type it in again. The app had always sent the flag.
+  const [cardOnFile, setCardOnFile] = useState<boolean | null>(null);
+  const [useNewCard, setUseNewCard] = useState(false);
 
   const [fulfilment, setFulfilment] = useState<"collect" | "post" | "fetch">("collect");
   const [name, setName] = useState("");
@@ -50,7 +58,11 @@ export default function BasketPage() {
     const sb = createClient();
     sb.from("business_shipping").select("*").eq("business_id", basket.business_id).maybeSingle()
       .then(({ data }) => setShip((data ?? null) as BusinessShipping | null));
-    sb.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    sb.auth.getSession().then(async ({ data }) => {
+      setSignedIn(!!data.session);
+      const uid = data.session?.user?.id;
+      setCardOnFile(uid ? await fetchCardOnFile(sb, uid) : false);
+    });
     sb.from("regions").select("slug, name").order("display_order")
       .then(({ data }) => setRegions((data ?? []) as { slug: string; name: string }[]));
   }, [basket?.business_id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -114,6 +126,10 @@ export default function BasketPage() {
             : undefined,
           note: note || undefined,
           pay_with: payWith,
+          // Card already on file → charge it on-session. The server still resolves
+          // the Customer and payment method from the authenticated buyer, so this is
+          // a preference, never a claim it has to believe.
+          use_saved_card: payWith === "card" && cardOnFile === true && !useNewCard,
         },
       });
       if (error) {
@@ -225,6 +241,34 @@ export default function BasketPage() {
           <p className="flex justify-between"><span>{effFulfilment === "post" ? "Postage" : effFulfilment === "fetch" ? "Fetch delivery" : "Collection"}</span><span>{effFulfilment === "fetch" ? "Driver fee paid separately" : quote === 0 ? "Free" : gbp(quote)}</span></p>
           <p className="flex justify-between border-t border-line pt-2 text-base font-bold text-ink"><span>Total</span><span>{gbp(total)}</span></p>
         </div>
+
+        {/* What the buyer is about to be charged with. No card details are shown —
+            OneShetland never holds them, and nothing here needs them. */}
+        {signedIn && cardOnFile !== null && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-sand/40 px-3 py-2.5 text-sm">
+            {cardOnFile && !useNewCard ? (
+              <>
+                <span className="font-semibold text-ink">Paying with your saved card</span>
+                <button type="button" onClick={() => setUseNewCard(true)}
+                  className="rounded-pill px-2 py-1 font-semibold text-ink-soft underline underline-offset-2 hover:text-ink">
+                  Use a different card
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="text-ink-soft">
+                  {cardOnFile ? "You\u2019ll enter a different card next" : "You\u2019ll enter your card details next"}
+                </span>
+                {cardOnFile && (
+                  <button type="button" onClick={() => setUseNewCard(false)}
+                    className="rounded-pill px-2 py-1 font-semibold text-ink-soft underline underline-offset-2 hover:text-ink">
+                    Use my saved card
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {err && <p className="mt-3 text-sm font-semibold text-rose-600" role="alert">{err}</p>}
 
