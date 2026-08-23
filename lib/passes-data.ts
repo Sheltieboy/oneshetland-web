@@ -118,53 +118,36 @@ export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
 /* Public preview of a gift by code — for the /g/[code] claim page. Runs while
    logged out so the recipient sees what they're claiming before signing in.      */
 
+/**
+ * What a signed-out visitor is shown behind a /g/<code> link.
+ *
+ * Deliberately narrower than the book_gifts row. There is no id, no
+ * business_id, no service_id, no purchaser identity and no payment field —
+ * the claim RPC returns the ids the claim flow needs, so the anonymous
+ * preview never has to carry them.
+ */
 export interface GiftPreview {
-  id: string;
   code: string;
   kind: "unit" | "booking";
   status: string;
-  business_id: string;
   business_name: string;
   item_name: string;
   purchaser_name: string | null;
   message: string | null;
-  unit_item_id: string | null;
-  service_id: string | null;
+  expires_at: string | null;
 }
 
 export async function fetchGiftPreview(code: string): Promise<GiftPreview | null> {
   const sb = createClient();
-  const { data, error } = await sb
-    .from("book_gifts")
-    .select(
-      `id, code, kind, status, business_id, unit_item_id, service_id,
-       purchaser_name, message,
-       business:local_businesses ( name ),
-       unit_item:book_unit_items ( name ),
-       service:book_services ( name )`,
-    )
-    .eq("code", code)
-    .maybeSingle();
-  if (error || !data) return null;
-
-  const r = data as Record<string, unknown>;
-  const businessName = (r.business as { name?: string } | null)?.name ?? "OneShetland";
-  const itemName =
-    r.kind === "unit"
-      ? (r.unit_item as { name?: string } | null)?.name ?? "a unit"
-      : (r.service as { name?: string } | null)?.name ?? "a booking";
-
-  return {
-    id: r.id as string,
-    code: r.code as string,
-    kind: r.kind as "unit" | "booking",
-    status: r.status as string,
-    business_id: r.business_id as string,
-    business_name: businessName,
-    item_name: itemName,
-    purchaser_name: (r.purchaser_name as string | null) ?? null,
-    message: (r.message as string | null) ?? null,
-    unit_item_id: (r.unit_item_id as string | null) ?? null,
-    service_id: (r.service_id as string | null) ?? null,
-  };
+  // get_public_gift_preview, not a table read: book_gifts has no public SELECT
+  // policy and must not get one. Possession of the 14-character code is the
+  // access rule, and only this RPC is allowed to act on it.
+  const { data, error } = await sb.rpc("get_public_gift_preview", { p_code: code });
+  if (error) {
+    console.error(`[gift-preview] lookup failed — ${error.code ?? "?"}: ${error.message}`);
+    return null;
+  }
+  const row = (data as GiftPreview[] | null)?.[0];
+  if (!row) return null;
+  return { ...row, code };
 }
