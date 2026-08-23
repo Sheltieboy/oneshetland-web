@@ -1,4 +1,5 @@
 import { publicClient } from "./supabase/public";
+import { unwrapPublic } from "./public-read";
 
 /* ── Types (the slim shapes the homepage renders) ─────────────────────────── */
 export type HomeEvent = {
@@ -340,14 +341,13 @@ async function fetchShifts(sb: SB, now: string): Promise<HomeShift[]> {
 }
 
 async function fetchAlerts(sb: SB, now: string): Promise<HomeAlert[]> {
-  const { data } = await sb
+  return unwrapPublic("alerts on the home page", await sb
     .from("partner_alerts")
     .select("id, business_name, message, type")
     .eq("is_active", true)
     .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order("created_at", { ascending: false })
-    .limit(3);
-  return (data ?? []) as HomeAlert[];
+    .limit(3), []) as HomeAlert[];
 }
 
 async function fetchSpik(sb: SB): Promise<HomeSpik> {

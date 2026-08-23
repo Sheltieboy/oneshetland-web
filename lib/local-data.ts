@@ -1,4 +1,5 @@
 import { publicClient } from "./supabase/public";
+import { unwrapPublic } from "./public-read";
 
 export const SHETLAND_AREAS = [
   { key: "lerwick",        label: "Lerwick" },
@@ -171,15 +172,14 @@ export async function getActiveOffers(limit = 6): Promise<Offer[]> {
   const sb = publicClient();
   const now = new Date().toISOString();
   try {
-    const { data } = await sb
+    const offers = unwrapPublic("offers on /loyalty", await sb
       .from("local_offers")
       .select("id, business_id, title, description, image_url, discount_type, discount_value, valid_until")
       .eq("is_active", true)
       .lte("valid_from", now)
       .gte("valid_until", now)
       .order("created_at", { ascending: false })
-      .limit(limit);
-    const offers = (data ?? []) as Offer[];
+      .limit(limit), []) as Offer[];
     if (offers.length === 0) return [];
     const ids = [...new Set(offers.map((o) => o.business_id))];
     const { data: biz } = await sb
@@ -220,12 +220,11 @@ export type LoyaltyBiz = {
 export async function getLoyaltyBusinesses(limit = 120): Promise<LoyaltyBiz[]> {
   const sb = publicClient();
   try {
-    const { data: progs } = await sb
+    const rows = unwrapPublic("loyalty programmes on /loyalty", await sb
       .from("local_loyalty_programs")
       .select("business_id, type, stamps_required, stamp_reward, points_per_pound, points_for_pound")
       .eq("is_active", true)
-      .limit(limit);
-    const rows = (progs ?? []) as (LoyaltyBiz["program"] & { business_id: string })[];
+      .limit(limit), []) as (LoyaltyBiz["program"] & { business_id: string })[];
     if (rows.length === 0) return [];
     const ids = [...new Set(rows.map((p) => p.business_id))];
     const { data: biz } = await sb
@@ -395,13 +394,13 @@ export async function getServiceCounts(businessIds: string[]): Promise<Record<st
   if (businessIds.length === 0) return {};
   const sb = publicClient();
   try {
-    const { data } = await sb
+    const data = unwrapPublic("service counts on /directory/bookable", await sb
       .from("book_services")
       .select("business_id")
       .eq("is_active", true)
-      .in("business_id", businessIds);
+      .in("business_id", businessIds), []);
     const counts: Record<string, number> = {};
-    for (const r of (data ?? []) as { business_id: string }[]) {
+    for (const r of data as { business_id: string }[]) {
       counts[r.business_id] = (counts[r.business_id] ?? 0) + 1;
     }
     return counts;
@@ -452,7 +451,7 @@ export async function getBusinessExtras(
         .lte("valid_from", now)
         .gte("valid_until", now)
         .order("created_at", { ascending: false })
-        .then((r) => (r.data ?? []) as Offer[]),
+        .then((r) => unwrapPublic("offers on a business page", r, []) as Offer[]),
       [] as Offer[],
     ),
     safe(
@@ -462,7 +461,7 @@ export async function getBusinessExtras(
         .eq("business_id", businessId)
         .eq("is_active", true)
         .maybeSingle()
-        .then((r) => (r.data ?? null) as Loyalty | null),
+        .then((r) => unwrapPublic("loyalty on a business page", r, null) as Loyalty | null),
       null,
     ),
     safe(
@@ -472,7 +471,7 @@ export async function getBusinessExtras(
         .eq("business_id", businessId)
         .eq("is_active", true)
         .order("display_order", { ascending: true })
-        .then((r) => (r.data ?? []) as Service[]),
+        .then((r) => unwrapPublic("services on a business page", r, []) as Service[]),
       [] as Service[],
     ),
     safe(
@@ -483,7 +482,7 @@ export async function getBusinessExtras(
         .eq("is_active", true)
         .order("display_order", { ascending: true })
         .order("created_at", { ascending: true })
-        .then((r) => (r.data ?? []) as UnitItem[]),
+        .then((r) => unwrapPublic("passes on a business page", r, []) as UnitItem[]),
       [] as UnitItem[],
     ),
   ]);
