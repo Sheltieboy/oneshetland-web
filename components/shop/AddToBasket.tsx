@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { addToBasket, type BasketLine } from "@/lib/basket";
+import { addToBasket, basketCount, subscribeBasket, type BasketLine } from "@/lib/basket";
 import { availableQty, gbp, type Product, type ProductVariant } from "@/lib/shop-data";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
@@ -18,6 +18,16 @@ export function AddToBasket({ product, variants, businessName }: {
   const [variantId, setVariantId] = useState<string | null>(variants[0]?.id ?? null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  // "Go to basket" used to live and die with the `added` flash, which meant
+  // the only route to /basket vanished after 2.5 seconds. It now follows the
+  // basket itself, so it stays for as long as there is something to go to.
+  // The header pill is the site-wide way back; this is the one in reach.
+  const [hasItems, setHasItems] = useState(false);
+  useEffect(() => {
+    const read = () => setHasItems(basketCount() > 0);
+    read();
+    return subscribeBasket(read);
+  }, []);
 
   const variant = variants.find((v) => v.id === variantId) ?? null;
   const avail = availableQty(product, variant);
@@ -81,7 +91,7 @@ export function AddToBasket({ product, variants, businessName }: {
           style={{ background: added ? "#059669" : SHOP }}>
           {added ? "✓ In your basket" : `Add to basket · ${gbp(unit * qty)}`}
         </button>
-        {added && (
+        {hasItems && (
           <button onClick={() => router.push("/basket")} className="rounded-pill border border-line px-5 py-3 text-sm font-bold text-ink-soft hover:bg-sand">
             Go to basket →
           </button>

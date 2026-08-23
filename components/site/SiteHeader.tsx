@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
+import { BasketPill } from "@/components/shop/BasketPill";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
@@ -76,6 +77,9 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
+          {/* Sits outside the signed-in cluster below (which is hidden on small
+              screens) so the way back to the basket survives at every width. */}
+          <BasketPill />
           <Link
             href="/business"
             className="hidden whitespace-nowrap rounded-pill px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-sand hover:text-ink xl:inline-flex"
