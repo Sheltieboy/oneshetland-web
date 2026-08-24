@@ -51,7 +51,10 @@ export function BuyUnitModal({
     setError(null);
     setBusy(true);
     try {
-      const res = await startUnitPurchase(item.id, true);   // use the buyer's saved card (server shows the card form if none)
+      // Same attempt reference the wallet path beside this one already uses:
+      // one per deliberate checkout, so a retry or an SCA resume reuses the
+      // PaymentIntent while a genuinely new purchase creates a new one.
+      const res = await startUnitPurchase(item.id, true, attemptId());   // saved card; server shows the card form if none
       if ("charged" in res) {
         const c = await confirmUnitPurchase(item.id, res.payment_intent_id);
         setConfirm(c);

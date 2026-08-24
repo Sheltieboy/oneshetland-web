@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
+import { newCheckoutAttemptId } from "./checkout-attempt";
 
 function invokeError(error: { message: string; context?: { json?: () => Promise<{ error?: string }> } }): Promise<never> {
   return (async () => {
@@ -53,10 +54,21 @@ export type UnitPurchaseStart =
   | { charged: true; payment_intent_id: string }
   | { clientSecret: string; payment_intent_id: string };
 
-export async function startUnitPurchase(unitItemId: string, useSavedCard = true): Promise<UnitPurchaseStart> {
+/**
+ * @param attemptId ONE id per deliberate checkout. Pass the same one through a
+ *   retry or an SCA resume so Stripe returns the same PaymentIntent; mint a new
+ *   one when the customer starts another purchase. Without it, buying the same
+ *   pass twice in a day silently returned the first PaymentIntent and produced
+ *   no second pass.
+ */
+export async function startUnitPurchase(
+  unitItemId: string,
+  useSavedCard = true,
+  attemptId: string = newCheckoutAttemptId(),
+): Promise<UnitPurchaseStart> {
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-unit-purchase-intent", {
-    body: { unit_item_id: unitItemId, use_saved_card: useSavedCard },
+    body: { unit_item_id: unitItemId, use_saved_card: useSavedCard, client_request_id: attemptId },
   });
   if (error) return invokeError(error);
   // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
