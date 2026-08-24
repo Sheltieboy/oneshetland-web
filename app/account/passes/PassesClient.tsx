@@ -72,7 +72,10 @@ function PassCard({ pass }: { pass: MyPass }) {
           refId={pass.id}
           accent={LOCAL}
           onClose={() => setRedeeming(false)}
-          onDone={() => setUsesLeft((n) => Math.max(0, n - 1))}
+          /* The server's number, not oldBalance - 1. The subtraction was the
+             bug: it ran more than once and showed 1 against a database that
+             correctly said 2. Falls back only if the balance could not be read. */
+          onDone={(remaining) => setUsesLeft((n) => (remaining ?? Math.max(0, n - 1)))}
         />
       )}
     </li>

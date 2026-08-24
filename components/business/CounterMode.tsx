@@ -127,9 +127,14 @@ export function CounterMode({
           className="mt-10 w-full max-w-md rounded-xl px-8 py-6 font-display text-2xl font-bold shadow-soft transition hover:brightness-110"
           style={{ background: ACCENT }}
         >
-          Scan a member card
+          Scan or enter a customer code
         </a>
-        <p className="mt-3 text-xs text-white/50">Stamps, points, rewards, offers and card payments</p>
+        {/* The old wording — "Scan a member card / Stamps, points, rewards,
+            offers and card payments" — never mentioned passes, so staff holding
+            a customer's 3-Session Pass QR had to guess this was the right
+            button. Passes and vouchers are named first now because they are the
+            ones with a balance to spend. */}
+        <p className="mt-3 text-xs text-white/50">Passes, vouchers, loyalty rewards, offers and card payments</p>
       </div>
 
       <footer className="pb-6 text-center">

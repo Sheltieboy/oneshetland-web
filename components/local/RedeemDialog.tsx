@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { startRedemption, getRedemptionStatus, type RedeemKind, type RedemptionTicket } from "@/lib/loyalty-redeem-client";
+import { startRedemption, getRedemptionState, type RedeemKind, type RedemptionTicket } from "@/lib/loyalty-redeem-client";
 
 /**
  * RedeemDialog — the customer "show at till" modal. Starts a redemption, shows a
@@ -17,11 +17,13 @@ export function RedeemDialog({
   amount?: number;
   accent: string;
   onClose: () => void;
-  onDone?: () => void;
+  /** Called ONCE, with the server's post-redemption balance where there is one. */
+  onDone?: (usesRemaining: number | null) => void;
 }) {
   const [ticket, setTicket] = useState<RedemptionTicket | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
   const [secs, setSecs] = useState(15 * 60);
   const poll = useRef<ReturnType<typeof setInterval> | null>(null);
   const tick = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -34,21 +36,33 @@ export function RedeemDialog({
     return () => { live = false; if (poll.current) clearInterval(poll.current); if (tick.current) clearInterval(tick.current); };
   }, [kind, refId, amount]);
 
+  // onDone is held in a ref rather than depended on. It arrives as an inline
+  // arrow, so a new identity on every render — and with it in the dependency
+  // array, calling it re-created the effect, which started a fresh poll, which
+  // found the redemption still "consumed", which called it again. One real
+  // redemption walked the customer's card 3 -> 2 -> 1 while the database
+  // correctly held 2. Fired once, guarded.
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  const fired = useRef(false);
+
   useEffect(() => {
     if (!ticket) return;
     tick.current = setInterval(() => {
       setSecs(Math.max(0, Math.round((new Date(ticket.expires_at).getTime() - Date.now()) / 1000)));
     }, 1000);
     poll.current = setInterval(async () => {
-      if ((await getRedemptionStatus(ticket.id)) === "consumed") {
-        if (poll.current) clearInterval(poll.current);
-        if (tick.current) clearInterval(tick.current);
-        setDone(true);
-        onDone?.();
-      }
+      // Read-only. Polling must never consume a use.
+      const { status, usesRemaining } = await getRedemptionState(ticket.id);
+      if (status !== "consumed") return;
+      if (poll.current) clearInterval(poll.current);
+      if (tick.current) clearInterval(tick.current);
+      setBalance(usesRemaining);
+      setDone(true);
+      if (!fired.current) { fired.current = true; onDoneRef.current?.(usesRemaining); }
     }, 2500);
     return () => { if (poll.current) clearInterval(poll.current); if (tick.current) clearInterval(tick.current); };
-  }, [ticket, onDone]);
+  }, [ticket]);
 
   const mm = Math.floor(secs / 60);
   const ss = String(secs % 60).padStart(2, "0");
@@ -67,6 +81,11 @@ export function RedeemDialog({
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full text-2xl text-paper" style={{ background: accent }}>✓</div>
             <p className="mt-4 font-display text-2xl font-bold text-ink">Redeemed!</p>
             <p className="mt-1 text-sm text-ink-soft">{ticket?.detail?.title ?? "Enjoy"} — confirmed by staff. 🎉</p>
+            {balance !== null && (
+              <p className="mt-1 text-sm font-semibold text-ink">
+                {balance} {balance === 1 ? "use" : "uses"} left
+              </p>
+            )}
             <button onClick={onClose} className="mt-5 rounded-pill px-6 py-2.5 font-semibold text-paper" style={{ background: accent }}>Done</button>
           </>
         ) : !ticket ? (
