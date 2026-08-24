@@ -30,7 +30,7 @@ export default async function AccountOverview() {
     { href: "/account/orders", title: "My orders", desc: "Things you've bought from Shetland shops" },
     { href: "/account/passes", title: "My passes", desc: "Passes and packs you've bought" },
     { href: "/account/tickets", title: "My tickets", desc: "Event tickets you've bought" },
-    { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, ready to claim" },
+    { href: "/account/gifts", title: "My gifts", desc: "Gifts you've received, and ones you've sent" },
     { href: "/account/loyalty", title: "Loyalty cards", desc: "Your stamps and points at local businesses" },
     { href: "/account/referrals", title: "Invite friends", desc: "Give £5, get £5 when a friend joins and spends" },
     { href: "/account/memberships", title: "Memberships", desc: "Your digital hub membership cards" },

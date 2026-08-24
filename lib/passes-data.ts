@@ -76,6 +76,18 @@ export interface MyGiftReceived {
   message: string | null;
   claimed_at: string;
   expires_at: string | null;
+  /**
+   * Booking gifts only: the recipient has already picked their slot.
+   *
+   * Derived from book_bookings, NOT from book_gifts.status. claim_gift() sets
+   * status='claimed' and only a UNIT gift ever reaches 'used'; the write that
+   * was meant to mark a booked service gift as used sits in createBooking and
+   * silently affects no rows, because book_gifts has SELECT policies only and
+   * no UPDATE policy at all. So status alone leaves a booked gift showing
+   * "Pick a time" forever. The booking row is the authoritative record, and
+   * the claimer can read their own by "Customers see their own bookings".
+   */
+  booked: boolean;
 }
 
 export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
@@ -97,7 +109,7 @@ export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
     .order("claimed_at", { ascending: false });
   if (error) throw error;
 
-  return (data ?? []).map((r: Record<string, unknown>) => ({
+  const rows: MyGiftReceived[] = (data ?? []).map((r: Record<string, unknown>) => ({
     id: r.id as string,
     code: r.code as string,
     kind: r.kind as "unit" | "booking",
@@ -112,6 +124,87 @@ export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
     message: (r.message as string | null) ?? null,
     claimed_at: r.claimed_at as string,
     expires_at: (r.expires_at as string | null) ?? null,
+    booked: false,
+  }));
+
+  // Which of these booking gifts already have a slot? One extra query rather
+  // than one per gift, and only for the gifts that could need it.
+  const bookingGiftIds = rows.filter((g) => g.kind === "booking").map((g) => g.id);
+  if (bookingGiftIds.length > 0) {
+    const { data: booked } = await sb
+      .from("book_bookings")
+      .select("gift_id")
+      .in("gift_id", bookingGiftIds)
+      .neq("status", "cancelled");
+    const bookedIds = new Set((booked ?? []).map((b) => (b as { gift_id: string }).gift_id));
+    for (const g of rows) if (bookedIds.has(g.id)) g.booked = true;
+  }
+
+  return rows;
+}
+
+/* ── Gifts I have SENT ────────────────────────────────────────────────────────
+   book_gifts where purchaser_id = me. The "Purchasers see their gifts" policy
+   has always permitted this read; there was simply no screen asking for it, so
+   a buyer's own gift history had nowhere to live.
+
+   Deliberately NOT selected: claimed_by_user_id, recipient_email,
+   payment_intent_id, code. The sender sees what they bought, who they sent it
+   to by the name THEY typed, and how far it has got — not the recipient's
+   account, and not the bearer token.                                          */
+
+export interface MyGiftSent {
+  id: string;
+  kind: "unit" | "booking";
+  status: "sent" | "claimed" | "used" | "cancelled";
+  business_name: string | null;
+  item_name: string | null;
+  recipient_name: string | null;
+  message: string | null;
+  price_paid_pence: number;
+  created_at: string;
+  claimed_at: string | null;
+  expires_at: string | null;
+  /** True when the purchaser claimed their own gift — see the self-gift note. */
+  claimed_by_me: boolean;
+}
+
+export async function fetchMyGiftsSent(): Promise<MyGiftSent[]> {
+  const sb = createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return [];
+
+  const { data, error } = await sb
+    .from("book_gifts")
+    .select(
+      `id, kind, status, price_paid_pence, recipient_name, message,
+       created_at, claimed_at, expires_at, claimed_by_user_id,
+       business:local_businesses ( name ),
+       service:book_services ( name ),
+       unit_item:book_unit_items ( name )`,
+    )
+    .eq("purchaser_id", auth.user.id)
+    // A gift whose payment never completed was never sent.
+    .neq("status", "pending_payment")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+
+  return (data ?? []).map((r: Record<string, unknown>) => ({
+    id: r.id as string,
+    kind: r.kind as "unit" | "booking",
+    status: r.status as MyGiftSent["status"],
+    business_name: (r.business as { name?: string } | null)?.name ?? null,
+    item_name:
+      r.kind === "unit"
+        ? (r.unit_item as { name?: string } | null)?.name ?? null
+        : (r.service as { name?: string } | null)?.name ?? null,
+    recipient_name: (r.recipient_name as string | null) ?? null,
+    message: (r.message as string | null) ?? null,
+    price_paid_pence: (r.price_paid_pence as number) ?? 0,
+    created_at: r.created_at as string,
+    claimed_at: (r.claimed_at as string | null) ?? null,
+    expires_at: (r.expires_at as string | null) ?? null,
+    claimed_by_me: r.claimed_by_user_id === auth.user!.id,
   }));
 }
 
