@@ -44,8 +44,22 @@ function accentOf(brand: string | null) {
   return LOCAL;
 }
 
-export default async function BusinessPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BusinessPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // ?book=<serviceId>&gift=<giftId> — how a claimed booking gift arrives from
+  // Account → Gifts. It opens the existing slot picker on the gifted service
+  // with the gift attached, instead of dropping the recipient on this page to
+  // find it all over again.
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
+  const sp = (await searchParams) ?? {};
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? null;
+  const openServiceId = one(sp.book);
+  const openGiftId = one(sp.gift);
   const b = await getBusiness(id);
   if (!b) notFound();
 
@@ -281,7 +295,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ id: s
           )}
 
           {showServices && b.accepts_bookings && services.length > 0 && (
-            <ServicesSection services={services} businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} userId={account?.id ?? null} />
+            <ServicesSection services={services} businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} userId={account?.id ?? null} openServiceId={openServiceId} openGiftId={openGiftId} />
           )}
 
           {/* Upcoming events */}

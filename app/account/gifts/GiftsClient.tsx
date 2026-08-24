@@ -49,7 +49,11 @@ function GiftRow({ gift }: { gift: MyGiftReceived }) {
             <code className="rounded bg-sand px-2 py-1 text-xs font-semibold text-ink-soft">{gift.code}</code>
             {isBookingPending && (
               <Link
-                href={`/directory/${gift.business_id}`}
+                /* The whole point of this task: carry the gifted SERVICE and
+                   the GIFT, so the recipient lands in the slot picker for what
+                   they were actually given. Linking to the bare business page
+                   made them find it all over again. */
+                href={`/directory/${gift.business_id}?book=${gift.service_id ?? ""}&gift=${gift.id}`}
                 className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper transition hover:brightness-95"
                 style={{ background: LOCAL }}
               >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { money, type Service } from "@/lib/local-data";
 import { GiftModal } from "./GiftModal";
 import { BookServiceModal } from "./BookServiceModal";
@@ -12,6 +12,8 @@ export function ServicesSection({
   isLoggedIn,
   signInHref,
   userId,
+  openServiceId,
+  openGiftId,
 }: {
   services: Service[];
   businessId: string;
@@ -19,9 +21,24 @@ export function ServicesSection({
   isLoggedIn: boolean;
   signInHref: string;
   userId: string | null;
+  /** From ?book=<serviceId> — open the picker on this service straight away. */
+  openServiceId?: string | null;
+  /** From ?gift=<giftId> — and fund it with this claimed gift. */
+  openGiftId?: string | null;
 }) {
   const [gift, setGift] = useState<Service | null>(null);
   const [book, setBook] = useState<Service | null>(null);
+  const [bookGiftId, setBookGiftId] = useState<string | null>(null);
+
+  // Arriving from a claimed booking gift: open the SAME modal the Book button
+  // opens, on the gifted service, with the gift attached. No second picker.
+  useEffect(() => {
+    if (!openServiceId) return;
+    const target = services.find((s) => s.id === openServiceId);
+    if (!target) return;
+    setBook(target);
+    setBookGiftId(openGiftId ?? null);
+  }, [openServiceId, openGiftId, services]);
 
   if (services.length === 0) return null;
 
@@ -46,7 +63,7 @@ export function ServicesSection({
                 Gift
               </button>
               <button
-                onClick={() => setBook(s)}
+                onClick={() => { setBookGiftId(null); setBook(s); }}
                 className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper transition hover:brightness-95"
                 style={{ background: accent }}
               >
@@ -71,13 +88,14 @@ export function ServicesSection({
       {book && (
         <BookServiceModal
           open={!!book}
-          onClose={() => setBook(null)}
+          onClose={() => { setBook(null); setBookGiftId(null); }}
           service={book}
           businessId={businessId}
           accent={accent}
           isLoggedIn={isLoggedIn}
           signInHref={signInHref}
           userId={userId}
+          giftId={bookGiftId}
         />
       )}
     </section>

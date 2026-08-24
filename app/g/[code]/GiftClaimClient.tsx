@@ -35,7 +35,9 @@ export function GiftClaimClient({ code }: { code: string }) {
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [claimedUnit, setClaimedUnit] = useState(false);
-  const [bookingTarget, setBookingTarget] = useState<{ businessId: string } | null>(null);
+  const [bookingTarget, setBookingTarget] = useState<
+    { businessId: string; serviceId: string | null; giftId: string } | null
+  >(null);
 
   // Recipient identity. `state` decides which of the three signed-in shapes the
   // page takes: claim, verify, or "this one isn't yours".
@@ -128,7 +130,11 @@ export function GiftClaimClient({ code }: { code: string }) {
       if (result.kind === "booking" && result.business_id) {
         // Booking gift: the recipient still needs to pick a slot. The booking flow
         // lives on the business page; we send them there with the gift attached.
-        setBookingTarget({ businessId: result.business_id });
+        setBookingTarget({
+          businessId: result.business_id,
+          serviceId: result.service_id,
+          giftId: result.gift_id,
+        });
       } else {
         // Unit gift: the purchase row is already spawned — it now lives in Passes.
         setClaimedUnit(true);
@@ -181,7 +187,7 @@ export function GiftClaimClient({ code }: { code: string }) {
           {gift.business_name}. Open the business to choose your slot — your gift is already attached.
         </p>
         <Link
-          href={`/directory/${bookingTarget.businessId}`}
+          href={`/directory/${bookingTarget.businessId}?book=${bookingTarget.serviceId ?? ""}&gift=${bookingTarget.giftId}`}
           className="mt-5 inline-block rounded-pill px-5 py-2.5 text-sm font-semibold text-paper"
           style={{ background: LOCAL }}
         >

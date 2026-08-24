@@ -265,6 +265,8 @@ export async function claimOffer(offerId: string): Promise<{ ok: boolean; alread
    gift_not_paid, gift_cancelled, gift_not_found, auth_required.                    */
 
 export interface GiftClaimResult {
+  /** claim_gift returns this; the booking flow needs it to attach the gift. */
+  gift_id: string;
   kind: "unit" | "booking";
   service_id: string | null;
   business_id: string;
