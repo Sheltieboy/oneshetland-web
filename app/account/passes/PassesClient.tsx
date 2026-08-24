@@ -12,12 +12,18 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+const STATUS_PILL: Record<MyPass["status"], { label: string; tone: string }> = {
+  active:  { label: "Active",   tone: "bg-emerald-50 text-emerald-700" },
+  used:    { label: "Used up",  tone: "bg-slate-100 text-slate-600" },
+  expired: { label: "Expired",  tone: "bg-amber-50 text-amber-700" },
+};
+
 function PassCard({ pass }: { pass: MyPass }) {
   const expiresLabel = pass.expires_at ? `Expires ${fmtDate(pass.expires_at)}` : "No expiry";
   const daysToExpiry = pass.expires_at
     ? Math.ceil((new Date(pass.expires_at).getTime() - Date.now()) / 86_400_000)
     : null;
-  const expiringSoon = daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
+  const expiringSoon = pass.status === "active" && daysToExpiry !== null && daysToExpiry >= 0 && daysToExpiry <= 7;
   const [redeeming, setRedeeming] = useState(false);
   const [usesLeft, setUsesLeft] = useState(pass.uses_remaining);
 
@@ -35,6 +41,9 @@ function PassCard({ pass }: { pass: MyPass }) {
                 Gift
               </span>
             )}
+            <span className={`shrink-0 rounded-pill px-2 py-0.5 text-xs font-bold ${STATUS_PILL[pass.status].tone}`}>
+              {STATUS_PILL[pass.status].label}
+            </span>
           </div>
           {pass.business_name && <p className="text-sm text-ink-muted">{pass.business_name}</p>}
         </div>
@@ -47,17 +56,32 @@ function PassCard({ pass }: { pass: MyPass }) {
 
       <div className="mt-3 flex items-center gap-4 rounded-card bg-sand px-4 py-3">
         <div className="flex-1">
-          <p className="font-display text-2xl font-bold text-ink">{usesLeft}</p>
-          <p className="text-xs font-semibold text-ink-muted">{usesLeft === 1 ? "use left" : "uses left"}</p>
+          {pass.status === "active" ? (
+            <>
+              <p className="font-display text-2xl font-bold text-ink">{usesLeft}</p>
+              <p className="text-xs font-semibold text-ink-muted">{usesLeft === 1 ? "use left" : "uses left"}</p>
+            </>
+          ) : (
+            <>
+              <p className="font-display text-lg font-bold text-ink">
+                {pass.status === "used" ? "Fully used" : "Expired"}
+              </p>
+              <p className="text-xs font-semibold text-ink-muted">
+                Bought {fmtDate(pass.created_at)}
+                {pass.fully_used_at ? ` · used up ${fmtDate(pass.fully_used_at)}` : ""}
+              </p>
+            </>
+          )}
         </div>
         <div className="h-8 w-px bg-line" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-ink">{expiresLabel}</p>
+          <p className="text-sm font-semibold text-ink">{pass.status === "active" ? expiresLabel : "\u00A0"}</p>
           <p className="text-xs font-semibold text-ink-muted">{gbp(pass.paid_amount_pence)} paid</p>
         </div>
       </div>
 
-      {usesLeft > 0 && (
+      {/* Only an ACTIVE pass can be spent. A used or expired one is a receipt. */}
+      {pass.status === "active" && usesLeft > 0 && (
         <button
           onClick={() => setRedeeming(true)}
           className="mt-3 block w-full rounded-pill py-2.5 text-sm font-semibold text-paper transition hover:brightness-95"
@@ -111,6 +135,11 @@ export function PassesClient() {
     );
   }
 
+  const active = passes.filter((p) => p.status === "active");
+  const previous = passes.filter((p) => p.status !== "active");
+
+  // "Nothing yet" now means exactly that: never bought one. Somebody who has
+  // used theirs up sees their history instead of being told it never happened.
   if (passes.length === 0) {
     return (
       <div className="rounded-card border border-line bg-paper p-10 text-center shadow-soft">
@@ -130,10 +159,24 @@ export function PassesClient() {
   }
 
   return (
-    <ul className="space-y-2">
-      {passes.map((p) => (
-        <PassCard key={p.id} pass={p} />
-      ))}
-    </ul>
+    <div className="space-y-8">
+      <section>
+        <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Active</h2>
+        {active.length > 0 ? (
+          <ul className="space-y-2">{active.map((p) => <PassCard key={p.id} pass={p} />)}</ul>
+        ) : (
+          <p className="rounded-card border border-line bg-paper px-4 py-3 text-sm text-ink-muted">
+            Nothing to use right now.
+          </p>
+        )}
+      </section>
+
+      {previous.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Previous passes</h2>
+          <ul className="space-y-2">{previous.map((p) => <PassCard key={p.id} pass={p} />)}</ul>
+        </section>
+      )}
+    </div>
   );
 }

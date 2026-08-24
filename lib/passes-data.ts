@@ -25,6 +25,22 @@ export interface MyPass {
   business_name: string | null;
   /** True if this purchase was acquired by claiming a gift. */
   from_gift: boolean;
+  fully_used_at: string | null;
+  /**
+   * A purchase is an entitlement while it lasts and a receipt for ever after.
+   *
+   * The query used to ask only the first question — .gt("uses_remaining", 0)
+   * plus an unexpired filter — so a pass vanished from the customer's account
+   * the moment they finished using it, and the page said "Nothing yet" to
+   * somebody who had bought and used one that afternoon.
+   */
+  status: "active" | "used" | "expired";
+}
+
+function classify(usesRemaining: number, expiresAt: string | null): MyPass["status"] {
+  if (usesRemaining <= 0) return "used";
+  if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return "expired";
+  return "active";
 }
 
 export async function fetchMyPasses(): Promise<MyPass[]> {
@@ -32,18 +48,18 @@ export async function fetchMyPasses(): Promise<MyPass[]> {
   const { data: auth } = await sb.auth.getUser();
   if (!auth.user) return [];
 
-  const nowIso = new Date().toISOString();
+  // Everything this person has ever bought. Owner-scoped by the same
+  // owner_id filter and the same RLS as before — the two filters removed here
+  // were about USABILITY, not access, and they belong in the rendering.
   const { data, error } = await sb
     .from("book_unit_purchases")
     .select(
       `id, item_id, business_id, uses_remaining, paid_amount_pence,
-       expires_at, created_at, gift_id,
+       expires_at, created_at, gift_id, fully_used_at,
        item:book_unit_items ( name ),
        business:local_businesses ( name )`,
     )
     .eq("owner_id", auth.user.id)
-    .gt("uses_remaining", 0)
-    .or(`expires_at.is.null,expires_at.gt.${nowIso}`)
     .order("created_at", { ascending: false });
   if (error) throw error;
 
@@ -58,6 +74,8 @@ export async function fetchMyPasses(): Promise<MyPass[]> {
     item_name: (r.item as { name?: string } | null)?.name ?? null,
     business_name: (r.business as { name?: string } | null)?.name ?? null,
     from_gift: !!r.gift_id,
+    fully_used_at: (r.fully_used_at as string | null) ?? null,
+    status: classify(r.uses_remaining as number, (r.expires_at as string | null) ?? null),
   }));
 }
 
