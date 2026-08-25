@@ -4,8 +4,35 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approveMember, rejectMember, setMemberRole } from "@/lib/hubs-client";
 import type { HubMember } from "@/lib/hubs-data";
+import type { MembershipPurchase } from "@/lib/hubs-server";
+import { gbp } from "@/lib/stripe";
 
-export function MembersManager({ pending, members, accent }: { pending: HubMember[]; members: HubMember[]; accent: string }) {
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * What the hub can see about one member's paid standing. Deliberately the
+ * membership facts only — no Stripe identifiers, no card details, nothing the
+ * hub has no business holding.
+ */
+function MemberDetail({ m }: { m: HubMember }) {
+  const bits: string[] = [];
+  if (m.member_no) bits.push(`No. ${m.member_no}`);
+  if (m.membership_type?.name) bits.push(m.membership_type.name);
+  if (m.paid_until) bits.push(`valid until ${fmtDate(m.paid_until)}`);
+  else if ((m.last_payment_pence ?? 0) > 0) bits.push("life membership");
+  bits.push(`joined ${fmtDate(m.joined_at)}`);
+  return <p className="mt-0.5 text-xs text-ink-muted">{bits.join(" · ")}</p>;
+}
+
+export function MembersManager({ pending, members, past, ledger, accent }: {
+  pending: HubMember[];
+  members: HubMember[];
+  past: HubMember[];
+  ledger: MembershipPurchase[];
+  accent: string;
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -42,9 +69,10 @@ export function MembersManager({ pending, members, accent }: { pending: HubMembe
         <ul className="mt-4 space-y-2">
           {members.map((m) => (
             <li key={m.id} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-paper p-4 shadow-soft">
-              <div>
+              <div className="min-w-0">
                 <span className="font-semibold text-ink">{m.profile?.full_name || "Member"}</span>
                 <span className="ml-2 rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold capitalize text-ink-muted">{m.role}</span>
+                <MemberDetail m={m} />
               </div>
               {m.role !== "owner" && (
                 <button
@@ -59,6 +87,53 @@ export function MembersManager({ pending, members, accent }: { pending: HubMembe
           ))}
         </ul>
       </section>
+
+      {/* Members who have gone. They used to vanish entirely — the row was
+          deleted — which took the hub's own record of them with it. */}
+      {past.length > 0 && (
+        <section>
+          <h2 className="font-display text-xl font-bold">Past members ({past.length})</h2>
+          <ul className="mt-4 space-y-2">
+            {past.map((m) => (
+              <li key={m.id} className="rounded-xl border border-line bg-paper/60 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold text-ink">{m.profile?.full_name || "Member"}</span>
+                  <span className="rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold text-ink-muted">
+                    {m.status === "removed" ? "Removed" : "Left"}
+                    {m.ended_at ? ` ${fmtDate(m.ended_at)}` : ""}
+                  </span>
+                </div>
+                <MemberDetail m={m} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* The hub's own membership income. Survives a member leaving, because
+          the payment happened whether or not they are still here. */}
+      {ledger.length > 0 && (
+        <section>
+          <h2 className="font-display text-xl font-bold">Membership payments ({ledger.length})</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            {gbp(ledger.reduce((sum, p) => sum + p.face_pence, 0))} to the hub across all membership payments.
+          </p>
+          <ul className="mt-4 space-y-2">
+            {ledger.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-paper p-4">
+                <div className="min-w-0">
+                  <p className="font-semibold text-ink">{p.tier_name}</p>
+                  <p className="text-xs text-ink-muted">
+                    {fmtDate(p.occurred_at)}
+                    {p.paid_until_after ? ` · covers until ${fmtDate(p.paid_until_after)}` : " · lifetime"}
+                  </p>
+                </div>
+                <p className="shrink-0 font-display text-lg font-bold text-ink">{gbp(p.face_pence)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

@@ -12,8 +12,20 @@ export async function joinHub(hubId: string, membershipTypeId?: string | null): 
   const sb = createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) throw new Error("Please sign in to join.");
-  // Re-join path: clear any prior 'left'/'rejected' row first.
-  await sb.from("hub_members").delete().eq("hub_id", hubId).eq("user_id", user.id).in("status", ["left", "rejected"]);
+
+  // Someone who has been here before still has their row — it now says 'left'
+  // rather than being deleted, because it is also their receipt. Ask the server
+  // to restore it; it decides what that costs.
+  const { data: existing } = await sb.from("hub_members")
+    .select("id").eq("hub_id", hubId).eq("user_id", user.id).maybeSingle();
+  if (existing) {
+    const res = await rejoinHub(hubId, membershipTypeId ?? null);
+    if (!res.rejoined && res.reason === "payment_required") {
+      throw new Error("Your membership has run out — please choose a tier to renew.");
+    }
+    return;
+  }
+
   const { error } = await sb.from("hub_members").insert({
     hub_id: hubId,
     user_id: user.id,
@@ -23,11 +35,34 @@ export async function joinHub(hubId: string, membershipTypeId?: string | null): 
   if (error) throw error;
 }
 
+export type RejoinResult = {
+  rejoined: boolean;
+  reason?: string;
+  charged?: boolean;
+  paid_until?: string | null;
+};
+
+/**
+ * Come back to a hub you left. Paid time you have already bought is honoured
+ * to its original expiry — no new payment, no wallet debit, no extension.
+ */
+export async function rejoinHub(hubId: string, membershipTypeId?: string | null): Promise<RejoinResult> {
+  const sb = createClient();
+  const { data, error } = await sb.rpc("hub_rejoin", { p_hub: hubId, p_type: membershipTypeId ?? null });
+  if (error) throw error;
+  return (data ?? { rejoined: false }) as RejoinResult;
+}
+
+/**
+ * Leave a hub. The membership ends but is not erased: what was paid, until
+ * when, and the payment it came from all stay, so the receipt survives and
+ * coming back inside the paid period costs nothing.
+ */
 export async function leaveHub(hubId: string): Promise<void> {
   const sb = createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return;
-  const { error } = await sb.from("hub_members").delete().eq("hub_id", hubId).eq("user_id", user.id);
+  const { error } = await sb.rpc("hub_leave", { p_hub: hubId });
   if (error) throw error;
 }
 

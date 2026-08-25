@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getHub, hubAccent } from "@/lib/hubs-data";
-import { getHubMembers, isHubAdmin } from "@/lib/hubs-server";
+import { getHubMembers, getHubMembershipLedger, isHubAdmin } from "@/lib/hubs-server";
 import { MembersManager } from "@/components/hubs/admin/MembersManager";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +14,12 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
   const admin = await isHubAdmin(hub.id);
   if (!admin.isAdmin) redirect(`/hubs/${hub.slug || hub.id}`);
 
-  const [pending, members] = await Promise.all([
+  const [pending, members, left, removed, ledger] = await Promise.all([
     getHubMembers(hub.id, "pending"),
     getHubMembers(hub.id, "active"),
+    getHubMembers(hub.id, "left"),
+    getHubMembers(hub.id, "removed"),
+    getHubMembershipLedger(hub.id),
   ]);
   const accent = hubAccent(hub);
 
@@ -27,7 +30,13 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       </Link>
       <h1 className="mt-3 font-display text-3xl font-bold">Members</h1>
       <div className="mt-8">
-        <MembersManager pending={pending} members={members} accent={accent} />
+        <MembersManager
+          pending={pending}
+          members={members}
+          past={[...left, ...removed]}
+          ledger={ledger}
+          accent={accent}
+        />
       </div>
     </div>
   );

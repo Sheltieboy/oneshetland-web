@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { MembershipCheckout } from "@/components/hubs/MembershipCheckout";
-import { joinHub, leaveHub } from "@/lib/hubs-client";
-import { membershipPrice, isMembershipActive, type HubMembershipType, type HubMember, type JoinMode } from "@/lib/hubs-data";
+import { joinHub, leaveHub, rejoinHub } from "@/lib/hubs-client";
+import { membershipPrice, isMembershipActive, retainsPaidTime, type HubMembershipType, type HubMember, type JoinMode } from "@/lib/hubs-data";
 
 export function HubMembershipPanel({
   hubId,
@@ -107,6 +107,50 @@ export function HubMembershipPanel({
           </button>
         </div>
 
+      </Panel>
+    );
+  }
+
+  // Left, but the period they paid for is still running. Coming back is theirs
+  // already — no checkout, no charge, and the same expiry they had before.
+  if (membership && retainsPaidTime(membership)) {
+    const backTier = membership.membership_type_id
+      ? tiers.find((t) => t.id === membership.membership_type_id) ?? null
+      : null;
+    return (
+      <Panel accent={accent}>
+        {error && <p className="mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+        <p className="font-display text-lg font-bold text-ink">You left {hubName}</p>
+        <p className="mt-1 text-sm text-ink-soft">
+          Your {backTier ? `${backTier.name} ` : ""}membership is still paid up
+          {membership.paid_until
+            ? ` until ${new Date(membership.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`
+            : " for life"}
+          . Coming back costs nothing.
+        </p>
+        <button
+          onClick={async () => {
+            setBusy(true);
+            setError(null);
+            try {
+              const res = await rejoinHub(hubId);
+              if (!res.rejoined) throw new Error("That membership can no longer be restored.");
+              refresh();
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Could not rejoin.");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          disabled={busy}
+          className="mt-4 rounded-pill px-5 py-2.5 font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
+          style={{ background: accent }}
+        >
+          {busy ? "Rejoining…" : "Rejoin — nothing to pay"}
+        </button>
+        <p className="mt-3 text-xs text-ink-muted">
+          Rejoining does not extend your membership or start a new period.
+        </p>
       </Panel>
     );
   }

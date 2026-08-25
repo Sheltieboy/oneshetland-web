@@ -7,7 +7,7 @@ export type HubType =
   | "society" | "volunteer" | "arts" | "community" | "other";
 
 export type HubRole = "member" | "committee" | "owner";
-export type HubStatus = "pending" | "active" | "rejected" | "left";
+export type HubStatus = "pending" | "active" | "rejected" | "left" | "removed";
 export type JoinMode = "open" | "approval";
 export type NoticeVisibility = "public" | "members" | "committee";
 export type MembershipPeriod = "once" | "month" | "year";
@@ -107,6 +107,8 @@ export type HubMember = {
   membership_type_id: string | null;
   member_no: string | null;
   paid_until: string | null;
+  last_payment_pence?: number | null;
+  ended_at?: string | null;
   profile?: { full_name: string | null; avatar_url: string | null } | null;
   membership_type?: Pick<HubMembershipType, "id" | "name" | "price_pence" | "period"> | null;
   hub?: Pick<Hub, "id" | "name" | "brand_color" | "logo_url" | "type"> | null;
@@ -117,6 +119,20 @@ export function isMembershipActive(m: Pick<HubMember, "status" | "paid_until">):
   if (m.status !== "active") return false;
   if (!m.paid_until) return true;
   return new Date(m.paid_until).getTime() > Date.now();
+}
+
+/**
+ * Someone who left, but whose paid period is still running. Coming back costs
+ * them nothing and does not extend the period — the server decides this too
+ * (hub_rejoin), this is only what the page needs to say so.
+ *
+ * A lifetime membership has no expiry, so it is told apart from a free one by
+ * having been paid for.
+ */
+export function retainsPaidTime(m: Pick<HubMember, "status" | "paid_until" | "last_payment_pence">): boolean {
+  if (m.status !== "left") return false;
+  if (m.paid_until) return new Date(m.paid_until).getTime() > Date.now();
+  return (m.last_payment_pence ?? 0) > 0;
 }
 
 export type HubEvent = {

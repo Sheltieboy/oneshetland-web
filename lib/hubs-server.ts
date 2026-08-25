@@ -55,6 +55,56 @@ export async function getHubMembers(hubId: string, status?: string): Promise<Hub
   return (data ?? []) as HubMember[];
 }
 
+export type MembershipPurchase = {
+  id: string;
+  hub_id: string | null;
+  hub_name: string;
+  tier_name: string;
+  period: string;
+  face_pence: number;
+  fee_pence: number | null;
+  total_pence: number | null;
+  payment_method: "card" | "wallet" | "unknown";
+  paid_until_after: string | null;
+  source: "live" | "backfill";
+  occurred_at: string;
+};
+
+const PURCHASE_COLUMNS =
+  "id, hub_id, hub_name, tier_name, period, face_pence, fee_pence, total_pence, payment_method, paid_until_after, source, occurred_at" as const;
+
+/**
+ * Every membership the signed-in user has paid for, newest first.
+ *
+ * This is a financial record, not a list of current memberships: it survives
+ * leaving, renewing and the tier being deleted, which is the whole reason the
+ * table exists. Rows marked 'backfill' are real payments reconstructed from the
+ * membership row that held them, so their fee is not known and is shown as such
+ * rather than being back-calculated from today's fee.
+ */
+export async function getMyMembershipPurchases(): Promise<MembershipPurchase[]> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return [];
+  const { data } = await sb
+    .from("hub_membership_purchases")
+    .select(PURCHASE_COLUMNS)
+    .eq("user_id", user.id)
+    .order("occurred_at", { ascending: false });
+  return (data ?? []) as MembershipPurchase[];
+}
+
+/** The membership income a hub's own admins can account for. */
+export async function getHubMembershipLedger(hubId: string): Promise<MembershipPurchase[]> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("hub_membership_purchases")
+    .select(PURCHASE_COLUMNS)
+    .eq("hub_id", hubId)
+    .order("occurred_at", { ascending: false });
+  return (data ?? []) as MembershipPurchase[];
+}
+
 export type DirectoryEntry = { user_id: string; name: string; role: HubRole; tier: string };
 
 /** Privacy-safe member directory (members-only), via RPC. */
@@ -75,6 +125,24 @@ export async function getMyHubMemberships(): Promise<HubMember[]> {
     .eq("user_id", user.id)
     .eq("status", "active")
     .order("joined_at", { ascending: false });
+  return (data ?? []) as HubMember[];
+}
+
+/**
+ * Memberships the signed-in user no longer holds. Kept because leaving now
+ * ends a membership instead of deleting it — some of these still have paid
+ * time left on them and can be restored for nothing.
+ */
+export async function getMyEndedMemberships(): Promise<HubMember[]> {
+  const sb = await createClient();
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) return [];
+  const { data } = await sb
+    .from("hub_members")
+    .select("*, hub:hubs ( id, name, brand_color, logo_url, type ), membership_type:hub_membership_types ( id, name, price_pence, period )")
+    .eq("user_id", user.id)
+    .in("status", ["left", "removed"])
+    .order("ended_at", { ascending: false });
   return (data ?? []) as HubMember[];
 }
 
