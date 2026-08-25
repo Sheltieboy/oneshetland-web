@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { gbp } from "@/lib/stripe";
-import { fetchWalletBalance } from "@/lib/local-commerce-client";
+import { fetchWalletState } from "@/lib/local-commerce-client";
 import { fetchWalletTransactions, type WalletTransaction, type WalletTxType } from "@/lib/wallet-data";
 import { WalletTopUpModal } from "@/components/local/WalletTopUpModal";
 import { PayAtTillCard } from "@/components/local/PayAtTillCard";
@@ -23,6 +23,7 @@ function txTitle(tx: WalletTransaction): string {
 
 export function WalletClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [balance, setBalance] = useState<number | null>(null);
+  const [deficit, setDeficit] = useState(0);
   const [txs, setTxs] = useState<WalletTransaction[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -30,8 +31,9 @@ export function WalletClient({ isLoggedIn }: { isLoggedIn: boolean }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [b, t] = await Promise.all([fetchWalletBalance(), fetchWalletTransactions()]);
-      setBalance(b);
+      const [w, t] = await Promise.all([fetchWalletState(), fetchWalletTransactions()]);
+      setBalance(w.balancePence);
+      setDeficit(w.deficitPence);
       setTxs(t);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load your wallet.");
@@ -61,12 +63,27 @@ export function WalletClient({ isLoggedIn }: { isLoggedIn: boolean }) {
           Top up wallet
         </button>
         <p className="mt-3 text-sm text-paper/75">
-          Add credit to spend at participating Shetland businesses.
+          {deficit > 0
+            ? "Top up to clear what's owed — anything above it becomes spendable straight away."
+            : "Add credit to spend at participating Shetland businesses."}
         </p>
       </div>
 
+      {/* A refunded or charged-back top-up the balance could not cover. The
+          debit itself refuses while this stands, so the page has to say why
+          rather than show a spendable-looking balance that will be declined. */}
+      {deficit > 0 && (
+        <div className="rounded-card border border-amber-300 bg-amber-50 p-5">
+          <p className="font-display text-lg font-bold text-amber-900">Wallet funds temporarily unavailable</p>
+          <p className="mt-1 text-sm text-amber-800">
+            {gbp(deficit)} of a refunded top-up is still to be paid back, so the wallet can&apos;t be
+            spent just now. Your next top-up clears it first, and anything above it is yours to spend.
+          </p>
+        </div>
+      )}
+
       {/* Pay at till */}
-      <PayAtTillCard balancePence={balance} onPaid={() => void load()} />
+      {deficit === 0 && <PayAtTillCard balancePence={balance} onPaid={() => void load()} />}
 
       {/* Transactions */}
       <section>

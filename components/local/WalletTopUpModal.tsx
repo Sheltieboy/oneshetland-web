@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startWalletTopUp, confirmWalletTopUp } from "@/lib/local-commerce-client";
+import { useAttemptId } from "@/lib/use-attempt-id";
 import { gbp } from "@/lib/stripe";
 
 const PRESETS = [1000, 2000, 5000, 10000];
@@ -38,6 +39,10 @@ export function WalletTopUpModal({
   const [newBalance, setNewBalance] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One reference per deliberate top-up. It survives a retry and an SCA
+  // challenge — both are the same top-up — and changing the amount starts a new
+  // one. Closing the modal unmounts it, so the next top-up is genuinely new.
+  const attemptId = useAttemptId(`${amount}|${customAmount}`);
 
   async function proceed() {
     setError(null);
@@ -47,7 +52,7 @@ export function WalletTopUpModal({
     }
     setBusy(true);
     try {
-      const res = await startWalletTopUp(amount, true);   // use the saved card (server shows the card form if none)
+      const res = await startWalletTopUp(amount, attemptId(), true);   // saved card; server shows the card form if none
       if ("charged" in res) {
         const r = await confirmWalletTopUp(res.payment_intent_id);
         setNewBalance(r.balance_pence);

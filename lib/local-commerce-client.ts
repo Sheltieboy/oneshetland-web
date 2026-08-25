@@ -159,11 +159,25 @@ export type WalletTopUpStart =
   | { charged: true; payment_intent_id: string }
   | { clientSecret: string; payment_intent_id: string };
 
-export async function startWalletTopUp(amountPence: number, useSavedCard = true): Promise<WalletTopUpStart> {
-  // Safe to retry: the off-session charge carries a Stripe Idempotency-Key, so a
-  // retried request returns the SAME PaymentIntent — never a second charge.
+/**
+ * `attemptId` is the reference for ONE deliberate top-up, minted by the modal
+ * and held across retries and SCA.
+ *
+ * The Edge Function supported this all along and neither client ever sent it,
+ * so the key fell back to `topup-<user>-<amount>` — and a customer topping up
+ * £10 twice in a day got the first PaymentIntent back and was told their money
+ * had arrived when it had not.
+ */
+export async function startWalletTopUp(
+  amountPence: number,
+  attemptId: string,
+  useSavedCard = true,
+): Promise<WalletTopUpStart> {
+  // Safe to retry: the off-session charge carries a Stripe Idempotency-Key built
+  // from THIS attempt, so a retried request returns the SAME PaymentIntent —
+  // never a second charge, and never somebody else's earlier one.
   const { data, error } = await invokeSafeRetry("local-wallet-topup-intent", {
-    body: { amount_pence: amountPence, use_saved_card: useSavedCard },
+    body: { amount_pence: amountPence, use_saved_card: useSavedCard, client_request_id: attemptId },
   });
   if (error) return invokeError(error as { message: string });
   // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
@@ -190,15 +204,26 @@ export async function confirmWalletTopUp(paymentIntentId: string): Promise<{ bal
    call — { ok, balance_pence, ...type-specific }. No confirm step (self-contained). */
 
 export async function fetchWalletBalance(): Promise<number> {
+  return (await fetchWalletState()).balancePence;
+}
+
+/**
+ * Balance AND what the wallet owes. A refunded or charged-back top-up that the
+ * balance could not cover leaves a deficit; spending is refused by the debit
+ * primitive itself while it stands, so the screen has to be able to say why
+ * rather than presenting a spendable-looking balance that will be refused.
+ */
+export async function fetchWalletState(): Promise<{ balancePence: number; deficitPence: number }> {
   const sb = createClient();
   const { data: auth } = await sb.auth.getUser();
-  if (!auth.user) return 0;
+  if (!auth.user) return { balancePence: 0, deficitPence: 0 };
   const { data } = await sb
     .from("local_wallet_balances")
-    .select("balance_pence")
+    .select("balance_pence, deficit_pence")
     .eq("user_id", auth.user.id)
     .maybeSingle();
-  return (data as { balance_pence: number } | null)?.balance_pence ?? 0;
+  const row = data as { balance_pence: number; deficit_pence: number | null } | null;
+  return { balancePence: row?.balance_pence ?? 0, deficitPence: row?.deficit_pence ?? 0 };
 }
 
 /* ── Pay at till (wallet → business) ───────────────────────────────────────────
