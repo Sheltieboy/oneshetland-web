@@ -14,7 +14,15 @@ export default async function CampaignsAdminPage({ params }: { params: Promise<{
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/hubs/${hub.slug || hub.id}/manage`} className="text-sm font-semibold hover:underline" style={{ color: accent }}>← Back to management</Link>
-      <h1 className="mt-3 font-display text-3xl font-bold">Fundraising</h1>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-3xl font-bold">Fundraising</h1>
+        <Link
+          href={`/hubs/${hub.slug || hub.id}/manage/donations`}
+          className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand"
+        >
+          Donations
+        </Link>
+      </div>
       <div className="mt-8"><CampaignsManager hubId={hub.id} campaigns={campaigns} accent={accent} /></div>
     </div>
   );

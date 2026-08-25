@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getHub, hubAccent, type Hub, type HubMember, type HubRole } from "@/lib/hubs-data";
+import { getHub, hubAccent, type Hub, type HubMember, type HubRole, type MyDonation } from "@/lib/hubs-data";
 
 /** Load a hub by slug/id and require the signed-in user to be an admin.
  *  notFound() if the hub is missing; redirect to the public page otherwise. */
@@ -113,4 +113,76 @@ export async function getHubDonations(hubId: string, giftAidOnly = false): Promi
   if (giftAidOnly) q = q.eq("gift_aid", true);
   const { data } = await q;
   return (data ?? []) as Record<string, unknown>[];
+}
+
+/**
+ * Everything this person has given, ever.
+ *
+ * Reads the snapshotted hub and campaign names rather than joining, so an
+ * edited campaign title does not rewrite an old receipt and a deleted one does
+ * not blank it. RLS scopes this to the donor — there is no donor filter here
+ * because there does not need to be one, and adding it would invite the belief
+ * that it is what protects the data.
+ *
+ * Deliberately NOT selected: stripe_payment_intent_id, fee_pence, and every
+ * ga_* declarant field. The donor knows what they gave; the payment reference
+ * is an idempotency key and the home address belongs to the Gift Aid export.
+ */
+export async function getMyDonations(): Promise<MyDonation[]> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("hub_donations")
+    .select("id, hub_id, hub_name, campaign_title, amount_pence, is_anonymous, message, gift_aid, payment_method, created_at")
+    .order("created_at", { ascending: false });
+  return (data ?? []) as MyDonation[];
+}
+
+export type HubDonationRow = {
+  id: string;
+  campaign_title: string | null;
+  amount_pence: number;
+  is_anonymous: boolean;
+  message: string | null;
+  gift_aid: boolean;
+  payment_method: "card" | "wallet" | null;
+  created_at: string;
+  donorName: string;
+};
+
+/**
+ * The itemised donation ledger for a hub's own admins.
+ *
+ * Donor naming follows the rule the product already applies everywhere else:
+ * the notification a hub admin receives for an anonymous donation says "An
+ * anonymous supporter", so this says the same. Being an admin is not a way
+ * round somebody's choice — RLS lets an admin read donor_user_id, and this
+ * deliberately does not ask for it.
+ *
+ * Gift Aid appears as a yes/no. The declarant's name, address and postcode stay
+ * where they belong, behind the existing Gift Aid export.
+ */
+export async function getHubDonationLedger(hubId: string): Promise<HubDonationRow[]> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("hub_donations")
+    .select("id, campaign_title, amount_pence, is_anonymous, message, gift_aid, payment_method, created_at, donor_user_id")
+    .eq("hub_id", hubId)
+    .order("created_at", { ascending: false });
+
+  const rows = (data ?? []) as (Omit<HubDonationRow, "donorName"> & { donor_user_id: string | null })[];
+  const namedIds = [...new Set(rows.filter((r) => !r.is_anonymous && r.donor_user_id).map((r) => r.donor_user_id as string))];
+  const names = new Map<string, string>();
+  if (namedIds.length) {
+    const { data: profs } = await sb.from("profiles").select("id, display_name, full_name").in("id", namedIds);
+    for (const p of (profs ?? []) as { id: string; display_name: string | null; full_name: string | null }[]) {
+      names.set(p.id, p.display_name || p.full_name || "A supporter");
+    }
+  }
+
+  return rows.map(({ donor_user_id, ...r }) => ({
+    ...r,
+    donorName: r.is_anonymous
+      ? "An anonymous supporter"
+      : (donor_user_id ? names.get(donor_user_id) ?? "A supporter" : "A supporter"),
+  }));
 }

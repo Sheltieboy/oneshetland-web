@@ -407,6 +407,19 @@ export async function getCampaign(id: string): Promise<HubCampaign | null> {
  * backend is authoritative; this only decides whether to offer the CTA, so a
  * finished campaign stops inviting money it will then refuse.
  */
+export type MyDonation = {
+  id: string;
+  hub_id: string | null;
+  hub_name: string | null;
+  campaign_title: string | null;
+  amount_pence: number;
+  is_anonymous: boolean;
+  message: string | null;
+  gift_aid: boolean;
+  payment_method: "card" | "wallet" | null;
+  created_at: string;
+};
+
 export function campaignAcceptsDonations(
   c: { status: string; ends_at?: string | null },
 ): boolean {
