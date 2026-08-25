@@ -71,10 +71,32 @@ export async function confirmMembership(paymentIntentId: string): Promise<{ ok: 
 
 export type GiftAid = { title?: string | null; first_name: string; last_name: string; address: string; postcode: string };
 
-export async function startDonation(campaignId: string, amountPence: number, useSavedCard = true, coverFees = false): Promise<PaymentStart> {
+/**
+ * `attemptId` is the reference for ONE deliberate donation, minted by the modal
+ * and held across retries and SCA. It goes into the Stripe idempotency key, so
+ * pressing Donate twice reaches the same PaymentIntent while a genuinely second
+ * donation reaches a new one.
+ *
+ * The donor's anonymity, message and Gift Aid go in HERE rather than at confirm
+ * time. They used to travel only in the confirm call, so a Stripe webhook that
+ * arrived first recorded the donation without them — and published the name of
+ * somebody who had asked to be anonymous.
+ */
+export async function startDonation(
+  campaignId: string,
+  amountPence: number,
+  attemptId: string,
+  opts: { useSavedCard?: boolean; coverFees?: boolean; message?: string | null; anonymous?: boolean; giftAid?: GiftAid | null } = {},
+): Promise<PaymentStart> {
+  const { useSavedCard = true, coverFees = false, message = null, anonymous = false, giftAid = null } = opts;
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-hub-donation-intent", {
-    body: { campaign_id: campaignId, amount_pence: amountPence, use_saved_card: useSavedCard, cover_fees: coverFees },
+    body: {
+      campaign_id: campaignId, amount_pence: amountPence,
+      client_request_id: attemptId,
+      use_saved_card: useSavedCard, cover_fees: coverFees,
+      message, anonymous, gift_aid: giftAid,
+    },
   });
   if (error) return invokeError(error);
   // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
@@ -87,18 +109,17 @@ export async function startDonation(campaignId: string, amountPence: number, use
   return data as PaymentStart;
 }
 
-export async function confirmDonation(
-  paymentIntentId: string,
-  opts: { message?: string | null; anonymous?: boolean; giftAid?: GiftAid | null } = {},
-): Promise<{ ok: boolean }> {
+/**
+ * The fast answer for a donor watching the screen. It no longer carries their
+ * choices — those are already stored server-side against the attempt, which is
+ * what lets the webhook fulfil correctly on its own. This call now only tells
+ * the server that the payment is done, and may legitimately find the webhook
+ * already did the work (`already: true` — that is success, not a duplicate).
+ */
+export async function confirmDonation(paymentIntentId: string): Promise<{ ok: boolean; already?: boolean }> {
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("confirm-hub-donation", {
-    body: {
-      payment_intent_id: paymentIntentId,
-      message: opts.message ?? null,
-      anonymous: opts.anonymous ?? false,
-      gift_aid: opts.giftAid ?? null,
-    },
+    body: { payment_intent_id: paymentIntentId },
   });
   if (error) return invokeError(error);
   return data;

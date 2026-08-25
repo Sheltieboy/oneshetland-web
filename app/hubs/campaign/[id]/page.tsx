@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getCampaign, getHub, getCampaignDonors, hubAccent } from "@/lib/hubs-data";
+import { getCampaign, getHub, getCampaignDonors, hubAccent, campaignAcceptsDonations } from "@/lib/hubs-data";
 import { getAccount } from "@/lib/auth";
 import { gbp } from "@/lib/stripe";
 import { CampaignDonate } from "@/components/hubs/CampaignDonate";
@@ -94,6 +94,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                 isLoggedIn={!!account}
                 signInHref={`/sign-in?next=/hubs/campaign/${campaign.id}`}
                 closed={campaign.status === "closed"}
+              ended={!campaignAcceptsDonations(campaign)}
               />
             </div>
             {hub.is_charity && !!hub.charity_number && (

@@ -11,6 +11,7 @@ export function CampaignDonate({
   isLoggedIn,
   signInHref,
   closed,
+  ended = false,
 }: {
   campaignId: string;
   hubName: string;
@@ -19,12 +20,15 @@ export function CampaignDonate({
   isLoggedIn: boolean;
   signInHref: string;
   closed: boolean;
+  ended?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  if (closed) {
+  // A campaign past its end date is no longer accepting money — the backend
+  // refuses it, so the page should stop asking rather than invite a 409.
+  if (closed || ended) {
     return (
       <div className="rounded-pill border border-line-strong px-5 py-3 text-center font-semibold text-ink-muted">
-        This campaign is closed
+        {closed ? "This campaign is closed" : "This campaign has ended"}
       </div>
     );
   }

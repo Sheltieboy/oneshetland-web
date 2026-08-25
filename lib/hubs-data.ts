@@ -401,6 +401,19 @@ export async function getCampaign(id: string): Promise<HubCampaign | null> {
 }
 
 /** Public donor wall for a campaign (safe fields only, via RPC). */
+/**
+ * Can this campaign still take a donation? Mirrors the server rule in
+ * campaign_donation_eligibility — active, and not past its end date. The
+ * backend is authoritative; this only decides whether to offer the CTA, so a
+ * finished campaign stops inviting money it will then refuse.
+ */
+export function campaignAcceptsDonations(
+  c: { status: string; ends_at?: string | null },
+): boolean {
+  if (c.status !== "active") return false;
+  return !c.ends_at || new Date(c.ends_at).getTime() > Date.now();
+}
+
 export async function getCampaignDonors(campaignId: string): Promise<DonorWallEntry[]> {
   const sb = publicClient();
   try {

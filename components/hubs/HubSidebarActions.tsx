@@ -5,6 +5,7 @@ import Link from "next/link";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { DonateModal } from "@/components/hubs/DonateModal";
 import { gbp } from "@/lib/stripe";
+import { campaignAcceptsDonations } from "@/lib/hubs-data";
 
 type DirectoryEntry = { user_id: string; name: string; role: string; tier?: string | null };
 type Donor = { name: string | null; amount_pence: number; is_anonymous: boolean };
@@ -115,11 +116,11 @@ export function CampaignSidebar({
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setDonateOpen(true)}
-            disabled={campaign.status === "closed"}
+            disabled={!campaignAcceptsDonations(campaign)}
             className="flex-1 rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
             style={{ background: accent }}
           >
-            Donate
+            {campaignAcceptsDonations(campaign) ? "Donate" : campaign.status === "closed" ? "Closed" : "Ended"}
           </button>
           <Link
             href={`/hubs/campaign/${campaign.id}`}

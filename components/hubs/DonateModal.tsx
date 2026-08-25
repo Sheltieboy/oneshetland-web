@@ -45,8 +45,13 @@ export function DonateModal({
   const [walletPence, setWalletPence] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Changing the amount makes it a different donation.
-  const attemptId = useAttemptId(`${campaignId}|${amount}|${custom}`);
+  // Changing ANY of the donor's choices makes it a different donation, because
+  // the attempt now stores those choices server-side: reusing the reference
+  // after changing your mind would resolve to the attempt that recorded the old
+  // answer. Amount, cover-fee, anonymity, message and Gift Aid all reset it.
+  const attemptId = useAttemptId(
+    `${campaignId}|${amount}|${custom}|${coverFees}|${anonymous}|${message}|${giftAid}|${JSON.stringify(ga)}`,
+  );
 
   const pence = custom ? Math.round(parseFloat(custom) * 100) : amount;
   const validAmount = pence >= 100;
@@ -70,9 +75,14 @@ export function DonateModal({
     setError(null);
     setBusy(true);
     try {
-      const res = await startDonation(campaignId, pence, true, coverFees);   // use the donor's saved card (server shows the card form if none)
+      // The donor's choices go with the INTENT, not the confirmation, so a
+      // webhook that beats this browser still records them.
+      const res = await startDonation(campaignId, pence, attemptId(), {
+        useSavedCard: true,   // server shows the card form if none is on file
+        coverFees, message, anonymous, giftAid: giftAid ? ga : null,
+      });
       if (res.charged) {
-        await confirmDonation(res.payment_intent_id, { message, anonymous, giftAid: giftAid ? ga : null });
+        await confirmDonation(res.payment_intent_id);
         setStep("done");
         router.refresh();
         return;
@@ -107,7 +117,6 @@ export function DonateModal({
     }
   }
 
-  const giftAidValue = giftAid ? ga : null;
 
   return (
     <Modal open={open} onClose={onClose} title={`Donate to ${hubName}`} accent={accent}>
@@ -132,7 +141,7 @@ export function DonateModal({
           accent={accent}
           payLabel={`Donate ${gbp(chargePence)}`}
           onPaid={async () => {
-            await confirmDonation(piId, { message, anonymous, giftAid: giftAidValue });
+            await confirmDonation(piId);
             setStep("done");
             router.refresh();
           }}
