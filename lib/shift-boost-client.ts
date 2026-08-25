@@ -8,12 +8,21 @@ import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-
 
    create-boost-intent → { charged } (saved/business card, off-session) |
                          { clientSecret } (card form fallback, no saved card)
-     Body: { shift_id, use_saved_card?, use_business_card?, business_id? }
+     Body: { shift_id, client_request_id, use_saved_card?, use_business_card?,
+             business_id? }
+     client_request_id is REQUIRED and is idempotency only — the £2.99, the 24
+     hours, the buyer and the shift all come from the server.
+     A shift that is not boostable (cancelled, filled, finished, already
+     boosted) returns { error, reason } with a 409.
      If a business card was requested but none is on file the fn returns
      { error: "no_business_card", business_id } with a 409.
 
-   confirm-boost ← keyed by shift_id; sets boosted_until = now + 24h, alerts
-                   matching workers → { ok, boosted_until, notified }            */
+   confirm-boost ← the fast answer for the employer watching the screen. It
+                   verifies the payment and then calls the SAME fulfiller the
+                   Stripe webhook calls, so a boost still lands if this page
+                   never comes back → { ok, boosted_until, already }.
+                   `already: true` means the webhook got there first — that is
+                   success, not a second 24 hours.                              */
 
 function invokeError(error: {
   message: string;
@@ -38,8 +47,16 @@ export type ShiftBoostStart =
 /** Sentinel a caller can catch to prompt "add a business card first". */
 export const NO_BUSINESS_CARD = "no_business_card";
 
+/**
+ * `attemptId` is the reference for ONE deliberate checkout, minted by the modal
+ * and held across retries. It goes into the Stripe idempotency key, so pressing
+ * Pay twice reaches the same PaymentIntent and a genuinely new purchase reaches
+ * a new one. Switching card (personal ↔ business) inside one attempt keeps the
+ * id: it is the same purchase, and the key already varies by card route.
+ */
 export async function startShiftBoost(
   shiftId: string,
+  attemptId: string,
   opts: { useSavedCard?: boolean; useBusinessCard?: boolean; businessId?: string } = {},
 ): Promise<ShiftBoostStart> {
   const { useSavedCard = false, useBusinessCard = false, businessId } = opts;
@@ -47,6 +64,7 @@ export async function startShiftBoost(
   const { data, error } = await sb.functions.invoke("create-boost-intent", {
     body: {
       shift_id: shiftId,
+      client_request_id: attemptId,
       use_saved_card: useSavedCard,
       ...(useBusinessCard ? { use_business_card: true, business_id: businessId } : {}),
     },
@@ -74,7 +92,7 @@ export async function startShiftBoost(
 export async function confirmShiftBoost(
   shiftId: string,
   paymentIntentId: string,
-): Promise<{ ok: boolean; boosted_until: string; notified: number }> {
+): Promise<{ ok: boolean; boosted_until: string | null; already: boolean; note?: string }> {
   const sb = createClient();
   // payment_intent_id is REQUIRED: confirm-boost verifies the £2.99 payment with
   // Stripe before featuring the shift, so pass the id from startShiftBoost.

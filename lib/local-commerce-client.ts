@@ -237,7 +237,7 @@ export type WalletCheckoutBody =
 export async function walletCheckout(
   body: WalletCheckoutBody,
   attemptId: string,
-): Promise<{ ok: boolean; balance_pence: number; purchase_id?: string; uses_remaining?: number; expires_at?: string | null; member_no?: string | null; paid_until?: string | null }> {
+): Promise<{ ok: boolean; balance_pence: number; purchase_id?: string; uses_remaining?: number; expires_at?: string | null; member_no?: string | null; paid_until?: string | null; boosted_until?: string | null }> {
   const sb = createClient();
   // Required by the server. Without it every flow debited on a null key, so a
   // double-click was two purchases. Minted once per purchase by the caller, not

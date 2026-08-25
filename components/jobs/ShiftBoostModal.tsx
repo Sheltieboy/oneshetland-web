@@ -35,7 +35,11 @@ export function ShiftBoostModal({
 }) {
   const router = useRouter();
   const [step, setStep] = useState<"choose" | "pay" | "done">("choose");
-  // One reference per shift being boosted.
+  // One reference per shift being boosted — used by BOTH the wallet and the
+  // card paths. On the card path it becomes part of the Stripe idempotency key,
+  // and it deliberately survives a retry, a card switch and an SCA challenge:
+  // all three are the same purchase. Closing the modal unmounts it, so the next
+  // deliberate boost starts a new attempt and a new PaymentIntent.
   const attemptId = useAttemptId(shiftId);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [walletPence, setWalletPence] = useState<number | null>(null);
@@ -68,8 +72,11 @@ export function ShiftBoostModal({
     // clientSecret (`pi_XXX_secret_YYY` → `pi_XXX`).
     const paymentIntentId = pid ?? (clientSecret ? clientSecret.split("_secret")[0] : null);
     if (!paymentIntentId) { setError("Couldn't confirm the payment. Please try again."); return; }
+    // boosted_until is read back from the database by confirm-boost, so it is
+    // the real expiry whether this call granted the boost or found the webhook
+    // had already done it.
     const res = await confirmShiftBoost(shiftId, paymentIntentId);
-    onBoosted(res.boosted_until);
+    if (res.boosted_until) onBoosted(res.boosted_until);
     setStep("done");
     router.refresh();
   }
@@ -80,7 +87,7 @@ export function ShiftBoostModal({
     setError(null);
     setBusy(true);
     try {
-      const res = await startShiftBoost(shiftId, {
+      const res = await startShiftBoost(shiftId, attemptId(), {
         useSavedCard: !useBusinessCard,
         useBusinessCard,
         businessId: businessId ?? undefined,
@@ -98,7 +105,7 @@ export function ShiftBoostModal({
       } else if (/no saved card/i.test(msg)) {
         // Personal saved card missing → re-request the Elements card form.
         try {
-          const res2 = await startShiftBoost(shiftId, {});
+          const res2 = await startShiftBoost(shiftId, attemptId(), {});
           if ("clientSecret" in res2) { setClientSecret(res2.clientSecret); setStep("pay"); return; }
         } catch (e2) {
           setError(e2 instanceof Error ? e2.message : msg);
@@ -117,7 +124,10 @@ export function ShiftBoostModal({
     try {
       const res = await walletCheckout({ type: "shift_boost", shift_id: shiftId }, attemptId());
       if (typeof res.balance_pence === "number") setWalletPence(res.balance_pence);
-      onBoosted(res.paid_until ?? new Date(Date.now() + 86_400_000).toISOString());
+      // wallet-checkout returns boosted_until; the old code read `paid_until`,
+      // which never existed on this response, so the card always showed a
+      // client-guessed expiry instead of the server's.
+      if (res.boosted_until) onBoosted(res.boosted_until);
       setStep("done");
       router.refresh();
     } catch (e) {
