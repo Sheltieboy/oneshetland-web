@@ -36,8 +36,21 @@ export function HubMembershipPanel({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [walletPence, setWalletPence] = useState<number | null>(null);
-  // Choosing a different tier is a different purchase.
-  const attemptId = useAttemptId(payTier?.id ?? null);
+  // One reference per deliberate membership checkout — the card route and the
+  // wallet route share it, because they are alternatives within one purchase.
+  //
+  // The key is the SESSION, not the tier. Tier alone is not enough — renewing
+  // is buying the same tier again, so it would reuse the reference from the
+  // original join and therefore its PaymentIntent. And `payTier` is only set on
+  // the card-form branch, so at the moment the id is minted it is still null:
+  // keying on it would have looked meaningful and carried nothing.
+  //
+  // Bumped when a checkout finishes, succeeded or failed — so a retry and an
+  // SCA challenge inside one checkout keep their reference (both happen before
+  // the bump), and the next deliberate purchase gets a fresh one.
+  const [checkoutSession, setCheckoutSession] = useState(0);
+  const attemptId = useAttemptId(checkoutSession);
+  const endCheckout = () => setCheckoutSession((n) => n + 1);
 
   useEffect(() => {
     if (!isLoggedIn) return;
@@ -55,7 +68,7 @@ export function HubMembershipPanel({
     setBusy(true);
     setError(null);
     try {
-      const res = await startMembershipPayment(tier.id);
+      const res = await startMembershipPayment(tier.id, attemptId());
       if (res.charged) {
         await confirmMembership(res.payment_intent_id);
         refresh();
@@ -70,6 +83,7 @@ export function HubMembershipPanel({
       setError(e instanceof Error ? e.message : "Could not start renewal.");
     } finally {
       setBusy(false);
+      endCheckout();
     }
   };
 
@@ -173,7 +187,7 @@ export function HubMembershipPanel({
     setBusy(true);
     setError(null);
     try {
-      const res = await startMembershipPayment(tier.id);
+      const res = await startMembershipPayment(tier.id, attemptId());
       if (res.charged) {
         await confirmMembership(res.payment_intent_id);
         refresh();
@@ -188,6 +202,7 @@ export function HubMembershipPanel({
       setError(e instanceof Error ? e.message : "Could not start payment.");
     } finally {
       setBusy(false);
+      endCheckout();
     }
   };
 
@@ -201,6 +216,7 @@ export function HubMembershipPanel({
       setError(e instanceof Error ? e.message : "Could not pay from your wallet.");
     } finally {
       setBusy(false);
+      endCheckout();
     }
   };
 

@@ -42,10 +42,24 @@ function invokeError(error: { message: string; context?: { json?: () => Promise<
 export type PaymentStart = { charged?: boolean; payment_intent_id: string; clientSecret?: string };
 
 /** Start payment for a paid membership tier. */
-export async function startMembershipPayment(membershipTypeId: string, useSavedCard = true): Promise<PaymentStart> {
+/**
+ * `attemptId` is the reference for ONE deliberate membership checkout, held
+ * across retries and SCA.
+ *
+ * The panel already minted one for the wallet route and never gave it to the
+ * card route, so the Stripe key fell back to `member-<user>-<tier>` — and
+ * RENEWING is buying the same tier again, so a renewal inside Stripe's window
+ * came back as the original PaymentIntent and the member was shown their old
+ * expiry as if it had worked.
+ */
+export async function startMembershipPayment(
+  membershipTypeId: string,
+  attemptId: string,
+  useSavedCard = true,
+): Promise<PaymentStart> {
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-hub-membership-intent", {
-    body: { membership_type_id: membershipTypeId, use_saved_card: useSavedCard },
+    body: { membership_type_id: membershipTypeId, client_request_id: attemptId, use_saved_card: useSavedCard },
   });
   if (error) return invokeError(error);
   // A saved-card charge the issuer wants authenticated is PAUSED, not failed.
