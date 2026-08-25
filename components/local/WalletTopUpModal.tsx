@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
@@ -39,10 +39,38 @@ export function WalletTopUpModal({
   const [newBalance, setNewBalance] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // ── Every opening is a new checkout ──────────────────────────────────────
+  //
+  // This component is rendered unconditionally by both its parents, so closing
+  // it does not unmount it — Modal returns null while `open` is false, but the
+  // state above lives out here and survives. After a successful top-up `step`
+  // stayed "done" for ever, so reopening showed the previous success screen and
+  // there was no way to start another top-up without reloading the page. That
+  // is exactly what happened after the first real £5.
+  //
+  // Reset on OPEN rather than on close: it cannot fire while a payment is in
+  // flight, because the modal is already open by then.
+  const [session, setSession] = useState(0);
+  useEffect(() => {
+    if (!open) return;
+    setStep("form");
+    setClientSecret(null);
+    setPiId(null);
+    setNewBalance(null);
+    setError(null);
+    setBusy(false);
+    setAmount(2000);
+    setCustomAmount("");
+    setSession((n) => n + 1);
+  }, [open]);
+
   // One reference per deliberate top-up. It survives a retry and an SCA
-  // challenge — both are the same top-up — and changing the amount starts a new
-  // one. Closing the modal unmounts it, so the next top-up is genuinely new.
-  const attemptId = useAttemptId(`${amount}|${customAmount}`);
+  // challenge — both are the same top-up — and a new amount starts a new one.
+  //
+  // `session` is in the key because the amount alone is not enough: topping up
+  // £5, closing, and topping up £5 again is TWO deliberate top-ups, and without
+  // it they would share a reference and therefore share a PaymentIntent.
+  const attemptId = useAttemptId(`${session}|${amount}|${customAmount}`);
 
   async function proceed() {
     setError(null);
