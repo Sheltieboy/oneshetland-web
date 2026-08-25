@@ -5,6 +5,8 @@ import {
 } from "@/lib/jobs-data";
 import { JobCard, ShiftCard, EmptyState, JOBS, SHIFTS } from "@/components/jobs/JobsUI";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
+import { getAccount } from "@/lib/auth";
+import { getMyPostingCounts } from "@/lib/jobs-data.server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Work" };
@@ -18,10 +20,24 @@ export default async function WorkHubPage({
   const isShifts = tab === "shifts";
   const accent = isShifts ? SHIFTS : JOBS;
 
-  const [jobs, shifts] = await Promise.all([
+  const account = await getAccount();
+
+  const [jobs, shifts, posted] = await Promise.all([
     isShifts ? Promise.resolve([]) : getJobs({ category, keyword: q, contract_type: contract }),
     isShifts ? getOpenShifts(category) : Promise.resolve([]),
+    // This page is the one the main nav's "Work" leads to, and it is entirely
+    // worker-facing: browse and apply. Everything for the person who POSTED the
+    // work lives at /work, which is only reachable through Account. Somebody who
+    // had bought a boost came here looking for their shift and found nothing,
+    // because there was nothing here to find.
+    //
+    // So: a shortcut, shown only to people who have actually posted something.
+    // A worker never sees it, and the page stays what it is.
+    account ? getMyPostingCounts(account.id) : Promise.resolve({ shifts: 0, jobs: 0 }),
   ]);
+
+  const mine = isShifts ? posted.shifts : posted.jobs;
+  const manageHref = isShifts ? "/shifts/manage" : "/jobs/manage";
 
   const visibleShifts = q
     ? shifts.filter((s) => `${s.title} ${s.category} ${s.location_text}`.toLowerCase().includes(q.toLowerCase()))
@@ -99,6 +115,26 @@ export default async function WorkHubPage({
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
+        {mine > 0 && (
+          <Link
+            href={manageHref}
+            className="mb-6 flex items-center justify-between gap-4 rounded-card border px-5 py-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+            style={{ borderColor: `${accent}55`, background: `${accent}0d` }}
+          >
+            <div className="min-w-0">
+              <p className="font-display text-lg font-bold text-ink">
+                {isShifts ? "My posted shifts" : "My posted jobs"}
+              </p>
+              <p className="mt-0.5 text-sm text-ink-soft">
+                {mine} posted · applicants, check-in{isShifts ? " and boosting" : ""}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-pill px-4 py-2 text-sm font-bold text-paper" style={{ background: accent }}>
+              Manage →
+            </span>
+          </Link>
+        )}
+
         {isShifts ? (
           visibleShifts.length === 0 ? (
             <EmptyState icon="⚡" title="No shifts right now" body="Nothing matches just now — check back soon, new shifts are posted throughout the day." cta={{ label: "Post a shift", href: "/shifts/new", color: SHIFTS }} />
@@ -122,9 +158,16 @@ export default async function WorkHubPage({
               ? "Post a shift and reach available local workers in minutes."
               : "Post a role for free and manage applicants through a simple pipeline."}
           </p>
-          <Link href={isShifts ? "/shifts/new" : "/jobs/new"} className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-paper shadow-soft transition hover:brightness-95" style={{ background: accent }}>
-            {isShifts ? "Post a shift →" : "Post a job →"}
-          </Link>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link href={isShifts ? "/shifts/new" : "/jobs/new"} className="inline-block rounded-pill px-6 py-3 font-semibold text-paper shadow-soft transition hover:brightness-95" style={{ background: accent }}>
+              {isShifts ? "Post a shift →" : "Post a job →"}
+            </Link>
+            {mine > 0 && (
+              <Link href={manageHref} className="inline-block rounded-pill border border-line-strong bg-paper px-6 py-3 font-semibold text-ink transition hover:bg-sand">
+                {isShifts ? "Manage my shifts" : "Manage my jobs"}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </>

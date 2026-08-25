@@ -47,6 +47,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
     { href: `${base}/products`, group: "Selling", icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", feature: "products", built: true },
     { href: `${base}/orders`, group: "Selling", icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", feature: "orders", built: true },
     { href: `${base}/jobs`, group: "People", icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: true },
+    { href: `${base}/shifts`, group: "People", icon: "⚡", title: "Shifts", desc: "Post and manage shifts for your business", built: true },
     // Deliberately NOT tier-locked. A free listing that never rings is why
     // nobody claims theirs, and the trades most worth reaching are the ones
     // nobody has heard of — locking them out would defeat the whole point.

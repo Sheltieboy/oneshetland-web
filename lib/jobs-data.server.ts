@@ -213,6 +213,40 @@ export async function getMyShiftApplications(workerId: string): Promise<ShiftApp
   })(), []);
 }
 
+/**
+ * Shifts posted AS a business, for that business's Manage area.
+ *
+ * Scoped to the intersection of two things, not one: the shift was posted as
+ * this business AND the signed-in account is its employer. posted_as_business_id
+ * is display context — it says whose name is on the advert, not who may cancel
+ * or boost it. Listing a shift here that the viewer cannot actually manage would
+ * put a Boost button in front of somebody the backend would then refuse, which
+ * is a worse experience than not showing it at all.
+ */
+export async function getBusinessShifts(
+  businessId: string,
+  employerId: string,
+): Promise<(Shift & { pending_count: number; total_apps: number; checked_out_count: number })[]> {
+  const all = await getEmployerShifts(employerId);
+  return all.filter((s) => s.posted_as_business_id === businessId);
+}
+
+/**
+ * Has this account posted work? Used only to decide whether the worker-facing
+ * Work hub shows a poster's shortcut to their own postings — a count, nothing
+ * about the postings themselves.
+ */
+export async function getMyPostingCounts(userId: string): Promise<{ shifts: number; jobs: number }> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const [{ count: shifts }, { count: jobs }] = await Promise.all([
+      sb.from("shifts").select("id", { count: "exact", head: true }).eq("employer_id", userId),
+      sb.from("jobs").select("id", { count: "exact", head: true }).eq("employer_id", userId),
+    ]);
+    return { shifts: shifts ?? 0, jobs: jobs ?? 0 };
+  })(), { shifts: 0, jobs: 0 });
+}
+
 export async function getEmployerShifts(employerId: string): Promise<(Shift & { pending_count: number; total_apps: number; checked_out_count: number })[]> {
   const sb = await createServerClient();
   return safe((async () => {

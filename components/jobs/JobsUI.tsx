@@ -85,14 +85,12 @@ export function ShiftCard({ shift }: { shift: Shift }) {
     <Link
       href={`/shifts/${shift.id}`}
       className="group flex flex-col gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
+      style={boosted ? { borderColor: `${SHIFTS}66` } : undefined}
     >
       <div className="flex items-start gap-3">
         <Logo url={biz.logo_url} name={biz.name} accent={SHIFTS} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <h3 className="truncate font-display text-lg font-bold leading-tight text-ink group-hover:underline">{shift.title}</h3>
-            {boosted && <span className="shrink-0 text-xs" style={{ color: SHIFTS }} title="Boosted">⚡</span>}
-          </div>
+          <h3 className="truncate font-display text-lg font-bold leading-tight text-ink group-hover:underline">{shift.title}</h3>
           <p className="mt-0.5 truncate text-sm text-ink-muted">
             {biz.name}{biz.is_verified ? " ✓" : ""}
           </p>
@@ -103,6 +101,15 @@ export function ShiftCard({ shift }: { shift: Shift }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
+        {/* £2.99 bought this. It has to be legible as something, which a bare
+            lightning glyph beside the title was not — it read as decoration.
+            Sits with the other pills so it is obvious without taking the card
+            over, and matches the app's "★ Boosted" for the same shift. */}
+        {boosted && (
+          <span className="rounded-pill px-2.5 py-1 text-xs font-bold text-paper" style={{ background: SHIFTS }}>
+            ⚡ Boosted
+          </span>
+        )}
         <span className="rounded-pill px-2.5 py-1 text-xs font-bold text-paper" style={{ background: SHIFTS }}>
           {formatPay(shift.pay_type, shift.pay_amount)}
         </span>

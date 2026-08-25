@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { hoursWorked } from "@/lib/jobs-data";
+import { hoursWorked, boostTimeLeft } from "@/lib/jobs-data";
 import { ShiftBoostModal } from "@/components/jobs/ShiftBoostModal";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
@@ -145,6 +145,23 @@ export function ShiftOwnerHub({ shift, applications }: { shift: HubShift; applic
           </div>
         )}
       </div>
+
+      {/* Boosted — the employer paid £2.99 and this page showed them nothing for
+          it: the CTA simply vanished, which reads like the button broke rather
+          than like the purchase worked. */}
+      {isBoosted && (
+        <div className="flex items-center gap-4 rounded-card border p-4 shadow-soft"
+          style={{ borderColor: `${SHIFTS}55`, background: `linear-gradient(135deg, ${SHIFTS}22, ${SHIFTS}0d)` }}>
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-2xl text-paper shadow-soft" style={{ background: SHIFTS }}>⚡</span>
+          <div className="min-w-0 flex-1">
+            <p className="font-display text-lg font-bold text-ink">Boosted</p>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              Pinned above other shifts and matching workers alerted
+              {boostTimeLeft(s.boosted_until) ? ` — ${boostTimeLeft(s.boosted_until)}` : ""}.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Boost CTA — prominent so it doesn't get lost among the actions */}
       {canBoost && (

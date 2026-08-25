@@ -35,6 +35,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
   const biz = shiftDisplayBusiness(shift);
   const urg = URGENCY_CONFIG[shift.urgency];
   const spotsLeft = Math.max(0, shift.positions_total - shift.positions_filled);
+  const boosted = !!(shift.boosted_until && shift.boosted_until > new Date().toISOString());
 
   const facts = [
     { label: "When", value: formatShiftDate(shift.start_at) },
@@ -59,7 +60,14 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
                 : <div className="grid h-full w-full place-items-center font-display text-2xl font-bold text-white">{biz.name.slice(0, 1)}</div>}
             </div>
             <div className="min-w-0">
-              <span className="inline-block rounded-pill px-2.5 py-0.5 text-xs font-bold" style={{ background: urg.bg, color: urg.color }}>{urg.label}</span>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-block rounded-pill px-2.5 py-0.5 text-xs font-bold" style={{ background: urg.bg, color: urg.color }}>{urg.label}</span>
+                {/* The card that led here says Boosted; the page it opens said
+                    nothing, so the paid promotion stopped at the doorstep. */}
+                {boosted && (
+                  <span className="inline-block rounded-pill bg-white px-2.5 py-0.5 text-xs font-bold" style={{ color: SHIFTS }}>⚡ Boosted</span>
+                )}
+              </div>
               <h1 className="mt-1 font-display text-3xl font-bold leading-tight text-white sm:text-4xl">{shift.title}</h1>
               <p className="mt-1 text-white/85">{biz.name}{biz.is_verified ? " ✓" : ""}</p>
             </div>

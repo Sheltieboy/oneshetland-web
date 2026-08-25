@@ -332,6 +332,20 @@ export async function hydrateShifts(sb: ReturnType<typeof publicClient>, shifts:
   }));
 }
 
+/**
+ * "21 hours left" / "40 minutes left" — what an employer wants to know about the
+ * boost they bought, without being shown a raw timestamp.
+ */
+export function boostTimeLeft(boostedUntil: string | null): string | null {
+  if (!boostedUntil) return null;
+  const ms = new Date(boostedUntil).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 1) return `${hours} hour${hours === 1 ? "" : "s"} left`;
+  const mins = Math.max(1, Math.round(ms / 60_000));
+  return `${mins} minute${mins === 1 ? "" : "s"} left`;
+}
+
 export async function getOpenShifts(category?: string): Promise<Shift[]> {
   const sb = publicClient();
   return safe((async () => {

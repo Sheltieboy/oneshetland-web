@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { formatShiftDate } from "@/lib/jobs-data";
+import { formatShiftDate, boostTimeLeft } from "@/lib/jobs-data";
 import { ShiftBoostModal } from "@/components/jobs/ShiftBoostModal";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
@@ -89,7 +89,15 @@ export function EmployerShiftManager({ shifts }: { shifts: ManagedShift[] }) {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="rounded-pill px-2.5 py-1 text-xs font-bold" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
-                    {isBoosted && <span className="rounded-pill px-2.5 py-1 text-xs font-bold text-paper" style={{ background: SHIFTS }}>⚡ Boosted</span>}
+                    {isBoosted && (
+                      <>
+                        <span className="rounded-pill px-2.5 py-1 text-xs font-bold text-paper" style={{ background: SHIFTS }}>⚡ Boosted</span>
+                        {/* They paid £2.99 for a fixed 24 hours; how much is
+                            left is the only part of that they cannot work out
+                            for themselves. */}
+                        <span className="text-xs font-semibold text-ink-muted">{boostTimeLeft(s.boosted_until)}</span>
+                      </>
+                    )}
                   </div>
                 </div>
                 {(active || canBoost) && (
