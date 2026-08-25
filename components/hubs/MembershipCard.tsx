@@ -37,7 +37,8 @@ export function MembershipCard({ m }: { m: HubMember }) {
             {m.member_no && <p className="mt-0.5">Member no. {m.member_no}</p>}
             {m.paid_until && (
               <p className="mt-0.5">
-                {valid ? "Renews" : "Expired"} {new Date(m.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                {/* Membership does not auto-renew. */}
+                {valid ? "Valid until" : "Expired"} {new Date(m.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
               </p>
             )}
           </div>

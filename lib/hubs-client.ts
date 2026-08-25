@@ -459,3 +459,33 @@ function hashCode(s: string): number {
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0;
   return h;
 }
+
+export type MembershipQuote = {
+  membership_type_id: string;
+  tier_name: string;
+  hub_id: string;
+  hub_name: string;
+  period: string;
+  face_pence: number;
+  fee_pence: number;
+  total_pence: number;
+};
+
+/**
+ * What a membership will actually cost, from the server.
+ *
+ * Not a mirrored constant: the app carried HUB_MEMBERSHIP_FEE_PENCE = 50, which
+ * was stale for the wallet and had never been right for the card, and a
+ * customer was shown "£10 / year" and charged £10.95. This reads the same tier
+ * row and the same fees.membership.* rail both payment paths use, so the number
+ * on the Pay button is the number that leaves their account.
+ *
+ * Returns null for an unknown, inactive or free tier — a free tier never
+ * reaches a paid checkout.
+ */
+export async function getMembershipQuote(membershipTypeId: string): Promise<MembershipQuote | null> {
+  const sb = createClient();
+  const { data, error } = await sb.rpc("membership_quote", { p_type: membershipTypeId }).maybeSingle<MembershipQuote>();
+  if (error) throw error;
+  return data ?? null;
+}

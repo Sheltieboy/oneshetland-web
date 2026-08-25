@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
-import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
-import { joinHub, leaveHub, startMembershipPayment, confirmMembership } from "@/lib/hubs-client";
-import { fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
-import { useAttemptId } from "@/lib/use-attempt-id";
+import { MembershipCheckout } from "@/components/hubs/MembershipCheckout";
+import { joinHub, leaveHub } from "@/lib/hubs-client";
 import { membershipPrice, isMembershipActive, type HubMembershipType, type HubMember, type JoinMode } from "@/lib/hubs-data";
 
 export function HubMembershipPanel({
@@ -19,6 +17,7 @@ export function HubMembershipPanel({
   membership,
   isLoggedIn,
   signInHref,
+  hasSavedCard = false,
 }: {
   hubId: string;
   hubName: string;
@@ -28,64 +27,22 @@ export function HubMembershipPanel({
   membership: HubMember | null;
   isLoggedIn: boolean;
   signInHref: string;
+  hasSavedCard?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payTier, setPayTier] = useState<HubMembershipType | null>(null);
-  const [clientSecret, setClientSecret] = useState<string | null>(null);
-  const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
-  const [walletPence, setWalletPence] = useState<number | null>(null);
   // One reference per deliberate membership checkout — the card route and the
   // wallet route share it, because they are alternatives within one purchase.
   //
-  // The key is the SESSION, not the tier. Tier alone is not enough — renewing
-  // is buying the same tier again, so it would reuse the reference from the
-  // original join and therefore its PaymentIntent. And `payTier` is only set on
-  // the card-form branch, so at the moment the id is minted it is still null:
-  // keying on it would have looked meaningful and carried nothing.
-  //
-  // Bumped when a checkout finishes, succeeded or failed — so a retry and an
-  // SCA challenge inside one checkout keep their reference (both happen before
-  // the bump), and the next deliberate purchase gets a fresh one.
-  const [checkoutSession, setCheckoutSession] = useState(0);
-  const attemptId = useAttemptId(checkoutSession);
-  const endCheckout = () => setCheckoutSession((n) => n + 1);
 
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    let live = true;
-    fetchWalletBalance().then((p) => { if (live) setWalletPence(p); }).catch(() => {});
-    return () => { live = false; };
-  }, [isLoggedIn]);
 
   const refresh = () => router.refresh();
 
   // Renew an existing paid membership — reuses the SAME backend path as joining a
   // paid tier (create-hub-membership-intent → confirm-hub-membership). Prefers an
   // off-session charge on the saved card; falls back to the card-entry modal.
-  const renew = async (tier: HubMembershipType) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await startMembershipPayment(tier.id, attemptId());
-      if (res.charged) {
-        await confirmMembership(res.payment_intent_id);
-        refresh();
-        return;
-      }
-      if (res.clientSecret) {
-        setPayTier(tier);
-        setClientSecret(res.clientSecret);
-        setPaymentIntentId(res.payment_intent_id);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start renewal.");
-    } finally {
-      setBusy(false);
-      endCheckout();
-    }
-  };
 
   if (!isLoggedIn) {
     return (
@@ -115,18 +72,30 @@ export function HubMembershipPanel({
         </div>
         {membership.paid_until && (
           <p className="mt-2 text-sm text-ink-soft">
-            Renews/expires {new Date(membership.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
+            {/* Membership does NOT auto-renew. "Renews/expires" implied it did. */}
+            Valid until {new Date(membership.paid_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}
           </p>
+        )}
+        {payTier && (
+          <MembershipCheckout
+            open={!!payTier}
+            onClose={() => setPayTier(null)}
+            tier={payTier}
+            hubName={hubName}
+            accent={accent}
+            hasSavedCard={hasSavedCard}
+            currentPaidUntil={membership.paid_until}
+            isRenewal
+          />
         )}
         <div className="mt-4 flex flex-wrap gap-2">
           {canRenew && (
             <button
-              onClick={() => renew(myTier!)}
-              disabled={busy}
-              className="rounded-pill px-5 py-2 text-sm font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
+              onClick={() => setPayTier(myTier!)}
+              className="rounded-pill px-5 py-2 text-sm font-semibold text-paper transition hover:brightness-95"
               style={{ background: accent }}
             >
-              {busy ? "Please wait…" : `Renew · ${membershipPrice(myTier!.price_pence, myTier!.period)}`}
+              Renew membership
             </button>
           )}
           <button
@@ -138,24 +107,6 @@ export function HubMembershipPanel({
           </button>
         </div>
 
-        <Modal
-          open={!!(payTier && clientSecret)}
-          onClose={() => { setPayTier(null); setClientSecret(null); }}
-          title={`Renew — ${payTier?.name ?? ""}`}
-          subtitle={payTier ? membershipPrice(payTier.price_pence, payTier.period) : undefined}
-          accent={accent}
-        >
-          {payTier && clientSecret && paymentIntentId && (
-            <PaymentCheckout
-              clientSecret={clientSecret}
-              amountPence={payTier.price_pence}
-              accent={accent}
-              payLabel={`Pay ${membershipPrice(payTier.price_pence, payTier.period)}`}
-              onPaid={async () => { await confirmMembership(paymentIntentId); router.refresh(); }}
-              onCancel={() => { setPayTier(null); setClientSecret(null); }}
-            />
-          )}
-        </Modal>
       </Panel>
     );
   }
@@ -183,42 +134,7 @@ export function HubMembershipPanel({
     }
   };
 
-  const startPaid = async (tier: HubMembershipType) => {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await startMembershipPayment(tier.id, attemptId());
-      if (res.charged) {
-        await confirmMembership(res.payment_intent_id);
-        refresh();
-        return;
-      }
-      if (res.clientSecret) {
-        setPayTier(tier);
-        setClientSecret(res.clientSecret);
-        setPaymentIntentId(res.payment_intent_id);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not start payment.");
-    } finally {
-      setBusy(false);
-      endCheckout();
-    }
-  };
 
-  const payFromWallet = async (tier: HubMembershipType) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await walletCheckout({ type: "hub_membership", membership_type_id: tier.id }, attemptId());
-      refresh();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not pay from your wallet.");
-    } finally {
-      setBusy(false);
-      endCheckout();
-    }
-  };
 
   const paidTiers = tiers.filter((t) => t.price_pence > 0);
   const freeTiers = tiers.filter((t) => t.price_pence <= 0);
@@ -233,64 +149,58 @@ export function HubMembershipPanel({
         </button>
       ) : (
         <div className="space-y-2">
-          {freeTiers.map((t) => (
-            <button key={t.id} onClick={() => freeJoin(t.id)} disabled={busy}
-              className="flex w-full items-center justify-between rounded-xl border border-line bg-paper px-4 py-3 text-left font-semibold transition hover:border-current disabled:opacity-50"
-              style={{ color: accent }}>
-              <span className="text-ink">{t.name}</span>
-              <span>Free · Join</span>
-            </button>
-          ))}
-          {paidTiers.map((t) => {
-            const canWallet = walletPence != null && walletPence >= t.price_pence;
-            if (!canWallet) {
-              return (
-                <button key={t.id} onClick={() => startPaid(t)} disabled={busy}
-                  className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
-                  style={{ background: accent }}>
-                  <span>{t.name}</span>
-                  <span>{membershipPrice(t.price_pence, t.period)}</span>
-                </button>
-              );
-            }
-            return (
-              <div key={t.id} className="rounded-xl border border-line bg-paper p-3">
-                <p className="px-1 font-semibold text-ink">{t.name}</p>
-                <div className="mt-2 space-y-2">
-                  <button onClick={() => payFromWallet(t)} disabled={busy}
-                    className="w-full rounded-pill px-5 py-2.5 font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
-                    style={{ background: accent }}>
-                    {busy ? "Please wait…" : `Pay from wallet · ${membershipPrice(t.price_pence, t.period)}`}
-                  </button>
-                  <button onClick={() => startPaid(t)} disabled={busy}
-                    className="w-full rounded-pill border border-line-strong px-5 py-2.5 font-semibold text-ink transition hover:bg-sand disabled:opacity-50">
-                    {busy ? "Please wait…" : `Pay by card · ${membershipPrice(t.price_pence, t.period)}`}
-                  </button>
-                </div>
+          {/* One action per tier. This used to render a card button AND a wallet
+              button for every paid tier — a stack of near-identical pills, each
+              labelled with the FACE price while the charge included the fee.
+              Choosing how to pay belongs in the checkout, next to the total. */}
+          {paidTiers.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper p-4">
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-bold text-ink">{t.name}</p>
+                <p className="text-sm text-ink-soft">{membershipPrice(t.price_pence, t.period)}</p>
+                {t.description && <p className="mt-0.5 truncate text-xs text-ink-muted">{t.description}</p>}
               </div>
-            );
-          })}
+              <button
+                onClick={() => setPayTier(t)}
+                className="shrink-0 rounded-pill px-5 py-2 text-sm font-semibold text-paper transition hover:brightness-95"
+                style={{ background: accent }}
+              >
+                Join
+              </button>
+            </div>
+          ))}
+
+          {freeTiers.map((t) => (
+            <div key={t.id} className="flex items-center gap-3 rounded-xl border border-line bg-paper p-4">
+              <div className="min-w-0 flex-1">
+                <p className="font-display font-bold text-ink">{t.name}</p>
+                <p className="text-sm text-ink-soft">Free</p>
+              </div>
+              <button
+                onClick={() => freeJoin(t.id)}
+                disabled={busy}
+                className="shrink-0 rounded-pill border border-line-strong px-5 py-2 text-sm font-semibold text-ink transition hover:bg-sand disabled:opacity-50"
+              >
+                {busy ? "Joining…" : "Join free"}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
-      <Modal
-        open={!!(payTier && clientSecret)}
-        onClose={() => { setPayTier(null); setClientSecret(null); }}
-        title={`Join — ${payTier?.name ?? ""}`}
-        subtitle={payTier ? membershipPrice(payTier.price_pence, payTier.period) : undefined}
-        accent={accent}
-      >
-        {payTier && clientSecret && paymentIntentId && (
-          <PaymentCheckout
-            clientSecret={clientSecret}
-            amountPence={payTier.price_pence}
-            accent={accent}
-            payLabel={`Pay ${membershipPrice(payTier.price_pence, payTier.period)}`}
-            onPaid={async () => { await confirmMembership(paymentIntentId); router.refresh(); }}
-            onCancel={() => { setPayTier(null); setClientSecret(null); }}
-          />
-        )}
-      </Modal>
+      {/* Opening this charges nothing. */}
+      {payTier && (
+        <MembershipCheckout
+          open={!!payTier}
+          onClose={() => setPayTier(null)}
+          tier={payTier}
+          hubName={hubName}
+          accent={accent}
+          hasSavedCard={hasSavedCard}
+          currentPaidUntil={membership?.paid_until ?? null}
+          isRenewal={!!membership && isMembershipActive(membership)}
+        />
+      )}
     </Panel>
   );
 }

@@ -15,6 +15,8 @@ import {
   HUB_COLOR,
 } from "@/lib/hubs-data";
 import { getAccount } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { getPaymentState } from "@/lib/payment-state";
 import { getMyMembership, isHubAdmin, getHubDirectory } from "@/lib/hubs-server";
 import { HubMembershipPanel } from "@/components/hubs/HubMembershipPanel";
 import { DirectoryButton, CampaignSidebar } from "@/components/hubs/HubSidebarActions";
@@ -51,6 +53,12 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
     isHubAdmin(hub.id),
   ]);
   const donors = campaign ? await getCampaignDonors(campaign.id) : [];
+  // Card state is resolved on the server — the browser never holds those
+  // columns. It only decides which payment method the checkout defaults to.
+  const hasSavedCard = account
+    ? (await getPaymentState(await createClient(), account.id)).card_on_file
+    : false;
+
   const isMember = admin.isAdmin || (!!membership && isMembershipActive(membership));
   const directoryMembers = hub.directory_enabled && isMember ? await getHubDirectory(hub.id) : [];
 
