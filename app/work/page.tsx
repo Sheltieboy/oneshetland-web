@@ -26,6 +26,7 @@ const GROUPS: { title: string; items: { href: string; title: string; desc: strin
       { href: "/shifts/manage", title: "My posted shifts", desc: "Your shifts, applicants and check-in" },
       { href: "/jobs/new", title: "Post a job", desc: "Advertise a permanent or part-time role" },
       { href: "/shifts/new", title: "Post a shift", desc: "Advertise a short, same-day shift" },
+      { href: "/shifts/boosts", title: "Boost history", desc: "Shift boosts you've paid for, and what they cost" },
       { href: "/work-profile/employer", title: "Business profile", desc: "What workers see when you post" },
     ],
   },

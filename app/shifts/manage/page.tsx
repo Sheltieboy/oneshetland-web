@@ -19,7 +19,10 @@ export default async function ManageShiftsPage() {
       <Link href="/work" className="text-sm font-semibold text-ink-soft hover:text-ink">← My work</Link>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-4xl font-bold">Manage shifts</h1>
-        <Link href="/work-profile/employer" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">Business profile</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/shifts/boosts" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">⚡ Boost history</Link>
+          <Link href="/work-profile/employer" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">Business profile</Link>
+        </div>
       </div>
       <p className="mt-2 text-ink-soft">Review applicants and keep your posted shifts up to date.</p>
 

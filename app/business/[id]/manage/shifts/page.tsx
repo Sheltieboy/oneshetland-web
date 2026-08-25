@@ -57,7 +57,9 @@ export default async function BusinessShiftsPage({ params }: { params: Promise<{
 
       <p className="mt-8 text-sm text-ink-muted">
         Shifts you posted under your own name live in{" "}
-        <Link href="/shifts/manage" className="font-semibold underline">My posted shifts</Link>.
+        <Link href="/shifts/manage" className="font-semibold underline">My posted shifts</Link>. What you have
+        paid to promote is in{" "}
+        <Link href="/shifts/boosts" className="font-semibold underline">Boost history</Link>.
       </p>
     </div>
   );

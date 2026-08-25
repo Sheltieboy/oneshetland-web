@@ -223,6 +223,42 @@ export async function getMyShiftApplications(workerId: string): Promise<ShiftApp
  * put a Boost button in front of somebody the backend would then refuse, which
  * is a worse experience than not showing it at all.
  */
+export type BoostPurchase = {
+  id: string;
+  shift_id: string | null;
+  shift_title: string;
+  business_name: string | null;
+  amount_pence: number;
+  duration_hours: number;
+  method: "card" | "wallet";
+  status: string;
+  boosted_until: string;
+  purchased_at: string;
+};
+
+/**
+ * What this employer has paid to promote, ever.
+ *
+ * Reads the snapshot, not the shift: a receipt must not change when the listing
+ * is edited, and must survive the listing being deleted. RLS scopes this to the
+ * purchaser — there is no employer filter here because there does not need to
+ * be one, and adding it would invite the belief that it is what protects the
+ * data.
+ *
+ * payment_intent_id exists on the row and is deliberately NOT selected. It is
+ * an idempotency key, not something a customer needs to see.
+ */
+export async function getMyBoostPurchases(): Promise<BoostPurchase[]> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb
+      .from("shift_boost_purchases")
+      .select("id, shift_id, shift_title, business_name, amount_pence, duration_hours, method, status, boosted_until, purchased_at")
+      .order("purchased_at", { ascending: false });
+    return (data ?? []) as BoostPurchase[];
+  })(), []);
+}
+
 export async function getBusinessShifts(
   businessId: string,
   employerId: string,
