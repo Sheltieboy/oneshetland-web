@@ -30,12 +30,17 @@ export default async function MembersPage({ params }: { params: Promise<{ id: st
       </Link>
       <h1 className="mt-3 font-display text-3xl font-bold">Members</h1>
       <div className="mt-8">
+        {/* Refunds follow the money, not hub management. Committee members run
+            parts of a hub; only the owner controls the Stripe account the
+            membership money moved through. The server enforces this
+            independently — this only decides whether to draw the button. */}
         <MembersManager
           pending={pending}
           members={members}
           past={[...left, ...removed]}
           ledger={ledger}
           accent={accent}
+          canRefund={admin.role === "owner"}
         />
       </div>
     </div>

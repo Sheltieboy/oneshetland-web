@@ -72,6 +72,7 @@ export type MembershipPurchase = {
   refunded_pence: number;
   refund_state: "none" | "partial" | "full";
   refunded_at: string | null;
+  memberName?: string;
 };
 
 // stripe_transfer_id is deliberately absent: it is a payout reference, and no
@@ -100,16 +101,40 @@ export async function getMyMembershipPurchases(): Promise<MembershipPurchase[]> 
   return (data ?? []) as MembershipPurchase[];
 }
 
-/** The membership income a hub's own admins can account for. */
-export async function getHubMembershipLedger(hubId: string): Promise<MembershipPurchase[]> {
+/**
+ * The membership income a hub's own admins can account for, with the member's
+ * name so an owner deciding a refund knows whose it is.
+ *
+ * Scoped to one hub by the query AND by RLS, so a hub id belonging to someone
+ * else returns nothing rather than another hub's takings.
+ */
+export async function getHubMembershipLedger(hubId: string): Promise<HubLedgerEntry[]> {
   const sb = await createClient();
   const { data } = await sb
     .from("hub_membership_purchases")
-    .select(PURCHASE_COLUMNS)
+    .select(PURCHASE_COLUMNS + ", payment_intent_id")
     .eq("hub_id", hubId)
     .order("occurred_at", { ascending: false });
-  return (data ?? []) as MembershipPurchase[];
+
+  const rows = (data ?? []) as unknown as HubLedgerEntry[];
+  const ids = [...new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])];
+  if (!ids.length) return rows;
+
+  const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", ids);
+  const names = new Map<string, string>();
+  for (const p of (profs ?? []) as { id: string; full_name: string | null }[]) {
+    names.set(p.id, p.full_name || "A member");
+  }
+  return rows.map((r) => ({ ...r, memberName: (r.user_id && names.get(r.user_id)) || "A member" }));
 }
+
+/**
+ * A hub's own ledger row. Same facts the customer sees, plus the payment
+ * reference the refund call has to be addressed to — which is used to CALL the
+ * backend and is never rendered. The customer-facing MembershipPurchase
+ * deliberately has no reference on it at all.
+ */
+export type HubLedgerEntry = MembershipPurchase & { payment_intent_id: string | null };
 
 export type DirectoryEntry = { user_id: string; name: string; role: HubRole; tier: string };
 

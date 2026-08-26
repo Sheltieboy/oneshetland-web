@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { approveMember, rejectMember, setMemberRole } from "@/lib/hubs-client";
 import type { HubMember } from "@/lib/hubs-data";
-import type { MembershipPurchase } from "@/lib/hubs-server";
+import type { HubLedgerEntry } from "@/lib/hubs-server";
 import { gbp } from "@/lib/stripe";
+import { MembershipRefundButton } from "@/components/hubs/admin/MembershipRefundButton";
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -26,12 +27,14 @@ function MemberDetail({ m }: { m: HubMember }) {
   return <p className="mt-0.5 text-xs text-ink-muted">{bits.join(" · ")}</p>;
 }
 
-export function MembersManager({ pending, members, past, ledger, accent }: {
+export function MembersManager({ pending, members, past, ledger, accent, canRefund = false }: {
   pending: HubMember[];
   members: HubMember[];
   past: HubMember[];
-  ledger: MembershipPurchase[];
+  ledger: HubLedgerEntry[];
   accent: string;
+  /** Owner only. The refund itself is authorised by the server regardless. */
+  canRefund?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
@@ -134,20 +137,32 @@ export function MembersManager({ pending, members, past, ledger, accent }: {
             {ledger.map((p) => (
               <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-paper p-4">
                 <div className="min-w-0">
-                  <p className="font-semibold text-ink">{p.tier_name}</p>
+                  <p className="font-semibold text-ink">
+                    {p.memberName ? `${p.memberName} · ` : ""}{p.tier_name}
+                  </p>
                   <p className="text-xs text-ink-muted">
                     {fmtDate(p.occurred_at)}
+                    {p.payment_method === "wallet" ? " · wallet" : " · card"}
                     {p.paid_until_after ? ` · covers until ${fmtDate(p.paid_until_after)}` : " · lifetime"}
                   </p>
                   {p.refund_state !== "none" && (
                     <p className="mt-0.5 text-xs font-semibold text-amber-700">
-                      {p.refund_state === "full" ? "Refunded" : "Partly refunded"}
+                      {p.refund_state === "full"
+                        ? `Refunded${p.refunded_at ? ` ${fmtDate(p.refunded_at)}` : ""}`
+                        : `Partly refunded · ${gbp(p.refunded_pence)} returned`}
                     </p>
                   )}
                 </div>
-                <p className={`shrink-0 font-display text-lg font-bold ${p.refund_state === "full" ? "text-ink-muted line-through" : "text-ink"}`}>
-                  {gbp(p.face_pence)}
-                </p>
+                <div className="shrink-0 text-right">
+                  <p className={`font-display text-lg font-bold ${p.refund_state === "full" ? "text-ink-muted line-through" : "text-ink"}`}>
+                    {gbp(p.face_pence)}
+                  </p>
+                  {canRefund && (
+                    <div className="mt-2">
+                      <MembershipRefundButton purchase={p} accent={accent} />
+                    </div>
+                  )}
+                </div>
               </li>
             ))}
           </ul>
