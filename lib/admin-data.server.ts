@@ -401,3 +401,50 @@ export async function getMembershipPurchases(): Promise<AdminMembershipPurchase[
     }));
   })(), [], "getMembershipPurchases");
 }
+
+/* ── Business boosts (platform admin) ───────────────────────────────────────
+ *
+ * A boost is a one-off PaymentIntent, not a subscription, so it leaves no
+ * Stripe invoice and appears in no billing report. This is the only record.
+ */
+export type AdminBoostPurchase = {
+  id: string;
+  weeks: number;
+  amount_pence: number;
+  status: string;
+  expires_at: string | null;
+  created_at: string;
+  businessName: string;
+  ownerName: string;
+};
+
+export async function getBoostPurchases(): Promise<AdminBoostPurchase[]> {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data } = await sb
+      .from("local_boost_purchases")
+      .select("id, business_id, owner_id, weeks, amount_pence, status, expires_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+
+    const rows = (data ?? []) as (Omit<AdminBoostPurchase, "businessName" | "ownerName"> & {
+      business_id: string | null; owner_id: string | null;
+    })[];
+    if (!rows.length) return [];
+
+    const bizIds = [...new Set(rows.map((r) => r.business_id).filter(Boolean) as string[])];
+    const ownerIds = [...new Set(rows.map((r) => r.owner_id).filter(Boolean) as string[])];
+    const [{ data: bizes }, { data: profs }] = await Promise.all([
+      sb.from("local_businesses").select("id, name").in("id", bizIds.length ? bizIds : ["-"]),
+      sb.from("profiles").select("id, full_name").in("id", ownerIds.length ? ownerIds : ["-"]),
+    ]);
+    const bizName = new Map((bizes ?? []).map((x: { id: string; name: string | null }) => [x.id, x.name || "A business"]));
+    const owner = new Map((profs ?? []).map((x: { id: string; full_name: string | null }) => [x.id, x.full_name || "An owner"]));
+
+    return rows.map(({ business_id, owner_id, ...r }) => ({
+      ...r,
+      businessName: (business_id && bizName.get(business_id)) || "A business",
+      ownerName: (owner_id && owner.get(owner_id)) || "An owner",
+    }));
+  })(), [], "getBoostPurchases");
+}

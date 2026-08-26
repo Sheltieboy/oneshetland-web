@@ -14,7 +14,7 @@ import {
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
   previewSubscriptionChange, applySubscriptionChange, createBoostIntent, previewBoost,
-  type BoostOption, type BoostPreview,
+  getBoostHistory, type BoostOption, type BoostPreview, type BoostPurchase,
   createBillingPortalLink, requestNfcTile, setSubscriptionCancellation, type BillingPeriod,
 } from "@/lib/business-client";
 import { gbp } from "@/lib/stripe";
@@ -47,6 +47,9 @@ export function BillingManager({ business, intentTier, meter }: {
   // screen cannot read them and must not hardcode them.
   const [boostPreview, setBoostPreview] = useState<BoostPreview | null>(null);
   const [boostOption, setBoostOption] = useState<BoostOption | null>(null);
+  // What they have actually paid for. Read from the purchase rows, never
+  // inferred from the current expiry — that only shows the last one.
+  const [boostHistory, setBoostHistory] = useState<BoostPurchase[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function fail(e: unknown) { setError(e instanceof Error ? e.message : "Something went wrong."); setBusy(null); }
@@ -178,6 +181,7 @@ export function BillingManager({ business, intentTier, meter }: {
   useEffect(() => {
     let live = true;
     previewBoost(b.id).then((p) => { if (live) setBoostPreview(p); }).catch(() => {});
+    getBoostHistory(b.id).then((h) => { if (live) setBoostHistory(h); }).catch(() => {});
     return () => { live = false; };
   }, [b.id]);
 
@@ -229,6 +233,8 @@ export function BillingManager({ business, intentTier, meter }: {
   }
 
   const card = "rounded-card border border-line bg-paper p-5 shadow-soft";
+  const fmtDay = (iso: string) =>
+    new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
   const btn = "rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:opacity-50";
 
   if (boostOption) {
@@ -445,6 +451,43 @@ export function BillingManager({ business, intentTier, meter }: {
       </section>
 
       {/* Invoices — only meaningful once there is a Stripe customer behind them. */}
+      {/* What they paid for a boost, kept as its own fact. A boost leaves no
+          Stripe invoice — it is a one-off PaymentIntent — so it would never
+          appear in InvoiceHistory below, and before this the payment simply
+          vanished once it had been fulfilled. */}
+      {boostHistory.length > 0 && (
+        <div className={card}>
+          <h3 className="font-display text-lg font-bold text-ink">Boost history</h3>
+          <ul className="mt-3 space-y-2">
+            {boostHistory.map((p) => {
+              const active = !!p.expires_at && new Date(p.expires_at) > new Date();
+              return (
+                <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">
+                      {p.weeks} week{p.weeks > 1 ? "s" : ""} of Pro
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      {fmtDay(p.created_at)} · {gbp(p.amount_pence)} · Paid by card
+                    </p>
+                    {p.expires_at && (
+                      <p className="text-xs text-ink-muted">Pro until {fmtDay(p.expires_at)}</p>
+                    )}
+                  </div>
+                  {/* Each purchase judges itself by its OWN expiry. Reading the
+                      business's current tier would mark an old, spent boost
+                      "Active" whenever a newer one is running. */}
+                  <span className={"rounded-pill px-3 py-1 text-xs font-bold " +
+                    (active ? "bg-emerald-50 text-emerald-700" : "bg-sand text-ink-muted")}>
+                    {active ? "Active" : "Expired"}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {(tierMeets(tier, "pro") || b.subscription_connected) && <InvoiceHistory businessId={b.id} />}
 
       {/* NFC — gated on the feature, not on "has any paid plan". */}

@@ -106,6 +106,37 @@ export const previewSubscriptionChange = (businessId: string, tier: "pro" | "pre
 export const applySubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
   invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: false });
 
+export type BoostPurchase = {
+  id: string;
+  weeks: number;
+  amount_pence: number;
+  expires_at: string | null;
+  created_at: string;
+  status: string;
+};
+
+/**
+ * What this business has actually paid for in boosts.
+ *
+ * Read from local_boost_purchases — the durable fact written when the payment
+ * succeeded — and never reconstructed from the business's current expiry,
+ * which only ever shows the LAST one and says nothing about what was paid.
+ *
+ * Only succeeded purchases. A row can sit at 'pending' because a checkout was
+ * opened and abandoned; showing that to an owner as history would present
+ * something they were never charged for as a purchase.
+ */
+export async function getBoostHistory(businessId: string): Promise<BoostPurchase[]> {
+  const sb = createClient();
+  const { data } = await sb
+    .from("local_boost_purchases")
+    .select("id, weeks, amount_pence, expires_at, created_at, status")
+    .eq("business_id", businessId)
+    .eq("status", "succeeded")
+    .order("created_at", { ascending: false });
+  return (data ?? []) as BoostPurchase[];
+}
+
 export type BoostOption = { weeks: 1 | 2 | 3; amountPence: number; newExpiry: string };
 export type BoostPreview = {
   /** The server's verdict. The only thing that decides whether to offer this. */
