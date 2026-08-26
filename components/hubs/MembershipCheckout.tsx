@@ -118,17 +118,29 @@ export function MembershipCheckout({
         router.refresh();
         return;
       }
-      const res = await startMembershipPayment(tier.id, attemptId(), method === "saved");
+      const usingSavedCard = method === "saved";
+      const res = await startMembershipPayment(tier.id, attemptId(), usingSavedCard);
       if (res.charged) {
         await confirmMembership(res.payment_intent_id);
         setStep("done");
         router.refresh();
         return;
       }
-      if (res.clientSecret) {
+      // Choosing the saved card is a decision about WHICH card. A saved-card
+      // charge that does not complete is an error to show, never a reason to
+      // put a card form in front of someone who did not ask for one: entering
+      // another card is theirs to choose, not ours to assume. Only the "Use
+      // another card" route may reach the Payment Element.
+      if (!usingSavedCard && res.clientSecret) {
         setClientSecret(res.clientSecret);
         setPiId(res.payment_intent_id);
         setStep("card");
+        return;
+      }
+      if (usingSavedCard) {
+        throw new Error(
+          "Your saved card couldn't complete this payment. Try again, or choose \u201cUse another card\u201d.",
+        );
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not take the payment.");

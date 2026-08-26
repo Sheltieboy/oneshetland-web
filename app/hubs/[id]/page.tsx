@@ -220,6 +220,7 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
             membership={membership}
             isLoggedIn={!!account}
             signInHref={`/sign-in?next=/hubs/${hub.slug || hub.id}`}
+            hasSavedCard={hasSavedCard}
           />
 
           {/* Member directory — slide-over */}
