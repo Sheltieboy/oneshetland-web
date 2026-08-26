@@ -13,11 +13,14 @@ import {
 } from "@/lib/business-data";
 import {
   updateBusiness, createBusinessOnboardingLink, createSubscriptionIntent,
-  previewSubscriptionChange, applySubscriptionChange, createBoostIntent,
+  previewSubscriptionChange, applySubscriptionChange, createBoostIntent, previewBoost,
+  type BoostOption, type BoostPreview,
   createBillingPortalLink, requestNfcTile, setSubscriptionCancellation, type BillingPeriod,
 } from "@/lib/business-client";
+import { gbp } from "@/lib/stripe";
 import { HelpTip } from "@/components/help/HelpTip";
 import { InvoiceHistory } from "@/components/business/InvoiceHistory";
+import { BoostCheckout } from "@/components/business/BoostCheckout";
 
 export function BillingManager({ business, intentTier, meter }: {
   business: ManagedBusiness;
@@ -40,6 +43,10 @@ export function BillingManager({ business, intentTier, meter }: {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pay, setPay] = useState<{ clientSecret: string; amountPence: number; label: string } | null>(null);
+  // Boost prices come from the server: admin_config is admin-only, so this
+  // screen cannot read them and must not hardcode them.
+  const [boostPreview, setBoostPreview] = useState<BoostPreview | null>(null);
+  const [boostOption, setBoostOption] = useState<BoostOption | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function fail(e: unknown) { setError(e instanceof Error ? e.message : "Something went wrong."); setBusy(null); }
@@ -166,14 +173,17 @@ export function BillingManager({ business, intentTier, meter }: {
     } catch (e) { fail(e); } finally { setBusy(null); }
   }
 
-  async function boost(weeks: 1 | 2 | 3) {
-    setBusy(`boost${weeks}`); setError(null);
-    try {
-      const intent = await createBoostIntent(b.id, weeks);
-      if (intent.charged) { router.refresh(); pollTier(); }
-      else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: intent.amountPence, label: `${weeks} week${weeks > 1 ? "s" : ""} of Pro` });
-      else throw new Error("Could not start boost.");
-    } catch (e) { fail(e); } finally { setBusy(null); }
+  // Opening the checkout charges nothing. Only its Pay button does, and it
+  // carries the price the server quoted.
+  useEffect(() => {
+    let live = true;
+    previewBoost(b.id).then((p) => { if (live) setBoostPreview(p); }).catch(() => {});
+    return () => { live = false; };
+  }, [b.id]);
+
+  function openBoost(option: BoostOption) {
+    setError(null);
+    setBoostOption(option);
   }
 
   async function manageSubscription() {
@@ -220,6 +230,19 @@ export function BillingManager({ business, intentTier, meter }: {
 
   const card = "rounded-card border border-line bg-paper p-5 shadow-soft";
   const btn = "rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:opacity-50";
+
+  if (boostOption) {
+    return (
+      <BoostCheckout
+        business={b}
+        option={boostOption}
+        hasSavedCard={boostPreview?.hasSavedCard ?? false}
+        currentUntil={boostPreview?.currentUntil ?? null}
+        onClose={() => setBoostOption(null)}
+        onPaid={() => { setBoostOption(null); pollTier(); }}
+      />
+    );
+  }
 
   if (pay) {
     return (
@@ -289,8 +312,22 @@ export function BillingManager({ business, intentTier, meter }: {
               <div className="mt-3 rounded-xl border border-line p-3">
                 <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
                 <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
+                {/* Priced, because a control that takes money has to say how
+                    much. These read "1 wk / 2 wk / 3 wk" and charged on the
+                    press, with the amount shown nowhere at all. */}
                 <div className="mt-2 flex gap-2">
-                  {([1, 2, 3] as const).map((w) => <button key={w} onClick={() => boost(w)} disabled={!!busy} className="flex-1 rounded-pill border border-line-strong px-3 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50">{busy === `boost${w}` ? "…" : `${w} wk`}</button>)}
+                  {boostPreview?.options.length
+                    ? boostPreview.options.map((o) => (
+                        <button
+                          key={o.weeks}
+                          onClick={() => openBoost(o)}
+                          disabled={!!busy}
+                          className="flex-1 rounded-pill border border-line-strong px-3 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50"
+                        >
+                          {o.weeks} week{o.weeks > 1 ? "s" : ""} · {gbp(o.amountPence)}
+                        </button>
+                      ))
+                    : <p className="text-xs text-ink-muted">Loading boost prices…</p>}
                 </div>
               </div>
             </>

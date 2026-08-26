@@ -106,9 +106,35 @@ export const previewSubscriptionChange = (businessId: string, tier: "pro" | "pre
 export const applySubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
   invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: false });
 
-export async function createBoostIntent(businessId: string, weeks: 1 | 2 | 3) {
+export type BoostOption = { weeks: 1 | 2 | 3; amountPence: number; newExpiry: string };
+export type BoostPreview = { options: BoostOption[]; currentUntil: string | null; hasSavedCard: boolean };
+
+/**
+ * What the boost options cost and where each would leave Pro access.
+ *
+ * Charges nothing and creates no PaymentIntent. The prices live in admin_config,
+ * which only a platform admin may read, so the business owner's own screen
+ * cannot look them up — the server has to say. It also returns the resulting
+ * expiry per option, worked out with the same rule the webhook grants by, so
+ * the figure shown and the figure granted cannot drift apart.
+ */
+export const previewBoost = (businessId: string) =>
+  invoke<BoostPreview>("local-boost-checkout", { business_id: businessId, preview: true });
+
+/**
+ * `attemptId` is the reference for ONE deliberate boost checkout, held across
+ * retries and any SCA challenge. It reaches the Stripe idempotency key, so
+ * pressing Pay twice lands on the same PaymentIntent while a genuine later
+ * extension of the same business and duration gets its own.
+ */
+export async function createBoostIntent(
+  businessId: string,
+  weeks: 1 | 2 | 3,
+  attemptId: string,
+  useSavedCard = true,
+) {
   const data = await invoke<{ charged?: boolean; status?: string; clientSecret?: string; payment_intent_id?: string; paymentIntent?: string; amountPence: number; weeks: number }>(
-    "local-boost-checkout", { business_id: businessId, weeks });
+    "local-boost-checkout", { business_id: businessId, weeks, client_request_id: attemptId, use_saved_card: useSavedCard });
   // A saved-card boost the issuer wants authenticated is PAUSED, not failed:
   // complete THAT PaymentIntent rather than falling through to the card form.
   const settled = await settleSavedCardPayment(data as ScaStart);
