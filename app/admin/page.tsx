@@ -17,7 +17,8 @@ const QUEUES = [
 
 const TOOLS = [
   { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
-  { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, payments, disputes" },
+  { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, disputes" },
+  { href: "/admin/payments", label: "Payments", desc: "Membership payments and refunds" },
   { href: "/admin/compliance", label: "Compliance log", desc: "Search a user's consent & verification record" },
   { href: "/admin/email", label: "Email centre", desc: "Templates, footer and the delivery log" },
   { href: "/admin/config", label: "Configuration", desc: "Fees, Stripe price IDs, feature flags" },

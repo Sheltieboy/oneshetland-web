@@ -352,3 +352,52 @@ export async function getNfcQueue(status: "requested" | "dispatched" | "active" 
     return (data ?? []) as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);
 }
+
+/* ── Membership payments (platform admin) ───────────────────────────────────
+ *
+ * The refund itself is NOT done here. It runs in the refund-payment Edge
+ * Function, which re-reads the purchase, decides what is still refundable and
+ * reverses the Connect transfer. This only finds the purchase a person is
+ * looking for; the amounts it renders are re-derived server-side before a penny
+ * moves.
+ */
+export type AdminMembershipPurchase = {
+  id: string;
+  hub_name: string;
+  tier_name: string;
+  face_pence: number;
+  fee_pence: number | null;
+  total_pence: number | null;
+  payment_method: "card" | "wallet" | "unknown";
+  payment_intent_id: string | null;
+  refunded_pence: number;
+  refund_state: "none" | "partial" | "full";
+  refunded_at: string | null;
+  occurred_at: string;
+  customerName: string;
+};
+
+export async function getMembershipPurchases(): Promise<AdminMembershipPurchase[]> {
+  return safe((async () => {
+    const sb = await createServerClient();
+    const { data } = await sb
+      .from("hub_membership_purchases")
+      .select("id, user_id, hub_name, tier_name, face_pence, fee_pence, total_pence, payment_method, payment_intent_id, refunded_pence, refund_state, refunded_at, occurred_at")
+      .order("occurred_at", { ascending: false })
+      .limit(200);
+
+    const rows = (data ?? []) as (Omit<AdminMembershipPurchase, "customerName"> & { user_id: string | null })[];
+    const ids = [...new Set(rows.map((r) => r.user_id).filter(Boolean) as string[])];
+    const names = new Map<string, string>();
+    if (ids.length) {
+      const { data: profs } = await sb.from("profiles").select("id, full_name").in("id", ids);
+      for (const p of (profs ?? []) as { id: string; full_name: string | null }[]) {
+        names.set(p.id, p.full_name || "A member");
+      }
+    }
+    return rows.map(({ user_id, ...r }) => ({
+      ...r,
+      customerName: (user_id && names.get(user_id)) || "A member",
+    }));
+  })(), [], "getMembershipPurchases");
+}
