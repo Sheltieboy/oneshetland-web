@@ -304,32 +304,42 @@ export function BillingManager({ business, intentTier, meter }: {
         </ul>
 
         <div className="mt-4 space-y-2">
+          {/* Whether a boost may be sold is the SERVER's answer, not this
+              screen's guess. It used to sit inside `tier === "free"`, which hid
+              it from a business already on a boost — the one case the webhook's
+              stacking arithmetic exists for — while the backend would happily
+              have sold a Premium business a downgrade. One rule now, decided in
+              local-boost-checkout and reported by its preview. */}
+          {boostPreview?.boost_eligible && (
+            <div className="mt-3 rounded-xl border border-line p-3">
+              <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
+              <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
+              {/* Priced, because a control that takes money has to say how
+                  much. These read "1 wk / 2 wk / 3 wk" and charged on the
+                  press, with the amount shown nowhere at all. */}
+              <div className="mt-2 flex gap-2">
+                {boostPreview?.options.length
+                  ? boostPreview.options.map((o) => (
+                      <button
+                        key={o.weeks}
+                        onClick={() => openBoost(o)}
+                        disabled={!!busy}
+                        className="flex-1 rounded-pill border border-line-strong px-3 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50"
+                      >
+                        {o.weeks} week{o.weeks > 1 ? "s" : ""} · {gbp(o.amountPence)}
+                      </button>
+                    ))
+                  : <p className="text-xs text-ink-muted">Loading boost prices…</p>}
+              </div>
+            </div>
+          )}
+
           {tier === "free" && (
             <>
               <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
               <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline">{busy === "premium-annual" ? "…" : `Premium yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
-              <div className="mt-3 rounded-xl border border-line p-3">
-                <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
-                <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
-                {/* Priced, because a control that takes money has to say how
-                    much. These read "1 wk / 2 wk / 3 wk" and charged on the
-                    press, with the amount shown nowhere at all. */}
-                <div className="mt-2 flex gap-2">
-                  {boostPreview?.options.length
-                    ? boostPreview.options.map((o) => (
-                        <button
-                          key={o.weeks}
-                          onClick={() => openBoost(o)}
-                          disabled={!!busy}
-                          className="flex-1 rounded-pill border border-line-strong px-3 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50"
-                        >
-                          {o.weeks} week{o.weeks > 1 ? "s" : ""} · {gbp(o.amountPence)}
-                        </button>
-                      ))
-                    : <p className="text-xs text-ink-muted">Loading boost prices…</p>}
-                </div>
-              </div>
+
             </>
           )}
           {/* This month's bill, as a statement rather than a sentence. A business

@@ -107,7 +107,14 @@ export const applySubscriptionChange = (businessId: string, tier: "pro" | "premi
   invoke<{ success: boolean; subscriptionId: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: false });
 
 export type BoostOption = { weeks: 1 | 2 | 3; amountPence: number; newExpiry: string };
-export type BoostPreview = { options: BoostOption[]; currentUntil: string | null; hasSavedCard: boolean };
+export type BoostPreview = {
+  /** The server's verdict. The only thing that decides whether to offer this. */
+  boost_eligible: boolean;
+  reason: string;
+  options: BoostOption[];
+  currentUntil: string | null;
+  hasSavedCard: boolean;
+};
 
 /**
  * What the boost options cost and where each would leave Pro access.
