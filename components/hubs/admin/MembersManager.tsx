@@ -36,6 +36,12 @@ export function MembersManager({ pending, members, past, ledger, accent }: {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
+  // Who stopped being a member because their payment came back, rather than
+  // because they left or were removed.
+  const refundedMembers = new Set(
+    ledger.filter((p) => p.refund_state === "full" && p.user_id).map((p) => p.user_id as string),
+  );
+
   const run = async (id: string, fn: () => Promise<void>) => {
     setBusy(id);
     try { await fn(); router.refresh(); } finally { setBusy(null); }
@@ -99,7 +105,9 @@ export function MembersManager({ pending, members, past, ledger, accent }: {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold text-ink">{m.profile?.full_name || "Member"}</span>
                   <span className="rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold text-ink-muted">
-                    {m.status === "removed" ? "Removed" : "Left"}
+                    {m.status === "removed" && refundedMembers.has(m.user_id)
+                      ? "Membership refunded"
+                      : m.status === "removed" ? "Removed" : "Left"}
                     {m.ended_at ? ` ${fmtDate(m.ended_at)}` : ""}
                   </span>
                 </div>
@@ -116,7 +124,11 @@ export function MembersManager({ pending, members, past, ledger, accent }: {
         <section>
           <h2 className="font-display text-xl font-bold">Membership payments ({ledger.length})</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            {gbp(ledger.reduce((sum, p) => sum + p.face_pence, 0))} to the hub across all membership payments.
+            {/* Net of refunds. The hub's share is the face price, and what a
+                refund claws back from the hub is that same face price — the
+                95p service fee was never the hub's to keep or to lose. */}
+            {gbp(ledger.reduce((sum, p) => sum + (p.refund_state === "full" ? 0 : p.face_pence), 0))} to
+            the hub across all membership payments, after refunds.
           </p>
           <ul className="mt-4 space-y-2">
             {ledger.map((p) => (
@@ -127,8 +139,15 @@ export function MembersManager({ pending, members, past, ledger, accent }: {
                     {fmtDate(p.occurred_at)}
                     {p.paid_until_after ? ` · covers until ${fmtDate(p.paid_until_after)}` : " · lifetime"}
                   </p>
+                  {p.refund_state !== "none" && (
+                    <p className="mt-0.5 text-xs font-semibold text-amber-700">
+                      {p.refund_state === "full" ? "Refunded" : "Partly refunded"}
+                    </p>
+                  )}
                 </div>
-                <p className="shrink-0 font-display text-lg font-bold text-ink">{gbp(p.face_pence)}</p>
+                <p className={`shrink-0 font-display text-lg font-bold ${p.refund_state === "full" ? "text-ink-muted line-through" : "text-ink"}`}>
+                  {gbp(p.face_pence)}
+                </p>
               </li>
             ))}
           </ul>

@@ -41,7 +41,9 @@ export default async function MembershipsPage() {
     getMyMembershipPurchases(),
   ]);
   const memberships = all.filter(isMembershipActive);
-  const spent = purchases.reduce((sum, p) => sum + (p.total_pence ?? p.face_pence), 0);
+  // Net of refunds — the gross figure would overstate what they are actually out.
+  const spent = purchases.reduce(
+    (sum, p) => sum + (p.total_pence ?? p.face_pence) - (p.refunded_pence ?? 0), 0);
 
   return (
     <>
@@ -68,7 +70,14 @@ export default async function MembershipsPage() {
           </div>
         )}
 
-        {ended.length > 0 && <EndedSection ended={ended} />}
+        {ended.length > 0 && (
+          <EndedSection
+            ended={ended}
+            refundedHubs={new Set(
+              purchases.filter((p) => p.refund_state === "full" && p.hub_id).map((p) => p.hub_id as string),
+            )}
+          />
+        )}
 
         {purchases.length > 0 && <PaymentHistory purchases={purchases} spent={spent} />}
       </div>
@@ -78,7 +87,18 @@ export default async function MembershipsPage() {
 
 /* ── Memberships you no longer hold ───────────────────────────────────────── */
 
-function EndedSection({ ended }: { ended: HubMember[] }) {
+/**
+ * Why the membership ended, in the member's own terms. A refund is the reason
+ * far more often than a removal once refunds exist, and being told "removed by
+ * the hub" when you asked for your money back would be simply wrong.
+ */
+function endedReason(m: HubMember, refundedHubs: Set<string>): string {
+  if (m.status === "removed" && m.hub_id && refundedHubs.has(m.hub_id)) return "Membership refunded";
+  if (m.status === "removed") return "Removed by the hub";
+  return "You left";
+}
+
+function EndedSection({ ended, refundedHubs }: { ended: HubMember[]; refundedHubs: Set<string> }) {
   return (
     <section className="mt-12">
       <h2 className="font-display text-2xl font-bold">Memberships you have left</h2>
@@ -92,7 +112,7 @@ function EndedSection({ ended }: { ended: HubMember[] }) {
                 <p className="font-display font-bold text-ink">{m.hub?.name ?? "A hub"}</p>
                 <p className="text-sm text-ink-soft">
                   {m.membership_type?.name ? `${m.membership_type.name} · ` : ""}
-                  {m.status === "removed" ? "Removed by the hub" : "You left"}
+                  {endedReason(m, refundedHubs)}
                   {m.ended_at ? ` on ${fmtDate(m.ended_at)}` : ""}
                 </p>
                 {restorable && (
@@ -134,10 +154,19 @@ function PaymentHistory({ purchases, spent }: { purchases: MembershipPurchase[];
                 : <p className="text-xs text-ink-muted">Lifetime membership</p>}
             </div>
             <div className="shrink-0 text-right">
-              <p className="font-display text-lg font-bold text-ink">{gbp(p.total_pence ?? p.face_pence)}</p>
+              <p className={`font-display text-lg font-bold ${p.refund_state === "full" ? "text-ink-muted line-through" : "text-ink"}`}>
+                {gbp(p.total_pence ?? p.face_pence)}
+              </p>
               {p.fee_pence !== null
                 ? <p className="text-xs text-ink-muted">{gbp(p.face_pence)} membership + {gbp(p.fee_pence)} fee</p>
                 : <p className="text-xs text-ink-muted">Membership {gbp(p.face_pence)}</p>}
+              {p.refund_state !== "none" && (
+                <p className="mt-1 text-sm font-semibold text-amber-700">
+                  {p.refund_state === "full"
+                    ? `Refunded in full${p.refunded_at ? ` · ${fmtDate(p.refunded_at)}` : ""}`
+                    : `Partly refunded · ${gbp(p.refunded_pence)} returned`}
+                </p>
+              )}
             </div>
           </li>
         ))}
