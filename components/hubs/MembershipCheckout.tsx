@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { getMembershipQuote, startMembershipPayment, confirmMembership, type MembershipQuote } from "@/lib/hubs-client";
@@ -49,6 +48,8 @@ export function MembershipCheckout({
   hasSavedCard,
   currentPaidUntil,
   isRenewal,
+  completed,
+  onPaid,
 }: {
   open: boolean;
   onClose: () => void;
@@ -58,13 +59,22 @@ export function MembershipCheckout({
   hasSavedCard: boolean;
   currentPaidUntil?: string | null;
   isRenewal?: boolean;
+  /**
+   * A purchase that has already completed in this checkout. Held by the PANEL,
+   * not here, because paying flips the panel from its non-member branch to its
+   * member branch — two different places in the tree — which unmounts this
+   * component and remounts a fresh one. Local state does not survive that; the
+   * parent's does. Without it a completed purchase came back as a live
+   * "Renew membership" checkout with a working Pay button.
+   */
+  completed?: { tierName: string; paidUntil: string | null } | null;
+  onPaid?: (result: { tierName: string; paidUntil: string | null }) => void;
 }) {
-  const router = useRouter();
   const [quote, setQuote] = useState<MembershipQuote | null>(null);
   const [loading, setLoading] = useState(true);
   const [method, setMethod] = useState<Method>(hasSavedCard ? "saved" : "new");
   const [walletPence, setWalletPence] = useState<number | null>(null);
-  const [step, setStep] = useState<"review" | "card" | "done">("review");
+  const [step, setStep] = useState<"review" | "card" | "done">(completed ? "done" : "review");
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [piId, setPiId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -78,6 +88,9 @@ export function MembershipCheckout({
 
   useEffect(() => {
     if (!open) return;
+    // Nothing reopens a paid-for checkout. Not a refresh, not a remount, not a
+    // prop change — only closing it and starting another one.
+    if (completed) { setStep("done"); return; }
     setStep("review");
     setClientSecret(null);
     setPiId(null);
@@ -94,7 +107,7 @@ export function MembershipCheckout({
       .finally(() => { if (live) setLoading(false); });
     fetchWalletBalance().then((p) => { if (live) setWalletPence(p); }).catch(() => {});
     return () => { live = false; };
-  }, [open, tier.id, hasSavedCard]);
+  }, [open, tier.id, hasSavedCard, completed]);
 
   const total = quote?.total_pence ?? null;
   const walletCovers = walletPence != null && total != null && walletPence >= total;
@@ -107,23 +120,36 @@ export function MembershipCheckout({
     ? new Date(currentPaidUntil) : new Date();
   const newExpiry = quote ? addPeriod(base, quote.period) : null;
 
+  /**
+   * The end of a purchase. The expiry comes from the server that granted it —
+   * confirm-hub-membership and wallet-checkout both return paid_until — rather
+   * than from adding a year here and hoping the two agree.
+   *
+   * Deliberately does NOT refresh the page. Refreshing while this is open is
+   * what turned a completed purchase into a fresh renewal checkout: the panel
+   * switched branches and remounted this component. The hub page is refreshed
+   * when the customer closes the receipt.
+   */
+  function finish(paidUntil: string | null) {
+    setStep("done");
+    onPaid?.({ tierName: quote?.tier_name ?? tier.name, paidUntil });
+  }
+
   async function pay() {
     if (total == null) return;
     setBusy(true);
     setError(null);
     try {
       if (method === "wallet") {
-        await walletCheckout({ type: "hub_membership", membership_type_id: tier.id }, attemptId());
-        setStep("done");
-        router.refresh();
+        const w = await walletCheckout({ type: "hub_membership", membership_type_id: tier.id }, attemptId());
+        finish(w?.paid_until ?? null);
         return;
       }
       const usingSavedCard = method === "saved";
       const res = await startMembershipPayment(tier.id, attemptId(), usingSavedCard);
       if (res.charged) {
-        await confirmMembership(res.payment_intent_id);
-        setStep("done");
-        router.refresh();
+        const done = await confirmMembership(res.payment_intent_id);
+        finish(done?.paid_until ?? null);
         return;
       }
       // Choosing the saved card is a decision about WHICH card. A saved-card
@@ -155,7 +181,12 @@ export function MembershipCheckout({
         <div className="py-4 text-center">
           <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: accent }}>✓</span>
           <h3 className="mt-4 font-display text-2xl font-bold">{isRenewal ? "Membership renewed" : "You're a member"}</h3>
-          {newExpiry && <p className="mt-2 text-ink-soft">Valid until {fmt(newExpiry)}.</p>}
+          {/* The date the server actually granted, not one worked out here. */}
+          {completed?.paidUntil
+            ? <p className="mt-2 text-ink-soft">Your {completed.tierName} membership is valid until {fmt(new Date(completed.paidUntil))}.</p>
+            : completed
+              ? <p className="mt-2 text-ink-soft">Your {completed.tierName} membership has no expiry.</p>
+              : newExpiry && <p className="mt-2 text-ink-soft">Valid until {fmt(newExpiry)}.</p>}
           <button onClick={onClose} className="mt-5 rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: accent }}>Done</button>
         </div>
       ) : step === "card" && clientSecret && piId ? (
@@ -170,9 +201,8 @@ export function MembershipCheckout({
             accent={accent}
             payLabel={`Pay ${gbp(total ?? 0)}`}
             onPaid={async () => {
-              await confirmMembership(piId);
-              setStep("done");
-              router.refresh();
+              const done = await confirmMembership(piId);
+              finish(done?.paid_until ?? null);
             }}
             onCancel={() => setStep("review")}
           />

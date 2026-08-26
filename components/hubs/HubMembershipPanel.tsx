@@ -33,6 +33,21 @@ export function HubMembershipPanel({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [payTier, setPayTier] = useState<HubMembershipType | null>(null);
+  // A purchase that has already gone through. Held here rather than in the
+  // checkout because paying moves this panel from its non-member branch to its
+  // member branch, and those are two different checkout positions in the tree:
+  // React unmounts one and mounts the other, resetting anything the checkout
+  // held itself. That is how a completed purchase came back as a live
+  // "Renew membership" checkout with a working Pay button.
+  const [paid, setPaid] = useState<{ tierName: string; paidUntil: string | null } | null>(null);
+
+  // Closing the receipt is what refreshes the page — never the payment itself.
+  const closeCheckout = () => {
+    const hadPaid = !!paid;
+    setPayTier(null);
+    setPaid(null);
+    if (hadPaid) refresh();
+  };
   // One reference per deliberate membership checkout — the card route and the
   // wallet route share it, because they are alternatives within one purchase.
   //
@@ -79,7 +94,9 @@ export function HubMembershipPanel({
         {payTier && (
           <MembershipCheckout
             open={!!payTier}
-            onClose={() => setPayTier(null)}
+            onClose={closeCheckout}
+            completed={paid}
+            onPaid={setPaid}
             tier={payTier}
             hubName={hubName}
             accent={accent}
@@ -236,7 +253,9 @@ export function HubMembershipPanel({
       {payTier && (
         <MembershipCheckout
           open={!!payTier}
-          onClose={() => setPayTier(null)}
+          onClose={closeCheckout}
+          completed={paid}
+          onPaid={setPaid}
           tier={payTier}
           hubName={hubName}
           accent={accent}
