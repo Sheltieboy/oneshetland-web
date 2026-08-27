@@ -21,6 +21,7 @@ import { gbp } from "@/lib/stripe";
 import { HelpTip } from "@/components/help/HelpTip";
 import { InvoiceHistory } from "@/components/business/InvoiceHistory";
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
+import { subscriptionConfirmCopy } from "@/lib/subscription-confirm";
 import { BoostCheckout } from "@/components/business/BoostCheckout";
 
 export function BillingManager({ business, intentTier, meter }: {
@@ -55,16 +56,26 @@ export function BillingManager({ business, intentTier, meter }: {
 
   function fail(e: unknown) { setError(e instanceof Error ? e.message : "Something went wrong."); setBusy(null); }
 
-  // Arrived from a paid CTA (e.g. "Choose Premium" → create listing → here):
-  // open that tier's checkout straight away so they can pay in one flow, unless
-  // they're already on that tier or higher.
-  const autoStarted = useRef(false);
-  useEffect(() => {
-    if (autoStarted.current || !intentTier || tierMeets(tier, intentTier)) return;
-    autoStarted.current = true;
-    void upgrade(intentTier);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [intentTier]);
+  /**
+   * Arrived from a paid CTA (e.g. "Choose Premium" → create listing → here).
+   *
+   * This USED TO start the checkout on mount, and with a saved card that meant
+   * £12 left somebody's account because a page loaded with `?plan=pro` on the
+   * end of the URL. The only thing they had pressed was "Create listing". No
+   * screen had named a price, and nothing had asked them to agree to a
+   * recurring payment.
+   *
+   * The deep link still carries the intent — it says which plan they came here
+   * for, and that plan is highlighted below — but it starts nothing. A
+   * subscription begins when somebody presses a button that says what it
+   * costs, and then confirms it. Nothing less.
+   *
+   * Deliberately NOT re-implemented as "open the confirmation dialog on
+   * mount": that dialog confirms on Enter and focuses its primary button, so
+   * auto-opening it would leave the charge one stray keystroke away from a
+   * page load — the same defect wearing a hat.
+   */
+  const highlightTier = intentTier && !tierMeets(tier, intentTier) ? intentTier : null;
 
   /* Toggles */
   async function toggle(field: "use_business_payment" | "use_business_payout", value: boolean) {
@@ -201,6 +212,37 @@ export function BillingManager({ business, intentTier, meter }: {
         // The tier lands via the webhook, not this call — wait for it.
         pollTier(target);
       } else {
+        // ── The confirmation boundary ────────────────────────────────────
+        //
+        // Nothing above this line has touched Stripe, and nothing below it
+        // runs unless the owner has just read the price and pressed a button
+        // that repeats it. A saved card does NOT skip this: having a card on
+        // file says how they would like to pay, not that they have agreed to
+        // pay. This is also where the attempt reference is minted, so backing
+        // out consumes nothing at all.
+        const copy = subscriptionConfirmCopy(target, period);
+        const agreed = await confirm({
+          title: copy.title,
+          body: (
+            <div className="space-y-2">
+              <dl className="space-y-1 text-sm tabular-nums">
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-ink-soft">Plan</dt>
+                  <dd className="font-bold text-ink">{copy.plan}</dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-4">
+                  <dt className="text-ink-soft">Price</dt>
+                  <dd className="font-bold text-ink">{copy.price}</dd>
+                </div>
+              </dl>
+              <p className="text-xs text-ink-muted">{copy.recurrence}</p>
+            </div>
+          ),
+          confirmLabel: copy.confirmLabel,
+          cancelLabel:  copy.cancelLabel,
+        });
+        if (!agreed) { setBusy(null); return; }
+
         // New subscription → saved card charged silently, else collect via Elements.
         // The SAME reference for every retry of this attempt. Without it a
         // second click created a second recurring subscription and a second
@@ -422,10 +464,20 @@ export function BillingManager({ business, intentTier, meter }: {
             </div>
           )}
 
+          {/* Came here from "Choose Pro" on the marketing page. Say so, and
+              point at the button — but do not press it for them. */}
+          {highlightTier && (
+            <p className="rounded-xl border border-line bg-sand px-3 py-2 text-sm text-ink-soft">
+              You chose <strong className="text-ink">{TIER_LABELS[highlightTier]}</strong> ·{" "}
+              <strong className="text-ink">{TIER_PRICE[highlightTier]}</strong>. Nothing has been
+              charged — choose it below when you&apos;re ready.
+            </p>
+          )}
+
           {tier === "free" && (
             <>
-              <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
-              <button onClick={() => upgrade("premium")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
+              <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full" + (highlightTier === "pro" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
+              <button onClick={() => upgrade("premium")} disabled={!!busy} className={"w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand" + (highlightTier === "premium" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")}>{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
               <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline">{busy === "premium-annual" ? "…" : `Premium yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
 
             </>

@@ -6,6 +6,11 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Lets a module name the file it means. lib/subscription-confirm.ts is
+    // imported by the payment test suite in oneshetland-delivers, which runs
+    // under plain node — and node will not guess an extension. The bundler
+    // resolves an explicit one without complaint.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
