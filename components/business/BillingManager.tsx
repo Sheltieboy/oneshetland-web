@@ -460,7 +460,19 @@ export function BillingManager({ business, intentTier, meter }: {
           <h3 className="font-display text-lg font-bold text-ink">Boost history</h3>
           <ul className="mt-3 space-y-2">
             {boostHistory.map((p) => {
-              const active = !!p.expires_at && new Date(p.expires_at) > new Date();
+              const refunded = p.refund_state === "full";
+              const part = p.refund_state === "partial";
+              const active = !refunded && !!p.expires_at && new Date(p.expires_at) > new Date();
+              // A fully refunded boost is not "Expired" — it stopped counting
+              // because the money went back, which is a different fact and the
+              // one the business is owed an explanation for.
+              const pill = refunded
+                ? { label: "Refunded", cls: "bg-purple-50 text-purple-700" }
+                : part
+                  ? { label: "Partly refunded", cls: "bg-amber-50 text-amber-700" }
+                  : active
+                    ? { label: "Active", cls: "bg-emerald-50 text-emerald-700" }
+                    : { label: "Expired", cls: "bg-sand text-ink-muted" };
               return (
                 <li key={p.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-3">
                   <div className="min-w-0">
@@ -470,16 +482,22 @@ export function BillingManager({ business, intentTier, meter }: {
                     <p className="text-xs text-ink-muted">
                       {fmtDay(p.created_at)} · {gbp(p.amount_pence)} · Paid by card
                     </p>
-                    {p.expires_at && (
+                    {refunded && <p className="text-xs font-semibold text-purple-700">Refunded in full</p>}
+                    {/* Naming both figures makes it clear the time was kept. */}
+                    {part && (
+                      <p className="text-xs font-semibold text-amber-700">
+                        {gbp(p.refunded_pence)} of {gbp(p.amount_pence)} refunded
+                      </p>
+                    )}
+                    {p.expires_at && !refunded && (
                       <p className="text-xs text-ink-muted">Pro until {fmtDay(p.expires_at)}</p>
                     )}
                   </div>
                   {/* Each purchase judges itself by its OWN expiry. Reading the
                       business's current tier would mark an old, spent boost
                       "Active" whenever a newer one is running. */}
-                  <span className={"rounded-pill px-3 py-1 text-xs font-bold " +
-                    (active ? "bg-emerald-50 text-emerald-700" : "bg-sand text-ink-muted")}>
-                    {active ? "Active" : "Expired"}
+                  <span className={"rounded-pill px-3 py-1 text-xs font-bold " + pill.cls}>
+                    {pill.label}
                   </span>
                 </li>
               );

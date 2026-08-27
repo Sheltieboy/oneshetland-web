@@ -416,6 +416,9 @@ export type AdminBoostPurchase = {
   created_at: string;
   businessName: string;
   ownerName: string;
+  refunded_pence: number;
+  refund_state: "none" | "partial" | "full";
+  refunded_at: string | null;
 };
 
 export async function getBoostPurchases(): Promise<AdminBoostPurchase[]> {
@@ -423,7 +426,7 @@ export async function getBoostPurchases(): Promise<AdminBoostPurchase[]> {
     const sb = await createServerClient();
     const { data } = await sb
       .from("local_boost_purchases")
-      .select("id, business_id, owner_id, weeks, amount_pence, status, expires_at, created_at")
+      .select("id, business_id, owner_id, weeks, amount_pence, status, expires_at, created_at, refunded_pence, refund_state, refunded_at")
       .order("created_at", { ascending: false })
       .limit(200);
 

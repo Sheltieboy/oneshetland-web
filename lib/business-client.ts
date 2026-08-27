@@ -113,6 +113,10 @@ export type BoostPurchase = {
   expires_at: string | null;
   created_at: string;
   status: string;
+  /** Cumulative amount returned. A high-water mark, never a sum of events. */
+  refunded_pence: number;
+  /** Only 'full' stops the boost counting towards Pro. */
+  refund_state: "none" | "partial" | "full";
 };
 
 /**
@@ -130,7 +134,7 @@ export async function getBoostHistory(businessId: string): Promise<BoostPurchase
   const sb = createClient();
   const { data } = await sb
     .from("local_boost_purchases")
-    .select("id, weeks, amount_pence, expires_at, created_at, status")
+    .select("id, weeks, amount_pence, expires_at, created_at, status, refunded_pence, refund_state")
     .eq("business_id", businessId)
     .eq("status", "succeeded")
     .order("created_at", { ascending: false });
