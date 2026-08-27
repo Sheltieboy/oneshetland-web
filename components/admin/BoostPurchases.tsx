@@ -109,8 +109,8 @@ export function BoostPurchases({ purchases }: { purchases: AdminBoostPurchase[] 
 function consequenceSentence(c: { outcome: string; pro_until?: string } | null): string | null {
   if (!c) return null;
   switch (c.outcome) {
-    case "ends_now":
-      return "Pro will end now and this business will return to Free.";
+    case "returns_to_free":
+      return "Pro will end and this business will return to Free.";
     case "falls_back":
       return `Pro will fall back to ${c.pro_until ? fmt(c.pro_until) : "an earlier date"}.`;
     case "subscription":
