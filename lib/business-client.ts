@@ -121,10 +121,16 @@ export const createSubscriptionIntent = (
   tier: "pro" | "premium",
   period: BillingPeriod = "monthly",
   clientRequestId?: string,
+  useSavedCard = true,
 ) =>
-  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>(
+  invoke<{
+    activated?: boolean; paymentIntent?: string; ephemeralKey?: string;
+    customer?: string; subscriptionId?: string;
+    /** The saved card was refused. NOT a reason to open a card form. */
+    declined?: boolean; code?: string; error?: string;
+  }>(
     "local-subscription-intent",
-    { business_id: businessId, tier, period, client_request_id: clientRequestId },
+    { business_id: businessId, tier, period, client_request_id: clientRequestId, use_saved_card: useSavedCard },
   );
 
 export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>

@@ -125,6 +125,9 @@ export function BillingManager({ business, intentTier, meter }: {
    * the same purchase and therefore the same reference; choosing a different
    * plan is a different purchase and gets a new one.
    */
+  // A refused saved card. Held so the message stays on screen until the owner
+  // decides what to do, rather than being replaced by a card form.
+  const [declined, setDeclined] = useState<{ message: string; target: "pro" | "premium"; period: BillingPeriod } | null>(null);
   const subAttempt = useRef<{ key: string; id: string } | null>(null);
   function subAttemptId(target: string, period: string): string {
     const key = `${target}:${period}`;
@@ -146,7 +149,7 @@ export function BillingManager({ business, intentTier, meter }: {
   function endSubAttempt() { subAttempt.current = null; }
 
   /* Upgrade / change plan */
-  async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly") {
+  async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly", useSavedCard = true) {
     const annual = target === "premium" && period === "annual";
     const label = `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
     setBusy(annual ? `${target}-annual` : target); setError(null);
@@ -202,9 +205,22 @@ export function BillingManager({ business, intentTier, meter }: {
         // The SAME reference for every retry of this attempt. Without it a
         // second click created a second recurring subscription and a second
         // first charge.
-        const intent = await createSubscriptionIntent(b.id, target, period, subAttemptId(target, period));
-        if (intent.activated) { endSubAttempt(); router.refresh(); pollTier(); }
-        else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
+        const intent = await createSubscriptionIntent(
+          b.id, target, period, subAttemptId(target, period), useSavedCard,
+        );
+        if (intent.activated) { endSubAttempt(); setDeclined(null); router.refresh(); pollTier(); }
+        else if (intent.declined) {
+          // The card was refused. Say so and stop. Opening a card form here is
+          // how the owner ended up typing a card they had not chosen to use,
+          // with nothing on screen explaining why their saved one had gone.
+          // The attempt is deliberately NOT ended: choosing another card
+          // completes this same subscription.
+          setDeclined({ message: intent.error ?? "Your saved card was declined.", target, period });
+        }
+        else if (intent.paymentIntent) {
+          setDeclined(null);
+          setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
+        }
         else throw new Error("Could not start subscription.");
       }
     } catch (e) {
@@ -304,6 +320,31 @@ export function BillingManager({ business, intentTier, meter }: {
   return (
     <div className="space-y-5">
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
+
+      {/* A refused saved card. The message stays until the owner chooses; the
+          card form only opens if they ask for it. */}
+      {declined && (
+        <div className="rounded-card border border-rose-200 bg-rose-50 p-4">
+          <p className="font-semibold text-rose-900">{declined.message}</p>
+          <p className="mt-1 text-sm text-rose-800">
+            Nothing has been charged. You can try again, or pay with another card.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => upgrade(declined.target, declined.period, true)}
+              disabled={!!busy}
+              className="rounded-pill border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50">
+              Try that card again
+            </button>
+            <button
+              onClick={() => upgrade(declined.target, declined.period, false)}
+              disabled={!!busy}
+              className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
+              Use another card
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Payments & payouts */}
       <section className={card}>
