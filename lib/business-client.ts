@@ -97,8 +97,26 @@ export const createBusinessOnboardingLink = (businessId: string) =>
 /** Annual is Premium-only; passing it with "pro" quietly gets monthly Pro. */
 export type BillingPeriod = "monthly" | "annual";
 
-export const createSubscriptionIntent = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
-  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>("local-subscription-intent", { business_id: businessId, tier, period });
+/**
+ * Start (or resume) ONE deliberate subscription checkout.
+ *
+ * `clientRequestId` is the attempt reference. Retrying the same attempt — a
+ * double-click, a dropped response — must carry the SAME id, because that is
+ * what makes the server resume the subscription it already created instead of
+ * creating a second one that also renews every month. It is minted by
+ * useAttemptId in the component, not here, so that a re-render cannot mint a
+ * fresh one mid-purchase.
+ */
+export const createSubscriptionIntent = (
+  businessId: string,
+  tier: "pro" | "premium",
+  period: BillingPeriod = "monthly",
+  clientRequestId?: string,
+) =>
+  invoke<{ activated?: boolean; paymentIntent?: string; ephemeralKey?: string; customer?: string; subscriptionId?: string }>(
+    "local-subscription-intent",
+    { business_id: businessId, tier, period, client_request_id: clientRequestId },
+  );
 
 export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>
   invoke<{ previewAmountPence: number; currency: string; nextRenewalAt: string | null; noChange?: boolean; currentTier?: string }>("local-subscription-change", { business_id: businessId, tier, period, preview: true });

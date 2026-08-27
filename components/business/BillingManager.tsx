@@ -20,6 +20,7 @@ import {
 import { gbp } from "@/lib/stripe";
 import { HelpTip } from "@/components/help/HelpTip";
 import { InvoiceHistory } from "@/components/business/InvoiceHistory";
+import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { BoostCheckout } from "@/components/business/BoostCheckout";
 
 export function BillingManager({ business, intentTier, meter }: {
@@ -114,6 +115,25 @@ export function BillingManager({ business, intentTier, meter }: {
     catch (e) { fail(e); } finally { setBusy(null); }
   }
 
+  /**
+   * One reference per deliberate plan choice, held across renders.
+   *
+   * Deliberately NOT useAttemptId: that resets through an effect, which runs
+   * AFTER the click has already minted and used an id, so the retry would mint
+   * a fresh one and create a second subscription — the exact thing this fix
+   * exists to prevent. Keyed synchronously instead: same tier and period means
+   * the same purchase and therefore the same reference; choosing a different
+   * plan is a different purchase and gets a new one.
+   */
+  const subAttempt = useRef<{ key: string; id: string } | null>(null);
+  function subAttemptId(target: string, period: string): string {
+    const key = `${target}:${period}`;
+    if (!subAttempt.current || subAttempt.current.key !== key) {
+      subAttempt.current = { key, id: newCheckoutAttemptId() };
+    }
+    return subAttempt.current.id;
+  }
+
   /* Upgrade / change plan */
   async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly") {
     const annual = target === "premium" && period === "annual";
@@ -168,7 +188,10 @@ export function BillingManager({ business, intentTier, meter }: {
         pollTier(target);
       } else {
         // New subscription → saved card charged silently, else collect via Elements.
-        const intent = await createSubscriptionIntent(b.id, target, period);
+        // The SAME reference for every retry of this attempt. Without it a
+        // second click created a second recurring subscription and a second
+        // first charge.
+        const intent = await createSubscriptionIntent(b.id, target, period, subAttemptId(target, period));
         if (intent.activated) { router.refresh(); pollTier(); }
         else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
         else throw new Error("Could not start subscription.");
