@@ -133,6 +133,17 @@ export function BillingManager({ business, intentTier, meter }: {
     }
     return subAttempt.current.id;
   }
+  /**
+   * The attempt is over. The NEXT deliberate purchase of the same plan is a
+   * different purchase and must get its own reference.
+   *
+   * Called only when the server has said so definitively — the subscription
+   * activated, or the attempt can never complete. Never on a dropped
+   * connection or a failed response, because holding the reference through
+   * those is the entire point: that is what stops a retry buying a second
+   * subscription.
+   */
+  function endSubAttempt() { subAttempt.current = null; }
 
   /* Upgrade / change plan */
   async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly") {
@@ -192,11 +203,18 @@ export function BillingManager({ business, intentTier, meter }: {
         // second click created a second recurring subscription and a second
         // first charge.
         const intent = await createSubscriptionIntent(b.id, target, period, subAttemptId(target, period));
-        if (intent.activated) { router.refresh(); pollTier(); }
+        if (intent.activated) { endSubAttempt(); router.refresh(); pollTier(); }
         else if (intent.paymentIntent) setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
         else throw new Error("Could not start subscription.");
       }
-    } catch (e) { fail(e); } finally { setBusy(null); }
+    } catch (e) {
+      // A definitively spent attempt must not be reused, or every later click
+      // resumes the same dead checkout and the owner can never buy again
+      // without reloading the page.
+      const code = (e as { code?: string })?.code;
+      if (code === 'ATTEMPT_TERMINAL' || code === 'ATTEMPT_CONFLICT') endSubAttempt();
+      fail(e);
+    } finally { setBusy(null); }
   }
 
   // Opening the checkout charges nothing. Only its Pay button does, and it
@@ -278,7 +296,7 @@ export function BillingManager({ business, intentTier, meter }: {
       <div className={card}>
         <p className="mb-3 font-display text-lg font-bold text-ink">{pay.label}</p>
         <PaymentCheckout clientSecret={pay.clientSecret} amountPence={pay.amountPence} accent={BIZ}
-          onPaid={() => { setPay(null); pollTier(); }} onCancel={() => setPay(null)} />
+          onPaid={() => { endSubAttempt(); setPay(null); pollTier(); }} onCancel={() => setPay(null)} />
       </div>
     );
   }

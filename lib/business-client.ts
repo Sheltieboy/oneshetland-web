@@ -16,8 +16,17 @@ async function invoke<T = Record<string, unknown>>(name: string, body?: Record<s
   const { data, error } = await sb.functions.invoke(name, body ? { body } : undefined);
   if (error) {
     let msg = error.message;
-    try { const ctx = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (ctx?.error) msg = ctx.error; } catch { /* */ }
-    throw new Error(msg);
+    let code: string | undefined;
+    try {
+      const ctx = await (error as { context?: { json?: () => Promise<{ error?: string; code?: string }> } }).context?.json?.();
+      if (ctx?.error) msg = ctx.error;
+      // Carried through so a caller can tell a definitive refusal from a
+      // transient one. Without it every failure looks the same, and a checkout
+      // that can never succeed again is indistinguishable from one worth
+      // retrying with the same attempt reference.
+      if (ctx?.code) code = ctx.code;
+    } catch { /* */ }
+    throw Object.assign(new Error(msg), code ? { code } : {});
   }
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
   return data as T;
