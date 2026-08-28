@@ -59,10 +59,13 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
     setBusy(true); setError(null);
     try {
       const sb = createClient();
-      const collectedAt = new Date();
-      const feePence = req.ready_for_collection ? calcWaitingFee(new Date(waitingEvent.arrived_at), collectedAt) : 0;
-      await sb.from("waiting_events").update({ collected_at: collectedAt.toISOString(), waiting_fee_pence: feePence }).eq("id", waitingEvent.id);
-      await sb.from("delivery_requests").update({ status: "collected", waiting_fee_pence: feePence }).eq("id", req.id);
+      // The waiting fee is measured by the server from the arrival it stamped,
+      // priced from delivery_pricing_config, and written in one transaction
+      // with the status. The driver's device used to calculate the money and
+      // write it to both rows — so a driver could charge a customer whatever
+      // they typed, and a wound-back clock could manufacture waiting time.
+      const { error: e } = await sb.rpc("fetch_mark_collected", { p_request: req.id });
+      if (e) throw e;
       try { await sb.functions.invoke("notify-collected", { body: { request_id: req.id } }); } catch { /* non-fatal */ }
       router.refresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not update."); } finally { setBusy(false); }

@@ -194,7 +194,9 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
         contact_phone: contactPhone.trim() || null,
         delivery_notes: deliveryNotes.trim() || null,
         liability_acknowledged: liability,
-        base_fee_pence: feePence ?? null,
+        // Deliberately NOT sent. The fee is the server's — a trigger discards
+        // anything a client puts here, and fetch-quote writes the real number
+        // straight after the insert. `feePence` above is a preview only.
         needed_by: when === "by" && neededBy ? new Date(neededBy).toISOString() : null,
         scheduling_mode: when,
         expires_at: computeExpiry(when, neededBy),
@@ -202,6 +204,16 @@ export function RequestComposer({ isLoggedIn, hasCard, regions }: { isLoggedIn: 
       }).select("id").single();
       if (insErr) throw insErr;
       const id = inserted.id as string;
+
+      // The authoritative price. Until this succeeds the request carries no
+      // fee at all and authorise-payment will refuse it, which is the safe
+      // failure: a driver is never sent out on an uncosted job.
+      const { data: quoted, error: quoteErr } = await sb.functions.invoke("fetch-quote", { body: { request_id: id } });
+      const quoteProblem = quoteErr || (quoted as { error?: string } | null)?.error;
+      if (quoteProblem) {
+        await sb.from("delivery_requests").delete().eq("id", id);
+        throw new Error("We couldn't price that delivery just now. Please try again.");
+      }
       // Optionally save this delivery address for next time (non-fatal).
       if (saveThisAddress && (dest.address || destText).trim()) {
         try {

@@ -174,16 +174,32 @@ export const DRIVER_STATUS_PILL: Record<DriverStatus, Pill> = {
   suspended: { label: "Account suspended", bg: "#FEF3C7", text: "#92400E" },
 };
 
-/* ── Pricing / fee helpers (parity with the app) ──────────────────────────── */
+/* ── Pricing / fee helpers ─────────────────────────────────────────────────
+ *
+ * PREVIEW ONLY. None of this decides what anybody pays — fetch-quote does,
+ * from delivery_pricing_config and a distance it measures itself. These
+ * constants exist so the composer can show a figure while the customer is
+ * still typing, and they MIRROR the configuration rather than defining it.
+ *
+ * They must not drift from it. This one had: the browser charged 95p a mile
+ * while the database said 65p, and because the browser's number was the one
+ * written to the row, the database was simply ignored. There is a test that
+ * fails if these stop matching the live config.
+ * ─────────────────────────────────────────────────────────────────────────── */
 
-export const PRICE_PER_MILE_PENCE = 95;
+/** Mirrors delivery_pricing_config.price_per_mile_pence. */
+export const PRICE_PER_MILE_PENCE = 65;
+/** Mirrors delivery_pricing_config.min_fee_pence. */
 export const MIN_FEE_PENCE = 400;
+/** Mirrors delivery_pricing_config.road_correction_factor. */
 export const ROAD_FACTOR = 1.4;
 
 /** OneShetland service fee — added ON TOP of the delivery fee (the driver keeps
- *  the full delivery fee). Mirrors the app's request step-4 SERVICE_FEE_PENCE. */
+ *  the full delivery fee). Mirrors admin_config fees.fetch.fixed_pence. */
 export const SERVICE_FEE_PENCE = 150;
 
+/** All four mirror delivery_pricing_config.wait_*. The server measures and
+ *  prices the real waiting fee; these only drive the on-screen counter. */
 export const WAIT_GRACE_SECS = 5 * 60;
 export const WAIT_PERIOD_SECS = 5 * 60;
 export const WAIT_PERIOD_PENCE = 150;
