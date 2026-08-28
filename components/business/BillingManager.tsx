@@ -277,12 +277,19 @@ export function BillingManager({ business, intentTier, meter }: {
 
   // Opening the checkout charges nothing. Only its Pay button does, and it
   // carries the price the server quoted.
+  //
+  // Re-asked whenever the business's subscription state changes, not just when
+  // the page mounts. Keyed on `b.id` alone, a Free business that subscribed
+  // kept the "yes, you can buy a boost" answer it had been given while it was
+  // still Free: router.refresh() re-rendered the server half into a Pro
+  // business, but the id had not moved, so the effect never re-ran and the
+  // £7/£12/£15 buttons stayed on screen underneath a live £12/mo plan.
   useEffect(() => {
     let live = true;
     previewBoost(b.id).then((p) => { if (live) setBoostPreview(p); }).catch(() => {});
     getBoostHistory(b.id).then((h) => { if (live) setBoostHistory(h); }).catch(() => {});
     return () => { live = false; };
-  }, [b.id]);
+  }, [b.id, b.subscription_connected, b.subscription_tier]);
 
   function openBoost(option: BoostOption) {
     setError(null);
@@ -440,7 +447,14 @@ export function BillingManager({ business, intentTier, meter }: {
               stacking arithmetic exists for — while the backend would happily
               have sold a Premium business a downgrade. One rule now, decided in
               local-boost-checkout and reported by its preview. */}
-          {boostPreview?.boost_eligible && (
+          {/* `subscription_connected` is the server's own answer to the first
+              question local-boost-checkout asks — "is there a live Stripe
+              subscription?" — and it arrives with every router.refresh(),
+              so the offer goes the moment the plan lands rather than at the
+              next hard reload. It can only ever HIDE: nothing here can offer
+              a boost the preview did not already approve, so the two cannot
+              disagree in the direction that would take somebody's money. */}
+          {!b.subscription_connected && boostPreview?.boost_eligible && (
             <div className="mt-3 rounded-xl border border-line p-3">
               <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
               <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
