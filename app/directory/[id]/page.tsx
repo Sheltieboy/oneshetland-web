@@ -11,6 +11,7 @@ import {
   type OpeningHours,
 } from "@/lib/local-data";
 import { getAccount } from "@/lib/auth";
+import { ownsBusiness } from "@/lib/business-data.server";
 import { TrackView } from "@/components/analytics/TrackView";
 import { ContactLink } from "@/components/analytics/ContactLink";
 import { OfferClaimList } from "@/components/local/OfferClaimList";
@@ -73,7 +74,11 @@ export default async function BusinessPage({
   const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
   const isLoggedIn = !!account;
   const signInHref = `/sign-in?next=/directory/${id}`;
-  const isOwner = !!account && !!b.owner_id && account.id === b.owner_id;
+  // Asked of the database under this user's own session, because the public
+  // listing query cannot read owner_id — `anon` has no grant on that column.
+  // Comparing against `b.owner_id` meant comparing against undefined, so this
+  // was false for everybody, including the owner standing on their own page.
+  const isOwner = !!account && (await ownsBusiness(account.id, b.id));
 
   // Tier gating — richer listings for higher subscription tiers. Only affects
   // what is DISPLAYED; a business always keeps everything its tier includes.
@@ -154,14 +159,27 @@ export default async function BusinessPage({
             </h1>
             {b.address && <p className="mt-1 text-paper/85">{b.address}</p>}
           </div>
+          {/* The action slot. Following your own listing does nothing — you
+              already get everything it would give you — so for the owner this
+              is the way into their dashboard instead. */}
           <div className="shrink-0 self-end pb-1">
-            <FollowButton businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+            {isOwner ? (
+              <Link
+                href={`/business/${b.id}/manage`}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-4 py-2.5 text-sm font-bold text-paper shadow-soft transition hover:brightness-110 sm:px-5"
+                style={{ background: accent }}
+              >
+                Manage business <span aria-hidden>→</span>
+              </Link>
+            ) : (
+              <FollowButton businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+            )}
           </div>
         </div>
       </section>
 
-      {/* Owner-only bar — always gives you a way into managing your business,
-          plus an upgrade nudge on lower tiers. */}
+      {/* Owner-only bar. The way IN is the hero button above; this is the
+          tier nudge, which is the only thing here the button cannot say. */}
       {isOwner && (
         <div className="border-b border-line" style={{ background: `${accent}0c` }}>
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
@@ -179,9 +197,6 @@ export default async function BusinessPage({
                   See plans &amp; upgrade
                 </Link>
               )}
-              <Link href={`/business/${b.id}/manage`} className="rounded-pill px-4 py-2 text-sm font-bold text-paper shadow-soft transition hover:brightness-110" style={{ background: accent }}>
-                Manage business →
-              </Link>
             </div>
           </div>
         </div>

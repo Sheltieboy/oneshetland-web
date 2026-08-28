@@ -25,6 +25,34 @@ export async function getMyManagedBusinesses(userId: string): Promise<Pick<Manag
   })(), []);
 }
 
+/**
+ * Does this signed-in user own this business?
+ *
+ * Asked as a QUESTION, never by reading `owner_id` and comparing. The public
+ * directory page cannot read that column at all — `anon` has no grant on it
+ * (42501), which is deliberate: who owns a listing is not public. So the page
+ * used to compute `account.id === b.owner_id` against a field that was always
+ * undefined, and every owner silently lost the CTA into their own dashboard.
+ *
+ * This filters on owner_id rather than selecting it, under the signed-in
+ * user's own session, so it can only ever answer about rows RLS already lets
+ * them see. Nothing about the owner is returned — only yes or no.
+ *
+ * NAVIGATION ONLY. It decides whether to show a link. The management route
+ * proves ownership again for itself in requireBusinessOwner, and every Edge
+ * Function behind it does its own check; this must never become the boundary.
+ */
+export async function ownsBusiness(userId: string, businessId: string): Promise<boolean> {
+  try {
+    const sb = await createServerClient();
+    const { count } = await sb.from("local_businesses")
+      .select("id", { count: "exact", head: true })
+      .eq("id", businessId)
+      .eq("owner_id", userId);
+    return (count ?? 0) > 0;
+  } catch { return false; }
+}
+
 /** Full management row by id or slug (owner only — caller must verify ownership). */
 export async function getManagedBusiness(idOrSlug: string): Promise<ManagedBusiness | null> {
   const sb = await createServerClient();
