@@ -147,7 +147,11 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
         {/* A matched delivery whose money is not actually held. The driver has
             accepted but cannot answer the customer's bank or type their card,
             so the customer finishes the hold here — on the same intent. */}
-        {isOwner && req.status === "matched" && req.payment_status !== "authorised" && req.payment_status !== "captured" && (
+        {/* 'collected' is included deliberately: a hold that lapses while the
+            driver already has the item is exactly when the customer needs a way
+            to put it right, and hiding the panel then would strand them. */}
+        {isOwner && (req.status === "matched" || req.status === "collected")
+          && req.payment_status !== "authorised" && req.payment_status !== "captured" && (
           <AuthorisePanel requestId={id} />
         )}
 

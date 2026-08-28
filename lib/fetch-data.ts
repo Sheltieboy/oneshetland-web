@@ -51,6 +51,12 @@ export type PaymentStatus =
   | "requires_payment_method"
   | "processing"
   | "authorised"
+  /**
+   * The hold existed and is now gone — released at its capture deadline, or
+   * cancelled — without any money being taken. Deliberately NOT "failed":
+   * nobody was refused, nothing went wrong, and the customer can re-authorise.
+   */
+  | "expired"
   | "captured"
   | "refunded"
   | "partially_refunded"

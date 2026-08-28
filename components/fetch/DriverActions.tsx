@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -36,6 +36,45 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
   const awaitingCustomer =
     req.payment_status === "requires_action" || req.payment_status === "requires_payment_method";
 
+  // ── And is it STILL held? ────────────────────────────────────────────────
+  //
+  // 'authorised' is a note of a past conversation. Stripe releases an
+  // uncaptured card authorisation after a few days, and nothing here used to
+  // ask again — so a delivery accepted on Monday could be collected on the
+  // following Tuesday against money that had gone. The server re-reads the
+  // intent; this only reports what it said.
+  const [hold, setHold] = useState<{ state: string; fulfillable: boolean; message: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  const checkHold = useCallback(async () => {
+    setChecking(true);
+    try {
+      const sb = createClient();
+      const { data, error: e } = await sb.functions.invoke("fetch-hold-check", { body: { request_id: req.id } });
+      if (e || (data as { error?: string })?.error) throw new Error((data as { error?: string })?.error ?? "check failed");
+      const d = data as { state: string; fulfillable: boolean; message?: string };
+      setHold({ state: d.state, fulfillable: !!d.fulfillable, message: d.message ?? "" });
+      return d.fulfillable;
+    } catch {
+      // Not knowing is not the same as knowing it is fine. Fail closed, and
+      // say so — the database will refuse the collection anyway.
+      setHold({
+        state: "unresolved", fulfillable: false,
+        message: "We couldn't confirm the customer's payment hold just now. Please don't collect — try again in a moment.",
+      });
+      return false;
+    } finally {
+      setChecking(false);
+    }
+  }, [req.id]);
+
+  // Checked when the driver opens the delivery, and again the moment before
+  // they commit. Not on every tap: arriving costs nothing, and capture re-reads
+  // the intent itself.
+  useEffect(() => {
+    if (funded && req.status !== "delivered") void checkHold();
+  }, [funded, req.status, checkHold]);
+
   useEffect(() => {
     if (arrivedNotCollected && waitingEvent) {
       const arrived = new Date(waitingEvent.arrived_at);
@@ -67,6 +106,14 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
     if (!waitingEvent) return;
     setBusy(true); setError(null);
     try {
+      // The last moment before the driver takes possession. The database
+      // enforces this too — fetch_mark_collected refuses an expired or
+      // unconfirmed hold — but a refusal that arrives as a raw error is not an
+      // explanation, and the server needs a fresh reading to say yes to.
+      if (!(await checkHold())) {
+        setError("Customer payment authorisation is not valid. Please don't collect.");
+        return;
+      }
       const sb = createClient();
       // The waiting fee is measured by the server from the arrival it stamped,
       // priced from delivery_pricing_config, and written in one transaction
@@ -97,13 +144,40 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
     return (
       <div className="rounded-card border border-amber-300 bg-amber-50 p-4">
         <p className="font-display text-base font-bold text-amber-900">
-          {awaitingCustomer ? "Waiting for the customer's payment" : "Payment not authorised yet"}
+          {req.payment_status === "expired"
+            ? "Payment authorisation expired"
+            : awaitingCustomer ? "Waiting for the customer's payment" : "Payment not authorised yet"}
         </p>
         <p className="mt-1 text-sm text-amber-800">
-          {awaitingCustomer
-            ? "They have been asked to confirm the hold with their bank or add a card. Please don't collect until this clears."
-            : "We could not place a hold on the customer's card. Please don't collect — this delivery isn't funded."}
+          {req.payment_status === "expired"
+            ? "Customer payment authorisation has expired. Wait for the customer to re-authorise before collecting."
+            : awaitingCustomer
+              ? "They have been asked to confirm the hold with their bank or add a card. Please don't collect until this clears."
+              : "We could not place a hold on the customer's card. Please don't collect — this delivery isn't funded."}
         </p>
+      </div>
+    );
+  }
+
+  // Locally funded, but Stripe says otherwise — or has not been asked yet.
+  // Stripe wins, and until it has answered there is nothing to release on.
+  if (req.status !== "delivered" && (!hold || !hold.fulfillable)) {
+    return (
+      <div className="rounded-card border border-amber-300 bg-amber-50 p-4">
+        <p className="font-display text-base font-bold text-amber-900">
+          {!hold ? "Checking the customer's payment…" : hold.state === "expired"
+            ? "Payment authorisation expired" : "Payment hold not confirmed"}
+        </p>
+        {hold && <p className="mt-1 text-sm text-amber-800">{hold.message}</p>}
+        {hold && (
+          <button
+            onClick={() => void checkHold()}
+            disabled={checking}
+            className="mt-3 rounded-pill border border-amber-400 px-4 py-1.5 text-sm font-semibold text-amber-900 disabled:opacity-40"
+          >
+            {checking ? "Checking…" : "Check again"}
+          </button>
+        )}
       </div>
     );
   }
