@@ -32,7 +32,20 @@ export function AcceptRequestButton({
       if (upErr) throw upErr;
       if (!data || data.length === 0) { setError("Another driver just took this one."); router.refresh(); return; }
       // Pre-authorise the customer's card (non-fatal if it fails — webhook/retry handles it).
-      try { await sb.functions.invoke("authorise-payment", { body: { request_id: requestId } }); } catch { /* non-fatal */ }
+      //
+      // One retry, for one reason. A customer who has never paid for anything
+      // now gets a Stripe Customer created here, and that creation is claimed
+      // under a lock so two concurrent calls cannot make two: the loser is told
+      // CUSTOMER_IN_FLIGHT and asked to come back rather than race. Coming back
+      // is this. Anything else is left alone deliberately — retrying a real
+      // failure in a loop is how a customer ends up with several holds.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const { data } = await sb.functions.invoke("authorise-payment", { body: { request_id: requestId } });
+          if ((data as { code?: string })?.code !== "CUSTOMER_IN_FLIGHT") break;
+        } catch { break; /* non-fatal */ }
+        await new Promise((r) => setTimeout(r, 1500));
+      }
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not accept this request.");
