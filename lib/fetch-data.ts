@@ -39,7 +39,22 @@ export function runMatchesRequest(
 }
 export type RunStatus = "open" | "full" | "completed" | "cancelled";
 export type DriverStatus = "not_applied" | "pending" | "approved" | "rejected" | "suspended";
-export type PaymentStatus = "unpaid" | "authorised" | "captured" | "refunded" | "failed";
+/**
+ * Only "authorised" means a Stripe hold exists (PaymentIntent requires_capture).
+ * The three middle states are the ones that used to be recorded as authorised
+ * because the HTTP call returned 200 — a card awaiting 3DS, a card that failed
+ * at confirm, and one Stripe had not finished with. None of them is money held.
+ */
+export type PaymentStatus =
+  | "unpaid"
+  | "requires_action"
+  | "requires_payment_method"
+  | "processing"
+  | "authorised"
+  | "captured"
+  | "refunded"
+  | "partially_refunded"
+  | "failed";
 
 export type DeliveryRequest = {
   id: string;

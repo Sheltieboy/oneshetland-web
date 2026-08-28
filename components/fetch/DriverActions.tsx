@@ -27,6 +27,15 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
 
   const arrivedNotCollected = waitingEvent && !waitingEvent.collected_at;
 
+  // Is the money actually held? Only 'authorised' means a Stripe hold exists —
+  // a PaymentIntent sitting in requires_action or requires_payment_method is
+  // not one, and used to be recorded as authorised anyway. The database refuses
+  // the transition too; this is so the driver is told why rather than shown a
+  // button that errors.
+  const funded = req.payment_status === "authorised" || req.payment_status === "captured";
+  const awaitingCustomer =
+    req.payment_status === "requires_action" || req.payment_status === "requires_payment_method";
+
   useEffect(() => {
     if (arrivedNotCollected && waitingEvent) {
       const arrived = new Date(waitingEvent.arrived_at);
@@ -34,7 +43,7 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
       tick();
       timer.current = setInterval(tick, 1000);
     }
-    return () => { if (timer.current) clearInterval(timer.current); };
+   return () => { if (timer.current) clearInterval(timer.current); };
   }, [arrivedNotCollected, waitingEvent]);
 
   const inGrace = elapsed < WAIT_GRACE_SECS;
@@ -84,7 +93,22 @@ export function DriverActions({ req, waitingEvent }: { req: DeliveryRequest; wai
 
   const btn = "w-full rounded-pill py-3 font-semibold text-white transition hover:brightness-110 disabled:opacity-40";
 
-  return (
+  if (!funded) {
+    return (
+      <div className="rounded-card border border-amber-300 bg-amber-50 p-4">
+        <p className="font-display text-base font-bold text-amber-900">
+          {awaitingCustomer ? "Waiting for the customer's payment" : "Payment not authorised yet"}
+        </p>
+        <p className="mt-1 text-sm text-amber-800">
+          {awaitingCustomer
+            ? "They have been asked to confirm the hold with their bank or add a card. Please don't collect until this clears."
+            : "We could not place a hold on the customer's card. Please don't collect — this delivery isn't funded."}
+        </p>
+      </div>
+    );
+  }
+
+   return (
     <div className="rounded-card border-2 p-4" style={{ borderColor: `${FETCH}55`, background: `${FETCH}0a` }}>
       <p className="mb-3 text-xs font-bold uppercase tracking-widest" style={{ color: FETCH }}>Driver actions</p>
 

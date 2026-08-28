@@ -13,6 +13,7 @@ import { RequestLive } from "@/components/fetch/RequestLive";
 import { DriverActions } from "@/components/fetch/DriverActions";
 import { CustomerWaitingPanel } from "@/components/fetch/CustomerWaitingPanel";
 import { CancelRequestButton } from "@/components/fetch/CancelRequestButton";
+import { AuthorisePanel } from "@/components/fetch/AuthorisePanel";
 import { ExtendRequestButton } from "@/components/fetch/ExtendRequestButton";
 
 export const dynamic = "force-dynamic";
@@ -143,6 +144,13 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
           <ExtendRequestButton requestId={id} />
         )}
         {/* Cancel (requester only, before collection) */}
+        {/* A matched delivery whose money is not actually held. The driver has
+            accepted but cannot answer the customer's bank or type their card,
+            so the customer finishes the hold here — on the same intent. */}
+        {isOwner && req.status === "matched" && req.payment_status !== "authorised" && req.payment_status !== "captured" && (
+          <AuthorisePanel requestId={id} />
+        )}
+
         {isOwner && (req.status === "pending" || req.status === "matched") && (
           <CancelRequestButton requestId={id} isMatched={req.status === "matched"} />
         )}
