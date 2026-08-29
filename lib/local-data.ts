@@ -168,26 +168,64 @@ export async function getFeaturedBusinesses(limit = 8): Promise<Business[]> {
   }
 }
 
+/**
+ * Live offers for the public pages.
+ *
+ * This used to fetch the offers, then look their businesses up in a SECOND
+ * query and attach `map[business_id] ?? null`. A business that is not active is
+ * invisible to that second query, so the lookup missed — and the offer was
+ * still returned, just with `business: null`. An unpublished business went on
+ * advertising on /local and /loyalty; it is how a DEMO offer stayed on the site
+ * after its shop had been hidden.
+ *
+ * One query with an INNER join fixes it, the same shape shop-data.ts already
+ * uses for products. Two independent barriers now have to be crossed:
+ *
+ *   !inner                       — no visible parent row, no offer row.
+ *   .eq("business.is_active")    — and it must actually be active.
+ *
+ * The second is not redundant. The RLS policy on local_businesses is
+ * `is_active = true OR owner_id = auth.uid()`, so a signed-in owner CAN see
+ * their own unpublished business — and without the explicit filter their own
+ * hidden offers would come back through the join.
+ *
+ * It also fixes the limit, which was previously applied before the business was
+ * considered, so a page asking for six offers could quietly get fewer.
+ */
 export async function getActiveOffers(limit = 6): Promise<Offer[]> {
   const sb = publicClient();
   const now = new Date().toISOString();
   try {
-    const offers = unwrapPublic("offers on /loyalty", await sb
+    const rows = unwrapPublic("offers on /loyalty", await sb
       .from("local_offers")
-      .select("id, business_id, title, description, image_url, discount_type, discount_value, valid_until")
+      .select(
+        "id, business_id, title, description, image_url, discount_type, discount_value, valid_until, " +
+        "business:local_businesses!inner(id, name, logo_url, category, slug, is_active)",
+      )
       .eq("is_active", true)
+      .eq("business.is_active", true)
       .lte("valid_from", now)
       .gte("valid_until", now)
       .order("created_at", { ascending: false })
-      .limit(limit), []) as Offer[];
-    if (offers.length === 0) return [];
-    const ids = [...new Set(offers.map((o) => o.business_id))];
-    const { data: biz } = await sb
-      .from("local_businesses")
-      .select("id, name, logo_url, category, slug")
-      .in("id", ids);
-    const map = Object.fromEntries((biz ?? []).map((b) => [b.id, b]));
-    return offers.map((o) => ({ ...o, business: map[o.business_id] ?? null }));
+      .limit(limit), []) as unknown as (Omit<Offer, "business"> & {
+        business: { id: string; name: string; logo_url: string | null; category: string | null; slug: string | null } | null;
+      })[];
+
+    // Mapped rather than spread so the public shape stays exactly what it was —
+    // `is_active` is joined on to filter, not to publish.
+    return rows.map((o) => ({
+      id: o.id,
+      business_id: o.business_id,
+      title: o.title,
+      description: o.description,
+      image_url: o.image_url,
+      discount_type: o.discount_type,
+      discount_value: o.discount_value,
+      valid_until: o.valid_until,
+      business: o.business
+        ? { id: o.business.id, name: o.business.name, logo_url: o.business.logo_url, category: o.business.category, slug: o.business.slug }
+        : null,
+    }));
   } catch {
     return [];
   }
