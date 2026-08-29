@@ -32,7 +32,7 @@ export default function TermsPage() {
           <li>post other people&rsquo;s personal information without consent, or spam, scam or mislead;</li>
           <li>attempt to disrupt the Service or gain unauthorised access to it or to other accounts.</li>
         </ul>
-        <p>See our <a href="/community-guidelines" className="font-semibold text-ink underline">Community guidelines</a> for the full picture. We may suspend or remove accounts that breach these terms.</p>
+        <p>See our <a href="/community-guidelines" className="font-semibold text-ink underline">Community guidelines</a> for the full picture. We may suspend or remove accounts, and remove listings or individual items, that breach these terms.</p>
       </L>
 
       <L h="6. User-generated content — our zero-tolerance policy">
@@ -50,7 +50,7 @@ export default function TermsPage() {
       <L h="7. Payments, fees and refunds">
         <p>Payments are processed securely by Stripe; we never store your full card details. By saving a card you authorise charges for the things you buy (deliveries, tickets, memberships, bookings, donations, subscriptions and purchases). OneShetland charges service fees — for example a per-delivery service fee, a booking fee on tickets, and business subscription fees. Applicable fees are shown before you pay. Businesses and hubs receive their funds through their connected Stripe account.</p>
         <p>Business plans and add-ons are recurring monthly subscriptions that renew automatically until cancelled. You can cancel any time from your business dashboard; access continues until the end of the paid period. Fees already paid are non-refundable except where required by law.</p>
-        <p>Tickets, memberships, bookings, donations and shop/class purchases are sold by the relevant business or hub, not by us. Refunds, cancellations and fulfilment are the responsibility of that business or hub — contact them first. We can help mediate but are not a party to the sale.</p>
+        <p>Tickets, memberships, bookings, donations and shop/class purchases are sold by the relevant business or hub, not by us. Refunds, cancellations and fulfilment are the responsibility of that business or hub — contact them first. We can help mediate but are not a party to the sale. Section 11 sets out what businesses selling through OneShetland are responsible for.</p>
       </L>
 
       <L h="8. Wallet, loyalty and rewards">
@@ -63,35 +63,61 @@ export default function TermsPage() {
       </L>
 
       <L h="10. Business listings, claims and external jobs">
-        <p><span className="font-semibold text-ink">Directory listings.</span> The Directory includes listings compiled from publicly available sources so the community can find local businesses from day one. If you&rsquo;re authorised to act for a business you can claim its listing free of charge; claiming may require verification. You must not claim a listing for a business you don&rsquo;t represent. We may correct, merge or remove listings, and a business can ask for its listing to be amended or removed at any time.</p>
+        <p><span className="font-semibold text-ink">Directory listings.</span> The Directory includes listings compiled from publicly available sources so the community can find local businesses from day one. If you&rsquo;re authorised to act for a business you can claim its listing free of charge; claiming may require verification. You must not claim a listing for a business you don&rsquo;t represent. We may correct, merge or remove listings, and a business can ask for its listing to be amended or removed at any time. Having a listing doesn&rsquo;t oblige you to sell anything through OneShetland; if you choose to, section 11 applies.</p>
         <p><span className="font-semibold text-ink">External job listings.</span> Some vacancies in the Work section are gathered from public sources (for example Shetland Islands Council roles via myjobscotland). Applications for those are made on the source website, not through OneShetland, and we can&rsquo;t guarantee an external listing is current or accurate — the source listing always takes precedence.</p>
       </L>
 
-      <L h="11. AI features">
+      <L h="11. Businesses &amp; selling on OneShetland">
+        <p>This section applies when a business uses OneShetland&rsquo;s commercial features — selling products, taking bookings, selling event tickets, selling passes and packs, publishing offers, running a loyalty programme, or accepting payments through the wallet or counter. It applies in addition to the rest of these terms, and to the person acting for the business as well as to the business itself.</p>
+
+        <p>It does not apply to simply having a Directory listing. A business is welcome to claim or create a listing and keep its public information up to date without selling anything through OneShetland; this section starts to apply when it begins using one of the features above.</p>
+
+        <p><span className="font-semibold text-ink">Authority.</span> You confirm that you&rsquo;re authorised to act for the business, to agree these terms on its behalf, and to offer the goods or services you list.</p>
+
+        <p><span className="font-semibold text-ink">Accuracy.</span> You&rsquo;re responsible for what your business shows customers — descriptions, prices, availability, options, and anything else someone would reasonably rely on when deciding to buy or book. Keep it accurate, and correct it promptly when it changes.</p>
+
+        <p><span className="font-semibold text-ink">What you may offer.</span> Anything you offer must be lawful, must be something you&rsquo;re entitled to supply, and must follow any policy we publish for the feature you&rsquo;re using. Feature-specific rules already exist in some places — for example our <a href="/restricted-goods" className="font-semibold text-ink underline">Restricted goods</a> policy, which sets out what community drivers may not carry through Fetch. Where we publish further rules for a feature, they apply from the date we give.</p>
+
+        <p><span className="font-semibold text-ink">You are the seller.</span> When a customer buys from you, books with you, or buys a ticket or pass from you, the contract for those goods or services is between your business and that customer — see section 4. You&rsquo;re the trader in that transaction, and responsible for meeting the customer&rsquo;s rights under applicable law.</p>
+
+        <p><span className="font-semibold text-ink">Fulfilment.</span> You&rsquo;re responsible for providing what you&rsquo;ve offered and taken payment or a booking for. If you can&rsquo;t, tell the customer promptly and put it right — by agreeing an alternative, rearranging, or refunding.</p>
+
+        <p><span className="font-semibold text-ink">Cancellations and refunds.</span> Cancellations, returns and refunds for your own sales are yours to handle, in line with applicable consumer law and with any policy you&rsquo;ve published or agreed with the customer. If you publish a policy it must be accurate and you must honour it. Refunds are made through the original payment method; contact us if you need help arranging one.</p>
+
+        <p><span className="font-semibold text-ink">Tax.</span> Your tax position is your own — including any VAT, invoicing, record-keeping and reporting that applies to your activity, and making sure your published prices are right for your circumstances. We don&rsquo;t give tax advice.</p>
+
+        <p><span className="font-semibold text-ink">Customer problems.</span> Deal with your customers&rsquo; questions, complaints and fulfilment problems yourself, reasonably and without undue delay. We may pass a complaint on to you, ask you about it, or try to help both sides reach a resolution — doing so doesn&rsquo;t make us the seller or a party to the sale.</p>
+
+        <p><span className="font-semibold text-ink">Fees.</span> Fees that apply to commercial features are described in section 7 and shown before you use the feature or pay.</p>
+
+        <p><span className="font-semibold text-ink">If things go wrong.</span> As well as the account measures in section 5, we may remove a listing, product, service, pass, offer or event, or suspend a business&rsquo;s access to some or all commercial features, where we reasonably believe these terms have been breached — for example unlawful or misleading listings, repeatedly failing to supply what has been sold, or misuse of the payment or platform facilities. Where it&rsquo;s practical and appropriate we&rsquo;ll tell you why first.</p>
+      </L>
+
+      <L h="12. AI features">
         <p>Peerie Bot and other AI-assisted features (drafting listings and content, transcribing recordings) generate their output automatically, and it can be wrong or incomplete — always review AI-drafted content before publishing or relying on it. Content you publish remains your responsibility even where AI helped draft it, and the acceptable-use rules above apply equally to what you ask AI features to do.</p>
       </L>
 
-      <L h="12. Games and promotions">
+      <L h="13. Games and promotions">
         <p>Games, streaks and leaderboards are for fun; we may adjust scores or streaks to correct errors or prevent unfair play. Referral schemes, promotions and any prize competitions may carry their own additional terms, shown where they apply.</p>
       </L>
 
-      <L h="13. Third-party services">
+      <L h="14. Third-party services">
         <p>The Service relies on third parties including Stripe (payments), Supabase (hosting and data), mapping providers, email and AI providers. Your use of those features is also subject to their terms. We&rsquo;re not responsible for third-party services we don&rsquo;t control, though we choose our providers carefully. Attributions for third-party data we display are listed on our <a href="/legal" className="font-semibold text-ink underline">Legal</a> page.</p>
       </L>
 
-      <L h="14. Liability">
+      <L h="15. Liability">
         <p>The Service is provided &ldquo;as is&rdquo;. To the extent permitted by law, we are not liable for the acts of businesses, hubs, drivers or other users, for items carried via Fetch, or for indirect or consequential loss. Nothing here limits liability that cannot be excluded by law (including for death or personal injury caused by negligence, or for fraud).</p>
       </L>
 
-      <L h="15. Termination and deleting your account">
+      <L h="16. Termination and deleting your account">
         <p>You can stop using OneShetland at any time. You can delete your account from within the app at <span className="font-semibold text-ink">Account → Delete account</span>, or see our <a href="/delete-account" className="font-semibold text-ink underline">Delete your account</a> page. Deleting your account removes your profile and personal content; some records (such as anonymised order and payment records) are retained where the law requires, and any unused wallet balance is refunded as described above. We may suspend or terminate your account if you breach these terms or to protect the community.</p>
       </L>
 
-      <L h="16. Changes and governing law">
+      <L h="17. Changes and governing law">
         <p>We may update these terms; significant changes will be notified in-app or by email. These terms are governed by the laws of Scotland and subject to the exclusive jurisdiction of the Scottish courts.</p>
       </L>
 
-      <L h="17. Contact">
+      <L h="18. Contact">
         <p>Questions about these terms, or want to report content or abuse? Use the in-app Report option, or email <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a> — it reaches Darren directly.</p>
       </L>
     </LegalLayout>

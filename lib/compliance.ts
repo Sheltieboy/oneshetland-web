@@ -64,4 +64,14 @@ export async function logCompliance(input: LogInput): Promise<void> {
 }
 
 export const TERMS_VERSION = "1.0";
+/**
+ * The "Businesses & selling on OneShetland" section of the Terms.
+ *
+ * Display only. The authority is the database — `commercial_terms_version()` —
+ * because the acceptance record is stamped there by a SECURITY DEFINER writer
+ * that takes no version argument. This constant exists so a screen can show the
+ * right document, and a test pins it to the database value so the two, and the
+ * app's copy, cannot drift apart.
+ */
+export const COMMERCIAL_TERMS_VERSION = "1.0";
 export const PRIVACY_VERSION = "1.0";
