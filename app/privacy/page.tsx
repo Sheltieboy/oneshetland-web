@@ -16,7 +16,25 @@ export default function PrivacyPage() {
       </L>
 
       <L h="Analytics &amp; cookies">
-        <p>We run our own privacy-respecting analytics — there are no third-party advertising trackers on OneShetland. On the website, analytics only runs <strong>if you accept it</strong> in the consent banner; it records product events (like &ldquo;viewed an event&rdquo;) against a random identifier, not your name. We also count clicks on our social-media short links (oneshetland.com/go/&hellip;) anonymously — no cookie is set and no profile is built. Essential cookies/storage are used to keep you signed in and to remember choices like the consent setting itself.</p>
+        <p>We run our own privacy-respecting analytics — <strong>there are no third-party advertising trackers on OneShetland</strong>, and nothing here is used to build an advertising profile of you.</p>
+
+        <p><strong>Our analytics is opt-in.</strong> On the website it only runs <em>if you accept it</em> in the consent banner. Until you accept, <strong>no analytics identifier is created at all</strong> — nothing is stored in your browser and nothing is sent. If you decline, it stays off. When you do accept, it records product events (like &ldquo;viewed an event&rdquo;) against a random identifier, not your name. We also count clicks on our social-media short links (oneshetland.com/go/&hellip;) anonymously — no cookie is set and no profile is built.</p>
+
+        <p><strong>Storage we need to run the site.</strong> Separately from analytics, your browser stores a few things so OneShetland works: your sign-in session; your answer to the analytics banner (so we stop asking); and things you set up yourself, such as a shopping basket or a saved preference. None of this is used for advertising profiling.</p>
+
+        <p><strong>Payments (Stripe).</strong> Card payments are handled by <a href="https://stripe.com/gb" target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Stripe</a>. Stripe&rsquo;s payment scripts load <strong>only on pages where you are actually paying or managing a saved card</strong> — not on ordinary content pages like the homepage, Directory or What&rsquo;s On. On those payment pages, Stripe may collect transactional information and device-identifying information using cookies and similar technologies. Stripe uses this to process the payment, to authenticate you, for fraud and loss prevention, and to analyse the performance of its own services.</p>
+
+        <p>The Stripe cookies we currently see in our integration are:</p>
+        <ul className="ml-5 list-disc space-y-1">
+          <li><code>__stripe_mid</code> — set by Stripe, for fraud prevention. Lasts approximately one year.</li>
+          <li><code>__stripe_sid</code> — set by Stripe, for fraud prevention. Lasts approximately 30 minutes.</li>
+        </ul>
+        <p>Those are the ones we observe today; Stripe may use others as its own services change, and Stripe describes its own use in full at the links below. These are payment-security cookies, not advertising cookies, and they are <strong>separate from your analytics choice</strong> — the analytics banner controls our optional analytics, and does not switch off the storage needed to sign you in or to take a payment securely.</p>
+
+        <p>For Stripe&rsquo;s own explanation, see the{" "}
+          <a href="https://stripe.com/legal/privacy-center" target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Stripe Privacy Centre</a>{" "}and{" "}
+          <a href="https://stripe.com/cookie-settings" target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Stripe&rsquo;s cookie information</a>.{" "}
+          <strong>OneShetland never receives or stores your full card details.</strong></p>
       </L>
 
       <L h="AI features (Peerie Bot)">
