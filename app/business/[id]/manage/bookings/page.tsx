@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import {
   getBusinessServicesCount,
   getBusinessServicesBrief,
@@ -27,6 +28,10 @@ export const metadata = { title: "Bookings" };
 export default async function BookingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Bookings");
+  if (gate) return gate;
   if (!tierUnlocks(business.subscription_tier, "bookings")) redirect(`/business/${business.id}/manage/billing`);
 
   const [servicesCount, services, rules, overrides] = await Promise.all([

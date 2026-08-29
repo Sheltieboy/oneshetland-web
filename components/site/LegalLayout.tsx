@@ -33,9 +33,11 @@ export function LegalLayout({ title, updated, children }: { title: string; updat
 }
 
 /** Section heading + body helper for consistent spacing. */
-export function L({ h, children }: { h: string; children: React.ReactNode }) {
+export function L({ h, id, children }: { h: string; id?: string; children: React.ReactNode }) {
   return (
-    <section>
+    // `id` is optional and used only where something links to a section by
+    // name — an anchor that does not exist is a dead control, not a nicety.
+    <section id={id} className={id ? "scroll-mt-24" : undefined}>
       <h2 className="font-display text-xl font-bold text-ink">{h}</h2>
       <div className="mt-2 space-y-2 leading-relaxed">{children}</div>
     </section>

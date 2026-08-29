@@ -67,7 +67,7 @@ export default function TermsPage() {
         <p><span className="font-semibold text-ink">External job listings.</span> Some vacancies in the Work section are gathered from public sources (for example Shetland Islands Council roles via myjobscotland). Applications for those are made on the source website, not through OneShetland, and we can&rsquo;t guarantee an external listing is current or accurate — the source listing always takes precedence.</p>
       </L>
 
-      <L h="11. Businesses &amp; selling on OneShetland">
+      <L id="commercial" h="11. Businesses &amp; selling on OneShetland">
         <p>This section applies when a business uses OneShetland&rsquo;s commercial features — selling products, taking bookings, selling event tickets, selling passes and packs, publishing offers, running a loyalty programme, or accepting payments through the wallet or counter. It applies in addition to the rest of these terms, and to the person acting for the business as well as to the business itself.</p>
 
         <p>It does not apply to simply having a Directory listing. A business is welcome to claim or create a listing and keep its public information up to date without selling anything through OneShetland; this section starts to apply when it begins using one of the features above.</p>

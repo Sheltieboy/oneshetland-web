@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { getBookingMeter } from "@/lib/business-data.server";
 import { BillingManager } from "@/components/business/BillingManager";
 import { HelpTip } from "@/components/help/HelpTip";
@@ -18,6 +19,10 @@ export default async function BillingPage({
   const { plan } = await searchParams;
   const intentTier = plan === "pro" || plan === "premium" ? plan : undefined;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Payments and payouts");
+  if (gate) return gate;
   const meter = business.subscription_tier === "pro" ? await getBookingMeter(business.id) : null;
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">

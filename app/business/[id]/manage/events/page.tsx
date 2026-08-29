@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { BIZ } from "@/lib/business-data";
 import { getBusinessEvents } from "@/lib/events-manage";
 
@@ -17,6 +18,10 @@ const STATUS_BADGE: Record<string, { label: string; bg: string; color: string }>
 export default async function BusinessEventsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Events");
+  if (gate) return gate;
   const events = await getBusinessEvents(business.id);
   const base = `/business/${business.id}/manage/events`;
 

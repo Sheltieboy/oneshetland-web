@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { getBusinessOffers } from "@/lib/business-data.server";
 import { tierUnlocks } from "@/lib/business-data";
 import { OffersManager } from "@/components/business/OffersManager";
@@ -11,6 +12,10 @@ export const metadata = { title: "Offers" };
 export default async function OffersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Offers");
+  if (gate) return gate;
   if (!tierUnlocks(business.subscription_tier, "offers")) redirect(`/business/${business.id}/manage/billing`);
   const offers = await getBusinessOffers(business.id, true);
   return (

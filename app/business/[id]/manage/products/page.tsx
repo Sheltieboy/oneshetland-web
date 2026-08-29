@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { tierUnlocks } from "@/lib/business-data";
 import { createClient } from "@/lib/supabase/server";
 import { ProductsManager } from "@/components/business/ProductsManager";
@@ -13,6 +14,10 @@ export const metadata = { title: "Products" };
 export default async function ProductsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Products");
+  if (gate) return gate;
   if (!tierUnlocks(business.subscription_tier, "products")) redirect(`/business/${business.id}/manage/billing`);
 
   const sb = await createClient(); // owner session — RLS shows hidden products too

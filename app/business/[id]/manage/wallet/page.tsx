@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
+import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { getWalletReceipts, getBusinessCode } from "@/lib/business-data.server";
 import { tierUnlocks } from "@/lib/business-data";
 import { WalletManager } from "@/components/business/WalletManager";
@@ -13,6 +14,10 @@ export const metadata = { title: "Local Wallet" };
 export default async function WalletPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  // One acceptance per business covers every commercial screen. Directory
+  // management is deliberately not gated — see lib/commercial-terms.server.
+  const gate = await commercialTermsGate(business, "Local Wallet");
+  if (gate) return gate;
   if (!tierUnlocks(business.subscription_tier, "wallet")) redirect(`/business/${business.id}/manage/billing`);
   const [receipts, code] = await Promise.all([getWalletReceipts(business.id, 10), getBusinessCode(business.id)]);
   return (
