@@ -62,6 +62,18 @@ export default async function LocalPage({
   const bookableCount = businesses.filter((b) => b.accepts_bookings).length;
   const cashbackCount = businesses.filter((b) => (b.cashback_percent ?? 0) > 0).length;
 
+  // Everything about offers on this page hangs off the offers we actually have.
+  // No flag, nothing to switch back on — the first published offer restores the
+  // stat, the tile and the section together.
+  const hasOffers = offers.length > 0;
+  const pillars = [
+    ...(hasOffers
+      ? [{ emoji: "🏷", title: "Offers & deals", body: "Exclusive savings from local businesses", href: "#offers", color: OFFERS_COLOR }]
+      : []),
+    { emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" },
+    { emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL },
+  ];
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
@@ -102,10 +114,14 @@ export default async function LocalPage({
       </section>
 
       {/* ── Stats strip ─────────────────────────────────────────────────── */}
+      {/* The offer count appears only when there is something to count. A
+          headline reading "0 live offers" is a worse first impression than no
+          headline at all, and it comes back on its own the moment a business
+          publishes one — driven by `offers`, with nothing to remember to switch. */}
       <div className="border-b border-line bg-paper">
         <div className="mx-auto flex max-w-6xl divide-x divide-line px-5">
           {[
-            { n: offers.length, label: "live offers" },
+            ...(hasOffers ? [{ n: offers.length, label: "live offers" }] : []),
             { n: bookableCount, label: "bookable spots" },
             { n: cashbackCount, label: "cashback partners" },
           ].map(({ n, label }) => (
@@ -122,12 +138,12 @@ export default async function LocalPage({
         {/* ── Curated pillars ─────────────────────────────────────────────────
             Local leads with what's good locally — offers, bookable experiences
             and cashback partners. The exhaustive A–Z list lives in the Directory. */}
-        <section className="grid gap-4 sm:grid-cols-3">
-          {[
-            { emoji: "🏷", title: "Offers & deals", body: "Exclusive savings from local businesses", href: "#offers", color: OFFERS_COLOR },
-            { emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" },
-            { emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL },
-          ].map((p) => (
+        {/* The Offers tile points at #offers, and that section only renders when
+            there are offers — so with none it was a link that scrolled nowhere.
+            It travels with its destination now. The grid follows the count so a
+            two-tile row still fills the width. */}
+        <section className={"grid gap-4 " + (pillars.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+          {pillars.map((p) => (
             <Link
               key={p.title}
               href={p.href}
@@ -164,7 +180,7 @@ export default async function LocalPage({
 
 
         {/* ── Offers & deals ──────────────────────────────────────────────── */}
-        {offers.length > 0 && (
+        {hasOffers && (
           <section id="offers" className="scroll-mt-24">
             <div className="flex items-center justify-between gap-4 mb-6">
               <div>
