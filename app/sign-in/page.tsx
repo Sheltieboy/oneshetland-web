@@ -13,10 +13,49 @@ function SignInInner() {
   const next = safeNext(params.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(
-    params.get("error") === "confirm" ? "That confirmation link has expired. Please sign in." : null,
-  );
   const [busy, setBusy] = useState(false);
+
+  /**
+   * What the confirmation link actually told us.
+   *
+   * It used to say "That confirmation link has expired" for every failure,
+   * including the common one: signing up on a laptop and opening the email on
+   * a phone. Supabase confirms the address before redirecting here, so in that
+   * case the account was already fine and the message was simply untrue.
+   * Nothing here claims a link expired unless the server was told so.
+   */
+  const confirmState = params.get("error") ?? (params.get("confirmed") === "1" ? "ok" : null);
+  const [error, setError] = useState<string | null>(
+    confirmState === "confirm_invalid"
+      ? "That confirmation link is no longer valid. Request a new one below."
+      : confirmState === "confirm" // older links still in inboxes
+        ? "Your email may already be confirmed — try signing in below."
+        : null,
+  );
+  const [notice, setNotice] = useState<string | null>(
+    confirmState === "confirm_session"
+      ? "Your email may already be confirmed. If you opened the link on a different device from the one you signed up on, we can't sign you in automatically — try signing in below."
+      : null,
+  );
+
+  // A resend, offered only where it is the actual remedy. Supabase answers the
+  // same way whether or not the address has an unconfirmed account, so this
+  // cannot be used to find out who has one.
+  const [resent, setResent] = useState(false);
+  const [resending, setResending] = useState(false);
+  async function resendConfirmation() {
+    if (!email.trim()) { setError("Enter your email address first, then tap resend."); return; }
+    setResending(true); setError(null);
+    try {
+      await createClient().auth.resend({
+        type: "signup",
+        email: email.trim().toLowerCase(),
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+      });
+    } catch { /* deliberately not surfaced — see above */ }
+    setResending(false);
+    setResent(true);
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,6 +114,24 @@ function SignInInner() {
             placeholder="Password"
             className="w-full rounded-xl border border-line bg-cream/40 px-4 py-3 text-ink outline-none focus:border-teal"
           />
+          {notice && !error && (
+            <p className="rounded-lg bg-sand px-3 py-2 text-sm font-medium text-ink-soft">{notice}</p>
+          )}
+          {resent && (
+            <p className="rounded-lg bg-teal/10 px-3 py-2 text-sm font-medium text-ink">
+              If that address needs confirming, a new link is on its way.
+            </p>
+          )}
+          {(confirmState === "confirm_invalid" || confirmState === "confirm_session") && !resent && (
+            <button
+              type="button"
+              onClick={() => void resendConfirmation()}
+              disabled={resending}
+              className="w-full rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand disabled:opacity-50"
+            >
+              {resending ? "Sending…" : "Send a new confirmation email"}
+            </button>
+          )}
           {error && (
             <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>
           )}

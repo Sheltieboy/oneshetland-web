@@ -53,6 +53,10 @@ function SignUpInner() {
           terms_version: TERMS_VERSION,
           privacy_version: PRIVACY_VERSION,
           age_confirmed: true,
+          // Which client started this sign-up. The confirmation email template
+          // branches on it: the web gets a token_hash link that works on any
+          // device, the app keeps its deep link. Nothing else reads it.
+          signup_platform: "web",
         },
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
