@@ -22,6 +22,11 @@ export default async function PaymentsPage() {
     await getPaymentState(sb, account.id);
 
   // Businesses the user owns — for the optional per-business overrides note.
+  // Whether removing this card would leave a subscription without one. A bare
+  // boolean from the server — which Stripe Customer funds a subscription is
+  // decided by columns a client may not read.
+  const { data: fundsSubscription } = await sb.rpc("has_card_funded_subscription");
+
   const { data: businesses } = await sb.from("local_businesses")
     .select("id, name, slug").eq("owner_id", account.id).eq("is_active", true).order("name");
 
@@ -40,7 +45,7 @@ export default async function PaymentsPage() {
           <span className="rounded-pill px-3 py-1 text-sm font-semibold" style={hasCard ? { background: "#DCFCE7", color: "#065F46" } : { background: "#FEF3C7", color: "#92400E" }}>{hasCard ? "On file ✓" : "Not set up"}</span>
         </div>
         <p className="mt-1 text-sm text-ink-muted">Used for Fetch deliveries, event tickets, hub donations and memberships. Stored securely by Stripe and only charged when you pay for something.</p>
-        <div className="mt-4"><CardSetup accent={NAVY} hasCard={hasCard} /></div>
+        <div className="mt-4"><CardSetup accent={NAVY} hasCard={hasCard} fundsSubscription={fundsSubscription} /></div>
       </section>
 
       {/* Payouts / bank */}

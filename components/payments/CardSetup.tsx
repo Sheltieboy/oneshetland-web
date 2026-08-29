@@ -13,7 +13,17 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
  * card every section charges (Fetch, event tickets, hub donations…). No charge
  * is taken; the card is stored off-session for future payments.
  */
-export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?: string; hasCard: boolean; businessId?: string }) {
+export function CardSetup({ accent = "#032f4c", hasCard, businessId, fundsSubscription = false }: {
+  accent?: string;
+  hasCard: boolean;
+  businessId?: string;
+  /**
+   * This card is what an active subscription renews on. Removing it is still
+   * allowed — but "you can add one again any time" is not the whole truth for
+   * this person, so the confirmation says what actually happens.
+   */
+  fundsSubscription?: boolean;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
@@ -23,7 +33,10 @@ export function CardSetup({ accent = "#032f4c", hasCard, businessId }: { accent?
   const [removeError, setRemoveError] = useState<string | null>(null);
 
   async function removeCard() {
-    if (!(await confirm({ title: "Remove saved card?", body: "You can add one again any time.", confirmLabel: "Remove card", danger: true }))) return;
+    const body = fundsSubscription && !businessId
+      ? "You have an active subscription that renews on this card. You can remove it, but you'll need to add another card before the next renewal."
+      : "You can add one again any time.";
+    if (!(await confirm({ title: "Remove saved card?", body, confirmLabel: "Remove card", danger: true }))) return;
     setRemoving(true); setRemoveError(null);
     try {
       const sb = createClient();
@@ -104,10 +117,12 @@ function CardForm({ accent, businessId, onCancel }: { accent: string; businessId
       // would never stick. confirm-card-setup checks Stripe and sets it for real.
       try {
         const sb = createClient();
-        const { data, error: confErr } = await sb.functions.invoke(
-          "confirm-card-setup",
-          businessId ? { body: { business_id: businessId } } : undefined,
-        );
+        // The SetupIntent id goes with it: Stripe's own record of which card
+        // was just confirmed, so the server makes THAT card the default rather
+        // than guessing at whichever is listed first.
+        const { data, error: confErr } = await sb.functions.invoke("confirm-card-setup", {
+          body: { ...(businessId ? { business_id: businessId } : {}), setup_intent_id: setupIntent.id },
+        });
         if (confErr || !data?.ok) throw new Error(data?.error ?? "Card saved but could not be confirmed.");
       } catch (e) {
         setBusy(false);
