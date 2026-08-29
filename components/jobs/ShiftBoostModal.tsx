@@ -12,7 +12,7 @@ import {
   businessHasCard,
   NO_BUSINESS_CARD,
 } from "@/lib/shift-boost-client";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 const PRICE_PENCE = 299;
 

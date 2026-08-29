@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { respondToCharge } from "@/lib/member-card-client";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 /**
  * ChargeApprovalListener — mounted globally. When a business scans this signed-in

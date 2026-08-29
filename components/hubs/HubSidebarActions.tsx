@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { SlideOver } from "@/components/ui/SlideOver";
 import { DonateModal } from "@/components/hubs/DonateModal";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { campaignAcceptsDonations } from "@/lib/hubs-data";
 
 type DirectoryEntry = { user_id: string; name: string; role: string; tier?: string | null };

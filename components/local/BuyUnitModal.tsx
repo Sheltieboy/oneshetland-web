@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startUnitPurchase, confirmUnitPurchase, fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { type UnitItem } from "@/lib/local-data";
 
 type Confirm = { ok: boolean; purchase_id: string; uses_remaining: number; expires_at: string | null };

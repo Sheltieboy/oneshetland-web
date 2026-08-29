@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startGift, confirmGift, fetchWalletBalance } from "@/lib/local-commerce-client";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 type Confirmation = { ok: boolean; gift_id: string; code: string; claim_url?: string; email_sent?: boolean };
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { approveMember, rejectMember, setMemberRole } from "@/lib/hubs-client";
 import type { HubMember } from "@/lib/hubs-data";
 import type { HubLedgerEntry } from "@/lib/hubs-server";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { MembershipRefundButton } from "@/components/hubs/admin/MembershipRefundButton";
 
 function fmtDate(iso: string): string {

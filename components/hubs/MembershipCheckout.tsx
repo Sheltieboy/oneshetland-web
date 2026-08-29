@@ -7,7 +7,7 @@ import { getMembershipQuote, startMembershipPayment, confirmMembership, type Mem
 import type { HubMembershipType } from "@/lib/hubs-data";
 import { walletCheckout, fetchWalletBalance } from "@/lib/local-commerce-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 type Method = "saved" | "new" | "wallet";
 

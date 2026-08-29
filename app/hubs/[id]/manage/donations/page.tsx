@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireHubAdmin, getHubDonationLedger } from "@/lib/hubs-server";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Donations" };

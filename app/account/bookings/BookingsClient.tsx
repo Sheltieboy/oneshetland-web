@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { fetchMyBookings, cancelBooking, type MyBooking, type BookingStatus } from "@/lib/book-data";
 
 const LOCAL = "#7c3aed";

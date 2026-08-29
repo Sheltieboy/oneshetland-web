@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BIZ } from "@/lib/business-data";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 /**
  * TransactionsLedger — the business's full money statement (v1). One read-time

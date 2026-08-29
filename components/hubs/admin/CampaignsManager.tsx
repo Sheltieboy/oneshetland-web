@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createCampaign, updateCampaign } from "@/lib/hubs-client";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import type { HubCampaign } from "@/lib/hubs-data";
 
 export function CampaignsManager({ hubId, campaigns, accent }: { hubId: string; campaigns: HubCampaign[]; accent: string }) {

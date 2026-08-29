@@ -17,7 +17,7 @@ import {
   getBoostHistory, type BoostOption, type BoostPreview, type BoostPurchase,
   createBillingPortalLink, requestNfcTile, setSubscriptionCancellation, type BillingPeriod,
 } from "@/lib/business-client";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { HelpTip } from "@/components/help/HelpTip";
 import { InvoiceHistory } from "@/components/business/InvoiceHistory";
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";

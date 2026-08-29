@@ -5,7 +5,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { createBoostIntent, type BoostOption } from "@/lib/business-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 /**
  * Buying a block of Pro.

@@ -8,7 +8,7 @@ import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startDonation, confirmDonation, type GiftAid } from "@/lib/hubs-client";
 import { fetchWalletBalance, walletCheckout } from "@/lib/local-commerce-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 const PRESETS = [500, 1000, 2000, 5000];
 

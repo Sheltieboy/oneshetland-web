@@ -7,7 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startWalletTopUp, confirmWalletTopUp } from "@/lib/local-commerce-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 const PRESETS = [1000, 2000, 5000, 10000];
 

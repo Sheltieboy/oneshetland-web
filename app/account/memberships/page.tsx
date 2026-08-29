@@ -7,7 +7,7 @@ import {
 } from "@/lib/hubs-server";
 import { isMembershipActive, retainsPaidTime, type HubMember } from "@/lib/hubs-data";
 import { MembershipCard } from "@/components/hubs/MembershipCard";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My memberships" };

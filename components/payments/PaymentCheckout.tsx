@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { getStripe, gbp } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 /**
  * Reusable Stripe checkout. Give it a PaymentIntent `clientSecret` (from one of

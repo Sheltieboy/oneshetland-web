@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
 import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import type { AdminMembershipPurchase } from "@/lib/admin-data.server";
 
 /**

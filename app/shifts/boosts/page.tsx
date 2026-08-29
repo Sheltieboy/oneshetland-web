@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { getMyBoostPurchases } from "@/lib/jobs-data.server";
 import { SHIFTS, EmptyState } from "@/components/jobs/JobsUI";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Boost history" };

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { getMyDonations } from "@/lib/hubs-server";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My donations" };

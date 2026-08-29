@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { payWithWallet } from "@/lib/local-commerce-client";
 import { useAttemptId } from "@/lib/use-attempt-id";
 

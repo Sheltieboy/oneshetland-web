@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { fetchMyPasses, type MyPass } from "@/lib/passes-data";
 import { RedeemDialog } from "@/components/local/RedeemDialog";
 

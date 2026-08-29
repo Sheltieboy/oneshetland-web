@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCampaign, getHub, getCampaignDonors, hubAccent, campaignAcceptsDonations } from "@/lib/hubs-data";
 import { getAccount } from "@/lib/auth";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { CampaignDonate } from "@/components/hubs/CampaignDonate";
 
 export const dynamic = "force-dynamic";

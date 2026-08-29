@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import type { Service } from "@/lib/local-data";
 import { fetchAvailabilityRules, fetchUpcomingOverrides, fetchPublicBookings, createBooking } from "@/lib/book-data";
 import { computeAvailableSlots, type Slot } from "@/lib/book-slots";

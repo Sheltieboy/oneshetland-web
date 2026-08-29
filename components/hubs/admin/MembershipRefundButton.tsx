@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import type { HubLedgerEntry } from "@/lib/hubs-server";
 
 /**

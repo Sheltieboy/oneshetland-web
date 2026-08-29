@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { gbp } from "@/lib/stripe";
+import { gbp } from "@/lib/currency";
 import { fetchWalletState } from "@/lib/local-commerce-client";
 import { fetchWalletTransactions, type WalletTransaction, type WalletTxType } from "@/lib/wallet-data";
 import { WalletTopUpModal } from "@/components/local/WalletTopUpModal";
