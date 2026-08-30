@@ -72,7 +72,12 @@ export function BusinessCreateForm({
       // A paid plan was chosen on the way in → go straight to checkout for it,
       // rather than the public listing, so they can pay there and then.
       if (plan) router.push(`/business/${data.id}/manage/billing?plan=${plan}`);
-      else router.push(`/directory/${data.slug ?? data.id}`);
+      // Otherwise into the management area. It used to land on the new public
+      // listing, which is the one page that tells a new owner nothing about
+      // what to do next — they had just created a business and were shown it
+      // as a stranger would see it, with no route back to managing it. The id
+      // is used rather than the slug because this route is keyed on the id.
+      else router.push(`/business/${data.id}/manage`);
     } catch (e) {
       // Supabase PostgrestError isn't an Error instance — surface its real
       // message/details so the actual reason shows instead of a generic string.

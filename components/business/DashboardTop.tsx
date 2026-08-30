@@ -142,8 +142,15 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
           <Stat label="Profile views" value={week.views.toLocaleString()} href={`${base}/analytics`} />
           <Stat label="Contacts" value={week.contacts.toLocaleString()} href={`${base}/analytics`} />
           <Stat label="Followers" value={week.followers.toLocaleString()} href={`${base}/analytics`} />
+          {/* Revenue is unknown rather than zero without the analytics add-on
+              (see business-dashboard.server). This used to offer to sell that
+              add-on at /manage/addons — a page that does not exist, and an
+              add-on nothing sells any more: the tier model replaced it, and
+              `analytics_addon` now survives only as a type. Both branches go
+              to the statement instead, which is where the money actually is
+              and is open to every business. */}
           {week.revenuePence === null ? (
-            <Stat label="Money in" value="—" hint="Needs the analytics add-on" href={`${base}/addons`} />
+            <Stat label="Money in" value="—" hint="See your statement" href={`${base}/transactions`} />
           ) : (
             <Stat label="Money in" value={`£${(week.revenuePence / 100).toFixed(2)}`} href={`${base}/transactions`} />
           )}
