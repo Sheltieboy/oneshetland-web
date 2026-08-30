@@ -135,6 +135,14 @@ export function CommercialTermsAccept({
           </p>
         )}
 
+        <p className="mt-4 text-sm text-ink-muted">
+          Wondering what you&rsquo;re allowed to sell? See{" "}
+          <Link href="/selling-policy" target="_blank" className="font-semibold text-ink underline">
+            Selling on OneShetland — what you may offer
+          </Link>
+          . It&rsquo;s guidance, not a second thing to accept.
+        </p>
+
         <p className="mt-5 text-sm text-ink-muted">
           This applies to this business and the current version of the terms. Your Directory
           listing is unaffected —{" "}

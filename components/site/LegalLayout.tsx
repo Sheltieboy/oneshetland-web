@@ -25,6 +25,7 @@ export function LegalLayout({ title, updated, children }: { title: string; updat
           <Link href="/privacy" className="hover:text-ink">Privacy</Link>
           <Link href="/community-guidelines" className="hover:text-ink">Community guidelines</Link>
           <Link href="/driver-agreement" className="hover:text-ink">Driver agreement</Link>
+          <Link href="/selling-policy" className="hover:text-ink">Selling policy</Link>
           <Link href="/restricted-goods" className="hover:text-ink">Restricted goods</Link>
         </nav>
       </div>

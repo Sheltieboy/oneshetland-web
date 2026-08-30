@@ -54,6 +54,7 @@ export function SiteFooter() {
           <Link href="/privacy" className="hover:text-paper">Privacy</Link>
           <Link href="/community-guidelines" className="hover:text-paper">Community guidelines</Link>
           <Link href="/driver-agreement" className="hover:text-paper">Driver agreement</Link>
+          <Link href="/selling-policy" className="hover:text-paper">Selling policy</Link>
           <Link href="/restricted-goods" className="hover:text-paper">Restricted goods</Link>
         </nav>
 

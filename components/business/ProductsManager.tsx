@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -309,12 +310,18 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
           </div>
 
           {msg && <p className="mt-3 text-sm font-semibold text-teal-dark" role="status">{msg}</p>}
-          <div className="mt-4 flex justify-end gap-2">
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+            {/* Quiet, and quiet on purpose — nothing here blocks saving. */}
+            <Link href="/selling-policy" target="_blank" className="text-xs font-semibold text-ink-muted underline underline-offset-2 hover:text-ink">
+              What can I sell on OneShetland?
+            </Link>
+            <div className="flex gap-2">
             <button onClick={() => { setForm(null); setMsg(null); }} className="rounded-pill px-4 py-2 text-sm font-bold text-ink-muted hover:bg-sand">Cancel</button>
             <button onClick={save} disabled={busy}
               className="rounded-pill px-5 py-2 text-sm font-bold text-white disabled:opacity-50" style={{ background: SHOP }}>
               {busy ? "Saving…" : form.id ? "Save changes" : "Add product"}
             </button>
+            </div>
           </div>
         </div>
       ) : (
