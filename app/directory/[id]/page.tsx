@@ -71,7 +71,11 @@ export default async function BusinessPage({
     getShopProducts(b.id),
   ]);
   const accent = accentOf(b.brand_color);
-  const cashback = b.accepts_wallet && b.cashback_percent > 0 ? b.cashback_percent : 0;
+  // wallet_live is computed on the server: the flag AND current Pro. The flag
+  // alone outlives an expired plan, and advertising a payment method the
+  // executor will refuse is worse than not offering it.
+  const walletLive = b.wallet_live === true;
+  const cashback = walletLive && b.cashback_percent > 0 ? b.cashback_percent : 0;
   const isLoggedIn = !!account;
   const signInHref = `/sign-in?next=/directory/${id}`;
   // Asked of the database under this user's own session, because the public
@@ -90,7 +94,7 @@ export default async function BusinessPage({
   const showOffers    = tierUnlocks(tier, "offers");
   const showLoyalty   = tierUnlocks(tier, "loyalty");
   const showHiring    = tierUnlocks(tier, "hiring");
-  const showWallet    = tierUnlocks(tier, "wallet");
+  const showWallet    = tierUnlocks(tier, "wallet") && walletLive;
   const showFeatured  = tierUnlocks(tier, "featuredBadge");
   const showGallery   = tierUnlocks(tier, "gallery");
   // Free shows a capped number of photos rather than none — three good photos is

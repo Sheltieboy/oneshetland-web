@@ -60,6 +60,9 @@ export type Business = {
   source: string | null;
   is_verified: boolean;
   accepts_wallet: boolean;
+  /** Server-computed: may a customer be told this business takes Wallet?
+   *  The flag alone is not the answer — it outlives an expired plan. */
+  wallet_live?: boolean;
   cashback_percent: number;
   accepts_bookings: boolean;
   subscription_tier: string;
@@ -118,10 +121,10 @@ export type UnitItem = {
 
 /** The public business page. Safe columns only — no owner, no Stripe, no NFC. */
 const DETAIL_COLS =
-  "id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, is_verified, is_active, is_claimed, verified_at, claimed_at, created_at, accepts_wallet, accepts_bookings, cashback_percent, payout_enabled, subscription_tier, subscription_until, can_publish_urgent, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, planner_context_source, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials";
+  "id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, is_verified, is_active, is_claimed, verified_at, claimed_at, created_at, accepts_wallet, wallet_live, accepts_bookings, cashback_percent, payout_enabled, subscription_tier, subscription_until, can_publish_urgent, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, planner_context_source, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials";
 
 const LIST_COLS =
-  "id, name, category, description, address, tags, logo_url, cover_url, brand_color, is_verified, accepts_wallet, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
+  "id, name, category, description, address, tags, logo_url, cover_url, brand_color, is_verified, accepts_wallet, wallet_live, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
 
 /** Escape a user query for safe use inside a PostgREST `.or(...)` filter value. */
 function sanitizeOrTerm(s: string): string {
