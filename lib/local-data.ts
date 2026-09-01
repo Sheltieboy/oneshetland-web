@@ -123,6 +123,18 @@ export type UnitItem = {
 const DETAIL_COLS =
   "id, name, category, description, address, lat, lng, logo_url, cover_url, brand_color, tags, phone, website, email, slug, opening_hours, opening_hours_until, is_verified, is_active, is_claimed, verified_at, claimed_at, created_at, accepts_wallet, wallet_live, accepts_bookings, cashback_percent, payout_enabled, subscription_tier, subscription_until, can_publish_urgent, planner_visitor_ready, planner_dwell_minutes, planner_setting, planner_good_for, planner_booking, planner_note, planner_context_source, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials";
 
+/**
+ * Public business reads go through the view, not the table.
+ *
+ * LIST_COLS and DETAIL_COLS both ask for wallet_live. As a computed column on
+ * local_businesses that meant a whole-row reference, which Postgres checks
+ * against TABLE-level SELECT — and anon and authenticated hold only
+ * column-level grants here, on purpose. Every one of these reads 401'd, and the
+ * Directory showed "0 listings". The view computes the same answer from columns
+ * the caller may already read.
+ */
+const PUBLIC_BUSINESS = "local_businesses_public";
+
 const LIST_COLS =
   "id, name, category, description, address, tags, logo_url, cover_url, brand_color, is_verified, accepts_wallet, wallet_live, cashback_percent, accepts_bookings, subscription_tier, slug, is_claimed";
 
@@ -140,7 +152,7 @@ export async function getFeaturedBusinesses(limit = 8): Promise<Business[]> {
   const now = new Date().toISOString();
   try {
     const { data: subs } = await sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .in("subscription_tier", ["pro", "premium"])
@@ -152,7 +164,7 @@ export async function getFeaturedBusinesses(limit = 8): Promise<Business[]> {
 
     const have = new Set(out.map((b) => b.id));
     const { data: rest } = await sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .order("is_verified", { ascending: false })
@@ -302,7 +314,7 @@ export async function getDirectoryFeatured(limit = 6): Promise<Business[]> {
   const now = new Date().toISOString();
   try {
     const { data } = await sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .in("subscription_tier", ["pro", "premium"])
@@ -337,7 +349,7 @@ export async function getAllBusinesses(
   const sb = publicClient();
   try {
     let q = sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .order("is_verified", { ascending: false })
@@ -366,7 +378,11 @@ export async function getAllBusinesses(
         ].join(","),
       );
     }
-    const { data } = await q;
+    const { data, error } = await q;
+    // A failed Directory read is not an empty Shetland. Throwing this away and
+    // returning [] is how a platform-wide 401 spent days looking like "0
+    // listings, no businesses found" on a page that renders perfectly.
+    if (error) throw error;
     let rows = (data ?? []) as unknown as Business[];
 
     // Fold in businesses whose tags contain the term as a substring (the SQL
@@ -376,7 +392,7 @@ export async function getAllBusinesses(
       const have = new Set(rows.map((b) => b.id));
       const lc = term.toLowerCase();
       let tq = sb
-        .from("local_businesses")
+        .from(PUBLIC_BUSINESS)
         .select(LIST_COLS)
         .eq("is_active", true)
         .order("name", { ascending: true })
@@ -398,8 +414,11 @@ export async function getAllBusinesses(
       );
     }
     return rows;
-  } catch {
-    return [];
+  } catch (e) {
+    // The one caller is /directory. Better a visible failure than a page that
+    // quietly tells Shetland it has no businesses.
+    console.error("[directory] getAllBusinesses failed", e);
+    throw e;
   }
 }
 
@@ -410,7 +429,7 @@ export async function getBookableBusinesses(
   const sb = publicClient();
   try {
     let q = sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .eq("accepts_bookings", true)
@@ -456,7 +475,7 @@ export async function getBusiness(idOrSlug: string): Promise<Business | null> {
   try {
     const col = UUID.test(idOrSlug) ? "id" : "slug";
     const { data } = await sb
-      .from("local_businesses")
+      .from(PUBLIC_BUSINESS)
       // Named columns, not "*": under column-level grants `select *` is denied,
       // and naming them is what keeps a newly added sensitive column private.
       .select(DETAIL_COLS)
@@ -611,7 +630,7 @@ export async function getLocalFeed(area?: string): Promise<{
     ),
     safe(
       (async () => {
-        let q = sb.from("local_businesses")
+        let q = sb.from(PUBLIC_BUSINESS)
           .select(LIST_COLS)
           .eq("is_active", true)
           .order("subscription_tier", { ascending: false })
