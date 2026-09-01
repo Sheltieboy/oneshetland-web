@@ -7,6 +7,7 @@ import { updateBusiness, uploadBusinessMedia } from "@/lib/business-client";
 import { OpeningHoursEditor } from "@/components/business/OpeningHoursEditor";
 import { hasAnyHours, type OpeningHours } from "@/lib/opening-hours";
 import { PlannerContextEditor } from "@/components/business/PlannerContextEditor";
+import { MapPinPicker } from "@/components/business/MapPinPicker";
 import { type PlannerContext } from "@/lib/planner-context";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -32,6 +33,11 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
     planner_good_for: business.planner_good_for ?? null,
     planner_booking: business.planner_booking ?? null,
     planner_note: business.planner_note ?? null,
+  });
+  // The map pin is its own state: two numbers that move together, and the
+  // owner may legitimately clear both.
+  const [pin, setPin] = useState<{ lat: number | null; lng: number | null }>({
+    lat: business.lat ?? null, lng: business.lng ?? null,
   });
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -65,6 +71,7 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         address: f.address.trim() || null, brand_color: f.brand_color,
         tags: f.tags.split(",").map((t) => t.trim()).filter(Boolean),
         opening_hours: hasAnyHours(hours) ? hours : null,
+        lat: pin.lat, lng: pin.lng,
         ...planner,
       };
       if (logoFile) { const url = await uploadBusinessMedia(business.id, "logo", logoFile); patch.logo_url = url; setLogoUrl(url); setLogoFile(null); setLogoPreview(""); }
@@ -123,6 +130,14 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
       </div>
       <div><label className={lab}>Description</label><textarea className={field + " min-h-[110px]"} value={f.description} onChange={(e) => set("description", e.target.value)} /></div>
       <div><label className={lab}>Address</label><input className={field} value={f.address} onChange={(e) => set("address", e.target.value)} /></div>
+      {/* Straight after the address, because it is the same question asked in
+          the way a customer actually needs it answered. */}
+      <MapPinPicker
+        lat={pin.lat}
+        lng={pin.lng}
+        accent={BIZ}
+        onChange={(lat, lng) => { setPin({ lat, lng }); setSaved(false); }}
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         <div><label className={lab}>Phone</label><input className={field} value={f.phone} onChange={(e) => set("phone", e.target.value)} /></div>
         <div><label className={lab}>Email</label><input className={field} value={f.email} onChange={(e) => set("email", e.target.value)} /></div>

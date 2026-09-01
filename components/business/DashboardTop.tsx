@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AVAILABILITY_LABEL, AVAILABILITY_TTL_DAYS, availabilityIsFresh } from "@/lib/trades";
 import { type DashboardData } from "@/lib/business-dashboard.server";
+import { type NextAction } from "@/lib/business-next-action";
 
 const money = (p: number) => `£${(p / 100).toFixed(2)}`;
 const when = (iso: string) =>
@@ -26,7 +27,9 @@ const ago = (iso: string) => {
 
 const BIZ = "#7c3aed";
 
-export function DashboardTop({ data, base }: { data: DashboardData; base: string }) {
+export function DashboardTop({ data, base, next, listingDone }: {
+  data: DashboardData; base: string; next?: NextAction | null; listingDone?: boolean;
+}) {
   const { needs, week, code } = data;
 
   const staleAvailability =
@@ -130,6 +133,31 @@ export function DashboardTop({ data, base }: { data: DashboardData; base: string
             Job leads have stopped coming. Confirm it and they start again.
           </p>
         </Link>
+      )}
+
+      {/* ── Next ───────────────────────────────────────────────────────
+           One thing, and only when nothing is waiting. The caller decides
+           whether there is a next at all (lib/business-next-action.ts), which
+           is what keeps "4 orders waiting" from appearing twice on one page
+           in two different voices. */}
+      {next && (
+        <Link href={next.href} className="block rounded-xl border border-line bg-paper p-4 shadow-soft transition hover:bg-sand/40">
+          <p className="eyebrow text-ink-muted">Next</p>
+          <p className="mt-1 font-display font-bold text-ink">{next.title}</p>
+          <p className="mt-0.5 text-sm text-ink-muted">{next.body}</p>
+        </Link>
+      )}
+
+      {/* Finished is a real state and has to look like one. A business that
+          only ever wanted to be found has now done everything there is to do,
+          and must not be handed another task to keep the section alive. */}
+      {!next && listingDone && (
+        <section className="rounded-xl border border-line bg-paper p-4 shadow-soft">
+          <p className="font-semibold text-ink">Your listing is looking good</p>
+          <p className="mt-0.5 text-sm text-ink-muted">
+            Everything customers need is there. Nothing else to do.
+          </p>
+        </section>
       )}
 
       </div>

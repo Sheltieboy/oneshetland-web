@@ -3,6 +3,8 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { getMyManagedBusinesses } from "@/lib/business-data.server";
 import { BIZ, TIER_LABELS, tierMeets, tierUnlocks, tierFor, type Feature } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
+import { nextAction, hasOperationalAttention } from "@/lib/business-next-action";
+import { beFound } from "@/lib/be-found";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +31,10 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const dashboard = await getDashboardData(business.id);
   const mine = await getMyManagedBusinesses(account.id);
   const base = `/business/${business.id}/manage`;
+  // Be Found is derived from the business record on every load — nothing about
+  // it is stored, so it can never go stale or disagree with the listing.
+  const next = nextAction(dashboard, business, base);
+  const listingDone = !hasOperationalAttention(dashboard) && beFound(business).state === "good";
   const premium = tierMeets(business.subscription_tier, "premium");
 
   const tiles: Tile[] = [
@@ -80,7 +86,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       </div>
 
       {/* The dashboard proper: what needs you, how the week went, the code. */}
-      <div className="mb-8"><DashboardTop data={dashboard} base={base} /></div>
+      <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} /></div>
 
       {!premium && (
         <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 p-5 shadow-soft" style={{ borderColor: `${BIZ}33`, background: `${BIZ}08` }}>
