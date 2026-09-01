@@ -38,6 +38,32 @@ export type OrderRow = { id: string; totalPence: number; fulfilment: string; cre
 export type BookingRow = { id: string; startsAt: string; service: string | null; who: string | null; pricePence: number };
 export type LeadRow = { matchId: string; title: string; location: string; urgency: string; createdAt: string };
 
+/**
+ * Everything the five outcome rows need, and money's payout answer.
+ *
+ * null means "we could not read it", never zero. A failed count that renders as
+ * "No products" is a lie an owner has no way to detect, so an unreadable value
+ * degrades that row to a neutral "couldn't load this" instead.
+ */
+export type OutcomeReads = {
+  products: number | null; productsActive: number | null;
+  passes: number | null; passesActive: number | null;
+  services: number | null; availability: number | null;
+  events: number | null; eventsUpcoming: number | null;
+  offers: number | null; offersLive: number | null;
+  loyalty: number | null; loyaltyActive: number | null;
+  meetsPro: boolean | null; meetsPremium: boolean | null;
+  /** Boost bought and not yet expired. */
+  boostActive: boolean | null;
+  /**
+   * Proved from BOTH payout routes — the platform account and the business's
+   * own Connect account — via business_private_fields, which is owner-checked.
+   * Half the evidence would tell a business that has set payouts up to go and
+   * set them up.
+   */
+  payoutReady: boolean | null;
+};
+
 export type DashboardData = {
   code: string | null;
   orders: OrderRow[];
@@ -49,6 +75,7 @@ export type DashboardData = {
   isTrade: boolean;
   tradeAvailability: string | null;
   tradeAvailabilitySetAt: string | null;
+  outcomes: OutcomeReads;
 };
 
 type CountResult = PromiseSettledResult<{ count: number | null }>;
@@ -67,6 +94,35 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
   const jobIds = jobsRes[0].status === "fulfilled"
     ? ((jobsRes[0].value.data ?? []) as { id: string }[]).map((j) => j.id)
     : [];
+
+  const now = new Date().toISOString();
+  const count = (t: string, apply: (q: any) => any) =>   // eslint-disable-line @typescript-eslint/no-explicit-any
+    apply(sb.from(t).select("id", { count: "exact", head: true }).eq("business_id", businessId));
+
+  /* Started here rather than awaited later: these sixteen depend on nothing in
+     the batch below, so letting them wait for it would cost Home a whole extra
+     round trip for no reason. Two waves, not three. */
+  const outcomeReads = Promise.allSettled([
+    count("products", (q) => q),
+    count("products", (q) => q.eq("is_active", true)),
+    count("book_unit_items", (q) => q),
+    count("book_unit_items", (q) => q.eq("is_active", true)),
+    count("book_services", (q) => q),
+    count("book_availability_rules", (q) => q),
+    sb.from("events").select("id", { count: "exact", head: true })
+      .eq("organiser_business_id", businessId),
+    sb.from("events").select("id", { count: "exact", head: true })
+      .eq("organiser_business_id", businessId).eq("status", "published")
+      .eq("is_hidden", false).gt("starts_at", now),
+    count("local_offers", (q) => q),
+    count("local_offers", (q) => q.eq("is_active", true).lte("valid_from", now).gte("valid_until", now)),
+    count("local_loyalty_programs", (q) => q),
+    count("local_loyalty_programs", (q) => q.eq("is_active", true)),
+    count("local_boost_purchases", (q) => q.eq("status", "succeeded").gt("expires_at", now)),
+    sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "pro" }),
+    sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "premium" }),
+    sb.rpc("business_private_fields", { p_business_id: businessId }),
+  ]);
 
   const [codeRes, ordersRes, bookingsRes, leadsRes, appsRes, bizRes, analyticsRes] =
     await Promise.allSettled([
@@ -98,11 +154,55 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
         : Promise.resolve({ count: 0 } as { count: number | null }),
 
       sb.from("local_businesses")
-        .select("trade_categories, trade_availability, trade_availability_set_at")
+        .select("trade_categories, trade_availability, trade_availability_set_at, payout_enabled")
         .eq("id", businessId).single(),
 
       sb.rpc("business_analytics", { p_business_id: businessId, p_days: 7 }),
     ]);
+
+  const [
+    productsRes, productsActiveRes, passesRes, passesActiveRes,
+    servicesRes, availabilityRes, eventsRes, eventsUpcomingRes,
+    offersRes, offersLiveRes, loyaltyRes, loyaltyActiveRes,
+    boostRes, proRes, premiumRes, privateRes,
+  ] = await outcomeReads;
+
+  /** An exact count, or null when the read failed. Never a consoling zero. */
+  const num = (r: PromiseSettledResult<{ count: number | null; error?: unknown }>): number | null =>
+    r.status === "fulfilled" && !r.value.error ? (r.value.count ?? 0) : null;
+  const bool = (r: PromiseSettledResult<{ data: unknown; error?: unknown }>): boolean | null =>
+    r.status === "fulfilled" && !r.value.error ? r.value.data === true : null;
+
+  const bizPayoutEnabled = bizRes.status === "fulfilled"
+    ? ((bizRes.value.data as { payout_enabled?: boolean | null } | null)?.payout_enabled ?? false)
+    : null;
+
+  /* Payout is ready by one of two routes, and which one applies is the
+     business's own setting. use_business_payout and its Connect flags are not
+     readable through the table by any client role, so they come from the
+     owner-checked RPC. */
+  const priv = privateRes.status === "fulfilled" && !privateRes.value.error
+    ? ((privateRes.value.data as Record<string, unknown>[] | null)?.[0] ?? null)
+    : undefined;
+  const payoutReady = priv === undefined
+    ? null
+    : priv === null
+      ? false
+      : priv.use_business_payout === true
+        ? priv.business_stripe_payouts_enabled === true
+        : (bizPayoutEnabled === true && priv.stripe_connected === true);
+
+  const outcomes: OutcomeReads = {
+    products: num(productsRes as never), productsActive: num(productsActiveRes as never),
+    passes: num(passesRes as never), passesActive: num(passesActiveRes as never),
+    services: num(servicesRes as never), availability: num(availabilityRes as never),
+    events: num(eventsRes as never), eventsUpcoming: num(eventsUpcomingRes as never),
+    offers: num(offersRes as never), offersLive: num(offersLiveRes as never),
+    loyalty: num(loyaltyRes as never), loyaltyActive: num(loyaltyActiveRes as never),
+    meetsPro: bool(proRes as never), meetsPremium: bool(premiumRes as never),
+    boostActive: (() => { const c = num(boostRes as never); return c === null ? null : c > 0; })(),
+    payoutReady,
+  };
 
   const rows = <T,>(r: PromiseSettledResult<{ data: unknown }>): T[] =>
     r.status === "fulfilled" ? ((r.value.data ?? []) as T[]) : [];
@@ -176,5 +276,6 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     isTrade: (((biz?.trade_categories as string[] | null) ?? []).length > 0),
     tradeAvailability: (biz?.trade_availability as string | null) ?? null,
     tradeAvailabilitySetAt: (biz?.trade_availability_set_at as string | null) ?? null,
+    outcomes,
   };
 }

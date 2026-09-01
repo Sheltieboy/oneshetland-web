@@ -1,29 +1,17 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getMyManagedBusinesses } from "@/lib/business-data.server";
-import { BIZ, TIER_LABELS, tierMeets, tierUnlocks, tierFor, type Feature } from "@/lib/business-data";
+import { BIZ, TIER_LABELS } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
 import { nextAction, hasOperationalAttention } from "@/lib/business-next-action";
 import { beFound } from "@/lib/be-found";
+import { businessOutcomes } from "@/lib/business-outcomes";
+import { OutcomeRow, UtilityRow } from "@/components/business/OutcomeRow";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Manage business" };
 
-/**
- * Twenty tiles in one flat list is a menu, not a dashboard — everything looked
- * equally important, so nothing was. They're grouped by what you came to do:
- * serving somebody now, money, being found, selling, hiring.
- */
-type Group = "Serving" | "Money" | "Being found" | "Selling" | "People";
-type Tile = {
-  href: string; icon: string; title: string; desc: string; group: Group;
-  /** Which feature gates this tile. Omitted = available on every tier. */
-  feature?: Feature;
-  built?: boolean;
-};
-
-const GROUP_ORDER: Group[] = ["Serving", "Money", "Being found", "Selling", "People"];
 
 export default async function ManageBusinessPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -35,32 +23,16 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   // it is stored, so it can never go stale or disagree with the listing.
   const next = nextAction(dashboard, business, base);
   const listingDone = !hasOperationalAttention(dashboard) && beFound(business).state === "good";
-  const premium = tierMeets(business.subscription_tier, "premium");
+  const reads = dashboard.outcomes;
+  const outcomes = businessOutcomes(business, reads, base);
+  // Omitted entirely rather than guessed: an unreadable payout state must not
+  // become "not set up" on a business that has set it up.
+  const payoutStatus =
+    reads.payoutReady === null ? null : reads.payoutReady ? "Payouts ready" : "Payouts not set up";
+  // The same effective answer the directory and the browse list read.
+  const walletLive =
+    business.accepts_wallet === true && business.is_active === true && reads.meetsPro === true;
 
-  const tiles: Tile[] = [
-    // Serving comes before managing — it's the thing done many times a day.
-    { href: `${base}/counter`, group: "Serving", icon: "🧾", title: "Counter mode", desc: "Full-screen serving view · lockable with a staff PIN", built: true },
-    { href: `${base}/billing`, group: "Money", icon: "💳", title: "Plan, payments & payouts", desc: "Subscription, business card & bank, NFC", built: true },
-    { href: `${base}/profile`, group: "Being found", icon: "🏪", title: "Profile & branding", desc: "Name, description, photos, hours, links", built: true },
-    { href: `${base}/analytics`, group: "Being found", icon: "📊", title: "Analytics", desc: "Views, engagement & revenue", feature: "analytics", built: true },
-    { href: `${base}/offers`, group: "Being found", icon: "🏷️", title: "Offers", desc: "Time-limited deals", feature: "offers", built: true },
-    { href: `${base}/loyalty`, group: "Serving", icon: "📇", title: "Loyalty programme", desc: "Stamps or points", feature: "loyalty", built: true },
-    { href: `${base}/wallet`, group: "Money", icon: "💷", title: "Local Wallet", desc: "Accept payments, cashback, receipts", feature: "wallet", built: true },
-    { href: `${base}/transactions`, group: "Money", icon: "📒", title: "Money & transactions", desc: "Full statement · export for accounts", built: true },
-    { href: `${base}/alerts`, group: "Being found", icon: "📣", title: "Urgent alerts", desc: "Broadcast across OneShetland · approval needed", feature: "alerts", built: true },
-    { href: `${base}/bookings`, group: "Serving", icon: "📅", title: "Bookings", desc: "Services, availability and incoming appointments", feature: "bookings", built: true },
-    { href: `${base}/passes`, group: "Selling", icon: "🎟️", title: "Passes & packs", desc: "Coffee cards, class packs, day passes", feature: "passes", built: true },
-    { href: `${base}/products`, group: "Selling", icon: "🛍️", title: "Products", desc: "Sell across OneShetland — 5% per sale", feature: "products", built: true },
-    { href: `${base}/orders`, group: "Selling", icon: "📦", title: "Shop orders", desc: "Incoming orders — accept, post, complete", feature: "orders", built: true },
-    { href: `${base}/jobs`, group: "People", icon: "💼", title: "Jobs", desc: "Post roles, take applications", built: true },
-    { href: `${base}/shifts`, group: "People", icon: "⚡", title: "Shifts", desc: "Post and manage shifts for your business", built: true },
-    // Deliberately NOT tier-locked. A free listing that never rings is why
-    // nobody claims theirs, and the trades most worth reaching are the ones
-    // nobody has heard of — locking them out would defeat the whole point.
-    { href: `${base}/leads`, group: "People", icon: "🔧", title: "Job leads", desc: "Folk looking for a tradesperson · say what you cover and when", built: true },
-    { href: `${base}/events`, group: "Selling", icon: "🎫", title: "Events", desc: "Create & manage ticketed events", built: true },
-    { href: `/directory/${business.slug || business.id}`, icon: "👁️", title: "View public profile", desc: "See your listing as customers do", group: "Being found", built: true },
-  ];
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
@@ -88,51 +60,42 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       {/* The dashboard proper: what needs you, how the week went, the code. */}
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} /></div>
 
-      {!premium && (
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-card border-2 p-5 shadow-soft" style={{ borderColor: `${BIZ}33`, background: `${BIZ}08` }}>
-          <div>
-            <p className="font-display text-lg font-bold text-ink">
-              {business.subscription_tier === "free" ? "Unlock more with Pro or Premium" : "Go Premium for the full toolkit"}
-            </p>
-            <p className="mt-0.5 text-sm text-ink-soft">
-              {business.subscription_tier === "free"
-                ? "Add offers, a loyalty card, Local Wallet payments, your own numbers and bookings at 95p each."
-                : "Take bookings with no per-booking fee, sell products and passes, and get a featured spot on the home screen."}
-            </p>
-          </div>
-          <Link href={`${base}/billing`} className="shrink-0 rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft transition hover:brightness-110" style={{ background: BIZ }}>
-            {business.subscription_tier === "free" ? "See plans & upgrade" : "Upgrade to Premium"}
-          </Link>
+      {/* ── Your business ──────────────────────────────────────────────
+           Five outcomes in a fixed order. Not eighteen tiles, and not sorted
+           by state: an owner learns where things are, and a Home that
+           rearranges itself has to be read from scratch every visit. */}
+      <section className="mb-8">
+        <h2 className="eyebrow mb-2 text-ink-muted">Your business</h2>
+        <div className="space-y-3">
+          {outcomes.map((o) => <OutcomeRow key={o.key} outcome={o} accent={BIZ} />)}
         </div>
-      )}
+      </section>
 
-      {GROUP_ORDER.map((group) => {
-        const inGroup = tiles.filter((t) => t.group === group);
-        if (inGroup.length === 0) return null;
-        return (
-          <section key={group} className="mb-8">
-            <h2 className="eyebrow mb-2 text-ink-muted">{group}</h2>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {inGroup.map((t) => {
-                const locked = !!t.feature && !tierUnlocks(business.subscription_tier, t.feature);
-                const dim = locked || !t.built;
-                const inner = (
-                  <div className={"flex h-full items-start gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition " + (dim ? "opacity-60" : "hover:-translate-y-0.5 hover:shadow-lift")}>
-                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xl" style={{ background: `${BIZ}1a` }}>{t.icon}</span>
-                    <div className="min-w-0">
-                      <p className="font-bold text-ink">{t.title} {locked && t.feature && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted align-middle">{TIER_LABELS[tierFor(t.feature)]}</span>}</p>
-                      <p className="text-sm text-ink-muted">{t.desc}{!t.built && !locked ? " · coming soon" : ""}</p>
-                    </div>
-                  </div>
-                );
-                return t.built && !locked
-                  ? <Link key={t.title} href={t.href} className="block">{inner}</Link>
-                  : <div key={t.title}>{locked ? <Link href={`${base}/billing`} className="block">{inner}</Link> : inner}</div>;
-              })}
-            </div>
-          </section>
-        );
-      })}
+      {/* ── Money ──────────────────────────────────────────────────────
+           A utility strip, not an outcome. Counter is deliberately absent —
+           it already has the prominent position it has earned at the top. */}
+      <section className="mb-8">
+        <h2 className="eyebrow mb-2 text-ink-muted">Money</h2>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <UtilityRow label="Plan &amp; payouts" href={`${base}/billing`}
+            status={payoutStatus} />
+          <UtilityRow label="Local Wallet" href={`${base}/wallet`}
+            status={walletLive ? "On" : null} />
+          <UtilityRow label="Money &amp; transactions" href={`${base}/transactions`} />
+        </div>
+      </section>
+
+      <section className="mb-8">
+        <h2 className="eyebrow mb-2 text-ink-muted">Grow</h2>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <UtilityRow label="Analytics" href={`${base}/analytics`} />
+          {/* Boost is bought on the billing screen, so that is its real home. */}
+          <UtilityRow label="Boost" href={`${base}/billing`}
+            status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />
+          <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
+        </div>
+      </section>
+
     </div>
   );
 }
