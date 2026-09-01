@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { loadGoogleMaps } from "@/lib/google-maps";
 import { hasValidPin } from "@/lib/be-found";
+import { mapCentre, mapZoom, pinPosition } from "@/lib/map-pin";
 
 /**
  * "Set your location on the map" — drag a pin, don't type coordinates.
@@ -17,9 +18,6 @@ import { hasValidPin } from "@/lib/be-found";
  * the alternative is an essential listing milestone nobody can ever complete.
  */
 
-/** Lerwick. Somewhere to start when a business has never had a pin. */
-const SHETLAND = { lat: 60.1546, lng: -1.1494 };
-
 export function MapPinPicker({
   lat, lng, onChange, accent,
 }: {
@@ -29,7 +27,9 @@ export function MapPinPicker({
   accent: string;
 }) {
   const mapEl = useRef<HTMLDivElement>(null);
-  const markerRef = useRef<{ setPosition: (p: { lat: number; lng: number }) => void } | null>(null);
+  const showRef = useRef<((p: { lat: number; lng: number }) => void) | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const markerRef = useRef<any>(null);
   const [state, setState] = useState<"loading" | "ready" | "unavailable">("loading");
   const has = hasValidPin(lat, lng);
 
@@ -41,22 +41,33 @@ export function MapPinPicker({
       .then(() => {
         if (!alive || !mapEl.current) return;
         const g = (window as unknown as { google: any }).google;   // eslint-disable-line @typescript-eslint/no-explicit-any
-        const start = hasValidPin(lat, lng) ? { lat: lat as number, lng: lng as number } : SHETLAND;
         const map = new g.maps.Map(mapEl.current, {
-          center: start,
-          zoom: hasValidPin(lat, lng) ? 16 : 12,
+          center: mapCentre(lat, lng),
+          zoom: mapZoom(lat, lng),
           mapTypeControl: false, streetViewControl: false, fullscreenControl: false,
           gestureHandling: "cooperative",
         });
-        const marker = new g.maps.Marker({ position: start, map, draggable: true });
-        markerRef.current = marker;
+        // A marker is only created for a pin that actually exists. Dropping one
+        // on the default centre would tell an owner their business is in
+        // Lerwick when nobody has said where it is.
         const place = (p: { lat: () => number; lng: () => number }) => {
-          marker.setPosition({ lat: p.lat(), lng: p.lng() });
+          show({ lat: p.lat(), lng: p.lng() });
           onChange(p.lat(), p.lng());
         };
-        marker.addListener("dragend", (e: { latLng: { lat: () => number; lng: () => number } }) => place(e.latLng));
+        const show = (pos: { lat: number; lng: number }) => {
+          if (markerRef.current) { markerRef.current.setPosition(pos); return; }
+          const m = new g.maps.Marker({ position: pos, map, draggable: true });
+          m.addListener("dragend", (e: { latLng: { lat: () => number; lng: () => number } }) => place(e.latLng));
+          markerRef.current = m;
+        };
+        showRef.current = show;
+
+        const saved = pinPosition(lat, lng);
+        if (saved) show(saved);
+
         // Tapping the map is the obvious gesture, and much easier on a phone
-        // than dragging a pin across the screen.
+        // than dragging a pin across the screen. It is also how the first pin
+        // ever gets placed.
         map.addListener("click", (e: { latLng: { lat: () => number; lng: () => number } }) => place(e.latLng));
         setState("ready");
       })
@@ -65,9 +76,15 @@ export function MapPinPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Keep the marker in step with the props, in both directions: appear when a
+  // pin arrives, and genuinely leave the map when one is removed.
   useEffect(() => {
-    if (state === "ready" && markerRef.current && hasValidPin(lat, lng)) {
-      markerRef.current.setPosition({ lat: lat as number, lng: lng as number });
+    if (state !== "ready") return;
+    const pos = pinPosition(lat, lng);
+    if (pos) { showRef.current?.(pos); return; }
+    if (markerRef.current) {
+      markerRef.current.setMap(null);
+      markerRef.current = null;
     }
   }, [lat, lng, state]);
 
