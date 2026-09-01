@@ -98,6 +98,25 @@ export async function upsertLoyaltyProgram(businessId: string, input: {
   if (error) throw error;
 }
 
+/**
+ * Stop a running loyalty programme.
+ *
+ * Deliberately available whatever the plan says. The server permits the
+ * reducing direction without Pro precisely so nobody is stuck running
+ * something they cannot switch off, and until now there was no button for it
+ * at all — the only write was an upsert that turned it back on.
+ *
+ * Customer cards, stamps, points and history are untouched by this. Stopping
+ * the programme stops new stamps; it does not take anything away from anyone
+ * who already collected some.
+ */
+export async function stopLoyaltyProgram(businessId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb.from("local_loyalty_programs")
+    .update({ is_active: false }).eq("business_id", businessId);
+  if (error) throw error;
+}
+
 /* ── Stripe / edge functions ──────────────────────────────────────────────── */
 
 export const createBusinessOnboardingLink = (businessId: string) =>

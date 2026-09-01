@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { commercialTermsGate } from "@/lib/commercial-terms.server";
-import { tierUnlocks } from "@/lib/business-data";
+import { getEffectiveTier } from "@/lib/entitlement.server";
 import { createClient } from "@/lib/supabase/server";
 import { ProductsManager } from "@/components/business/ProductsManager";
 import type { Product, ProductVariant, BusinessShipping } from "@/lib/shop-data";
@@ -18,7 +18,10 @@ export default async function ProductsPage({ params }: { params: Promise<{ id: s
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Products");
   if (gate) return gate;
-  if (!tierUnlocks(business.subscription_tier, "products")) redirect(`/business/${business.id}/manage/billing`);
+  // No redirect. Below Premium an owner may build their whole shop — the
+  // server allows inactive products on purpose — and Premium is asked for at
+  // the moment something would go on sale, not at the door.
+  const { premium } = await getEffectiveTier(business.id);
 
   const sb = await createClient(); // owner session — RLS shows hidden products too
   const [{ data: products }, { data: shipping }] = await Promise.all([
@@ -46,6 +49,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ id: s
       </div>
       <p className="mb-6 text-sm text-ink-soft">Sell where Shetland already is — your products appear on your listing and across OneShetland. 5% per sale, and we promote your shop.</p>
       <ProductsManager
+        canPublish={premium}
         businessId={business.id}
         products={(products ?? []) as Product[]}
         variantsByProduct={variantsByProduct}

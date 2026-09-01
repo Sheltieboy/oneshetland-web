@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { PlanNote } from "@/components/business/CapabilityPaywall";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -65,11 +66,13 @@ const EMPTY: FormState = {
   collect_only: false, free_uk_post: false, variants: [],
 };
 
-export function ProductsManager({ businessId, products: initial, variantsByProduct, shipping: initialShipping }: {
+export function ProductsManager({ businessId, products: initial, variantsByProduct, shipping: initialShipping, canPublish }: {
   businessId: string;
   products: Product[];
   variantsByProduct: Record<string, ProductVariant[]>;
   shipping: BusinessShipping | null;
+  /** Effective Premium. Everything else on this page works without it. */
+  canPublish: boolean;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -149,7 +152,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
         lead_time_days: form.stock_mode === "made_to_order" ? Math.min(90, Math.max(1, Math.floor(Number(form.lead_time_days) || 14))) : null,
         collect_only: form.collect_only,
         free_uk_post: form.free_uk_post,
-        is_active: true,
+        is_active: canPublish,
       };
       let productId = form.id;
       if (productId) {
@@ -172,7 +175,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
           product_id: productId, name: v.name.trim(), position: i,
           price_delta_pence: toPence(v.delta) ?? 0,
           stock: v.stock === "" ? null : Math.max(0, Math.floor(Number(v.stock))),
-          is_active: true,
+          is_active: canPublish,
         };
         if (v.id) await sb.from("product_variants").update(vrow).eq("id", v.id);
         else await sb.from("product_variants").insert(vrow);
@@ -345,7 +348,13 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
                 <p className="text-xs text-ink-muted">{gbp(p.price_pence)} · {stockLabel(p)}{p.is_active ? "" : " · hidden"}</p>
               </div>
               <button onClick={() => editProduct(p)} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand">Edit</button>
-              <button onClick={() => toggleActive(p)} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand">{p.is_active ? "Hide" : "Show"}</button>
+              {/* Hiding is always allowed; showing is what needs the plan. */}
+              <button
+                onClick={() => toggleActive(p)}
+                disabled={!canPublish && !p.is_active}
+                title={!canPublish && !p.is_active ? "Publishing products needs Premium" : undefined}
+                className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand disabled:opacity-50"
+              >{p.is_active ? "Hide" : "Show"}</button>
               <button onClick={() => remove(p)} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-rose-600 hover:bg-rose-50">Delete</button>
             </li>
           ))}

@@ -52,7 +52,7 @@ function toForm(i: BookUnitItem): FormState {
   };
 }
 
-export function UnitItemsManager({ businessId }: { businessId: string }) {
+export function UnitItemsManager({ businessId, canPublish }: { businessId: string; canPublish: boolean }) {
   const confirm = useConfirm();
   const [items, setItems] = useState<BookUnitItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,7 +124,7 @@ export function UnitItemsManager({ businessId }: { businessId: string }) {
       stock,
       valid_days: validDays,
       uses_per_purchase: uses,
-      is_active: true,
+      is_active: canPublish,
     };
 
     setBusy(true);

@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { getLoyaltyProgram, getBusinessCode } from "@/lib/business-data.server";
-import { tierUnlocks } from "@/lib/business-data";
+import { getEffectiveTier } from "@/lib/entitlement.server";
+import { CapabilityPaywall } from "@/components/business/CapabilityPaywall";
 import { LoyaltyManager } from "@/components/business/LoyaltyManager";
 import { LoyaltyTill } from "@/components/business/LoyaltyTill";
 import { TillCode } from "@/components/business/TillCode";
@@ -21,7 +21,8 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Loyalty");
   if (gate) return gate;
-  if (!tierUnlocks(business.subscription_tier, "loyalty")) redirect(`/business/${business.id}/manage/billing`);
+  const { pro } = await getEffectiveTier(business.id);
+  const base = `/business/${business.id}/manage`;
   const [program, code] = await Promise.all([
     getLoyaltyProgram(business.id),
     getBusinessCode(business.id),
@@ -34,7 +35,30 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
         <HelpTip topic="loyalty-stamps" />
       </h1>
       <p className="mb-6 text-ink-soft">Reward regulars with stamps or points.</p>
-      <LoyaltyManager businessId={business.id} program={program} />
+      {pro ? (
+        <LoyaltyManager businessId={business.id} program={program} canConfigure />
+      ) : (
+        <CapabilityPaywall
+          capability="Loyalty"
+          plan="Pro"
+          what="A stamp or points card customers collect on their phone, so there is a reason to come back."
+          gets={[
+            "Stamps or points, with rewards you choose",
+            "Customers collect at the counter or by tapping a tile",
+            "Their card lives in the app — no bits of cardboard",
+          ]}
+          billingHref={`${base}/billing`}
+          backHref={base}
+          backLabel={`Back to ${business.name}`}
+        >
+          {program && (
+            <section>
+              <h2 className="eyebrow mb-2 text-ink-muted">Your programme</h2>
+              <LoyaltyManager businessId={business.id} program={program} canConfigure={false} />
+            </section>
+          )}
+        </CapabilityPaywall>
+      )}
 
       {/* The one-card till — scan/enter the customer's member code and act. */}
       <div className="mt-8">

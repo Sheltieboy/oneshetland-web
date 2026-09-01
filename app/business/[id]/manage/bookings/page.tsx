@@ -8,7 +8,7 @@ import {
   getBusinessAvailabilityRules,
   getBusinessUpcomingOverrides,
 } from "@/lib/business-data.server";
-import { tierUnlocks } from "@/lib/business-data";
+import { getEffectiveTier } from "@/lib/entitlement.server";
 import { BookingsManager } from "@/components/business/BookingsManager";
 import { HelpTip } from "@/components/help/HelpTip";
 
@@ -32,7 +32,9 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Bookings");
   if (gate) return gate;
-  if (!tierUnlocks(business.subscription_tier, "bookings")) redirect(`/business/${business.id}/manage/billing`);
+  // Services and availability are free to configure. Pro is asked for at step
+  // 3, which is the only step that puts the business in front of customers.
+  const { pro } = await getEffectiveTier(business.id);
 
   const [servicesCount, services, rules, overrides] = await Promise.all([
     getBusinessServicesCount(business.id),
@@ -52,6 +54,7 @@ export default async function BookingsPage({ params }: { params: Promise<{ id: s
         What people can book, when you&apos;re free, and the switch that puts you live.
       </p>
       <BookingsManager
+        canGoLive={pro}
         business={business}
         servicesCount={servicesCount}
         services={services}

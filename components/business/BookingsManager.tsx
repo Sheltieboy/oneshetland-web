@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
 import { setAcceptsBookings } from "@/lib/business-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -30,8 +31,10 @@ function fmtDateTime(iso: string): string {
   return d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
-export function BookingsManager({ business, servicesCount, services, rules, overrides }: {
+export function BookingsManager({ business, servicesCount, services, rules, overrides, canGoLive }: {
   business: ManagedBusiness;
+  /** Effective Pro. Steps 1 and 2 never depend on it. */
+  canGoLive: boolean;
   servicesCount: number;
   services: { id: string; name: string }[];
   rules: BookAvailabilityRule[];
@@ -184,12 +187,20 @@ export function BookingsManager({ business, servicesCount, services, rules, over
                     ? "Add a service and set your hours first."
                     : `Nearly there — ${missing[0]} first.`}
             </p>
+            {/* The plan is named here, at the only step it applies to, rather
+                than at the door — steps 1 and 2 are free to anyone. */}
+            {!canGoLive && !business.accepts_bookings && (
+              <PlanNote>Taking bookings needs Pro. Your services and availability are saved.</PlanNote>
+            )}
           </div>
           <button
             type="button"
             onClick={() => toggle(!business.accepts_bookings)}
-            disabled={busy || (!ready && !business.accepts_bookings)}
-            title={!ready && !business.accepts_bookings ? "Finish steps 1 and 2 first" : undefined}
+            disabled={busy || (!ready && !business.accepts_bookings) || (!canGoLive && !business.accepts_bookings)}
+            title={
+              !canGoLive && !business.accepts_bookings ? "Taking bookings needs Pro"
+              : !ready && !business.accepts_bookings ? "Finish steps 1 and 2 first" : undefined
+            }
             className="relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
             style={{ background: business.accepts_bookings ? BIZ : "var(--color-line-strong)" }}
           >

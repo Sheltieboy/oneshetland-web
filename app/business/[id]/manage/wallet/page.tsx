@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { getWalletReceipts, getBusinessCode } from "@/lib/business-data.server";
-import { tierUnlocks } from "@/lib/business-data";
+import { getEffectiveTier } from "@/lib/entitlement.server";
 import { WalletManager } from "@/components/business/WalletManager";
 import { TillCode } from "@/components/business/TillCode";
 import { HelpTip } from "@/components/help/HelpTip";
@@ -18,7 +18,9 @@ export default async function WalletPage({ params }: { params: Promise<{ id: str
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Local Wallet");
   if (gate) return gate;
-  if (!tierUnlocks(business.subscription_tier, "wallet")) redirect(`/business/${business.id}/manage/billing`);
+  // Settings, cashback and receipts stay open below Pro — the server gates
+  // switching acceptance ON, and nothing else.
+  const { pro } = await getEffectiveTier(business.id);
   const [receipts, code] = await Promise.all([getWalletReceipts(business.id, 10), getBusinessCode(business.id)]);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
@@ -28,7 +30,7 @@ export default async function WalletPage({ params }: { params: Promise<{ id: str
           <HelpTip topic="wallet-payment" />
         </h1>
       <div className="mb-5"><TillCode businessId={business.id} initial={code} /></div>
-      <WalletManager business={business} receipts={receipts} />
+      <WalletManager business={business} receipts={receipts} canEnable={pro} />
     </div>
   );
 }

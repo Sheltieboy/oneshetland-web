@@ -3,10 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BIZ, type LoyaltyProgram } from "@/lib/business-data";
-import { upsertLoyaltyProgram } from "@/lib/business-client";
+import { upsertLoyaltyProgram, stopLoyaltyProgram } from "@/lib/business-client";
 import { normalizeTiers, type RewardTier } from "@/lib/loyalty-ladder";
 
-export function LoyaltyManager({ businessId, program }: { businessId: string; program: LoyaltyProgram | null }) {
+export function LoyaltyManager({ businessId, program, canConfigure }: {
+  businessId: string; program: LoyaltyProgram | null;
+  /** Effective Pro. Stopping a running programme never needs it. */
+  canConfigure: boolean;
+}) {
   const router = useRouter();
   const initialTiers = normalizeTiers(program?.reward_tiers);
   const [type, setType] = useState<"stamps" | "points">(program?.type ?? "stamps");
@@ -19,6 +23,12 @@ export function LoyaltyManager({ businessId, program }: { businessId: string; pr
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function stop() {
+    setBusy(true);
+    try { await stopLoyaltyProgram(businessId); router.refresh(); }
+    finally { setBusy(false); }
+  }
 
   async function save() {
     setError(null); setBusy(true);
@@ -80,7 +90,17 @@ export function LoyaltyManager({ businessId, program }: { businessId: string; pr
         </>
       )}
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
-      <button onClick={save} disabled={busy} className="w-full rounded-pill py-3 font-semibold text-white transition hover:brightness-95 disabled:opacity-50" style={{ background: BIZ }}>{busy ? "Saving…" : saved ? "Saved ✓" : program ? "Update programme" : "Set up programme"}</button>
+      {canConfigure && <button onClick={save} disabled={busy} className="w-full rounded-pill py-3 font-semibold text-white transition hover:brightness-95 disabled:opacity-50" style={{ background: BIZ }}>{busy ? "Saving…" : saved ? "Saved ✓" : program ? "Update programme" : "Set up programme"}</button>}
+
+      {/* Always available. The server allows stopping without a plan, and an
+          owner whose Pro has lapsed must be able to switch off a programme
+          that is still running. Customer stamps and history are untouched. */}
+      {program?.is_active && (
+        <button onClick={stop} disabled={busy}
+          className="w-full rounded-pill border border-line-strong py-2.5 text-sm font-semibold text-ink-soft transition hover:bg-sand disabled:opacity-50">
+          Stop programme
+        </button>
+      )}
     </div>
   );
 }

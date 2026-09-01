@@ -7,7 +7,16 @@ import { BIZ, formatOfferDiscount, daysRemaining, type DiscountType, type LocalO
 import { deactivateOffer } from "@/lib/business-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
-export function OffersManager({ businessId, offers }: { businessId: string; offers: LocalOffer[] }) {
+export function OffersManager({ businessId, offers, canConfigure }: {
+  businessId: string; offers: LocalOffer[];
+  /**
+   * Effective Pro. When false the create form is gone — the server refuses an
+   * insert outright — but ending an offer stays, because the server allows
+   * withdrawal without a plan and an owner must never be stuck advertising
+   * something they cannot take down.
+   */
+  canConfigure: boolean;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const [creating, setCreating] = useState(false);
@@ -46,7 +55,9 @@ export function OffersManager({ businessId, offers }: { businessId: string; offe
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
 
       {!creating ? (
-        <button onClick={() => setCreating(true)} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft" style={{ background: BIZ }}>+ New offer</button>
+        canConfigure
+          ? <button onClick={() => setCreating(true)} className="rounded-pill px-5 py-2.5 text-sm font-semibold text-white shadow-soft" style={{ background: BIZ }}>+ New offer</button>
+          : null
       ) : (
         <div className="space-y-3 rounded-card border border-line bg-paper p-5 shadow-soft">
           <input className={field} placeholder="Offer title — e.g. 20% off coffee" value={f.title} onChange={(e) => set("title", e.target.value)} />

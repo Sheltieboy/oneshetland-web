@@ -2,12 +2,18 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness, type WalletReceipt } from "@/lib/business-data";
 import { updateBusiness, createBusinessOnboardingLink } from "@/lib/business-client";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
-export function WalletManager({ business, receipts }: { business: ManagedBusiness; receipts: WalletReceipt[] }) {
+export function WalletManager({ business, receipts, canEnable }: {
+  business: ManagedBusiness; receipts: WalletReceipt[];
+  /** Effective Pro. Settings, cashback and receipts do not depend on it, and
+      switching acceptance OFF never does either. */
+  canEnable: boolean;
+}) {
   const router = useRouter();
   const b = business;
   const [busy, setBusy] = useState<string | null>(null);
@@ -39,12 +45,20 @@ export function WalletManager({ business, receipts }: { business: ManagedBusines
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Accept Local Wallet</h2>
           {b.payout_enabled && (
-            <button type="button" onClick={() => setAccept(!b.accepts_wallet)} disabled={busy === "accept"} className="relative inline-flex h-6 w-11 items-center rounded-full transition" style={{ background: b.accepts_wallet ? BIZ : "var(--color-line-strong)" }}>
+            <button type="button" onClick={() => setAccept(!b.accepts_wallet)}
+              disabled={busy === "accept" || (!canEnable && !b.accepts_wallet)}
+              title={!canEnable && !b.accepts_wallet ? "Taking Wallet payments needs Pro" : undefined} className="relative inline-flex h-6 w-11 items-center rounded-full transition" style={{ background: b.accepts_wallet ? BIZ : "var(--color-line-strong)" }}>
               <span className={"inline-block h-5 w-5 transform rounded-full bg-white shadow transition " + (b.accepts_wallet ? "translate-x-5" : "translate-x-0.5")} />
             </button>
           )}
         </div>
         <p className="mt-1 text-sm text-ink-muted">{b.payout_enabled ? "Stripe connected · ready for payouts" : "Connect Stripe to accept wallet payments"}</p>
+        {/* Named at the switch, not at the door. Cashback, receipts and the
+            rest of this page are open to everybody, and switching acceptance
+            OFF is always allowed — nobody gets trapped taking payments. */}
+        {!canEnable && !b.accepts_wallet && (
+          <PlanNote>Taking Wallet payments needs Pro. Your settings are saved.</PlanNote>
+        )}
         {!b.payout_enabled && <button onClick={connectBank} disabled={busy === "bank"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "bank" ? "Opening Stripe…" : "Connect Stripe"}</button>}
 
         {b.payout_enabled && b.accepts_wallet && (
