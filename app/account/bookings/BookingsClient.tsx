@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { gbp } from "@/lib/currency";
 import { fetchMyBookings, cancelBooking, type MyBooking, type BookingStatus } from "@/lib/book-data";
+import { SHETLAND_TZ } from "@/lib/shetland-time";
 
 const LOCAL = "#7c3aed";
 
@@ -15,10 +16,10 @@ const STATUS_BADGE: Record<BookingStatus, { label: string; cls: string }> = {
 };
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: SHETLAND_TZ });
 }
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: SHETLAND_TZ });
 }
 
 export function BookingsClient() {

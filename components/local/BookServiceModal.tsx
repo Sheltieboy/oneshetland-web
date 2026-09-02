@@ -7,10 +7,15 @@ import { gbp } from "@/lib/currency";
 import type { Service } from "@/lib/local-data";
 import { fetchAvailabilityRules, fetchUpcomingOverrides, fetchPublicBookings, createBooking } from "@/lib/book-data";
 import { computeAvailableSlots, type Slot } from "@/lib/book-slots";
+import { SHETLAND_TZ, shetlandDayKey } from "@/lib/shetland-time";
 
 const WINDOW_DAYS = 14;
 
-function dayKey(d: Date) { return d.toDateString(); }
+// Grouped by the SHETLAND day, not the reader's. toDateString() answers in
+// the device zone, which put a 00:30 slot under the previous day for anyone
+// outside the UK — and the tab it filed the slot under then disagreed with
+// the time printed on the slot itself.
+const dayKey = shetlandDayKey;
 
 export function BookServiceModal({
   open,
@@ -77,7 +82,7 @@ export function BookServiceModal({
     for (const s of slots) {
       if (s.isFull) continue;
       const k = dayKey(s.start);
-      if (!map.has(k)) map.set(k, new Date(s.start.getFullYear(), s.start.getMonth(), s.start.getDate()));
+      if (!map.has(k)) map.set(k, s.start);
     }
     return [...map.values()].sort((a, b) => a.getTime() - b.getTime());
   }, [slots]);
@@ -129,8 +134,8 @@ export function BookServiceModal({
           <h3 className="mt-4 font-display text-2xl font-bold">Booking confirmed!</h3>
           <p className="mt-2 text-ink-soft">
             {service.name} ·{" "}
-            {booked.start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} at{" "}
-            {booked.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            {booked.start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: SHETLAND_TZ })} at{" "}
+            {booked.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: SHETLAND_TZ })}
           </p>
           {service.price_pence > 0 && (
             <p className="mt-1 text-sm text-ink-muted">
@@ -172,9 +177,9 @@ export function BookServiceModal({
                     className={"shrink-0 rounded-xl border px-3 py-2 text-center text-sm transition " + (on ? "text-paper" : "border-line bg-paper text-ink hover:border-current")}
                     style={on ? { background: accent, borderColor: accent } : { color: accent }}
                   >
-                    <span className="block text-xs font-semibold">{d.toLocaleDateString("en-GB", { weekday: "short" })}</span>
-                    <span className="block font-display text-lg font-bold leading-tight">{d.getDate()}</span>
-                    <span className="block text-[11px]">{d.toLocaleDateString("en-GB", { month: "short" })}</span>
+                    <span className="block text-xs font-semibold">{d.toLocaleDateString("en-GB", { weekday: "short", timeZone: SHETLAND_TZ })}</span>
+                    <span className="block font-display text-lg font-bold leading-tight">{d.toLocaleDateString("en-GB", { day: "numeric", timeZone: SHETLAND_TZ })}</span>
+                    <span className="block text-[11px]">{d.toLocaleDateString("en-GB", { month: "short", timeZone: SHETLAND_TZ })}</span>
                   </button>
                 );
               })}
@@ -195,7 +200,7 @@ export function BookServiceModal({
                     className={"rounded-lg border px-2 py-2 text-sm font-semibold transition disabled:opacity-40 " + (on ? "text-paper" : "border-line bg-paper text-ink hover:border-current")}
                     style={on ? { background: accent, borderColor: accent } : { color: accent }}
                   >
-                    {s.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    {s.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: SHETLAND_TZ })}
                     {s.lastMin && <span className="ml-0.5 text-[10px]">⚡</span>}
                   </button>
                 );
@@ -217,7 +222,7 @@ export function BookServiceModal({
             style={{ background: accent }}
           >
             {busy ? "Please wait…" : selectedSlot
-              ? `Confirm · ${selectedSlot.start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${selectedSlot.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
+              ? `Confirm · ${selectedSlot.start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: SHETLAND_TZ })} ${selectedSlot.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: SHETLAND_TZ })}`
               : "Pick a time"}
           </button>
           <p className="text-center text-[11px] text-ink-muted">No payment taken now — settle at the venue.</p>

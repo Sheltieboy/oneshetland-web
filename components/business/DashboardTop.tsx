@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { SHETLAND_TZ } from "@/lib/shetland-time";
 import { AVAILABILITY_LABEL, AVAILABILITY_TTL_DAYS, availabilityIsFresh } from "@/lib/trades";
 import { type DashboardData } from "@/lib/business-dashboard.server";
 import { type NextAction } from "@/lib/business-next-action";
 
 const money = (p: number) => `£${(p / 100).toFixed(2)}`;
 const when = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: SHETLAND_TZ });
 const ago = (iso: string) => {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
   return d === 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;

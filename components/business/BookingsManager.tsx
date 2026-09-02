@@ -17,6 +17,7 @@ import {
   type OwnerBooking,
   type BookingStatus,
 } from "@/lib/book-owner";
+import { SHETLAND_TZ } from "@/lib/shetland-time";
 
 const STATUS_INFO: Record<BookingStatus, { label: string; className: string }> = {
   pending_payment: { label: "Awaiting payment", className: "bg-amber-50 text-amber-700" },
@@ -28,7 +29,7 @@ const STATUS_INFO: Record<BookingStatus, { label: string; className: string }> =
 
 function fmtDateTime(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  return d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: SHETLAND_TZ });
 }
 
 export function BookingsManager({ business, servicesCount, services, rules, overrides, canGoLive }: {
