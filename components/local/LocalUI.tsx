@@ -95,10 +95,17 @@ export function BusinessCard({ b, productThumbs }: { b: Business; productThumbs?
         </div>
       </Link>
 
-      {/* Unclaimed listings invite a claim; hidden once claimed + verified. */}
+      {/* Unclaimed listings invite a claim; hidden once claimed + verified.
+          Straight into the claim route, not to an anchor on the listing: the
+          label already says "Claim this listing", and sending it to #claim
+          made the owner say so twice — once here, once on the banner it
+          scrolled to. The claim page resolves slug or id through the same
+          getBusiness() the listing uses, and signs the visitor back to itself,
+          so nothing is lost by skipping the listing. The banner stays for
+          people who arrive at a listing directly. */}
       {!b.is_claimed && (
         <Link
-          href={`${href}#claim`}
+          href={`${href}/claim`}
           className="flex items-center justify-center gap-1.5 border-t border-dashed border-local/40 bg-local/5 px-4 py-2.5 text-xs font-bold text-local transition hover:bg-local/12"
         >
           Own this business? Claim this listing →
