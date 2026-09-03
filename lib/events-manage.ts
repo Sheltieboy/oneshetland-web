@@ -15,9 +15,42 @@ export type ManageTicketType = {
   description: string | null;
   quantity_available: number | null;
   quantity_sold: number;
+  per_order_max: number;
   is_active: boolean;
   display_order: number;
 };
+
+/** The database default, shown to the owner rather than applied behind them. */
+export const DEFAULT_PER_ORDER_MAX = 10;
+
+/**
+ * What to put on the owner's Capacity card.
+ *
+ * It used to read events.capacity — a venue headcount nobody fills in — so an
+ * owner who had just set a ticket quantity of 5 was told "∞" and reasonably
+ * concluded it had not saved. The number that governs whether a ticket can be
+ * sold is event_ticket_types.quantity_available; reserve_ticket_slots reads
+ * that and never looks at events.capacity.
+ *
+ * Unlimited stays "∞" because it genuinely is. A mixture of finite and
+ * unlimited types is also "∞": once one type is uncapped the event has no
+ * ceiling, and adding the finite ones up would state a limit that does not
+ * exist. Only when EVERY active type is finite is there a total worth showing.
+ */
+export function ticketCapacity(
+  types: { quantity_available: number | null; is_active: boolean }[],
+  eventCapacity: number | null,
+): { label: string; source: "tickets" | "venue" } {
+  const active = types.filter((t) => t.is_active);
+  if (active.length === 0) {
+    return { label: eventCapacity != null ? String(eventCapacity) : "∞", source: "venue" };
+  }
+  if (active.some((t) => t.quantity_available == null)) return { label: "∞", source: "tickets" };
+  return {
+    label: String(active.reduce((n, t) => n + (t.quantity_available ?? 0), 0)),
+    source: "tickets",
+  };
+}
 
 /** Row in the business's event list. */
 export type BusinessEventRow = {
@@ -82,7 +115,7 @@ const DETAIL_COLS = `
   venue, locality, lat, lng, place_id, formatted_address, starts_at, ends_at, doors_open_at,
   capacity, tickets_sold, has_tickets, cover_url, ticket_url, age_restriction, refund_policy,
   contact_info, event_notes,
-  ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,is_active,display_order),
+  ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,per_order_max,is_active,display_order),
   updates:event_updates(id,title,body,kind,is_urgent,created_at)
 `;
 

@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/lib/events-data";
-import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
+import { ticketCapacity, type ManageEvent, type EventSalesStats } from "@/lib/events-manage";
 import { setEventStatus, postEventUpdate } from "@/lib/events-manage-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
@@ -36,6 +36,9 @@ export function BusinessEventManage({
 
   const [statusBusy, setStatusBusy] = useState(false);
   const status = event.status;
+  // Ticket inventory when this event sells through OneShetland; otherwise the
+  // venue figure, which is what the card always used to show.
+  const cap = ticketCapacity(event.ticket_types, event.capacity);
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.draft;
   const isPublished = status === "published";
   const isCancelled = status === "cancelled";
@@ -120,7 +123,11 @@ export function BusinessEventManage({
         <StatBox label="Tickets sold" value={String(stats.tickets_sold)} color={accent} />
         <StatBox label="Checked in" value={String(stats.checked_in)} color="#15803D" />
         <StatBox label="Revenue" value={revenue} color="#0369A1" />
-        <StatBox label="Capacity" value={event.capacity != null ? String(event.capacity) : "∞"} color="#475569" />
+        <StatBox
+          label={cap.source === "tickets" ? "Ticket capacity" : "Capacity"}
+          value={cap.label}
+          color="#475569"
+        />
       </section>
       {stats.pending_payment > 0 && (
         <p className="text-xs text-ink-muted">{stats.pending_payment} ticket{stats.pending_payment === 1 ? "" : "s"} pending payment (not yet counted in sales).</p>

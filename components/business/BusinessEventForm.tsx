@@ -11,7 +11,7 @@ import {
   createBusinessEvent, updateBusinessEvent, uploadEventCover,
   type TicketMode, type EditableTicketType, type BusinessEventInput,
 } from "@/lib/events-manage-client";
-import type { ManageEvent } from "@/lib/events-manage";
+import { DEFAULT_PER_ORDER_MAX, type ManageEvent } from "@/lib/events-manage";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -73,7 +73,9 @@ export function BusinessEventForm({
   const [ticketTypes, setTicketTypes] = useState<EditableTicketType[]>(
     event?.ticket_types
       .filter(t => t.is_active)
-      .map(t => ({ id: t.id, name: t.name, price_pence: t.price_pence, quantity_available: t.quantity_available })) ?? [],
+      .map(t => ({ id: t.id, name: t.name, price_pence: t.price_pence,
+                  quantity_available: t.quantity_available,
+                  per_order_max: t.per_order_max ?? DEFAULT_PER_ORDER_MAX })) ?? [],
   );
 
   const [busy, setBusy] = useState(false);
@@ -115,6 +117,7 @@ export function BusinessEventForm({
           name: t.name ?? "",
           price_pence: Math.max(0, Math.round((t.price_gbp ?? 0) * 100)),
           quantity_available: null,
+          per_order_max: DEFAULT_PER_ORDER_MAX,
         })));
       } else if (d.ticket_mode === "external" && d.ticket_url) {
         setTicketMode("external"); setTicketUrl(d.ticket_url);
@@ -138,7 +141,7 @@ export function BusinessEventForm({
   }
 
   function addTicketType() {
-    setTicketTypes([...ticketTypes, { name: "", price_pence: 0, quantity_available: null }]);
+    setTicketTypes([...ticketTypes, { name: "", price_pence: 0, quantity_available: null, per_order_max: DEFAULT_PER_ORDER_MAX }]);
   }
   function updateTicketType(i: number, patch: Partial<EditableTicketType>) {
     setTicketTypes(ticketTypes.map((t, j) => (j === i ? { ...t, ...patch } : t)));
@@ -347,7 +350,7 @@ export function BusinessEventForm({
             {ticketTypes.map((t, i) => (
               <div key={i} className="space-y-2 rounded-xl border border-line bg-sand/30 p-3">
                 <input value={t.name} onChange={(e) => updateTicketType(i, { name: e.target.value })} placeholder="Ticket name (e.g. General, VIP)" className={inputCls} />
-                <div className="grid gap-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:grid-cols-3">
                   <label className="block text-xs font-semibold text-ink-muted">Price (£)
                     <input type="number" min="0" step="0.01"
                       value={t.price_pence > 0 ? (t.price_pence / 100).toFixed(2) : ""}
@@ -359,6 +362,12 @@ export function BusinessEventForm({
                       value={t.quantity_available ?? ""}
                       onChange={(e) => updateTicketType(i, { quantity_available: e.target.value ? parseInt(e.target.value, 10) : null })}
                       placeholder="Unlimited" className={inputCls + " mt-1"} />
+                  </label>
+                  <label className="block text-xs font-semibold text-ink-muted">Maximum per order
+                    <input type="number" min="1" step="1"
+                      value={t.per_order_max}
+                      onChange={(e) => updateTicketType(i, { per_order_max: Math.max(1, parseInt(e.target.value, 10) || DEFAULT_PER_ORDER_MAX) })}
+                      className={inputCls + " mt-1"} />
                   </label>
                 </div>
                 <button type="button" onClick={() => removeTicketType(i)} className="text-xs font-semibold text-rose-500 hover:underline">Remove</button>

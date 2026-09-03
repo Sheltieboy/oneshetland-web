@@ -18,6 +18,9 @@ export type EditableTicketType = {
   name: string;
   price_pence: number;
   quantity_available: number | null;
+  /** Basket size for ONE order. Not a per-person limit: nothing counts a
+   *  buyer's previous orders, so ten orders of ten remain possible. */
+  per_order_max: number;
 };
 
 export type BusinessEventInput = {
@@ -119,6 +122,7 @@ async function syncTicketTypes(
       name: t.name.trim(),
       price_pence: t.price_pence,
       quantity_available: t.quantity_available ?? null,
+      per_order_max: t.per_order_max,
       display_order: i,
       is_active: true,
     };
