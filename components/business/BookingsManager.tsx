@@ -106,6 +106,13 @@ export function BookingsManager({ business, servicesCount, services, rules, over
     const info = STATUS_INFO[b.status];
     const isClosed = b.status === "cancelled" || b.status === "completed" || b.status === "no_show";
     const canAct = b.status === "confirmed";
+    // An appointment that has not started cannot have been attended or missed,
+    // and marking it either releases the slot for somebody else to take. The
+    // database refuses this outright; the button simply stops asking.
+    //
+    // A plain instant comparison, deliberately: both sides are moments in
+    // time, so no timezone arithmetic is involved and none should be invented.
+    const hasStarted = new Date(b.starts_at).getTime() <= Date.now();
     const isActing = acting === b.id;
     return (
       <div className={"rounded-card border border-line bg-paper p-4 shadow-soft " + (isClosed ? "opacity-70" : "")}>
@@ -123,12 +130,14 @@ export function BookingsManager({ business, servicesCount, services, rules, over
         {canAct && (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
             <button
-              type="button" disabled={isActing}
+              type="button" disabled={isActing || !hasStarted}
+              title={hasStarted ? undefined : "You can do this once the appointment has started."}
               onClick={() => act(b.id, () => updateBookingStatus(b.id, "completed"))}
               className="rounded-pill border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
             >Mark complete</button>
             <button
-              type="button" disabled={isActing}
+              type="button" disabled={isActing || !hasStarted}
+              title={hasStarted ? undefined : "You can do this once the appointment has started."}
               onClick={() => act(b.id, () => updateBookingStatus(b.id, "no_show"))}
               className="rounded-pill border border-amber-200 px-3 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50"
             >Mark no-show</button>
