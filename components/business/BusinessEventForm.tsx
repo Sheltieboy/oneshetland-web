@@ -11,7 +11,8 @@ import {
   createBusinessEvent, updateBusinessEvent, uploadEventCover,
   type TicketMode, type EditableTicketType, type BusinessEventInput,
 } from "@/lib/events-manage-client";
-import { DEFAULT_PER_ORDER_MAX, type ManageEvent } from "@/lib/events-manage";
+import type { ManageEvent } from "@/lib/events-manage";
+import { DEFAULT_PER_ORDER_MAX } from "@/lib/event-ticket-utils";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 

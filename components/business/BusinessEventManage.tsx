@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/lib/events-data";
-import { ticketCapacity, type ManageEvent, type EventSalesStats } from "@/lib/events-manage";
+import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
+import { ticketCapacity } from "@/lib/event-ticket-utils";
 import { setEventStatus, postEventUpdate } from "@/lib/events-manage-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 

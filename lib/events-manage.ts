@@ -20,37 +20,10 @@ export type ManageTicketType = {
   display_order: number;
 };
 
-/** The database default, shown to the owner rather than applied behind them. */
-export const DEFAULT_PER_ORDER_MAX = 10;
-
-/**
- * What to put on the owner's Capacity card.
- *
- * It used to read events.capacity — a venue headcount nobody fills in — so an
- * owner who had just set a ticket quantity of 5 was told "∞" and reasonably
- * concluded it had not saved. The number that governs whether a ticket can be
- * sold is event_ticket_types.quantity_available; reserve_ticket_slots reads
- * that and never looks at events.capacity.
- *
- * Unlimited stays "∞" because it genuinely is. A mixture of finite and
- * unlimited types is also "∞": once one type is uncapped the event has no
- * ceiling, and adding the finite ones up would state a limit that does not
- * exist. Only when EVERY active type is finite is there a total worth showing.
- */
-export function ticketCapacity(
-  types: { quantity_available: number | null; is_active: boolean }[],
-  eventCapacity: number | null,
-): { label: string; source: "tickets" | "venue" } {
-  const active = types.filter((t) => t.is_active);
-  if (active.length === 0) {
-    return { label: eventCapacity != null ? String(eventCapacity) : "∞", source: "venue" };
-  }
-  if (active.some((t) => t.quantity_available == null)) return { label: "∞", source: "tickets" };
-  return {
-    label: String(active.reduce((n, t) => n + (t.quantity_available ?? 0), 0)),
-    source: "tickets",
-  };
-}
+/* DEFAULT_PER_ORDER_MAX and ticketCapacity live in the client-safe
+   event-ticket-utils, because Client Components need them and this module
+   reaches next/headers. Re-exported so there is still one definition. */
+export { DEFAULT_PER_ORDER_MAX, ticketCapacity } from "./event-ticket-utils";
 
 /** Row in the business's event list. */
 export type BusinessEventRow = {
