@@ -176,6 +176,9 @@ export interface CreateBookingInput {
   giftId?: string | null; // set when this booking was paid via a gift
 }
 
+/** One sentence for "somebody got there first", wherever we find out. */
+const SLOT_TAKEN = "Sorry — that slot is now full. Please pick another.";
+
 /** Capacity-aware availability check — mirrors the app's isSlotAvailable. */
 async function isSlotAvailable(businessId: string, serviceId: string, startsAt: string, endsAt: string): Promise<boolean> {
   const sb = createClient();
@@ -198,7 +201,7 @@ async function isSlotAvailable(businessId: string, serviceId: string, startsAt: 
 export async function createBooking(input: CreateBookingInput): Promise<{ id: string }> {
   const sb = createClient();
   const free = await isSlotAvailable(input.businessId, input.serviceId, input.startsAt, input.endsAt);
-  if (!free) throw new Error("Sorry — that slot is now full. Please pick another.");
+  if (!free) throw new Error(SLOT_TAKEN);
 
   const { data, error } = await sb
     .from("book_bookings")
@@ -216,7 +219,13 @@ export async function createBooking(input: CreateBookingInput): Promise<{ id: st
     })
     .select("id")
     .single();
-  if (error) throw error;
+  // The pre-check above is a courtesy; the database is the authority. Between
+  // that read and this insert somebody else can take the last place, and the
+  // capacity trigger says so in Postgres's words. Say it in ours.
+  if (error) {
+    if (/slot_full/.test(error.message ?? "")) throw new Error(SLOT_TAKEN);
+    throw error;
+  }
 
   // If this booking was paid by a gift, mark the gift as used (mirrors the app's book-api.ts).
   if (input.giftId) {
