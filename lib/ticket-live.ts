@@ -55,20 +55,26 @@ export function anyStillValid(ts: LiveTicket[]): boolean {
 }
 
 /** Realtime is the mechanism; these are the safety net, not the plan. */
-export const POLL_MS_REALTIME_OK = 60_000;
-export const POLL_MS_REALTIME_DOWN = 15_000;
+export const POLL_MS_REALTIME_PROVEN = 60_000;
+export const POLL_MS_REALTIME_UNPROVEN = 10_000;
 
 /**
  * How often to re-read, or null for not at all.
  *
- * Once every ticket on the page is used there is nothing left to watch, so the
- * timer stops rather than pinging forever behind an open tab. While Realtime is
- * connected the poll is a slow backstop; if the socket is down it tightens, but
- * never to the point of hammering the database.
+ * `realtimeProven` means an actual postgres_changes event has been received —
+ * not that the channel reported SUBSCRIBED. A channel reports SUBSCRIBED for a
+ * table that is not in the publication at all, so the status says only that the
+ * topic was joined, never that a row will arrive. Gating the backstop on it
+ * widened the poll to a minute in exactly the case the backstop exists for, and
+ * a scan took 35 seconds to reach the customer.
+ *
+ * So the fast interval is the default and Realtime has to earn the slow one.
+ * Once every ticket on the page is used there is nothing left to watch and the
+ * timer stops rather than pinging forever behind an open tab.
  */
-export function pollIntervalMs(realtimeOk: boolean, ts: LiveTicket[]): number | null {
+export function pollIntervalMs(realtimeProven: boolean, ts: LiveTicket[]): number | null {
   if (!anyStillValid(ts)) return null;
-  return realtimeOk ? POLL_MS_REALTIME_OK : POLL_MS_REALTIME_DOWN;
+  return realtimeProven ? POLL_MS_REALTIME_PROVEN : POLL_MS_REALTIME_UNPROVEN;
 }
 
 /** Long enough to read, short enough not to be in the way. */

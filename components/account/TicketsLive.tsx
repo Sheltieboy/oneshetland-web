@@ -64,7 +64,9 @@ export function TicketsLive({ userId, groups }: { userId: string; groups: Ticket
 
   const [live, setLive] = useState<LiveTicket[]>(seed);
   const [celebrating, setCelebrating] = useState<Record<string, true>>({});
-  const [realtimeOk, setRealtimeOk] = useState(false);
+  // Proven by delivery, not by subscribe status: a channel reports SUBSCRIBED
+  // even for a table Realtime cannot deliver from at all.
+  const [realtimeProven, setRealtimeProven] = useState(false);
 
   // Callbacks read the latest rows without being rebuilt on every change, so
   // the subscription is opened once rather than torn down on each update.
@@ -119,7 +121,9 @@ export function TicketsLive({ userId, groups }: { userId: string; groups: Ticket
   }, [ids, userId, apply]);
 
   // Realtime: the nudge, not the source. Every event triggers an authoritative
-  // read rather than being trusted as the new state on its own.
+  // read rather than being trusted as the new state on its own. Receiving one
+  // is also the ONLY thing that proves delivery works — the subscribe status is
+  // deliberately not consulted, because it reports SUBSCRIBED regardless.
   useEffect(() => {
     if (ids.length === 0) return;
     const sb = createClient();
@@ -128,16 +132,17 @@ export function TicketsLive({ userId, groups }: { userId: string; groups: Ticket
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "event_tickets", filter: `holder_id=eq.${userId}` },
-        () => { void refresh(); },
+        () => { setRealtimeProven(true); void refresh(); },
       )
-      .subscribe((status) => setRealtimeOk(status === "SUBSCRIBED"));
+      .subscribe();
     return () => { void sb.removeChannel(channel); };
   }, [userId, ids.length, refresh]);
 
-  // Backstop: a slow re-read, and a read whenever the customer comes back to
-  // the tab. Without this a dropped socket leaves the card wrong indefinitely.
+  // Backstop: a re-read on a timer, and whenever the customer comes back to the
+  // tab. Fast until Realtime has actually delivered something, so a silently
+  // dead socket costs ten seconds rather than a minute.
   useEffect(() => {
-    const every = pollIntervalMs(realtimeOk, live);
+    const every = pollIntervalMs(realtimeProven, live);
     if (every === null) return;
     const tick = () => { if (document.visibilityState === "visible") void refresh(); };
     const handle = window.setInterval(tick, every);
@@ -149,7 +154,7 @@ export function TicketsLive({ userId, groups }: { userId: string; groups: Ticket
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", onVisible);
     };
-  }, [realtimeOk, live, refresh]);
+  }, [realtimeProven, live, refresh]);
 
   const byId = useMemo(() => new Map(live.map((t) => [t.id, t])), [live]);
 
