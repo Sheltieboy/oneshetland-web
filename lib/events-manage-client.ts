@@ -9,6 +9,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/errors";
 import type { EventStatus, EventUpdateKind } from "./events-data";
+import { normalisePerOrderMax, type PerOrderMaxDraft } from "@/lib/event-ticket-utils";
 
 export type TicketMode = "none" | "oneshetland" | "external";
 
@@ -19,8 +20,9 @@ export type EditableTicketType = {
   price_pence: number;
   quantity_available: number | null;
   /** Basket size for ONE order. Not a per-person limit: nothing counts a
-   *  buyer's previous orders, so ten orders of ten remain possible. */
-  per_order_max: number;
+   *  buyer's previous orders, so ten orders of ten remain possible.
+   *  "" while the box is mid-edit; normalised before it is ever stored. */
+  per_order_max: PerOrderMaxDraft;
 };
 
 export type BusinessEventInput = {
@@ -122,7 +124,7 @@ async function syncTicketTypes(
       name: t.name.trim(),
       price_pence: t.price_pence,
       quantity_available: t.quantity_available ?? null,
-      per_order_max: t.per_order_max,
+      per_order_max: normalisePerOrderMax(t.per_order_max),
       display_order: i,
       is_active: true,
     };

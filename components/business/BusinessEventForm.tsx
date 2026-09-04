@@ -12,7 +12,7 @@ import {
   type TicketMode, type EditableTicketType, type BusinessEventInput,
 } from "@/lib/events-manage-client";
 import type { ManageEvent } from "@/lib/events-manage";
-import { DEFAULT_PER_ORDER_MAX } from "@/lib/event-ticket-utils";
+import { DEFAULT_PER_ORDER_MAX, parsePerOrderMax, normalisePerOrderMax } from "@/lib/event-ticket-utils";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -367,7 +367,8 @@ export function BusinessEventForm({
                   <label className="block text-xs font-semibold text-ink-muted">Maximum per order
                     <input type="number" min="1" step="1"
                       value={t.per_order_max}
-                      onChange={(e) => updateTicketType(i, { per_order_max: Math.max(1, parseInt(e.target.value, 10) || DEFAULT_PER_ORDER_MAX) })}
+                      onChange={(e) => updateTicketType(i, { per_order_max: parsePerOrderMax(e.target.value) })}
+                      onBlur={() => updateTicketType(i, { per_order_max: normalisePerOrderMax(t.per_order_max) })}
                       className={inputCls + " mt-1"} />
                   </label>
                 </div>

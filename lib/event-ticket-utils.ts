@@ -51,3 +51,38 @@ export function ticketCapacity(
     source: "tickets",
   };
 }
+
+/**
+ * What the Maximum per order box holds WHILE it is being edited.
+ *
+ * "" is a legitimate intermediate state. The first version normalised on every
+ * keystroke, so backspacing the last digit ran parseInt("") → NaN → the default
+ * → 10, and the field sprang back under the cursor. The only way to get from 10
+ * to 2 was to select the whole value and overtype it.
+ */
+export type PerOrderMaxDraft = number | "";
+
+/** Keystroke → draft. Deliberately does not judge: "" stays "", and a
+ *  half-typed or out-of-range number is left alone until the user stops. */
+export function parsePerOrderMax(raw: string): PerOrderMaxDraft {
+  if (raw.trim() === "") return "";
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.trunc(n) : "";
+}
+
+/**
+ * Draft → the value that may be stored. Applied when the field is left and
+ * again when the form is saved, so a blank that is never blurred still cannot
+ * reach the database.
+ *
+ * Blank means "I did not choose", which is the documented default of 10.
+ * Anything below 1 is a number the owner did choose and got wrong, so it
+ * settles on the minimum rather than the default — snapping -5 to 10 would
+ * look like the field inventing a figure.
+ */
+export function normalisePerOrderMax(v: PerOrderMaxDraft | number | null | undefined): number {
+  if (v === "" || v === null || v === undefined) return DEFAULT_PER_ORDER_MAX;
+  const n = Math.trunc(Number(v));
+  if (!Number.isFinite(n)) return DEFAULT_PER_ORDER_MAX;
+  return n < 1 ? 1 : n;
+}
