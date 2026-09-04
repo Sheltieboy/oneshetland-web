@@ -2,8 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { TicketsRealtime } from "@/components/account/TicketsRealtime";
-import { TicketQR } from "@/components/account/TicketQR";
+import { TicketsLive, type TicketGroup } from "@/components/account/TicketsLive";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My tickets" };
@@ -19,11 +18,6 @@ type TicketRow = {
   event: { id: string; title: string; starts_at: string | null; venue: string | null; status: string | null } | null;
   ticket_type: { name: string | null } | null;
 };
-
-function fmt(dt: string | null): string {
-  if (!dt) return "";
-  return new Date(dt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-}
 
 export default async function MyTicketsPage() {
   const account = await getAccount();
@@ -43,18 +37,33 @@ export default async function MyTicketsPage() {
   const tickets = (data ?? []) as unknown as TicketRow[];
 
   // Group by event, most recent event first (already ordered by created_at desc).
-  const byEvent = new Map<string, { title: string; when: string; venue: string | null; status: string | null; items: TicketRow[] }>();
+  // This render is the starting truth; TicketsLive keeps it current from the
+  // same table while the page stays open.
+  const byEvent = new Map<string, TicketGroup>();
   for (const t of tickets) {
     const key = t.event?.id ?? "unknown";
     if (!byEvent.has(key)) {
-      byEvent.set(key, { title: t.event?.title ?? "Event", when: t.event?.starts_at ?? "", venue: t.event?.venue ?? null, status: t.event?.status ?? null, items: [] });
+      byEvent.set(key, {
+        key,
+        title: t.event?.title ?? "Event",
+        when: t.event?.starts_at ?? "",
+        venue: t.event?.venue ?? null,
+        status: t.event?.status ?? null,
+        items: [],
+      });
     }
-    byEvent.get(key)!.items.push(t);
+    byEvent.get(key)!.items.push({
+      id: t.id,
+      status: t.status,
+      checked_in_at: t.checked_in_at,
+      backup_code: t.backup_code,
+      attendee_name: t.attendee_name,
+      ticket_type_name: t.ticket_type?.name ?? null,
+    });
   }
 
   return (
     <div className="space-y-6">
-      <TicketsRealtime userId={account.id} />
       <div>
         <Link href="/account" className="text-sm font-semibold text-ink-soft hover:underline">← My account</Link>
         <h1 className="mt-2 font-display text-3xl font-bold text-ink">My tickets</h1>
@@ -70,51 +79,7 @@ export default async function MyTicketsPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-5">
-          {[...byEvent.values()].map((grp) => (
-            <section key={grp.title + grp.when} className="rounded-card border border-line bg-paper p-5 shadow-soft">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 className="font-display text-xl font-bold text-ink">{grp.title}</h2>
-                <span className="shrink-0 text-sm text-ink-muted">{grp.items.length} ticket{grp.items.length === 1 ? "" : "s"}</span>
-              </div>
-              {grp.when && <p className="mt-0.5 text-sm text-ink-muted">{fmt(grp.when)}{grp.venue ? ` · ${grp.venue}` : ""}</p>}
-              {(grp.status === "cancelled" || grp.status === "postponed") && (
-                <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
-                  {grp.status === "cancelled"
-                    ? "This event has been cancelled. Refunds come from the organiser — contact us if you haven't heard from them."
-                    : "This event has been postponed. The organiser will confirm a new date."}
-                </p>
-              )}
-              <div className="mt-4 space-y-2">
-                {grp.items.map((t) => {
-                  const used = !!t.checked_in_at || t.status === "used" || t.status === "checked_in";
-                  // A ticket to an event that is not happening must not read "Valid".
-                  const eventOff = grp.status === "cancelled" || grp.status === "postponed";
-                  return (
-                    <div key={t.id} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-sand/40 px-4 py-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">{t.ticket_type?.name ?? "Ticket"}</p>
-                        {t.attendee_name && <p className="text-xs text-ink-muted">{t.attendee_name}</p>}
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {t.backup_code && !used && <TicketQR code={t.backup_code} />}
-                        {t.backup_code && (
-                          <span className="rounded-lg bg-paper px-3 py-1.5 font-mono text-sm font-bold tracking-wider text-ink shadow-sm">{t.backup_code}</span>
-                        )}
-                        <span
-                          className="rounded-pill px-2.5 py-1 text-xs font-bold"
-                          style={used ? { background: "#E5E7EB", color: "#6B7280" } : { background: "#DCFCE7", color: "#065F46" }}
-                        >
-                          {eventOff ? (grp.status === "cancelled" ? "Cancelled" : "Postponed") : used ? "Used" : "Valid"}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
+        <TicketsLive userId={account.id} groups={[...byEvent.values()]} />
       )}
     </div>
   );
