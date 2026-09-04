@@ -8,6 +8,7 @@ import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
 import { describeCheckoutError } from "@/lib/checkout-errors";
+import { maxPerOrder } from "@/lib/events-data";
 
 const EVENTS = "#d4921a";
 // Buyer-facing booking fee — 95p per ticket plus 1.5% of face value.
@@ -25,6 +26,9 @@ type TicketType = {
   name: string;
   price_pence: number;
   description: string | null;
+  quantity_available: number | null;
+  quantity_sold: number;
+  per_order_max: number;
 };
 
 type Step = "select" | "pay" | "done";
@@ -157,7 +161,12 @@ export function TicketModal({
         <div className="space-y-5">
           {/* Ticket type rows */}
           <ul className="space-y-3">
-            {ticketTypes.map((t) => (
+            {ticketTypes.map((t) => {
+              // The lower of the seller's per-order limit and what is left.
+              // The server enforces both; this only saves the buyer from
+              // choosing a number it will refuse.
+              const cap = maxPerOrder(t);
+              return (
               <li key={t.id} className="flex items-center justify-between gap-4 rounded-xl border border-line bg-paper p-4 shadow-soft">
                 <div className="min-w-0">
                   <p className="font-semibold text-ink">{t.name}</p>
@@ -165,6 +174,9 @@ export function TicketModal({
                   <p className="mt-0.5 font-display font-bold" style={{ color: EVENTS }}>
                     {gbp(t.price_pence)}
                   </p>
+                  {cap > 0 && (
+                    <p className="mt-0.5 text-xs text-ink-muted">Max {cap} per order</p>
+                  )}
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <button
@@ -177,8 +189,9 @@ export function TicketModal({
                   </button>
                   <span className="w-4 text-center font-semibold text-ink">{qty[t.id] ?? 0}</span>
                   <button
-                    onClick={() => setQty((q) => ({ ...q, [t.id]: (q[t.id] ?? 0) + 1 }))}
-                    className="grid h-8 w-8 place-items-center rounded-full font-bold text-paper transition hover:brightness-95"
+                    onClick={() => setQty((q) => ({ ...q, [t.id]: Math.min(cap, (q[t.id] ?? 0) + 1) }))}
+                    disabled={(qty[t.id] ?? 0) >= cap}
+                    className="grid h-8 w-8 place-items-center rounded-full font-bold text-paper transition hover:brightness-95 disabled:opacity-30 disabled:hover:brightness-100"
                     style={{ background: EVENTS }}
                     aria-label={`Add one ${t.name}`}
                   >
@@ -186,7 +199,8 @@ export function TicketModal({
                   </button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
 
           {/* Order summary */}

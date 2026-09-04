@@ -50,6 +50,7 @@ export type TicketType = {
   description: string | null;
   quantity_available: number | null;
   quantity_sold: number;
+  per_order_max: number;
   is_active: boolean;
   sale_starts_at: string | null;
   sale_ends_at: string | null;
@@ -113,8 +114,34 @@ export function ticketTypeOnSale(t: TicketType): boolean {
 }
 
 /** Tickets remaining for a type, or null when no cap is set. */
-export function ticketTypeRemaining(t: TicketType): number | null {
+export function ticketTypeRemaining(
+  t: Pick<TicketType, 'quantity_available' | 'quantity_sold'>,
+): number | null {
   return t.quantity_available === null ? null : Math.max(0, t.quantity_available - t.quantity_sold);
+}
+
+/**
+ * The most of one ticket type a single order may contain.
+ *
+ * Two separate ceilings, and the buyer meets whichever is lower: the seller's
+ * own per-order limit, and how many are actually left. The server enforces both
+ * — create-event-ticket-intent refuses a line above per_order_max, and
+ * reserve_ticket_slots refuses one that outruns the remaining seats — so this
+ * exists to stop the customer choosing 3 and being told no at checkout, not to
+ * decide anything.
+ *
+ * Per ORDER. Nothing counts a buyer's previous orders, and this must not be
+ * described as a per-person limit.
+ */
+export function maxPerOrder(
+  t: Pick<TicketType, 'quantity_available' | 'quantity_sold' | 'per_order_max'>,
+): number {
+  const remaining = ticketTypeRemaining(t);
+  const limit = t.per_order_max > 0 ? t.per_order_max : 1;
+  // No floor needed here: ticketTypeRemaining already clamps at 0, and its
+  // other callers depend on that. Repeating it would look like this function
+  // distrusts a guarantee it actually relies on.
+  return remaining === null ? limit : Math.min(limit, remaining);
 }
 
 export interface EventScarcity {
@@ -344,7 +371,7 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
          contact_info, event_notes, refund_policy, ticket_url, gallery_urls,
          business:local_businesses(id,name,logo_url),
          hub:hubs(id,name,logo_url,brand_color),
-         ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,is_active,sale_starts_at,sale_ends_at,display_order)`,
+         ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,per_order_max,is_active,sale_starts_at,sale_ends_at,display_order)`,
       )
       .eq("id", id)
       .in("status", ["published", "cancelled", "postponed"])
