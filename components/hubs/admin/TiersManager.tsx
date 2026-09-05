@@ -1,11 +1,25 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createMembershipType, deleteMembershipType } from "@/lib/hubs-client";
 import { membershipPrice, type HubMembershipType, type MembershipPeriod } from "@/lib/hubs-data";
+import { hubPayoutNotice } from "@/lib/hub-payout-notice";
 
-export function TiersManager({ hubId, tiers, accent }: { hubId: string; tiers: HubMembershipType[]; accent: string }) {
+/**
+ * @param payoutReady resolved on the server from the hub's own connected
+ *   account. Passed in rather than inferred: the browser cannot see a hub's
+ *   payout state, and the previous version simply asserted the worst.
+ * @param payoutHref the hub's payouts page, already carrying its return target.
+ */
+export function TiersManager({ hubId, tiers, accent, payoutReady, payoutHref }: {
+  hubId: string;
+  tiers: HubMembershipType[];
+  accent: string;
+  payoutReady: boolean;
+  payoutHref: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -14,6 +28,7 @@ export function TiersManager({ hubId, tiers, accent }: { hubId: string; tiers: H
   const [benefits, setBenefits] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const notice = hubPayoutNotice(payoutReady);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
@@ -39,10 +54,17 @@ export function TiersManager({ hubId, tiers, accent }: { hubId: string; tiers: H
 
   return (
     <div className="space-y-6">
-      <p className="rounded-xl bg-sand/50 px-4 py-3 text-sm text-ink-soft">
-        Paid tiers need a connected payout account. Set one up in the OneShetland app
-        (Hub → payouts); free tiers work straight away.
-      </p>
+      <div className="rounded-xl bg-sand/50 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">{notice.title}</p>
+        <p className="mt-0.5 text-sm text-ink-soft">{notice.body}</p>
+        <Link
+          href={payoutHref}
+          className="mt-2 inline-block text-sm font-semibold hover:underline"
+          style={{ color: accent }}
+        >
+          {notice.cta} →
+        </Link>
+      </div>
 
       {tiers.length > 0 && (
         <ul className="space-y-2">

@@ -12,6 +12,26 @@ export async function requireHubAdmin(idOrSlug: string): Promise<{ hub: Hub; acc
   return { hub, accent: hubAccent(hub) };
 }
 
+/**
+ * Can this hub be paid for a membership right now?
+ *
+ * The same condition create-hub-membership-intent applies — the hub's OWN
+ * connected account, enabled for payouts. Deliberately returns a boolean and
+ * nothing else: `hubs.stripe_account_id` carries a live Stripe Connect id and
+ * has no business reaching a browser.
+ *
+ * Read through the caller's session, so RLS still decides who may look.
+ */
+export async function hubPayoutReady(hubId: string): Promise<boolean> {
+  const sb = await createClient();
+  const { data } = await sb
+    .from("hubs")
+    .select("stripe_account_id, payout_enabled")
+    .eq("id", hubId)
+    .maybeSingle();
+  return !!(data?.payout_enabled && data?.stripe_account_id);
+}
+
 /** The signed-in user's membership in a hub (any status), or null. */
 export async function getMyMembership(hubId: string): Promise<HubMember | null> {
   const sb = await createClient();
