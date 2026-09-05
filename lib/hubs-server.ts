@@ -194,21 +194,39 @@ export async function getMyEndedMemberships(): Promise<HubMember[]> {
   return (data ?? []) as HubMember[];
 }
 
-/** Hubs the signed-in user owns or helps run (owner/committee, active). */
-export async function getMyHubs(): Promise<Hub[]> {
+/** Exactly what the "Hubs I manage" list renders — nothing wider. */
+export type ManagedHub = Pick<Hub, "id" | "name" | "slug" | "type" | "logo_url" | "brand_color" | "is_active">;
+
+/** The columns above, named for PostgREST. */
+const MANAGED_HUB_COLS = "id, name, slug, type, logo_url, brand_color, is_active";
+
+/**
+ * Hubs the signed-in user owns or helps run (owner/committee, active).
+ *
+ * The embedded select names its columns. It used to be `hub:hubs(*)`, and when
+ * 20260928130000 took table-level SELECT on hubs away from client roles, `*`
+ * became a permission error — PostgREST returned nothing, the error was never
+ * checked, and an owner was told "You don't run any hubs yet" while their hub
+ * and their active owner row sat there in perfect order.
+ *
+ * Every column here is on the anon/authenticated whitelist. Widening this list
+ * is how the bug comes back, so it is named once and reused.
+ */
+export async function getMyHubs(): Promise<ManagedHub[]> {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("hub_members")
-    .select("role, hub:hubs(*)")
+    .select(`role, hub:hubs(${MANAGED_HUB_COLS})`)
     .eq("user_id", user.id)
     .in("role", ["owner", "committee"])
     .eq("status", "active");
-  const hubs = ((data ?? []) as unknown as { hub: Hub | null }[])
+  // Say so rather than rendering an empty state that means "you have none".
+  if (error) throw new Error(`Could not load your hubs: ${error.message}`);
+  return ((data ?? []) as unknown as { hub: ManagedHub | null }[])
     .map((r) => r.hub)
-    .filter((h): h is Hub => !!h && h.is_active);
-  return hubs;
+    .filter((h): h is ManagedHub => !!h && h.is_active);
 }
 
 /** All events organised by a hub (admin view — any status/date). */

@@ -21,7 +21,7 @@ export function AccountSidebar({ isAdmin, isBusiness }: { isAdmin: boolean; isBu
     { href: "/account/loyalty", label: "Loyalty cards" },
     { href: "/account/memberships", label: "Memberships" },
     { href: "/account/following", label: "Following" },
-    { href: "/account/hubs", label: "My hubs" },
+    { href: "/account/hubs", label: "Hubs I manage" },
     { href: "/jobs/applications", label: "Job applications", external: true },
     { href: "/games/stats", label: "Game stats", external: true },
   ];

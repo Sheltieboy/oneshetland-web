@@ -727,7 +727,9 @@ export type BusinessCreateInput = {
 export type HubResult = {
   id: string; name: string; slug: string | null; type: string;
   description: string | null; logo_url: string | null; area: string | null;
-  member_count: number | null;
+  // Computed elsewhere (withMemberCounts), never a column on hubs — so it is
+  // optional here and simply absent from this fallback.
+  member_count?: number | null;
 };
 
 export async function searchHubs(q: string): Promise<HubResult[]> {
@@ -735,7 +737,10 @@ export async function searchHubs(q: string): Promise<HubResult[]> {
   try {
     const { data } = await sb
       .from("hubs")
-      .select("id, name, slug, type, description, logo_url, area, member_count")
+      // member_count is NOT a column on hubs. Selecting it made PostgREST
+      // reject the whole query, the catch below swallowed it, and hub search
+      // has been returning nothing at all.
+      .select("id, name, slug, type, description, logo_url, area")
       .eq("is_active", true)
       .ilike("name", `%${q}%`)
       .limit(6);

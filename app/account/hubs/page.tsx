@@ -6,7 +6,7 @@ import { hubAccent, HUB_TYPE_LABELS, HUB_COLOR } from "@/lib/hubs-data";
 import { HubTypeIcon } from "@/components/hubs/HubTypeIcon";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "My hubs" };
+export const metadata = { title: "Hubs I manage" };
 
 export default async function MyHubsPage() {
   const account = await getAccount();
@@ -19,7 +19,7 @@ export default async function MyHubsPage() {
       <section className="text-paper" style={{ background: HUB_COLOR }}>
         <div className="mx-auto max-w-3xl px-5 py-10 sm:py-12">
           <Link href="/account" className="text-sm font-semibold text-paper/80 hover:text-paper">← My account</Link>
-          <h1 className="mt-3 font-display text-4xl font-bold">My hubs</h1>
+          <h1 className="mt-3 font-display text-4xl font-bold">Hubs I manage</h1>
           <p className="mt-2 text-paper/85">Hubs you own or help run.</p>
         </div>
       </section>
@@ -32,6 +32,16 @@ export default async function MyHubsPage() {
             <Link href="/hubs/new" className="mt-6 inline-block rounded-pill px-5 py-3 font-semibold text-paper" style={{ background: HUB_COLOR }}>
               Start a hub
             </Link>
+            {/* This page is about hubs you RUN. Somebody who has merely joined
+                one lands here looking for it, so point them at the page that
+                actually holds it rather than letting the empty state read as
+                "your membership is gone". */}
+            <p className="mt-5 text-sm text-ink-muted">
+              Looking for hubs you&apos;ve joined?{" "}
+              <Link href="/account/memberships" className="font-semibold hover:underline" style={{ color: HUB_COLOR }}>
+                View your memberships
+              </Link>
+            </p>
           </div>
         ) : (
           <ul className="space-y-3">
