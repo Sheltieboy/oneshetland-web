@@ -35,7 +35,6 @@ export const HUB_COLOR = "#6b47bf";
 
 export type Hub = {
   id: string;
-  owner_id: string;
   name: string;
   slug: string | null;
   type: HubType;
@@ -190,7 +189,10 @@ export type DonorWallEntry = {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const HUB_COLS =
-  "id, owner_id, name, slug, type, description, logo_url, cover_url, brand_color, contact_email, contact_phone, website, area, join_mode, is_active, is_verified, memberships_enabled, directory_enabled, is_charity, charity_number, created_at";
+  // Named, not `select *`: hubs is column-whitelisted, so `*` is a permission
+// error for a client role. owner_id is deliberately absent — it is granted to
+// authenticated only, these reads run as anon, and nothing here consumes it.
+  "id, name, slug, type, description, logo_url, cover_url, brand_color, contact_email, contact_phone, website, area, join_mode, is_active, is_verified, memberships_enabled, directory_enabled, is_charity, charity_number, created_at";
 
 /** Resolve a hex brand colour (falls back to the Hubs section purple). */
 export function hubAccent(hub: Pick<Hub, "brand_color">): string {

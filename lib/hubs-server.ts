@@ -16,20 +16,17 @@ export async function requireHubAdmin(idOrSlug: string): Promise<{ hub: Hub; acc
  * Can this hub be paid for a membership right now?
  *
  * The same condition create-hub-membership-intent applies — the hub's OWN
- * connected account, enabled for payouts. Deliberately returns a boolean and
- * nothing else: `hubs.stripe_account_id` carries a live Stripe Connect id and
- * has no business reaching a browser.
+ * connected account, enabled for payouts.
  *
- * Read through the caller's session, so RLS still decides who may look.
+ * Asked of hub_payout_ready(), a SECURITY DEFINER function that answers with a
+ * boolean, because hubs.stripe_account_id is granted to no client role at all:
+ * it carries a live Stripe Connect id and has no business reaching a browser.
+ * Selecting it here would be a permission error, which is the point.
  */
 export async function hubPayoutReady(hubId: string): Promise<boolean> {
   const sb = await createClient();
-  const { data } = await sb
-    .from("hubs")
-    .select("stripe_account_id, payout_enabled")
-    .eq("id", hubId)
-    .maybeSingle();
-  return !!(data?.payout_enabled && data?.stripe_account_id);
+  const { data } = await sb.rpc("hub_payout_ready", { p_hub_id: hubId });
+  return data === true;
 }
 
 /** The signed-in user's membership in a hub (any status), or null. */
