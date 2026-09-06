@@ -25,6 +25,8 @@ export interface MyPass {
   business_name: string | null;
   /** True if this purchase was acquired by claiming a gift. */
   from_gift: boolean;
+  /** The gift this pass came from, so a claimed gift can point at it. */
+  gift_id: string | null;
   fully_used_at: string | null;
   /**
    * A purchase is an entitlement while it lasts and a receipt for ever after.
@@ -74,6 +76,7 @@ export async function fetchMyPasses(): Promise<MyPass[]> {
     item_name: (r.item as { name?: string } | null)?.name ?? null,
     business_name: (r.business as { name?: string } | null)?.name ?? null,
     from_gift: !!r.gift_id,
+    gift_id: (r.gift_id as string | null) ?? null,
     fully_used_at: (r.fully_used_at as string | null) ?? null,
     status: classify(r.uses_remaining as number, (r.expires_at as string | null) ?? null),
   }));

@@ -6,6 +6,7 @@ import {
   fetchMyGiftsReceived, fetchMyGiftsSent,
   type MyGiftReceived, type MyGiftSent,
   fetchMyReadyToClaimGifts, claimGiftById, type ReadyToClaimGift,
+  fetchMyPasses, type MyPass,
 } from "@/lib/passes-data";
 
 const LOCAL = "#7c3aed";
@@ -14,7 +15,7 @@ function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function GiftRow({ gift }: { gift: MyGiftReceived }) {
+function GiftRow({ gift, pass }: { gift: MyGiftReceived; pass?: MyPass }) {
   const title = gift.kind === "unit" ? gift.unit_item_name ?? "Gift" : gift.service_name ?? "Booking";
   // A booked gift has nothing left to pick. Derived from the booking row,
   // because book_gifts.status never advances past "claimed" for a service.
@@ -30,7 +31,13 @@ function GiftRow({ gift }: { gift: MyGiftReceived }) {
           <div className="flex items-center gap-2">
             <span className="truncate font-semibold text-ink">{title}</span>
             {gift.status === "used" && (
-              <span className="shrink-0 rounded-pill bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">Used</span>
+              /* A unit gift reaches `used` the moment it BECOMES a pass — the
+                 value has moved, not been spent. "Used" read as though it were
+                 gone. Booking gifts never reach this status (book_gifts stops
+                 at "claimed" for a service), so their wording is untouched. */
+              <span className="shrink-0 rounded-pill bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                {gift.kind === "unit" ? "Claimed ✓" : "Used"}
+              </span>
             )}
             {gift.status !== "used" && gift.booked && (
               <span className="shrink-0 rounded-pill bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">Booked</span>
@@ -46,6 +53,16 @@ function GiftRow({ gift }: { gift: MyGiftReceived }) {
             <p className="mt-2 rounded-card bg-sand p-3 text-sm italic text-ink">&ldquo;{gift.message}&rdquo;</p>
           )}
 
+          {gift.kind === "unit" && gift.status === "used" && (
+            <p className="mt-2 text-sm text-ink-soft">
+              Added to <span className="font-semibold text-ink">My passes</span>
+              {pass && typeof pass.uses_remaining === "number"
+                ? ` — ${pass.uses_remaining} use${pass.uses_remaining === 1 ? "" : "s"} left`
+                : ""}
+              {pass?.expires_at ? ` · expires ${fmtDate(pass.expires_at)}` : ""}
+            </p>
+          )}
+
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <code className="rounded bg-sand px-2 py-1 text-xs font-semibold text-ink-soft">{gift.code}</code>
             {isBookingPending && (
@@ -59,6 +76,15 @@ function GiftRow({ gift }: { gift: MyGiftReceived }) {
                 style={{ background: LOCAL }}
               >
                 Pick a time
+              </Link>
+            )}
+            {gift.kind === "unit" && gift.status === "used" && (
+              <Link
+                href="/account/passes"
+                className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper transition hover:brightness-95"
+                style={{ background: LOCAL }}
+              >
+                View pass
               </Link>
             )}
             <Link href={`/g/${gift.code}`} className="text-sm font-semibold underline" style={{ color: LOCAL }}>
@@ -124,6 +150,10 @@ export function GiftsClient() {
   // recipient could not see for themselves before claiming.
   const [readyToClaim, setReadyToClaim] = useState<ReadyToClaimGift[] | null>(null);
   const [claiming, setClaiming] = useState<string | null>(null);
+  const [passes, setPasses] = useState<MyPass[]>([]);
+  // What was just claimed, so the page can say where the value went rather
+  // than silently reshuffling the list.
+  const [justClaimed, setJustClaimed] = useState<{ name: string; pass: MyPass | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -131,8 +161,8 @@ export function GiftsClient() {
       // Received and sent are two different relationships to the same table —
       // claimed_by_user_id vs purchaser_id — so they are two reads, both
       // already permitted by the existing policies.
-      const [r, t, u] = await Promise.allSettled([
-        fetchMyGiftsReceived(), fetchMyGiftsSent(), fetchMyReadyToClaimGifts(),
+      const [r, t, u, p] = await Promise.allSettled([
+        fetchMyGiftsReceived(), fetchMyGiftsSent(), fetchMyReadyToClaimGifts(), fetchMyPasses(),
       ]);
       if (r.status === "fulfilled") setGifts(r.value);
       else { setGifts([]); setError(r.reason instanceof Error ? r.reason.message : "Could not load your gifts."); }
@@ -140,6 +170,10 @@ export function GiftsClient() {
       else { setSent([]); console.error("[gifts] sent lookup failed:", t.reason); }
       if (u.status === "fulfilled") setReadyToClaim(u.value);
       else { setReadyToClaim([]); console.error("[gifts] ready-to-claim lookup failed:", u.reason); }
+      // Only to explain where a claimed gift went. A missing pass costs the
+      // explanation, never the gift.
+      if (p.status === "fulfilled") setPasses(p.value);
+      else console.error("[gifts] passes lookup failed:", p.reason);
     })();
   }, []);
 
@@ -161,6 +195,36 @@ export function GiftsClient() {
     <div className="space-y-10">
       {error && (
         <p className="rounded-card border border-line bg-paper px-4 py-3 text-sm text-rose-600">{error}</p>
+      )}
+
+      {justClaimed && (
+        /* A unit gift reaching `used` means it BECAME a pass. Say so, or the
+           list simply reshuffles and the customer is left wondering whether
+           they have just spent something. */
+        <div className="rounded-card border border-emerald-200 bg-emerald-50 p-5 shadow-soft">
+          <p className="font-display text-xl font-bold text-emerald-900">Gift claimed!</p>
+          <p className="mt-1 text-sm text-emerald-900/85">
+            Your <span className="font-semibold">{justClaimed.name}</span> has been added to My passes.
+          </p>
+          {justClaimed.pass && typeof justClaimed.pass.uses_remaining === "number" && (
+            <p className="mt-0.5 text-sm text-emerald-900/85">
+              {justClaimed.pass.uses_remaining} use{justClaimed.pass.uses_remaining === 1 ? "" : "s"} available
+              {justClaimed.pass.expires_at ? ` · expires ${fmtDate(justClaimed.pass.expires_at)}` : ""}
+            </p>
+          )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link
+              href="/account/passes"
+              className="rounded-pill px-4 py-2 text-sm font-semibold text-paper"
+              style={{ background: LOCAL }}
+            >
+              View my pass
+            </Link>
+            <button onClick={() => setJustClaimed(null)} className="text-sm font-semibold text-emerald-900/70 underline">
+              Dismiss
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Gifts received ─────────────────────────────────────────────── */}
@@ -207,11 +271,19 @@ export function GiftsClient() {
                               await claimGiftById(g.gift_id);
                               // Re-read rather than moving the card locally: the
                               // claim's outcome is the database's to state.
-                              const [again, ready] = await Promise.all([
-                                fetchMyGiftsReceived(), fetchMyReadyToClaimGifts(),
+                              const [again, ready, mine] = await Promise.all([
+                                fetchMyGiftsReceived(), fetchMyReadyToClaimGifts(), fetchMyPasses(),
                               ]);
                               setGifts(again);
                               setReadyToClaim(ready);
+                              setPasses(mine);
+                              // book_unit_purchases.gift_id already carries the
+                              // relationship, and it is owner-scoped — no gift
+                              // code is involved in resolving it.
+                              setJustClaimed({
+                                name: g.product_name ?? "Your gift",
+                                pass: mine.find((x) => x.gift_id === g.gift_id) ?? null,
+                              });
                             } catch (e) {
                               setError(e instanceof Error ? e.message : "Could not claim that gift.");
                             } finally {
@@ -233,19 +305,25 @@ export function GiftsClient() {
             {toClaim.length > 0 && (
               <section>
                 <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">To claim</h3>
-                <ul className="space-y-2">{toClaim.map((g) => <GiftRow key={g.id} gift={g} />)}</ul>
+                <ul className="space-y-2">{toClaim.map((g) => <GiftRow key={g.id} gift={g} pass={passes.find((p) => p.gift_id === g.id)} />)}</ul>
               </section>
             )}
             {ready.length > 0 && (
               <section>
                 <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Booked</h3>
-                <ul className="space-y-2">{ready.map((g) => <GiftRow key={g.id} gift={g} />)}</ul>
+                <ul className="space-y-2">{ready.map((g) => <GiftRow key={g.id} gift={g} pass={passes.find((p) => p.gift_id === g.id)} />)}</ul>
               </section>
             )}
             {used.length > 0 && (
               <section>
-                <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Already used</h3>
-                <ul className="space-y-2">{used.map((g) => <GiftRow key={g.id} gift={g} />)}</ul>
+                {/* "Already used" is where a claimed unit gift lands, and it is
+                    the wrong word for it: the gift became a pass that has been
+                    spent nothing of. Both kinds here have been claimed, so the
+                    heading says that; the row badge still distinguishes them. */}
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Claimed</h3>
+                <ul className="space-y-2">
+                  {used.map((g) => <GiftRow key={g.id} gift={g} pass={passes.find((p) => p.gift_id === g.id)} />)}
+                </ul>
               </section>
             )}
           </div>
