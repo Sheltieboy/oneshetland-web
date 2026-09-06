@@ -108,6 +108,48 @@ export interface MyGiftReceived {
   booked: boolean;
 }
 
+/**
+ * Gifts addressed to the signed-in user's CONFIRMED auth email that are sent,
+ * unclaimed and unexpired.
+ *
+ * A separate read because it answers a different question. book_gifts has no
+ * recipient SELECT policy — only business owner, purchaser and CLAIMER — so a
+ * recipient was invisible to themselves until they claimed, which is what they
+ * came to the page to do. my_unclaimed_gifts() is a SECURITY DEFINER function
+ * returning display fields only: never the claim code, the payment intent or
+ * the purchaser. See migration 20260930120000.
+ */
+export type ReadyToClaimGift = {
+  gift_id: string;
+  kind: "unit" | "booking";
+  product_name: string | null;
+  business_name: string | null;
+  sender_name: string | null;
+  message: string | null;
+  expires_at: string | null;
+  created_at: string;
+};
+
+export async function fetchMyReadyToClaimGifts(): Promise<ReadyToClaimGift[]> {
+  const sb = createClient();
+  const { data: auth } = await sb.auth.getUser();
+  if (!auth.user) return [];
+  const { data, error } = await sb.rpc("my_unclaimed_gifts");
+  if (error) throw error;
+  return (data ?? []) as ReadyToClaimGift[];
+}
+
+/**
+ * Claim one of them. The gift's code is never sent to the browser — the server
+ * resolves it and delegates to claim_gift, so gift_recipient_ok stays the one
+ * authorisation gate. A gift id names a gift; it does not authorise claiming it.
+ */
+export async function claimGiftById(giftId: string): Promise<void> {
+  const sb = createClient();
+  const { error } = await sb.rpc("claim_gift_by_id", { p_gift_id: giftId });
+  if (error) throw new Error(error.message);
+}
+
 export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
   const sb = createClient();
   const { data: auth } = await sb.auth.getUser();

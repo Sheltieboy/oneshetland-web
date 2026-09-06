@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   fetchMyGiftsReceived, fetchMyGiftsSent,
   type MyGiftReceived, type MyGiftSent,
+  fetchMyReadyToClaimGifts, claimGiftById, type ReadyToClaimGift,
 } from "@/lib/passes-data";
 
 const LOCAL = "#7c3aed";
@@ -118,6 +119,11 @@ function SentGiftRow({ gift }: { gift: MyGiftSent }) {
 export function GiftsClient() {
   const [gifts, setGifts] = useState<MyGiftReceived[] | null>(null);
   const [sent, setSent] = useState<MyGiftSent[] | null>(null);
+  // Gifts addressed to this account's confirmed email that have not been
+  // claimed. A third relationship to the same table, and the only one the
+  // recipient could not see for themselves before claiming.
+  const [readyToClaim, setReadyToClaim] = useState<ReadyToClaimGift[] | null>(null);
+  const [claiming, setClaiming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -125,15 +131,19 @@ export function GiftsClient() {
       // Received and sent are two different relationships to the same table —
       // claimed_by_user_id vs purchaser_id — so they are two reads, both
       // already permitted by the existing policies.
-      const [r, t] = await Promise.allSettled([fetchMyGiftsReceived(), fetchMyGiftsSent()]);
+      const [r, t, u] = await Promise.allSettled([
+        fetchMyGiftsReceived(), fetchMyGiftsSent(), fetchMyReadyToClaimGifts(),
+      ]);
       if (r.status === "fulfilled") setGifts(r.value);
       else { setGifts([]); setError(r.reason instanceof Error ? r.reason.message : "Could not load your gifts."); }
       if (t.status === "fulfilled") setSent(t.value);
       else { setSent([]); console.error("[gifts] sent lookup failed:", t.reason); }
+      if (u.status === "fulfilled") setReadyToClaim(u.value);
+      else { setReadyToClaim([]); console.error("[gifts] ready-to-claim lookup failed:", u.reason); }
     })();
   }, []);
 
-  if (gifts === null || sent === null) {
+  if (gifts === null || sent === null || readyToClaim === null) {
     return (
       <div className="space-y-2">
         {[0, 1].map((i) => (
@@ -162,7 +172,7 @@ export function GiftsClient() {
           </p>
         </div>
 
-        {gifts.length === 0 ? (
+        {gifts.length === 0 && readyToClaim.length === 0 ? (
           <div className="rounded-card border border-line bg-paper p-10 text-center shadow-soft">
             <p className="font-display font-bold text-ink">No gifts received yet</p>
             <p className="mt-1 text-sm text-ink-muted">
@@ -171,6 +181,55 @@ export function GiftsClient() {
           </div>
         ) : (
           <div className="space-y-8">
+            {readyToClaim.length > 0 && (
+              <section>
+                <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">Ready to claim</h3>
+                <ul className="space-y-2">
+                  {readyToClaim.map((g) => (
+                    <li key={g.gift_id} className="rounded-xl border border-line bg-paper p-4 shadow-soft">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-display font-bold text-ink">{g.product_name ?? "A gift"}</p>
+                          <p className="mt-0.5 text-sm text-ink-soft">
+                            {g.sender_name ? `From ${g.sender_name}` : "A gift for you"}
+                            {g.business_name ? ` · ${g.business_name}` : ""}
+                          </p>
+                          {g.message && <p className="mt-1 text-sm italic text-ink-muted">“{g.message}”</p>}
+                          <span className="mt-2 inline-block rounded-pill bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                            Ready to claim
+                          </span>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            setClaiming(g.gift_id);
+                            setError(null);
+                            try {
+                              await claimGiftById(g.gift_id);
+                              // Re-read rather than moving the card locally: the
+                              // claim's outcome is the database's to state.
+                              const [again, ready] = await Promise.all([
+                                fetchMyGiftsReceived(), fetchMyReadyToClaimGifts(),
+                              ]);
+                              setGifts(again);
+                              setReadyToClaim(ready);
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : "Could not claim that gift.");
+                            } finally {
+                              setClaiming(null);
+                            }
+                          }}
+                          disabled={claiming === g.gift_id}
+                          className="shrink-0 rounded-pill px-4 py-2 text-sm font-semibold text-paper disabled:opacity-60"
+                          style={{ background: LOCAL }}
+                        >
+                          {claiming === g.gift_id ? "Claiming…" : "Claim gift"}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
             {toClaim.length > 0 && (
               <section>
                 <h3 className="mb-3 text-xs font-bold uppercase tracking-widest text-ink-muted">To claim</h3>
