@@ -137,6 +137,15 @@ export type LoyaltyProgram = {
 export type WalletReceipt = {
   id: string; created_at: string; gross_pence: number; fee_pence: number | null;
   cashback_pence: number | null; net_pence: number | null; customer_first_name: string | null;
+  /**
+   * 'refunded' once a Wallet reversal row names this payment, derived in the
+   * RPC from the ledger. A refund that has frozen its source but not yet
+   * credited the wallet is still 'none', so the Refund button stays available
+   * for the retry the edge function asks for.
+   */
+  refund_state?: "none" | "refunded";
+  refunded_at?: string | null;
+  refund_transaction_id?: string | null;
 };
 /** Rotating at-till redemption code (table: local_business_codes). */
 export type BusinessCode = { business_id: string; current_code: string; expires_at: string; updated_at: string };

@@ -125,14 +125,24 @@ export function WalletManager({ business, receipts, canEnable }: {
                       <p className="font-bold text-ink">£{(r.gross_pence / 100).toFixed(2)} paid</p>
                       <p className="text-xs" style={{ color: BIZ }}>{penceOrDash(r.net_pence)} to you{r.cashback_pence ? ` · £${(r.cashback_pence / 100).toFixed(2)} cashback` : ""}</p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => { setError(null); setConfirm(r); }}
-                      disabled={refunding !== null}
-                      className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
-                    >
-                      Refund
-                    </button>
+                    {r.refund_state === "refunded" ? (
+                      /* Kept in history — the money did arrive before it went back
+                         — but stated, and unpressable. The Refund control used to
+                         return after a reload and hand back a second "Refunded"
+                         for a payment already returned. */
+                      <span className="shrink-0 rounded-lg bg-sand px-2.5 py-1 text-xs font-semibold text-ink-muted">
+                        Refunded
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => { setError(null); setConfirm(r); }}
+                        disabled={refunding !== null}
+                        className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
+                      >
+                        Refund
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
