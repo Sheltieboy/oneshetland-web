@@ -36,10 +36,24 @@ export interface MyPass {
    * the moment they finished using it, and the page said "Nothing yet" to
    * somebody who had bought and used one that afternoon.
    */
-  status: "active" | "used" | "expired";
+  /** none | pending | refunded — server-managed. */
+  refund_state: string;
+  status: "active" | "used" | "expired" | "refund_pending" | "refunded";
 }
 
-function classify(usesRemaining: number, expiresAt: string | null): MyPass["status"] {
+/**
+ * A refunded pass keeps its uses on purpose: "three bought, none used, refunded"
+ * is the truth, and zeroing them would read as exhaustion. So refund state is
+ * asked about FIRST — otherwise a refunded pass with uses left classifies as
+ * active and the customer is shown something they cannot redeem.
+ */
+function classify(
+  usesRemaining: number,
+  expiresAt: string | null,
+  refundState: string | null = "none",
+): MyPass["status"] {
+  if (refundState === "refunded") return "refunded";
+  if (refundState === "pending") return "refund_pending";
   if (usesRemaining <= 0) return "used";
   if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) return "expired";
   return "active";
@@ -57,7 +71,7 @@ export async function fetchMyPasses(): Promise<MyPass[]> {
     .from("book_unit_purchases")
     .select(
       `id, item_id, business_id, uses_remaining, paid_amount_pence,
-       expires_at, created_at, gift_id, fully_used_at,
+       expires_at, created_at, gift_id, fully_used_at, refund_state,
        item:book_unit_items ( name ),
        business:local_businesses ( name )`,
     )
@@ -78,7 +92,8 @@ export async function fetchMyPasses(): Promise<MyPass[]> {
     from_gift: !!r.gift_id,
     gift_id: (r.gift_id as string | null) ?? null,
     fully_used_at: (r.fully_used_at as string | null) ?? null,
-    status: classify(r.uses_remaining as number, (r.expires_at as string | null) ?? null),
+    refund_state: ((r.refund_state as string | null) ?? "none"),
+    status: classify(r.uses_remaining as number, (r.expires_at as string | null) ?? null, (r.refund_state as string | null) ?? "none"),
   }));
 }
 

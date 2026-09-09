@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness, type WalletReceipt } from "@/lib/business-data";
 import { updateBusiness, createBusinessOnboardingLink } from "@/lib/business-client";
+import { createClient } from "@/lib/supabase/client";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
@@ -19,6 +20,40 @@ export function WalletManager({ business, receipts, canEnable }: {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [refunding, setRefunding] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<WalletReceipt | null>(null);
+
+  /**
+   * Full only. wallet_reverse_debit returns the whole original spend and records
+   * exactly one reversal linked to it; a partial would have to be a loose credit
+   * with no link back to what it reverses. Only the ledger row's id is sent —
+   * business, customer, Stripe account and the purchase to void are all resolved
+   * server-side.
+   */
+  async function refund(r: WalletReceipt) {
+    setRefunding(r.id); setError(null);
+    try {
+      const sb = createClient();
+      const { data, error: err } = await sb.functions.invoke("wallet-refund-business", {
+        body: { transaction_id: r.id },
+      });
+      let msg = (data as { error?: string } | null)?.error ?? err?.message ?? null;
+      if (msg && err) {
+        try {
+          const ctx = (err as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+          const body = await ctx?.json?.();
+          if (body?.error) msg = body.error;
+        } catch { /* keep the generic message */ }
+      }
+      if (msg) { setError(msg); return; }
+      setConfirm(null);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The refund could not be completed.");
+    } finally {
+      setRefunding(null);
+    }
+  }
 
   async function connectBank() {
     setBusy("bank"); setError(null);
@@ -85,12 +120,52 @@ export function WalletManager({ business, receipts, canEnable }: {
                     <p className="text-sm font-semibold text-ink">{r.customer_first_name ?? "Customer"}</p>
                     <p className="text-xs text-ink-muted">{new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
-                  <div className="text-right text-sm">
-                    <p className="font-bold text-ink">£{(r.gross_pence / 100).toFixed(2)} paid</p>
-                    <p className="text-xs" style={{ color: BIZ }}>{penceOrDash(r.net_pence)} to you{r.cashback_pence ? ` · £${(r.cashback_pence / 100).toFixed(2)} cashback` : ""}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right text-sm">
+                      <p className="font-bold text-ink">£{(r.gross_pence / 100).toFixed(2)} paid</p>
+                      <p className="text-xs" style={{ color: BIZ }}>{penceOrDash(r.net_pence)} to you{r.cashback_pence ? ` · £${(r.cashback_pence / 100).toFixed(2)} cashback` : ""}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setError(null); setConfirm(r); }}
+                      disabled={refunding !== null}
+                      className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
+                    >
+                      Refund
+                    </button>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {confirm && (
+            <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+              <p className="font-display font-bold text-ink">Refund this payment?</p>
+              <p className="mt-1 text-sm text-ink-soft">
+                £{(confirm.gross_pence / 100).toFixed(2)} goes back to {confirm.customer_first_name ?? "the customer"},
+                and {penceOrDash(confirm.net_pence)} comes back off your payout. Refunds are for the
+                full amount and cannot be undone.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => refund(confirm)}
+                  disabled={refunding !== null}
+                  className="rounded-lg px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+                  style={{ backgroundColor: BIZ }}
+                >
+                  {refunding ? "Refunding…" : "Refund in full"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirm(null)}
+                  disabled={refunding !== null}
+                  className="rounded-lg border border-line px-3 py-1.5 text-sm font-semibold text-ink-soft"
+                >
+                  Keep it
+                </button>
+              </div>
             </div>
           )}
         </section>

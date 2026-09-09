@@ -13,6 +13,10 @@ function fmtDate(iso: string): string {
 }
 
 const STATUS_PILL: Record<MyPass["status"], { label: string; tone: string }> = {
+  // A refunded pass keeps its uses, so without these it would read as Active
+  // and offer to be spent at a till that will refuse it.
+  refunded:       { label: "Refunded",           tone: "bg-slate-100 text-slate-600" },
+  refund_pending: { label: "Refund in progress", tone: "bg-amber-50 text-amber-700" },
   active:  { label: "Active",   tone: "bg-emerald-50 text-emerald-700" },
   used:    { label: "Used up",  tone: "bg-slate-100 text-slate-600" },
   expired: { label: "Expired",  tone: "bg-amber-50 text-amber-700" },
@@ -64,7 +68,9 @@ function PassCard({ pass }: { pass: MyPass }) {
           ) : (
             <>
               <p className="font-display text-lg font-bold text-ink">
-                {pass.status === "used" ? "Fully used" : "Expired"}
+                {pass.status === "used" ? "Fully used"
+                  : pass.status === "expired" ? "Expired"
+                  : STATUS_PILL[pass.status].label}
               </p>
               <p className="text-xs font-semibold text-ink-muted">
                 Bought {fmtDate(pass.created_at)}
