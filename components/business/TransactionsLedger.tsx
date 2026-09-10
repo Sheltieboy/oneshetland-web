@@ -13,7 +13,7 @@ import { gbp } from "@/lib/currency";
 
 interface Txn {
   occurred_at: string;
-  direction: "in" | "out";
+  direction: "in" | "out" | "refund";
   kind: string;
   description: string;
   counterparty: string;
@@ -33,6 +33,7 @@ const KIND_LABEL: Record<string, string> = {
   ticket_sale: "Event tickets",
   product_sale: "Shop order",
   boost: "Boost",
+  wallet_refund: "Refund",
 };
 
 type PresetKey = "this_month" | "last_month" | "last_90" | "this_year" | "all";
@@ -82,12 +83,16 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
   useEffect(() => { load(preset); }, [preset, load]);
 
   const totals = useMemo(() => {
-    let grossIn = 0, fees = 0, cashback = 0, netIn = 0, costsOut = 0;
+    // A refund carries the mirror of its sale, so its fee and cashback are
+    // negative and simply add in: the sale stays in Money in where it was
+    // earned, and Refunds shows separately what went back.
+    let grossIn = 0, refunds = 0, fees = 0, cashback = 0, netIn = 0, costsOut = 0;
     for (const r of rows) {
       if (r.direction === "in") { grossIn += r.gross_pence; fees += r.fee_pence; cashback += r.cashback_pence; netIn += r.net_pence; }
+      else if (r.direction === "refund") { refunds += Math.abs(r.gross_pence); fees += r.fee_pence; cashback += r.cashback_pence; netIn += r.net_pence; }
       else costsOut += r.gross_pence;
     }
-    return { grossIn, fees, cashback, netIn, costsOut, net: netIn - costsOut };
+    return { grossIn, refunds, fees, cashback, netIn, costsOut, net: netIn - costsOut };
   }, [rows]);
 
   function exportCsv() {
@@ -131,6 +136,7 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
       {/* Totals */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Money in" value={gbp(totals.grossIn)} />
+        {totals.refunds > 0 && <Stat label="Refunds" value={`− ${gbp(totals.refunds)}`} />}
         <Stat label="Platform fees" value={`− ${gbp(totals.fees)}`} />
         <Stat label="Cashback funded" value={`− ${gbp(totals.cashback)}`} />
         <Stat label="Net to you" value={gbp(totals.net)} accent />
@@ -169,8 +175,10 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
                   <td className="px-4 py-3 text-right tabular-nums text-ink">{gbp(r.gross_pence)}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.fee_pence ? `− ${gbp(r.fee_pence)}` : "—"}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.cashback_pence ? `− ${gbp(r.cashback_pence)}` : "—"}</td>
-                  <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (r.direction === "out" ? "text-rose-600" : "text-emerald-700")}>
-                    {r.direction === "out" ? `− ${gbp(r.gross_pence)}` : gbp(r.net_pence)}
+                  <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (r.direction === "in" ? "text-emerald-700" : "text-rose-600")}>
+                    {r.direction === "in" ? gbp(r.net_pence)
+                      : r.direction === "refund" ? `− ${gbp(Math.abs(r.net_pence))}`
+                      : `− ${gbp(r.gross_pence)}`}
                   </td>
                 </tr>
               ))}
