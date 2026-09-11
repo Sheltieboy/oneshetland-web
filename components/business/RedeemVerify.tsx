@@ -19,8 +19,14 @@ import { previewRedemption, verifyRedemption } from "@/lib/loyalty-redeem-client
  *
  * Neither screen ever computes a balance. Preview shows what preview_redemption
  * read; the result shows what redeem_pass_atomic returned.
+ *
+ * It also says WHICH business it is redeeming for, and sends that with every
+ * call. It used to send none while the backend authorised against every
+ * business the caller owned, so an owner of two could redeem one business's
+ * reward while managing the other. Every sibling on this page already took a
+ * businessId; this one did not.
  */
-export function RedeemVerify({ accent }: { accent: string }) {
+export function RedeemVerify({ businessId, accent }: { businessId: string; accent: string }) {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState<{ title: string; subtitle?: string } | null>(null);
@@ -36,7 +42,7 @@ export function RedeemVerify({ accent }: { accent: string }) {
     if (code.length !== 4 || busy) return;
     setBusy(true);
     try {
-      const p = await previewRedemption({ code });
+      const p = await previewRedemption({ code, businessId });
       setPreview({ title: p.detail?.title ?? "Redemption", subtitle: p.detail?.subtitle });
     } catch (e) {
       setResult({ ok: false, title: "Not valid", subtitle: e instanceof Error ? e.message : undefined });
@@ -47,7 +53,7 @@ export function RedeemVerify({ accent }: { accent: string }) {
     if (busy) return;
     setBusy(true);
     try {
-      const r = await verifyRedemption({ code });
+      const r = await verifyRedemption({ code, businessId });
       setPreview(null);
       setResult({ ok: true, title: r.detail?.title ?? "Redeemed", subtitle: r.detail?.subtitle });
     } catch (e) {

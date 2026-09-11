@@ -80,7 +80,7 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
       {/* Confirm a redemption — staff enter the customer's code to redeem an
           offer, stamp reward or pass (the staff-verified backbone). */}
       <div className="mt-8">
-        <RedeemVerify accent={BIZ} />
+        <RedeemVerify businessId={business.id} accent={BIZ} />
       </div>
     </div>
   );

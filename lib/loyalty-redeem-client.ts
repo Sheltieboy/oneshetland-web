@@ -25,20 +25,24 @@ export async function startRedemption(kind: RedeemKind, refId: string, amount?: 
  * READ-ONLY look-up of a pending code. Consumes nothing — Counter mode calls
  * this first so staff see what they are about to redeem before it is spent.
  */
-export async function previewRedemption(input: { code?: string; token?: string }): Promise<{
+export async function previewRedemption(input: { code?: string; token?: string; businessId: string }): Promise<{
   kind: RedeemKind;
   detail: { title?: string; subtitle?: string };
   uses_remaining?: number;
 }> {
+  const { code, token, businessId } = input;
   const { data, error } = await createClient().functions.invoke("local-redeem-verify", {
-    body: { ...input, preview: true },
+    body: { code, token, business_id: businessId, preview: true },
   });
   if (error) throw new Error(await fnError(error, "Could not look that code up."));
   return data as { kind: RedeemKind; detail: { title?: string; subtitle?: string }; uses_remaining?: number };
 }
 
-export async function verifyRedemption(input: { code?: string; token?: string }): Promise<{ ok: boolean; kind: RedeemKind; detail: { title?: string; subtitle?: string } }> {
-  const { data, error } = await createClient().functions.invoke("local-redeem-verify", { body: input });
+export async function verifyRedemption(input: { code?: string; token?: string; businessId: string }): Promise<{ ok: boolean; kind: RedeemKind; detail: { title?: string; subtitle?: string } }> {
+  const { code, token, businessId } = input;
+  const { data, error } = await createClient().functions.invoke("local-redeem-verify", {
+    body: { code, token, business_id: businessId },
+  });
   if (error) throw new Error(await fnError(error, "Could not verify."));
   return data as { ok: boolean; kind: RedeemKind; detail: { title?: string; subtitle?: string } };
 }
