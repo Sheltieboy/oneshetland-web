@@ -105,14 +105,15 @@ export default async function RootLayout({
           ]}
         />
         <AnalyticsProvider />
-        <ChargeApprovalListener />
         <ConsentBanner />
         <PrelaunchNotice />
-        <ConfirmProvider>
-          <SiteHeader user={user} fetchStatus={fetchStatus} />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </ConfirmProvider>
+        <ChargeApprovalListener>
+          <ConfirmProvider>
+            <SiteHeader user={user} fetchStatus={fetchStatus} />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </ConfirmProvider>
+        </ChargeApprovalListener>
       </body>
     </html>
   );

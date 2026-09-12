@@ -6,6 +6,7 @@ import { fetchWalletState } from "@/lib/local-commerce-client";
 import { fetchWalletTransactions, type WalletTransaction, type WalletTxType } from "@/lib/wallet-data";
 import { WalletTopUpModal } from "@/components/local/WalletTopUpModal";
 import { PayAtTillCard } from "@/components/local/PayAtTillCard";
+import { usePendingCharge } from "@/components/wallet/ChargeApprovalListener";
 
 const LOCAL = "#7c3aed";
 
@@ -22,6 +23,7 @@ function txTitle(tx: WalletTransaction): string {
 }
 
 export function WalletClient({ isLoggedIn }: { isLoggedIn: boolean }) {
+  const { pending, reopen } = usePendingCharge();
   const [balance, setBalance] = useState<number | null>(null);
   const [deficit, setDeficit] = useState(0);
   const [txs, setTxs] = useState<WalletTransaction[] | null>(null);
@@ -68,6 +70,30 @@ export function WalletClient({ isLoggedIn }: { isLoggedIn: boolean }) {
             : "Add credit to spend at participating Shetland businesses."}
         </p>
       </div>
+
+      {/* A business asked to charge the wallet and this customer has not yet
+          decided — either the pop-up never reached them (a request can arrive
+          while this tab is backgrounded) or they closed it to look at this
+          first. It's still pending and still actionable: this is the recovery
+          path, so closing the pop-up never loses the request. */}
+      {pending && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-cyan-300 bg-cyan-50 p-5">
+          <div>
+            <p className="font-display text-lg font-bold text-cyan-900">Payment request waiting</p>
+            <p className="mt-1 text-sm text-cyan-800">
+              <span className="font-semibold">{pending.businessName}</span> would like to charge your
+              wallet {gbp(pending.amountPence)}.
+            </p>
+          </div>
+          <button
+            onClick={reopen}
+            className="shrink-0 rounded-pill px-5 py-2.5 text-sm font-semibold text-paper transition hover:brightness-95"
+            style={{ background: "#0e7490" }}
+          >
+            Review request
+          </button>
+        </div>
+      )}
 
       {/* A refunded or charged-back top-up the balance could not cover. The
           debit itself refuses while this stands, so the page has to say why
