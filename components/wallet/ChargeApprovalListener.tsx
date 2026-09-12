@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { createClient } from "@/lib/supabase/client";
 import { respondToCharge } from "@/lib/member-card-client";
@@ -61,12 +62,38 @@ export function usePendingCharge() {
 }
 
 const ACCENT = "#0e7490";
+const DANGER = "#e11d48";
+
+/**
+ * The states this pop-up distinguishes for the customer:
+ *   ask       — a request is waiting on their decision
+ *   working   — Approve/Decline is in flight
+ *   succeeded — the wallet debit went through; this is the ONLY state that
+ *               may say the payment is complete
+ *   failed    — an approve attempt did not go through (declined card,
+ *               insufficient funds, a transfer failure) — never rendered as
+ *               success
+ *   declined  — the customer chose Decline; nothing was ever charged
+ *
+ * "ask" is also the only phase in which a merchant cancellation or expiry is
+ * allowed to silently close the request (see dismissIfSettledElsewhere) — a
+ * customer who has moved past "ask" already has their own definitive answer
+ * and must never have it snatched away by a realtime event arriving late.
+ */
+type Phase = "ask" | "working" | "succeeded" | "failed" | "declined";
+
+interface Outcome {
+  text: string;
+  balancePence?: number;
+  cashbackPence?: number;
+}
 
 export function ChargeApprovalListener({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [req, setReq] = useState<ActiveRequest | null>(null);
   const [dismissed, setDismissed] = useState(false);
-  const [phase, setPhase] = useState<"ask" | "working" | "done">("ask");
-  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+  const [phase, setPhase] = useState<Phase>("ask");
+  const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [secsLeft, setSecsLeft] = useState(0);
 
   // Read from the long-lived visibility/focus listeners below without
@@ -96,7 +123,7 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
     });
     setDismissed(false);
     setPhase("ask");
-    setResult(null);
+    setOutcome(null);
   }, []);
 
   const checkPending = useCallback(async (uid: string) => {
@@ -112,16 +139,25 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
   /**
    * The merchant cancelled (or the request otherwise left 'pending' —
    * expired, for instance) while this customer had the request open or
-   * merely pending in the background. Money safety does not depend on this:
-   * an Approve tap always gets a definitive answer from wallet-charge-approve
-   * regardless of whether this fires. This only clears a request that can no
-   * longer be approved, so nothing stale lingers in the pop-up or the wallet
-   * page's "pending" card. Left alone mid-tap ('working') — the in-flight
-   * respond() call resolves it instead.
+   * merely pending in the background.
+   *
+   * Only acts while still in "ask": once the customer has tapped Approve or
+   * Decline, phase moves to "working" and then to a terminal state
+   * (succeeded/failed/declined), and nothing here may touch `req` again.
+   * It used to guard only "working", but the request's own final "paid"
+   * UPDATE — the very same realtime event this effect subscribes to — can
+   * arrive AFTER respondToCharge() has already resolved and phase has
+   * already flipped to "succeeded". Guarding just "working" let that
+   * trailing UPDATE clear `req` a moment later, which closed the modal
+   * (open={!!req}) an instant after showing success — the "modal just
+   * disappeared, no confirmation" defect a live customer hit. Guarding the
+   * whole post-"ask" range fixes it. Money safety never depended on this
+   * either way: an Approve tap always gets its definitive answer from
+   * wallet-charge-approve's own response, regardless of what this effect does.
    */
   const dismissIfSettledElsewhere = useCallback((row: Row) => {
     if (row.status === "pending") return;
-    if (phaseRef.current === "working") return;
+    if (phaseRef.current !== "ask") return;
     if (reqRef.current?.id !== row.id) return;
     setReq(null);
     setDismissed(false);
@@ -192,12 +228,27 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
     setPhase("working");
     try {
       const r = await respondToCharge(req.id, decision);
-      if (decision === "decline") { setResult({ ok: true, text: "Declined — nothing was charged." }); }
-      else { setResult({ ok: true, text: `Paid ${gbp(req.amountPence)} to ${req.businessName}.${r.cashback_pence ? ` You earned ${gbp(r.cashback_pence)} cashback.` : ""}` }); }
-      setPhase("done");
+      if (decision === "decline") {
+        setOutcome({ text: "Declined — nothing was charged." });
+        setPhase("declined");
+      } else {
+        // balance_pence is wallet-charge-approve's own return value — the
+        // same canonical figure the wallet page reads, not recomputed here.
+        setOutcome({
+          text: `Paid ${gbp(req.amountPence)} to ${req.businessName}.`,
+          balancePence: r.balance_pence,
+          cashbackPence: r.cashback_pence,
+        });
+        setPhase("succeeded");
+      }
     } catch (e) {
-      setResult({ ok: false, text: e instanceof Error ? e.message : "Something went wrong." });
-      setPhase("done");
+      // e.message is already a safe, friendly string: respondToCharge's
+      // invokeErr() unwraps the edge function's own JSON `error` field
+      // (a deliberate message such as "This request is already paid.", or
+      // wallet-charge-approve's fixed catch-all sentence), never a raw
+      // Postgres/PostgREST error.
+      setOutcome({ text: e instanceof Error ? e.message : "Something went wrong. Please try again." });
+      setPhase("failed");
     }
   }
 
@@ -206,9 +257,20 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
     setDismissed(false);
   }
 
+  function viewWallet() {
+    finish();
+    router.push("/account/wallet");
+  }
+
   const pending: PendingSummary | null =
     req && phase === "ask" ? { businessName: req.businessName, amountPence: req.amountPence } : null;
   const reopen = useCallback(() => setDismissed(false), []);
+
+  const title =
+    phase === "succeeded" ? "Payment complete"
+    : phase === "failed" ? "Payment failed"
+    : phase === "declined" ? "Request declined"
+    : "Approve payment?";
 
   return (
     <Ctx.Provider value={{ pending, reopen }}>
@@ -216,13 +278,46 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
       <Modal
         open={!!req && !dismissed}
         onClose={() => { if (phase !== "working") setDismissed(true); }}
-        title="Approve payment?"
-        accent={ACCENT}
+        title={title}
+        accent={phase === "failed" ? DANGER : ACCENT}
       >
-        {!req ? null : phase === "done" ? (
+        {!req ? null : phase === "succeeded" ? (
+          <div className="space-y-5 py-2 text-center">
+            <span className="mx-auto grid h-16 w-16 place-items-center rounded-full text-3xl text-paper" style={{ background: ACCENT }}>✓</span>
+            <div>
+              <p className="font-display text-xl font-bold text-ink">Payment complete</p>
+              <p className="mt-2 text-ink-soft">
+                <span className="font-semibold text-ink">{gbp(req.amountPence)}</span> paid to{" "}
+                <span className="font-semibold text-ink">{req.businessName}</span>
+              </p>
+              {!!outcome?.cashbackPence && (
+                <p className="mt-1 text-sm text-ink-soft">You earned {gbp(outcome.cashbackPence)} cashback.</p>
+              )}
+              {outcome?.balancePence != null && (
+                <p className="mt-1 text-sm text-ink-muted">New wallet balance: {gbp(outcome.balancePence)}</p>
+              )}
+            </div>
+            <button
+              onClick={viewWallet}
+              className="block w-full rounded-pill py-3 text-center font-semibold text-paper transition hover:brightness-95"
+              style={{ background: ACCENT }}
+            >
+              View wallet
+            </button>
+            <button onClick={finish} className="w-full rounded-pill border border-line-strong py-3 font-semibold text-ink-soft transition hover:bg-sand">
+              Done
+            </button>
+          </div>
+        ) : phase === "failed" ? (
           <div className="py-4 text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: result?.ok ? ACCENT : "#e11d48" }}>{result?.ok ? "✓" : "!"}</span>
-            <p className="mt-4 text-ink-soft">{result?.text}</p>
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: DANGER }}>!</span>
+            <p className="mt-4 text-ink-soft">{outcome?.text}</p>
+            <button onClick={finish} className="mt-5 rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: ACCENT }}>Close</button>
+          </div>
+        ) : phase === "declined" ? (
+          <div className="py-4 text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: ACCENT }}>✓</span>
+            <p className="mt-4 text-ink-soft">{outcome?.text}</p>
             <button onClick={finish} className="mt-5 rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: ACCENT }}>Done</button>
           </div>
         ) : (
