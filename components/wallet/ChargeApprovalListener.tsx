@@ -137,28 +137,61 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
   }, [activate]);
 
   /**
-   * The merchant cancelled (or the request otherwise left 'pending' —
-   * expired, for instance) while this customer had the request open or
-   * merely pending in the background.
+   * The merchant cancelled (status -> 'cancelled'), or the request otherwise
+   * left 'pending' — expired, for instance — while this customer had it open
+   * or merely pending in the background.
    *
-   * Only acts while still in "ask": once the customer has tapped Approve or
-   * Decline, phase moves to "working" and then to a terminal state
-   * (succeeded/failed/declined), and nothing here may touch `req` again.
-   * It used to guard only "working", but the request's own final "paid"
-   * UPDATE — the very same realtime event this effect subscribes to — can
-   * arrive AFTER respondToCharge() has already resolved and phase has
-   * already flipped to "succeeded". Guarding just "working" let that
-   * trailing UPDATE clear `req` a moment later, which closed the modal
-   * (open={!!req}) an instant after showing success — the "modal just
-   * disappeared, no confirmation" defect a live customer hit. Guarding the
-   * whole post-"ask" range fixes it. Money safety never depended on this
-   * either way: an Approve tap always gets its definitive answer from
-   * wallet-charge-approve's own response, regardless of what this effect does.
+   * "working", "succeeded" and "declined" are fully protected: once the
+   * customer has an answer in flight or landed, nothing here may touch `req`
+   * again. "succeeded" in particular guards against the request's own final
+   * "paid" UPDATE — the very same realtime event this effect subscribes to —
+   * arriving AFTER respondToCharge() already resolved locally and flipped
+   * phase to "succeeded". Without that guard, the trailing UPDATE would clear
+   * `req` a moment later and close the modal (open={!!req}) on top of the
+   * success screen — the "modal just disappeared, no confirmation" defect a
+   * live customer hit.
+   *
+   * "ask" and "failed" are NOT fully protected, and deliberately so:
+   *   - "ask": a merchant cancel/expiry while the customer is still deciding
+   *     must dismiss the request — always has.
+   *   - "failed": unlike "succeeded", a local "failed" phase does not mean
+   *     THIS row is settled. respondToCharge() throws for two different
+   *     reasons — the server said no (already cancelled/expired/claimed, a
+   *     structured 409/410 — genuinely terminal), or a transport failure
+   *     (dropped connection, timeout) where the request may still be exactly
+   *     as pending as before the tap, or — the case this specifically
+   *     guards against — the charge actually completed and only the
+   *     response back to this browser was lost. A "failed" phase must stay
+   *     open to being corrected by the row's real state: a customer who hit
+   *     a network blip must not be stuck looking at a stale "please try
+   *     again" for a request the merchant has since cancelled, and must
+   *     never be left with a silently-vanishing pop-up if the row turns out
+   *     to actually be paid — that would be this exact defect happening
+   *     again, just reached via "failed" instead of "working".
+   *
+   * Money safety never depended on any of this either way: an Approve tap
+   * always gets its definitive answer from wallet-charge-approve's own
+   * response (when that response arrives at all), regardless of what this
+   * effect does.
    */
   const dismissIfSettledElsewhere = useCallback((row: Row) => {
     if (row.status === "pending") return;
-    if (phaseRef.current !== "ask") return;
-    if (reqRef.current?.id !== row.id) return;
+    const phase = phaseRef.current;
+    if (phase === "working" || phase === "succeeded" || phase === "declined") return;
+    const current = reqRef.current;
+    if (!current || current.id !== row.id) return;
+
+    if (phase === "failed" && row.status === "paid") {
+      // The one case where "failed" must not simply dismiss: the charge did
+      // go through, just the confirmation didn't reach us. Show success —
+      // never silence — matching the rule that a customer must never have
+      // to infer the outcome from the pop-up closing.
+      setOutcome({ text: `Paid ${gbp(row.amount_pence)} to ${current.businessName}.` });
+      setPhase("succeeded");
+      setDismissed(false);
+      return;
+    }
+
     setReq(null);
     setDismissed(false);
   }, []);
