@@ -48,3 +48,15 @@ export async function listSocialRecipes(): Promise<SocialRecipe[]> {
   const { data } = await sb.from("social_recipes").select("*").order("key");
   return (data ?? []) as SocialRecipe[];
 }
+
+/** Global publisher pause — admin_config['social.publishing_paused']. */
+export async function getSocialPublishingPaused(): Promise<boolean> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { data } = await sb
+    .from("admin_config")
+    .select("value")
+    .eq("key", "social.publishing_paused")
+    .maybeSingle();
+  return data?.value === "true";
+}

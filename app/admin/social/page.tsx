@@ -1,11 +1,13 @@
-import { listSocialPosts, listSocialRecipes } from "@/lib/social-admin.server";
+import { listSocialPosts, listSocialRecipes, getSocialPublishingPaused } from "@/lib/social-admin.server";
 import { SocialStudio } from "@/components/admin/SocialStudio";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Social studio · Admin" };
 
 export default async function AdminSocialPage() {
-  const [posts, recipes] = await Promise.all([listSocialPosts(), listSocialRecipes()]);
+  const [posts, recipes, paused] = await Promise.all([
+    listSocialPosts(), listSocialRecipes(), getSocialPublishingPaused(),
+  ]);
   return (
     <div>
       <div className="mb-6">
@@ -15,7 +17,7 @@ export default async function AdminSocialPage() {
           the publisher sends approved posts to the Facebook Page on schedule.
         </p>
       </div>
-      <SocialStudio posts={posts} recipes={recipes} />
+      <SocialStudio posts={posts} recipes={recipes} paused={paused} />
     </div>
   );
 }

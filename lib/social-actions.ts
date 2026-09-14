@@ -80,3 +80,36 @@ export async function toggleSocialRecipe(key: string, enabled: boolean): Promise
   revalidatePath("/admin/social");
   return { ok: true };
 }
+
+/**
+ * Autopilot — separate from `enabled`. Enabled decides whether the composer
+ * drafts this recipe at all; autopilot decides whether what it drafts needs a
+ * human to approve it (draft) or is already publisher-eligible (scheduled).
+ * Read by social-composer at compose time — flipping this has no effect on
+ * posts already queued, only on what's composed from the next run onward.
+ */
+export async function toggleSocialRecipeAutopilot(key: string, autopilot: boolean): Promise<Result> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { error } = await sb.from("social_recipes").update({ autopilot }).eq("key", key);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/social");
+  return { ok: true };
+}
+
+/**
+ * Global publisher pause. Stops social-publisher from reaching Meta at all —
+ * queued/approved/scheduled posts are left exactly as they are; the composer
+ * is unaffected and keeps queueing. See supabase/functions/social-publisher.
+ */
+export async function toggleSocialPublishingPause(paused: boolean): Promise<Result> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { error } = await sb
+    .from("admin_config")
+    .update({ value: paused ? "true" : "false" })
+    .eq("key", "social.publishing_paused");
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/social");
+  return { ok: true };
+}

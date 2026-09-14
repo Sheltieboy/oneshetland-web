@@ -5,7 +5,8 @@ import type { SocialPost, SocialRecipe } from "@/lib/social-admin.server";
 import { kindMeta } from "@/lib/social-meta";
 import {
   approveSocialPost, createCustomPost, deleteSocialPost, revertSocialPost,
-  saveSocialPost, skipSocialPost, toggleSocialRecipe,
+  saveSocialPost, skipSocialPost, toggleSocialRecipe, toggleSocialRecipeAutopilot,
+  toggleSocialPublishingPause,
 } from "@/lib/social-actions";
 import { createClient } from "@/lib/supabase/client";
 
@@ -340,40 +341,125 @@ function LogRow({ post }: { post: SocialPost }) {
   );
 }
 
+/** Small labelled on/off switch — shared shape for Enabled and Autopilot. */
+function MiniSwitch({
+  label, checked, disabled, title, onChange,
+}: { label: string; checked: boolean; disabled: boolean; title?: string; onChange: (next: boolean) => void }) {
+  return (
+    <div className="flex flex-col items-center gap-1" title={title}>
+      <span className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">{label}</span>
+      <button
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={"relative h-7 w-12 rounded-pill transition disabled:opacity-50 " + (checked ? "bg-emerald-500" : "bg-slate-300")}
+      >
+        <span className={"absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all " + (checked ? "left-6" : "left-1")} />
+      </button>
+      <span className="text-[10px] font-bold text-ink-muted">{checked ? "ON" : "OFF"}</span>
+    </div>
+  );
+}
+
 function RecipeRow({ recipe }: { recipe: SocialRecipe }) {
   const [enabled, setEnabled] = useState(recipe.enabled);
-  const [pending, start] = useTransition();
+  const [autopilot, setAutopilot] = useState(recipe.autopilot);
+  const [pendingEnabled, startEnabled] = useTransition();
+  const [pendingAutopilot, startAutopilot] = useTransition();
   return (
-    <li className="flex items-center gap-3 rounded-card border border-line bg-white p-4 shadow-soft">
+    <li className="flex items-center gap-4 rounded-card border border-line bg-white p-4 shadow-soft">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-ink">{recipe.label}</p>
         <p className="text-xs text-ink-muted">last ran {fmt(recipe.last_run_at)}</p>
+        {enabled && (
+          <p className="mt-1 text-xs text-ink-muted">
+            {autopilot
+              ? "Posts automatically on schedule — no approval needed."
+              : "Drafts land in the queue for manual approval."}
+          </p>
+        )}
       </div>
-      <span className="rounded-pill bg-slate-100 px-2.5 py-0.5 text-xs font-bold text-slate-400" title="Auto-posting without approval arrives in Phase 2">
-        autopilot · Phase 2
-      </span>
-      <button
-        role="switch"
-        aria-checked={enabled}
-        aria-label={`${recipe.label} enabled`}
-        disabled={pending}
-        onClick={() => {
-          const next = !enabled;
+      <MiniSwitch
+        label="Enabled"
+        checked={enabled}
+        disabled={pendingEnabled}
+        title="Off: the composer never drafts this recipe at all."
+        onChange={(next) => {
           setEnabled(next);
-          start(async () => {
+          startEnabled(async () => {
             const r = await toggleSocialRecipe(recipe.key, next);
             if (!r.ok) setEnabled(!next);
           });
         }}
-        className={"relative h-7 w-12 rounded-pill transition disabled:opacity-50 " + (enabled ? "bg-emerald-500" : "bg-slate-300")}
-      >
-        <span className={"absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all " + (enabled ? "left-6" : "left-1")} />
-      </button>
+      />
+      <MiniSwitch
+        label="Autopilot"
+        checked={autopilot}
+        disabled={pendingAutopilot || !enabled}
+        title={enabled
+          ? "On: what this recipe drafts is publisher-eligible immediately (still respects its own schedule). Off: drafts wait for manual approval."
+          : "Enable the recipe first."}
+        onChange={(next) => {
+          setAutopilot(next);
+          startAutopilot(async () => {
+            const r = await toggleSocialRecipeAutopilot(recipe.key, next);
+            if (!r.ok) setAutopilot(!next);
+          });
+        }}
+      />
     </li>
   );
 }
 
-export function SocialStudio({ posts, recipes }: { posts: SocialPost[]; recipes: SocialRecipe[] }) {
+/**
+ * Global pause banner — impossible to miss, top of the page regardless of
+ * tab. Pausing only ever affects social-publisher (nothing leaves Meta-ward);
+ * the composer keeps queueing normally either way.
+ */
+function PauseBanner({ initialPaused }: { initialPaused: boolean }) {
+  const [paused, setPaused] = useState(initialPaused);
+  const [pending, start] = useTransition();
+  return (
+    <div
+      className={
+        "mb-5 flex items-center justify-between gap-4 rounded-card border p-4 " +
+        (paused ? "border-rose-300 bg-rose-50" : "border-emerald-300 bg-emerald-50")
+      }
+    >
+      <div>
+        <p className={"text-sm font-bold " + (paused ? "text-rose-700" : "text-emerald-700")}>
+          Social publishing: {paused ? "PAUSED" : "ACTIVE"}
+        </p>
+        <p className="text-xs text-ink-soft">
+          {paused
+            ? "The publisher will send nothing to Facebook/Instagram. Queued drafts, approved and scheduled posts are untouched — the composer keeps drafting normally."
+            : "Approved and scheduled posts go out on the publisher's next ~15-minute pass."}
+        </p>
+      </div>
+      <button
+        disabled={pending}
+        onClick={() => {
+          const next = !paused;
+          setPaused(next);
+          start(async () => {
+            const r = await toggleSocialPublishingPause(next);
+            if (!r.ok) setPaused(!next);
+          });
+        }}
+        className={
+          "shrink-0 rounded-pill px-4 py-2 text-sm font-bold text-white transition disabled:opacity-50 " +
+          (paused ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700")
+        }
+      >
+        {paused ? "Resume publishing" : "Pause publishing"}
+      </button>
+    </div>
+  );
+}
+
+export function SocialStudio({ posts, recipes, paused }: { posts: SocialPost[]; recipes: SocialRecipe[]; paused: boolean }) {
   const [tab, setTab] = useState<"queue" | "log" | "recipes">("queue");
   const queue = posts.filter((p) => QUEUE_STATUSES.includes(p.status));
   const log = posts.filter((p) => !QUEUE_STATUSES.includes(p.status));
@@ -386,6 +472,7 @@ export function SocialStudio({ posts, recipes }: { posts: SocialPost[]; recipes:
 
   return (
     <div>
+      <PauseBanner initialPaused={paused} />
       <div className="mb-5 flex gap-2" role="tablist">
         {tabs.map((t) => (
           <button
