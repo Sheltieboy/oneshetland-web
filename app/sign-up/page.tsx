@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logCompliance, TERMS_VERSION, PRIVACY_VERSION } from "@/lib/compliance";
 import { safeNext } from "@/lib/redirect";
+import { Turnstile, type TurnstileHandle } from "@/components/ui/Turnstile";
 
 function SignUpInner() {
   const router = useRouter();
@@ -26,6 +27,8 @@ function SignUpInner() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,6 +37,7 @@ function SignUpInner() {
     if (password.length < 8) return setError("Password must be at least 8 characters.");
     if (password !== confirm) return setError("Passwords don't match.");
     if (!agree) return setError("Please confirm you're 18+ and accept the terms.");
+    if (!captchaToken) return setError("Please complete the verification check below.");
 
     setBusy(true);
     const sb = createClient();
@@ -42,6 +46,7 @@ function SignUpInner() {
       email: cleanEmail,
       password,
       options: {
+        captchaToken,
         data: {
           full_name: fullName.trim(),
           // Carried through so it survives email confirmation — with
@@ -61,6 +66,11 @@ function SignUpInner() {
         emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
+
+    // A Turnstile token is single-use regardless of outcome — reset the
+    // widget so a retry (after an error, or a duplicate-email refusal) gets a
+    // fresh challenge rather than silently reusing a spent token.
+    turnstileRef.current?.reset();
 
     if (error) {
       setBusy(false);
@@ -162,9 +172,15 @@ function SignUpInner() {
             </span>
           </label>
 
+          <Turnstile
+            ref={turnstileRef}
+            onToken={setCaptchaToken}
+            onError={() => setError("Couldn't complete the verification check — please refresh and try again.")}
+          />
+
           {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
-          <button type="submit" disabled={busy || !agree}
+          <button type="submit" disabled={busy || !agree || !captchaToken}
             className="w-full rounded-pill bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:cursor-not-allowed disabled:opacity-50">
             {busy ? "Creating account…" : "Create account"}
           </button>
