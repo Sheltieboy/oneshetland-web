@@ -26,6 +26,7 @@ const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequen
   { path: "/games", freq: "weekly", priority: 0.6 },
   { path: "/almanac", freq: "daily", priority: 0.8 },
   { path: "/business", freq: "monthly", priority: 0.6 },
+  { path: "/support", freq: "monthly", priority: 0.4 },
   { path: "/terms", freq: "yearly", priority: 0.2 },
   { path: "/privacy", freq: "yearly", priority: 0.2 },
   { path: "/community-guidelines", freq: "yearly", priority: 0.2 },

@@ -50,6 +50,7 @@ export function SiteFooter() {
           <Link href="/almanac" className="hover:text-paper">The Almanac</Link>
           <Link href="/loyalty" className="hover:text-paper">Shop Local Shetland</Link>
           <Link href="/business" className="hover:text-paper">For businesses</Link>
+          <Link href="/support" className="hover:text-paper">Support</Link>
           <Link href="/terms" className="hover:text-paper">Terms</Link>
           <Link href="/privacy" className="hover:text-paper">Privacy</Link>
           <Link href="/community-guidelines" className="hover:text-paper">Community guidelines</Link>
