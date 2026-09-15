@@ -15,7 +15,7 @@ export function SiteFooter() {
               <span className="font-display text-xl font-semibold tracking-tight">OneShetland</span>
             </div>
             <p className="mt-4 max-w-xs text-paper/70">
-              Everything Shetland, in one place — built for the islands, by the islands.
+              Shop Shetland. Discover Shetland. OneShetland. Built for the islands, by the islands.
             </p>
           </div>
 

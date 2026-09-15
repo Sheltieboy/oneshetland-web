@@ -32,7 +32,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "OneShetland — everything Shetland, in one place",
+    default: "Shop Shetland. Discover Shetland. OneShetland.",
     template: "%s · OneShetland",
   },
   description:
@@ -44,15 +44,15 @@ export const metadata: Metadata = {
     siteName: "OneShetland",
     locale: "en_GB",
     url: "https://oneshetland.com",
-    title: "OneShetland — everything Shetland, in one place",
+    title: "Shop Shetland. Discover Shetland. OneShetland.",
     description:
       "What's on, local businesses, the fishing fleet, the Shetland dialect, community hubs, jobs and more — one warm home for the islands.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "OneShetland — everything Shetland, in one place",
+    title: "Shop Shetland. Discover Shetland. OneShetland.",
     description:
-      "Everything Shetland, in one place — built for the islands, by the islands.",
+      "Shop Shetland. Discover Shetland. OneShetland. Built for the islands, by the islands.",
   },
 };
 
@@ -83,7 +83,7 @@ export default async function RootLayout({
               url: "https://oneshetland.com",
               logo: "https://oneshetland.com/icon.png",
               description:
-                "Everything Shetland in one place — what's on, local businesses, the fishing fleet, the Shetland dialect, community hubs and jobs.",
+                "Shop Shetland. Discover Shetland. OneShetland. What's on, local businesses, the fishing fleet, the Shetland dialect, community hubs and jobs.",
               areaServed: { "@type": "Place", name: "Shetland Islands, Scotland" },
             },
             {

@@ -81,9 +81,9 @@ export default async function Home() {
           {/* Left — wordmark message + chips */}
           <div>
             <h1 className="font-display text-[2.5rem] font-bold leading-[1.03] text-paper [text-shadow:_0_2px_12px_rgb(0_0_0_/_55%)] sm:text-5xl lg:text-6xl">
-              Everything Shetland,
+              Shop Shetland. Discover Shetland.
               <br />
-              in one place.
+              OneShetland.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper [text-shadow:_0_1px_6px_rgb(0_0_0_/_60%)]">
               What&apos;s on, local businesses, the fishing fleet, the dialect,
