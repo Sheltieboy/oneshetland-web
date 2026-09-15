@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { safeNext } from "@/lib/redirect";
+import { Turnstile, type TurnstileHandle } from "@/components/ui/Turnstile";
 
 function SignInInner() {
   const router = useRouter();
@@ -14,6 +15,11 @@ function SignInInner() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // One widget, shared by both actions on this page (sign in, resend) — a
+  // token is single-use, so it's reset after every attempt of either kind and
+  // never carried from one action, or one attempt, into the next.
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   /**
    * What the confirmation link actually told us.
@@ -45,14 +51,22 @@ function SignInInner() {
   const [resending, setResending] = useState(false);
   async function resendConfirmation() {
     if (!email.trim()) { setError("Enter your email address first, then tap resend."); return; }
+    if (!captchaToken) { setError("Please complete the verification check below."); return; }
     setResending(true); setError(null);
+    const token = captchaToken;
     try {
       await createClient().auth.resend({
         type: "signup",
         email: email.trim().toLowerCase(),
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
+        options: {
+          captchaToken: token,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+        },
       });
     } catch { /* deliberately not surfaced — see above */ }
+    // Single-use regardless of outcome — a fresh token is required for
+    // whatever this person does next, resend again or sign in.
+    turnstileRef.current?.reset();
     setResending(false);
     setResent(true);
   }
@@ -60,12 +74,19 @@ function SignInInner() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!captchaToken) { setError("Please complete the verification check below."); return; }
     setBusy(true);
     const sb = createClient();
+    const token = captchaToken;
     const { error } = await sb.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
+      options: { captchaToken: token },
     });
+    // Single-use regardless of outcome — reset before branching so a retry
+    // (wrong password, unconfirmed email) gets a fresh challenge rather than
+    // silently reusing a spent token.
+    turnstileRef.current?.reset();
     if (error) {
       setBusy(false);
       if (error.message.includes("Invalid login credentials")) {
@@ -126,18 +147,25 @@ function SignInInner() {
             <button
               type="button"
               onClick={() => void resendConfirmation()}
-              disabled={resending}
+              disabled={resending || !captchaToken}
               className="w-full rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand disabled:opacity-50"
             >
               {resending ? "Sending…" : "Send a new confirmation email"}
             </button>
           )}
+
+          <Turnstile
+            ref={turnstileRef}
+            onToken={setCaptchaToken}
+            onError={() => setError("Couldn't complete the verification check — please refresh and try again.")}
+          />
+
           {error && (
             <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>
           )}
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !captchaToken}
             className="w-full rounded-pill bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:opacity-50"
           >
             {busy ? "Signing in…" : "Sign in"}
