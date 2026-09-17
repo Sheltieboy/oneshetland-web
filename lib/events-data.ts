@@ -236,13 +236,25 @@ export function isFreeListEvent(e: EventListItem): boolean {
   return !e.price_text;
 }
 
-/** Display price label for a list row, matching the app's EventCard logic. */
+/** Display price label for a list row, matching the app's eventPriceLabel().
+ *
+ *  Free and paid are not exclusive facts about an event — a mixed event has
+ *  both, and collapsing that to "Free" hides that some tickets cost money,
+ *  the same way "From £1.00" used to hide that one was free. Built from the
+ *  two existing predicates above (hasFreeTicket, lowestTicketPrice) rather
+ *  than a third filter pass, so it cannot drift from either of them or from
+ *  the Free-only filter (isFreeListEvent), which reads hasFreeTicket()
+ *  directly and is untouched by this. */
 export function priceLabel(e: EventListItem): string | null {
   if (!e.has_tickets) return e.price_text ?? null;
   if (e.ticket_types.length > 0) {
-    if (hasFreeTicket(e.ticket_types)) return "Free";
-    const low = lowestTicketPrice(e.ticket_types);
-    return low !== null ? `From £${(low / 100).toFixed(2)}` : null;
+    const hasFree = hasFreeTicket(e.ticket_types);
+    const cheapestPaid = lowestTicketPrice(e.ticket_types);
+    const hasPaid = cheapestPaid !== null;
+    if (hasFree && hasPaid) return "Free + paid tickets";
+    if (hasFree) return "Free";
+    if (hasPaid) return `From £${(cheapestPaid / 100).toFixed(2)}`;
+    return null;
   }
   return e.price_text ?? null;
 }
