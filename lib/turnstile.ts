@@ -21,7 +21,16 @@ export interface TurnstileRenderOptions {
   "expired-callback"?: () => void;
   "timeout-callback"?: () => void;
   theme?: "light" | "dark" | "auto";
-  size?: "normal" | "compact";
+  /**
+   * "always"           — the widget is permanently visible (Cloudflare's default).
+   * "interaction-only" — invisible unless Cloudflare actually needs the visitor
+   *                      to do something. The token still arrives through the
+   *                      normal `callback`, so nothing about the flow changes.
+   * "execute"          — render now, run the check later via turnstile.execute().
+   */
+  appearance?: "always" | "execute" | "interaction-only";
+  /** "flexible" fills the container width (min 300px) instead of a fixed 300px box. */
+  size?: "normal" | "flexible" | "compact";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
