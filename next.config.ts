@@ -18,6 +18,15 @@ const nextConfig: NextConfig = {
    * read off production before anything is enforced. Promoting it to
    * Content-Security-Policy is a one-word change once that has been reviewed.
    *
+   * That review is exactly why challenges.cloudflare.com is listed in BOTH
+   * script-src and frame-src below. Production report-only logs showed three
+   * violations per auth page load — two scripts and one frame — so promoting
+   * this policy while it allowed only Stripe would have blocked Turnstile at
+   * the script stage, before the widget ever rendered. loadTurnstile() would
+   * have rejected, the widget would have shown "Couldn't load the verification
+   * check", and with no token nobody could have signed in or registered. The
+   * policy stays report-only here; this only makes it safe to promote.
+   *
    * frame-ancestors is the modern control and is inside the CSP, but because
    * that CSP is report-only it would not actually block framing — so
    * X-Frame-Options carries clickjacking protection for real, today.
@@ -26,14 +35,19 @@ const nextConfig: NextConfig = {
     const csp = [
       "default-src 'self'",
       // Next injects inline bootstrap and Stripe/Maps load their own SDKs.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://*.supabase.co",
+      // Turnstile is TWO scripts, not one: lib/turnstile.ts injects
+      // /turnstile/v0/api.js, which then pulls in a versioned
+      // /turnstile/v0/g/<build>/api.js of its own. Both are on the same host.
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://*.supabase.co https://challenges.cloudflare.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       // Supabase storage serves signed media; Maps serves tiles.
       "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com",
       "media-src 'self' blob: https://*.supabase.co",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com",
-      "frame-src https://js.stripe.com https://hooks.stripe.com",
+      // Stripe's checkout/3DS frames, and the Turnstile challenge widget — the
+      // sign-in and create-account forms cannot produce a token without it.
+      "frame-src https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
       "frame-ancestors 'self'",
       "base-uri 'self'",
       "form-action 'self'",
