@@ -215,12 +215,24 @@ export function lowestTicketPrice(types: ListTicketType[]): number | null {
   return Math.min(...active.map((t) => t.price_pence));
 }
 
+/** True when a customer can actually get in for nothing: at least one ticket
+ *  type that is on sale costs £0. Mixed free+paid events count — the free ticket
+ *  is real, so "From £1.00" would have been a lie. Inactive types are ignored,
+ *  which is the same rule lowestTicketPrice() applies.
+ *
+ *  The Free-only filter and the price label both ask this one question, so they
+ *  cannot drift apart again the way they did when each inlined its own every(). */
+export function hasFreeTicket(types: ListTicketType[]): boolean {
+  const active = types.filter((t) => t.is_active);
+  return active.length > 0 && active.some((t) => t.price_pence === 0);
+}
+
 /** A list row is "free" using the same rule the app applies in its Free-only
- *  filter: no tickets at all, OR ticket types exist and every one is £0, OR
- *  (no ticket types) no free-text price. */
+ *  filter: no tickets at all, OR a free ticket is on sale, OR (no ticket types)
+ *  no free-text price. */
 export function isFreeListEvent(e: EventListItem): boolean {
   if (!e.has_tickets) return true;
-  if (e.ticket_types.length > 0) return e.ticket_types.every((t) => t.price_pence === 0);
+  if (e.ticket_types.length > 0) return hasFreeTicket(e.ticket_types);
   return !e.price_text;
 }
 
@@ -228,7 +240,7 @@ export function isFreeListEvent(e: EventListItem): boolean {
 export function priceLabel(e: EventListItem): string | null {
   if (!e.has_tickets) return e.price_text ?? null;
   if (e.ticket_types.length > 0) {
-    if (e.ticket_types.every((t) => t.price_pence === 0)) return "Free";
+    if (hasFreeTicket(e.ticket_types)) return "Free";
     const low = lowestTicketPrice(e.ticket_types);
     return low !== null ? `From £${(low / 100).toFixed(2)}` : null;
   }
