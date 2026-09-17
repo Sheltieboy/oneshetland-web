@@ -9,7 +9,6 @@ import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { ChargeApprovalListener } from "@/components/wallet/ChargeApprovalListener";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
-import { PrelaunchNotice } from "@/components/site/PrelaunchNotice";
 import { JsonLd } from "@/components/seo/JsonLd";
 
 const fraunces = Fraunces({
@@ -106,7 +105,15 @@ export default async function RootLayout({
         />
         <AnalyticsProvider />
         <ConsentBanner />
-        <PrelaunchNotice />
+        {/* The welcome mat (components/site/PrelaunchNotice.tsx) used to mount
+            here. Because this is the ROOT layout it greeted every first-time
+            visitor on every route — including someone who had deliberately
+            navigated to sign in or create an account, where a modal asking them
+            to "join" sits on top of the form they were already filling in.
+            The component is kept, unchanged and unused, so it can be brought
+            back for a campaign or a future launch moment; only the automatic
+            mount is gone. Nothing about sign-up, sign-in, auth or onboarding
+            moves with it — it never gated any of them, it only covered them. */}
         <ChargeApprovalListener>
           <ConfirmProvider>
             <SiteHeader user={user} fetchStatus={fetchStatus} />
