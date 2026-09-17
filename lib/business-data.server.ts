@@ -97,6 +97,22 @@ export async function getWalletReceipts(businessId: string, limit = 10): Promise
   })(), []);
 }
 
+/**
+ * Can OneShetland currently route money to this business? The canonical
+ * answer — the business's own Connect account, or a valid fallback to its
+ * owner's central account — from business_payout_ready(), the same function
+ * every payment path (event tickets, products, passes, gifts, Wallet) asks
+ * before routing money. Fails closed: an unreadable answer is "not ready",
+ * never a guess that it is.
+ */
+export async function getBusinessPayoutReady(businessId: string): Promise<boolean> {
+  const sb = await createServerClient();
+  return safe((async () => {
+    const { data } = await sb.rpc("business_payout_ready", { p_business: businessId });
+    return data === true;
+  })(), false);
+}
+
 /** Current at-till rotating code (may be stale/expired — the client refreshes it). */
 export async function getBusinessCode(businessId: string): Promise<BusinessCode | null> {
   const sb = await createServerClient();

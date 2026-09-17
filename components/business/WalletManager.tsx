@@ -9,11 +9,19 @@ import { createClient } from "@/lib/supabase/client";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
-export function WalletManager({ business, receipts, canEnable }: {
+export function WalletManager({ business, receipts, canEnable, payoutReady }: {
   business: ManagedBusiness; receipts: WalletReceipt[];
   /** Effective Pro. Settings, cashback and receipts do not depend on it, and
       switching acceptance OFF never does either. */
   canEnable: boolean;
+  /**
+   * From business_payout_ready() (see lib/business-data.server.ts), not
+   * business.payout_enabled — that column only ever reflects this business's
+   * OWN Connect account and says nothing about a valid owner-central-account
+   * fallback, which is exactly how a genuinely payable business ended up
+   * shown "Connect Stripe to accept wallet payments" here.
+   */
+  payoutReady: boolean;
 }) {
   const router = useRouter();
   const b = business;
@@ -79,7 +87,7 @@ export function WalletManager({ business, receipts, canEnable }: {
       <section className={card}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Accept Local Wallet</h2>
-          {b.payout_enabled && (
+          {payoutReady && (
             <button type="button" onClick={() => setAccept(!b.accepts_wallet)}
               disabled={busy === "accept" || (!canEnable && !b.accepts_wallet)}
               title={!canEnable && !b.accepts_wallet ? "Taking Wallet payments needs Pro" : undefined} className="relative inline-flex h-6 w-11 items-center rounded-full transition" style={{ background: b.accepts_wallet ? BIZ : "var(--color-line-strong)" }}>
@@ -87,16 +95,16 @@ export function WalletManager({ business, receipts, canEnable }: {
             </button>
           )}
         </div>
-        <p className="mt-1 text-sm text-ink-muted">{b.payout_enabled ? "Stripe connected · ready for payouts" : "Connect Stripe to accept wallet payments"}</p>
+        <p className="mt-1 text-sm text-ink-muted">{payoutReady ? "Stripe connected · ready for payouts" : "Connect Stripe to accept wallet payments"}</p>
         {/* Named at the switch, not at the door. Cashback, receipts and the
             rest of this page are open to everybody, and switching acceptance
             OFF is always allowed — nobody gets trapped taking payments. */}
         {!canEnable && !b.accepts_wallet && (
           <PlanNote>Taking Wallet payments needs Pro. Your settings are saved.</PlanNote>
         )}
-        {!b.payout_enabled && <button onClick={connectBank} disabled={busy === "bank"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "bank" ? "Opening Stripe…" : "Connect Stripe"}</button>}
+        {!payoutReady && <button onClick={connectBank} disabled={busy === "bank"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "bank" ? "Opening Stripe…" : "Connect Stripe"}</button>}
 
-        {b.payout_enabled && b.accepts_wallet && (
+        {payoutReady && b.accepts_wallet && (
           <div className="mt-4">
             <p className="mb-2 text-sm font-semibold text-ink-soft">Cashback to customers</p>
             <div className="flex gap-2">
@@ -108,7 +116,7 @@ export function WalletManager({ business, receipts, canEnable }: {
         )}
       </section>
 
-      {b.payout_enabled && b.accepts_wallet && (
+      {payoutReady && b.accepts_wallet && (
         <section className={card}>
           <h2 className="font-display text-xl font-bold text-ink">Wallet payments received</h2>
           <p className="mt-1 text-sm text-ink-muted">{receipts.length ? `£${(weekNet / 100).toFixed(2)} recent · ${receipts.length} payment${receipts.length === 1 ? "" : "s"}` : "No wallet payments yet."}</p>

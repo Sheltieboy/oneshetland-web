@@ -56,10 +56,14 @@ export type OutcomeReads = {
   /** Boost bought and not yet expired. */
   boostActive: boolean | null;
   /**
-   * Proved from BOTH payout routes — the platform account and the business's
-   * own Connect account — via business_private_fields, which is owner-checked.
-   * Half the evidence would tell a business that has set payouts up to go and
-   * set them up.
+   * The canonical answer, from business_payout_ready() — the same function
+   * every payment path (event tickets, products, passes, gifts, Wallet) now
+   * asks before routing money to this business. Not re-derived from
+   * payout_enabled/use_business_payout/business_stripe_payouts_enabled here:
+   * a dashboard reconstructing that logic itself is exactly how it drifted
+   * from the real rule and told a business using its owner's central account
+   * "Payouts not set up" while every one of those payment paths would have
+   * happily paid it.
    */
   payoutReady: boolean | null;
 };
@@ -121,7 +125,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     count("local_boost_purchases", (q) => q.eq("status", "succeeded").gt("expires_at", now)),
     sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "pro" }),
     sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "premium" }),
-    sb.rpc("business_private_fields", { p_business_id: businessId }),
+    sb.rpc("business_payout_ready", { p_business: businessId }),
   ]);
 
   const [codeRes, ordersRes, bookingsRes, leadsRes, appsRes, bizRes, analyticsRes] =
@@ -154,7 +158,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
         : Promise.resolve({ count: 0 } as { count: number | null }),
 
       sb.from("local_businesses")
-        .select("trade_categories, trade_availability, trade_availability_set_at, payout_enabled")
+        .select("trade_categories, trade_availability, trade_availability_set_at")
         .eq("id", businessId).single(),
 
       sb.rpc("business_analytics", { p_business_id: businessId, p_days: 7 }),
@@ -164,7 +168,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     productsRes, productsActiveRes, passesRes, passesActiveRes,
     servicesRes, availabilityRes, eventsRes, eventsUpcomingRes,
     offersRes, offersLiveRes, loyaltyRes, loyaltyActiveRes,
-    boostRes, proRes, premiumRes, privateRes,
+    boostRes, proRes, premiumRes, payoutReadyRes,
   ] = await outcomeReads;
 
   /** An exact count, or null when the read failed. Never a consoling zero. */
@@ -173,24 +177,12 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
   const bool = (r: PromiseSettledResult<{ data: unknown; error?: unknown }>): boolean | null =>
     r.status === "fulfilled" && !r.value.error ? r.value.data === true : null;
 
-  const bizPayoutEnabled = bizRes.status === "fulfilled"
-    ? ((bizRes.value.data as { payout_enabled?: boolean | null } | null)?.payout_enabled ?? false)
-    : null;
-
-  /* Payout is ready by one of two routes, and which one applies is the
-     business's own setting. use_business_payout and its Connect flags are not
-     readable through the table by any client role, so they come from the
-     owner-checked RPC. */
-  const priv = privateRes.status === "fulfilled" && !privateRes.value.error
-    ? ((privateRes.value.data as Record<string, unknown>[] | null)?.[0] ?? null)
-    : undefined;
-  const payoutReady = priv === undefined
-    ? null
-    : priv === null
-      ? false
-      : priv.use_business_payout === true
-        ? priv.business_stripe_payouts_enabled === true
-        : (bizPayoutEnabled === true && priv.stripe_connected === true);
+  // The canonical resolver, not a reconstruction of it. business_payout_ready()
+  // already resolves the business's own Connect account (when
+  // use_business_payout is on and it's actually ready) or falls back to the
+  // owner's central account — the same function every payment path asks
+  // before routing money here. See the OutcomeReads.payoutReady doc comment.
+  const payoutReady = bool(payoutReadyRes as never);
 
   const outcomes: OutcomeReads = {
     products: num(productsRes as never), productsActive: num(productsActiveRes as never),

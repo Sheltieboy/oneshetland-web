@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { commercialTermsGate } from "@/lib/commercial-terms.server";
-import { getWalletReceipts, getBusinessCode } from "@/lib/business-data.server";
+import { getWalletReceipts, getBusinessCode, getBusinessPayoutReady } from "@/lib/business-data.server";
 import { getEffectiveTier } from "@/lib/entitlement.server";
 import { WalletManager } from "@/components/business/WalletManager";
 import { TillCode } from "@/components/business/TillCode";
@@ -21,7 +21,11 @@ export default async function WalletPage({ params }: { params: Promise<{ id: str
   // Settings, cashback and receipts stay open below Pro — the server gates
   // switching acceptance ON, and nothing else.
   const { pro } = await getEffectiveTier(business.id);
-  const [receipts, code] = await Promise.all([getWalletReceipts(business.id, 10), getBusinessCode(business.id)]);
+  const [receipts, code, payoutReady] = await Promise.all([
+    getWalletReceipts(business.id, 10),
+    getBusinessCode(business.id),
+    getBusinessPayoutReady(business.id),
+  ]);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
@@ -30,7 +34,7 @@ export default async function WalletPage({ params }: { params: Promise<{ id: str
           <HelpTip topic="wallet-payment" />
         </h1>
       <div className="mb-5"><TillCode businessId={business.id} initial={code} /></div>
-      <WalletManager business={business} receipts={receipts} canEnable={pro} />
+      <WalletManager business={business} receipts={receipts} canEnable={pro} payoutReady={payoutReady} />
     </div>
   );
 }
