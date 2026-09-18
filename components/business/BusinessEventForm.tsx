@@ -84,6 +84,7 @@ export function BusinessEventForm({
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   // ── Peerie Bot: describe-your-event → auto-fill ──────────────────────────
   const [aiText, setAiText] = useState("");
@@ -210,8 +211,13 @@ export function BusinessEventForm({
       if (wantsPaidPublish && !effectivePublish && (await confirm(EVENT_SAVED_AS_DRAFT_PROMPT))) {
         // Connect Stripe opens directly on top of this page; either way the
         // merchant lands back on the event they just saved, not the billing
-        // screen — see startOrResumePayoutSetup's own doc comment.
+        // screen — see startOrResumePayoutSetup's own doc comment. busy is
+        // already true for the whole save, which already disables the
+        // button below; connectingStripe only swaps its label so "Saving…"
+        // doesn't linger through a phase that isn't saving any more.
+        setConnectingStripe(true);
         await startOrResumePayoutSetup(businessId).catch(() => { /* surfaced via the event's own not-published banner */ });
+        setConnectingStripe(false);
       }
       router.push(`/business/${businessId}/manage/events/${targetId}`);
       router.refresh();
@@ -415,13 +421,15 @@ export function BusinessEventForm({
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>}
 
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => submit(false)} disabled={busy}
-          className="rounded-pill border px-5 py-2.5 font-semibold disabled:opacity-50" style={{ borderColor: accent, color: accent }}>
-          {busy ? "Saving…" : "Save as draft"}
+        <button type="button" onClick={() => submit(false)} disabled={busy} aria-busy={busy}
+          className="flex items-center gap-2 rounded-pill border px-5 py-2.5 font-semibold disabled:opacity-50" style={{ borderColor: accent, color: accent }}>
+          {busy && <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />}
+          {connectingStripe ? "Opening Stripe…" : busy ? "Saving…" : "Save as draft"}
         </button>
-        <button type="submit" disabled={busy}
-          className="rounded-pill px-5 py-2.5 font-semibold text-paper disabled:opacity-50" style={{ background: accent }}>
-          {busy ? "Saving…" : isEdit ? "Save & publish" : "Publish event"}
+        <button type="submit" disabled={busy} aria-busy={busy}
+          className="flex items-center gap-2 rounded-pill px-5 py-2.5 font-semibold text-paper disabled:opacity-50" style={{ background: accent }}>
+          {busy && <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden />}
+          {connectingStripe ? "Opening Stripe…" : busy ? "Saving…" : isEdit ? "Save & publish" : "Publish event"}
         </button>
       </div>
     </form>

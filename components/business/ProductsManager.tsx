@@ -80,6 +80,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
   const [form, setForm] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [connectingStripe, setConnectingStripe] = useState(false);
   const [rough, setRough] = useState("");
   const [botBusy, setBotBusy] = useState(false);
   const set = (patch: Partial<FormState>) => setForm((f) => (f ? { ...f, ...patch } : f));
@@ -194,15 +195,29 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
       setForm(null); setRough("");
       router.refresh();
       if (canPublish && !wasActive && !activeToSave) {
-        if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); router.refresh(); }
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) await launchStripe();
       }
     } catch (e) { setMsg(e instanceof Error ? e.message : "Couldn't save"); }
     finally { setBusy(false); }
   }
 
+  // confirm(...) has already dismissed its dialog by the time this runs
+  // (ConfirmProvider resolves and closes together), so the "Opening
+  // Stripe…" banner below is the merchant's feedback, not the dialog.
+  async function launchStripe() {
+    if (connectingStripe) return;
+    setConnectingStripe(true);
+    try {
+      await startOrResumePayoutSetup(businessId);
+    } finally {
+      setConnectingStripe(false);
+      router.refresh();
+    }
+  }
+
   async function toggleActive(p: Product) {
     if (!p.is_active && !(await requirePayoutReadyForPaidActivation(businessId))) {
-      if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); router.refresh(); }
+      if (await confirm(PAYOUT_NOT_READY_PROMPT)) await launchStripe();
       return;
     }
     const sb = createClient();
@@ -224,6 +239,12 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
 
   return (
     <div className="space-y-6">
+      {connectingStripe && (
+        <p role="status" aria-busy="true" className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-amber-800/30 border-t-amber-800" aria-hidden />
+          Opening Stripe…
+        </p>
+      )}
       {/* ── Add / edit form ─────────────────────────────────────────────── */}
       {form ? (
         <div className="rounded-card border bg-white p-5 shadow-soft" style={{ borderColor: `${SHOP}55` }}>

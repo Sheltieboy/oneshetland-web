@@ -17,6 +17,11 @@ export function ConnectStripeToPublishLink({ businessId }: { businessId: string 
   const [busy, setBusy] = useState(false);
 
   async function go() {
+    // Set before startOrResumePayoutSetup's own first await (its fresh
+    // readiness check), so the tap is acknowledged immediately, not once a
+    // network round trip finishes. Duplicate taps are blocked by `disabled`
+    // reflecting the same flag.
+    if (busy) return;
     setBusy(true);
     try {
       await startOrResumePayoutSetup(businessId);
@@ -31,8 +36,10 @@ export function ConnectStripeToPublishLink({ businessId }: { businessId: string 
       type="button"
       onClick={go}
       disabled={busy}
-      className="block w-full border-t border-line px-4 py-2 text-left text-xs font-bold text-amber-800 hover:underline disabled:opacity-50"
+      aria-busy={busy}
+      className="flex w-full items-center gap-2 border-t border-line px-4 py-2 text-left text-xs font-bold text-amber-800 hover:underline disabled:opacity-50 disabled:no-underline"
     >
+      {busy && <span className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden />}
       {busy ? "Opening Stripe…" : "Connect Stripe to publish"}
     </button>
   );

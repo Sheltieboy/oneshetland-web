@@ -37,6 +37,7 @@ export function BusinessEventManage({
   const base = `/business/${businessId}/manage/events`;
 
   const [statusBusy, setStatusBusy] = useState(false);
+  const [connectingStripe, setConnectingStripe] = useState(false);
   const status = event.status;
   // Ticket inventory when this event sells through OneShetland; otherwise the
   // venue figure, which is what the card always used to show.
@@ -62,9 +63,12 @@ export function BusinessEventManage({
   // Plan & payouts screen — the popup opens on top of this exact page, so
   // closing it already leaves the merchant here.
   async function goConnectStripe() {
+    if (connectingStripe) return;
+    setConnectingStripe(true);
     try {
       await startOrResumePayoutSetup(businessId);
     } finally {
+      setConnectingStripe(false);
       router.refresh();
     }
   }
@@ -137,9 +141,7 @@ export function BusinessEventManage({
             <p className="text-sm font-bold text-amber-900">Not published</p>
             <p className="text-sm text-amber-800">Connect Stripe to publish this event and start selling paid tickets.</p>
           </div>
-          <button onClick={goConnectStripe} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper" style={{ background: "#92400E" }}>
-            Connect Stripe
-          </button>
+          <ConnectStripeButton onClick={goConnectStripe} connecting={connectingStripe} label="Connect Stripe" />
         </section>
       )}
 
@@ -152,7 +154,7 @@ export function BusinessEventManage({
             // Reverts to the normal accent "Publish now" the moment
             // event.payout_ready reads true (a free-only draft never sets
             // notReadyPaidDraft in the first place — see its computation).
-            <button onClick={goConnectStripe} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper" style={{ background: "#92400E" }}>Connect Stripe to publish</button>
+            <ConnectStripeButton onClick={goConnectStripe} connecting={connectingStripe} label="Connect Stripe to publish" />
           ) : (
             <button onClick={() => changeStatus("published")} disabled={statusBusy} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper disabled:opacity-50" style={{ background: accent }}>Publish now</button>
           )
@@ -256,5 +258,20 @@ function StatBox({ label, value, color }: { label: string; value: string; color:
       <p className="font-display text-2xl font-bold" style={{ color }}>{value}</p>
       <p className="mt-0.5 text-xs font-semibold text-ink-muted">{label}</p>
     </div>
+  );
+}
+
+function ConnectStripeButton({ onClick, connecting, label }: { onClick: () => void; connecting: boolean; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={connecting}
+      aria-busy={connecting}
+      className="flex items-center gap-2 rounded-pill px-4 py-1.5 text-sm font-semibold text-paper disabled:opacity-60"
+      style={{ background: "#92400E" }}
+    >
+      {connecting && <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden />}
+      {connecting ? "Opening Stripe…" : label}
+    </button>
   );
 }

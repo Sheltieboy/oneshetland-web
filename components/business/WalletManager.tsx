@@ -70,6 +70,7 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
   // business_payout_ready uses — instead of always assuming its own
   // account. See startOrResumePayoutSetup's own doc comment.
   async function connectBank() {
+    if (busy === "bank") return;
     setBusy("bank"); setError(null);
     try {
       await startOrResumePayoutSetup(b.id);
@@ -114,7 +115,18 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
         {!canEnable && !b.accepts_wallet && (
           <PlanNote>Taking Wallet payments needs Pro. Your settings are saved.</PlanNote>
         )}
-        {!payoutReady && <button onClick={connectBank} disabled={busy === "bank"} className="mt-3 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50" style={{ background: BIZ }}>{busy === "bank" ? "Opening Stripe…" : "Connect Stripe"}</button>}
+        {!payoutReady && (
+          <button
+            onClick={connectBank}
+            disabled={busy === "bank"}
+            aria-busy={busy === "bank"}
+            className="mt-3 flex items-center gap-2 rounded-pill px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            style={{ background: BIZ }}
+          >
+            {busy === "bank" && <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden />}
+            {busy === "bank" ? "Opening Stripe…" : "Connect Stripe"}
+          </button>
+        )}
 
         {payoutReady && b.accepts_wallet && (
           <div className="mt-4">

@@ -61,8 +61,23 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
   const [f, setF] = useState<FormState>(emptyForm);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [connectingStripe, setConnectingStripe] = useState(false);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setF((p) => ({ ...p, [k]: v }));
+
+  // confirm(...) has already dismissed its dialog by the time this runs
+  // (ConfirmProvider resolves and closes together), so the "Opening
+  // Stripe…" banner below is the merchant's feedback, not the dialog.
+  async function launchStripe() {
+    if (connectingStripe) return;
+    setConnectingStripe(true);
+    try {
+      await startOrResumePayoutSetup(businessId);
+    } finally {
+      setConnectingStripe(false);
+      await load();
+    }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -144,7 +159,7 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
       close();
       await load();
       if (canPublish && !wasActive && !activeToSave) {
-        if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); await load(); }
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) await launchStripe();
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
@@ -227,6 +242,12 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
   return (
     <div className="space-y-5">
       {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+      {connectingStripe && (
+        <p role="status" aria-busy="true" className="flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+          <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-amber-800/30 border-t-amber-800" aria-hidden />
+          Opening Stripe…
+        </p>
+      )}
 
       {editorId === "new" ? (
         editor
