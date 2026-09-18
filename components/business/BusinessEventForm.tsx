@@ -14,7 +14,7 @@ import {
 import type { ManageEvent } from "@/lib/events-manage";
 import { DEFAULT_PER_ORDER_MAX, parsePerOrderMax, normalisePerOrderMax } from "@/lib/event-ticket-utils";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, EVENT_SAVED_AS_DRAFT_PROMPT } from "@/lib/payout-readiness";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -207,7 +207,7 @@ export function BusinessEventForm({
       } else {
         targetId = await createBusinessEvent(businessId, input);
       }
-      if (wantsPaidPublish && !effectivePublish && (await confirm(PAYOUT_NOT_READY_PROMPT))) {
+      if (wantsPaidPublish && !effectivePublish && (await confirm(EVENT_SAVED_AS_DRAFT_PROMPT))) {
         router.push(`/business/${businessId}/manage/billing`);
       } else {
         router.push(`/business/${businessId}/manage/events/${targetId}`);

@@ -54,3 +54,19 @@ export const PAYOUT_NOT_READY_PROMPT = {
   confirmLabel: "Connect Stripe",
   cancelLabel: "Keep as draft",
 };
+
+/**
+ * Shown immediately after a paid/mixed event publish attempt was silently
+ * downgraded to a draft — distinct from PAYOUT_NOT_READY_PROMPT above, which
+ * fires BEFORE anything is saved. Here the save already succeeded; what
+ * failed is specifically going live. Naming that explicitly is the whole
+ * point — a merchant who only sees a generic error after a successful save
+ * reasonably assumes something was lost. Mirrors mobile's
+ * eventSavedAsDraftPrompt (lib/payout-readiness.ts) in wording.
+ */
+export const EVENT_SAVED_AS_DRAFT_PROMPT = {
+  title: "Event saved as draft",
+  body: "Your event isn't live yet. Connect Stripe before you can publish paid tickets. Your event and ticket settings have been saved.",
+  confirmLabel: "Connect Stripe",
+  cancelLabel: "Not now",
+};

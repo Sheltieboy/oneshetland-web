@@ -25,6 +25,12 @@ export type ManageTicketType = {
    reaches next/headers. Re-exported so there is still one definition. */
 export { DEFAULT_PER_ORDER_MAX, ticketCapacity } from "./event-ticket-utils";
 
+// eventHasActivePaidTicket lives in the client-safe events-manage-client.ts,
+// for the same reason, and is NOT re-exported from here: even a re-export
+// pulls this whole module's next/headers-reaching createServerClient import
+// into any client bundle that imports it. BusinessEventManage.tsx ("use
+// client") imports it directly from events-manage-client.ts instead.
+
 /** Row in the business's event list. */
 export type BusinessEventRow = {
   id: string;
@@ -70,6 +76,16 @@ export type ManageEvent = {
   event_notes: string | null;
   ticket_types: ManageTicketType[];
   updates: EventUpdate[];
+  /**
+   * From event_payout_ready(uuid) — the same canonical signal the buyer-side
+   * event page and mobile's Event Manage screen already read (see
+   * supabase/migrations/20260822120000_effective_event_payout.sql). Used
+   * here only to decide what Event Manage SHOWS (the publish action, the
+   * not-published banner) — not a new gate. The actual publish action still
+   * goes through setEventStatus unconditionally; money itself can't move
+   * without a real payout route regardless of what this screen displays.
+   */
+  payout_ready: boolean;
 };
 
 /** Sales / check-in stats for an event. */
@@ -121,7 +137,17 @@ export async function getBusinessEvent(businessId: string, eventId: string): Pro
   const updates = (ev.updates as EventUpdate[]) ?? [];
   updates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-  return { ...(ev as unknown as ManageEvent), ticket_types: tt, updates };
+  // Fails closed: an unreadable answer is "not ready", never a guess that
+  // it is — matches every other payout-readiness read in this codebase.
+  let payoutReady = false;
+  try {
+    const { data: ready } = await sb.rpc("event_payout_ready", { p_event_id: eventId });
+    payoutReady = ready === true;
+  } catch {
+    payoutReady = false;
+  }
+
+  return { ...(ev as unknown as ManageEvent), ticket_types: tt, updates, payout_ready: payoutReady };
 }
 
 /**

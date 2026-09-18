@@ -13,6 +13,19 @@ import { normalisePerOrderMax, type PerOrderMaxDraft } from "@/lib/event-ticket-
 
 export type TicketMode = "none" | "oneshetland" | "external";
 
+/**
+ * Does this event have at least one active ticket type priced above zero?
+ * Decides whether Event Manage's publish action needs a working payout
+ * route at all. Client-safe (unlike events-manage.ts, which reaches
+ * next/headers) so BusinessEventManage.tsx ("use client") can import it
+ * directly. Mirrors the mobile app's own eventHasActivePaidTicket
+ * (lib/events-api.ts) in behaviour, not file — event-ticket-utils.ts is
+ * reserved for the pieces pinned byte-for-byte against mobile.
+ */
+export function eventHasActivePaidTicket(types: { is_active: boolean; price_pence: number }[]): boolean {
+  return types.some((t) => t.is_active && t.price_pence > 0);
+}
+
 /** A ticket type as edited in the form. `id` present = existing row. */
 export type EditableTicketType = {
   id?: string;

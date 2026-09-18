@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/lib/events-data";
 import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
 import { ticketCapacity } from "@/lib/event-ticket-utils";
-import { setEventStatus, postEventUpdate } from "@/lib/events-manage-client";
+import { setEventStatus, postEventUpdate, eventHasActivePaidTicket } from "@/lib/events-manage-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 
 const STATUS_CFG: Record<EventStatus, { label: string; bg: string; color: string }> = {
@@ -43,6 +43,22 @@ export function BusinessEventManage({
   const cfg = STATUS_CFG[status] ?? STATUS_CFG.draft;
   const isPublished = status === "published";
   const isCancelled = status === "cancelled";
+
+  // A draft with an active paid (or mixed) ticket type can't actually go
+  // live until the business has a working payout route — the same rule
+  // BusinessEventForm's Save & publish already enforces. This only changes
+  // what Event Manage SHOWS (the publish action, the not-published banner);
+  // it is a display/UX read of event.payout_ready (already resolved
+  // server-side by getBusinessEvent), not a new gate — publishing itself is
+  // stopped by not offering the action, and money still can't move without
+  // a real payout route regardless of what this screen shows.
+  const notReadyPaidDraft = status === "draft"
+    && eventHasActivePaidTicket(event.ticket_types)
+    && !event.payout_ready;
+
+  function goConnectStripe() {
+    router.push(`/business/${businessId}/manage/billing`);
+  }
 
   // Post-update form
   const [showForm, setShowForm] = useState(false);
@@ -92,14 +108,45 @@ export function BusinessEventManage({
         <p className="text-sm text-ink-muted">{fmtDateTime(event.starts_at)}{event.venue ? ` · ${event.venue}` : ""}</p>
         <div className="ml-auto flex gap-2">
           <Link href={`${base}/${event.id}/edit`} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand">Edit</Link>
-          <Link href={`/events/${event.id}`} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand">View public page</Link>
+          {/* A draft isn't publicly visible (events_public_read — a
+              non-published event is is_hidden, readable only by its
+              owner/admin), so what this opens for the organiser here is a
+              preview only they can see, not what a customer sees. */}
+          <Link href={`/events/${event.id}`} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand">
+            {isPublished ? "View public page" : "Preview public page"}
+          </Link>
         </div>
       </div>
+
+      {/* Not published: paid/mixed draft, business not payout-ready. The
+          status pill above still says "Draft" either way — this is the
+          unmissable version, with the actual next step attached. */}
+      {notReadyPaidDraft && (
+        <section className="flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <span className="text-lg">🏦</span>
+          <div className="flex-1">
+            <p className="text-sm font-bold text-amber-900">Not published</p>
+            <p className="text-sm text-amber-800">Connect Stripe to publish this event and start selling paid tickets.</p>
+          </div>
+          <button onClick={goConnectStripe} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper" style={{ background: "#92400E" }}>
+            Connect Stripe
+          </button>
+        </section>
+      )}
 
       {/* Status controls */}
       <section className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-paper p-4 shadow-soft">
         {status === "draft" && (
-          <button onClick={() => changeStatus("published")} disabled={statusBusy} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper disabled:opacity-50" style={{ background: accent }}>Publish now</button>
+          notReadyPaidDraft ? (
+            // Publishing cannot succeed yet, so this never attempts it — it
+            // goes straight to the one place that actually unblocks it.
+            // Reverts to the normal accent "Publish now" the moment
+            // event.payout_ready reads true (a free-only draft never sets
+            // notReadyPaidDraft in the first place — see its computation).
+            <button onClick={goConnectStripe} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper" style={{ background: "#92400E" }}>Connect Stripe to publish</button>
+          ) : (
+            <button onClick={() => changeStatus("published")} disabled={statusBusy} className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper disabled:opacity-50" style={{ background: accent }}>Publish now</button>
+          )
         )}
         {isPublished && (
           <>
