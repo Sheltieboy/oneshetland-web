@@ -9,6 +9,7 @@ import {
   fmtTime,
   ticketTypeOnSale,
   ticketTypeRemaining,
+  hasFreeTicket,
   UPDATE_KIND_LABELS,
   type TicketType,
   type EventUpdate,
@@ -281,14 +282,30 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                     Get tickets ↗
                   </TicketLink>
                 ) : e.ticket_types.length > 0 ? (
-                  <TicketButton
-                    eventId={e.id}
-                    eventTitle={e.title}
-                    ticketTypes={e.ticket_types}
-                    priceText={e.price_text}
-                    isLoggedIn={!!account}
-                    signInHref={`/sign-in?next=/whats-on/${e.id}`}
-                  />
+                  // Same signal the mobile app's event screen gates on. A
+                  // wholly free event reads ready regardless of the
+                  // organiser's Stripe status. A mixed free+paid event still
+                  // has something genuinely buyable — the free type — so the
+                  // modal stays reachable; TicketModal itself marks each
+                  // individual paid type unavailable when payout_ready is
+                  // false. Only a wholly-paid, not-ready event stays behind
+                  // "Tickets coming soon" here, since a checkout that could
+                  // only ever fail has nothing worth opening.
+                  (e.payout_ready || hasFreeTicket(e.ticket_types)) ? (
+                    <TicketButton
+                      eventId={e.id}
+                      eventTitle={e.title}
+                      ticketTypes={e.ticket_types}
+                      priceText={e.price_text}
+                      isLoggedIn={!!account}
+                      signInHref={`/sign-in?next=/whats-on/${e.id}`}
+                      payoutReady={e.payout_ready}
+                    />
+                  ) : (
+                    <p className="rounded-xl bg-sand/70 px-4 py-3 text-center text-sm text-ink-soft">
+                      Tickets coming soon.
+                    </p>
+                  )
                 ) : (
                   <p className="rounded-xl bg-sand/70 px-4 py-3 text-center text-sm text-ink-soft">
                     Tickets available at the door.

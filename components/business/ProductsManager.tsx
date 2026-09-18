@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
+import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -137,6 +138,16 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
     if (!form.title.trim()) return setMsg("Give it a title");
     if (!price || price < 50) return setMsg("Price needs to be at least £0.50");
     if (form.photos.length === 0) return setMsg("Add at least one photo — listings without photos don't sell");
+
+    // Going live for the first time also needs a working payout route. A
+    // product that was already active is left alone by this check — saving
+    // an edit is not a new activation.
+    const wasActive = form.id ? (initial.find((p) => p.id === form.id)?.is_active ?? false) : false;
+    let activeToSave = canPublish;
+    if (canPublish && !wasActive && !(await requirePayoutReadyForPaidActivation(businessId))) {
+      activeToSave = false;
+    }
+
     setBusy(true); setMsg(null);
     try {
       const sb = createClient();
@@ -152,7 +163,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
         lead_time_days: form.stock_mode === "made_to_order" ? Math.min(90, Math.max(1, Math.floor(Number(form.lead_time_days) || 14))) : null,
         collect_only: form.collect_only,
         free_uk_post: form.free_uk_post,
-        is_active: canPublish,
+        is_active: activeToSave,
       };
       let productId = form.id;
       if (productId) {
@@ -182,11 +193,18 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
       }
       setForm(null); setRough("");
       router.refresh();
+      if (canPublish && !wasActive && !activeToSave) {
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+      }
     } catch (e) { setMsg(e instanceof Error ? e.message : "Couldn't save"); }
     finally { setBusy(false); }
   }
 
   async function toggleActive(p: Product) {
+    if (!p.is_active && !(await requirePayoutReadyForPaidActivation(businessId))) {
+      if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+      return;
+    }
     const sb = createClient();
     await sb.from("products").update({ is_active: !p.is_active }).eq("id", p.id);
     router.refresh();

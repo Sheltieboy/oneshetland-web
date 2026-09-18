@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { BIZ } from "@/lib/business-data";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
@@ -12,6 +13,7 @@ import {
   type BookUnitItem,
   type UnitItemUpsertInput,
 } from "@/lib/book-manage-items";
+import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const field =
   "w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint";
@@ -53,6 +55,7 @@ function toForm(i: BookUnitItem): FormState {
 }
 
 export function UnitItemsManager({ businessId, canPublish }: { businessId: string; canPublish: boolean }) {
+  const router = useRouter();
   const confirm = useConfirm();
   const [items, setItems] = useState<BookUnitItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,6 +120,15 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
       validDays = vd;
     }
 
+    // Going live for the first time also needs a working payout route. A
+    // pass that was already active is left alone — saving an edit is not a
+    // new activation.
+    const wasActive = editorId && editorId !== "new" ? (items.find((i) => i.id === editorId)?.is_active ?? false) : false;
+    let activeToSave = canPublish;
+    if (canPublish && !wasActive && !(await requirePayoutReadyForPaidActivation(businessId))) {
+      activeToSave = false;
+    }
+
     const payload: UnitItemUpsertInput = {
       name,
       description: f.description.trim() || null,
@@ -124,7 +136,7 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
       stock,
       valid_days: validDays,
       uses_per_purchase: uses,
-      is_active: canPublish,
+      is_active: activeToSave,
     };
 
     setBusy(true);
@@ -133,6 +145,9 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
       else if (editorId) await updateUnitItem(editorId, payload);
       close();
       await load();
+      if (canPublish && !wasActive && !activeToSave) {
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");
     } finally {

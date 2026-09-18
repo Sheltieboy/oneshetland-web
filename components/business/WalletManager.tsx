@@ -6,6 +6,8 @@ import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness, type WalletReceipt } from "@/lib/business-data";
 import { updateBusiness, createBusinessOnboardingLink } from "@/lib/business-client";
 import { createClient } from "@/lib/supabase/client";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
@@ -24,6 +26,7 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
   payoutReady: boolean;
 }) {
   const router = useRouter();
+  const confirmDialog = useConfirm();
   const b = business;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +77,16 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
     } catch (e) { popup?.close(); setError(e instanceof Error ? e.message : "Could not start Stripe."); } finally { setBusy(null); }
   }
 
-  async function setAccept(v: boolean) { setBusy("accept"); try { await updateBusiness(b.id, { accepts_wallet: v }); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Could not update."); } finally { setBusy(null); } }
+  async function setAccept(v: boolean) {
+    // Fresh canonical check at the activation moment — the payoutReady prop
+    // drives this card's display and can go stale between loads; this is the
+    // actual gate and must not trust a cached value.
+    if (v && !(await requirePayoutReadyForPaidActivation(b.id))) {
+      if (await confirmDialog(PAYOUT_NOT_READY_PROMPT)) connectBank();
+      return;
+    }
+    setBusy("accept"); try { await updateBusiness(b.id, { accepts_wallet: v }); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Could not update."); } finally { setBusy(null); }
+  }
   async function setCashback(p: number) { setBusy("cb"); try { await updateBusiness(b.id, { cashback_percent: p }); router.refresh(); } catch (e) { setError(e instanceof Error ? e.message : "Could not update."); } finally { setBusy(null); } }
 
   const card = "rounded-card border border-line bg-paper p-5 shadow-soft";

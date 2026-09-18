@@ -13,6 +13,8 @@ import {
 } from "@/lib/events-manage-client";
 import type { ManageEvent } from "@/lib/events-manage";
 import { DEFAULT_PER_ORDER_MAX, parsePerOrderMax, normalisePerOrderMax } from "@/lib/event-ticket-utils";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -45,6 +47,7 @@ export function BusinessEventForm({
   event?: ManageEvent;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const isEdit = !!event;
 
   const [title, setTitle] = useState(event?.title ?? "");
@@ -156,6 +159,18 @@ export function BusinessEventForm({
     if (!startsAt) return setError("Add a start date and time.");
     if (ticketMode === "external" && !ticketUrl.trim()) return setError("Add the external ticket URL.");
     setError(null);
+
+    // Any active ticket type priced above zero makes this a paid event for
+    // activation purposes, mixed free+paid included — a free-only event
+    // never needs a payout route to publish.
+    const hasActivePaidTicket = ticketMode === "oneshetland"
+      && ticketTypes.some(t => t.name.trim() && t.price_pence > 0);
+    const wantsPaidPublish = publish && hasActivePaidTicket;
+    let effectivePublish = publish;
+    if (wantsPaidPublish && !(await requirePayoutReadyForPaidActivation(businessId))) {
+      effectivePublish = false;
+    }
+
     setBusy(true);
     try {
       let finalCover = coverUrl;
@@ -165,7 +180,7 @@ export function BusinessEventForm({
         title: title.trim(),
         description: description.trim() || null,
         category: category || null,
-        status: publish ? "published" : "draft",
+        status: effectivePublish ? "published" : "draft",
         venue: venue.trim() || null,
         locality: locality.trim() || null,
         lat,
@@ -192,7 +207,11 @@ export function BusinessEventForm({
       } else {
         targetId = await createBusinessEvent(businessId, input);
       }
-      router.push(`/business/${businessId}/manage/events/${targetId}`);
+      if (wantsPaidPublish && !effectivePublish && (await confirm(PAYOUT_NOT_READY_PROMPT))) {
+        router.push(`/business/${businessId}/manage/billing`);
+      } else {
+        router.push(`/business/${businessId}/manage/events/${targetId}`);
+      }
       router.refresh();
     } catch (e) {
       setError(errorMessage(e, "Could not save the event."));

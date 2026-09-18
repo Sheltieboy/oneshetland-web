@@ -100,6 +100,15 @@ export type EventDetail = Omit<EventListItem, "ticket_types"> & {
   gallery_urls: string[] | null;
   ticket_types: TicketType[];
   updates: EventUpdate[];
+  /**
+   * From event_payout_ready(uuid) — true for a wholly free event regardless
+   * of the organiser's Stripe status, true for a demo organiser, otherwise
+   * whether the resolved seller account (business's own, or its owner's
+   * central account) actually exists. The same signal the mobile app's event
+   * screen already gates its buy button on; see
+   * supabase/migrations/20260822120000_effective_event_payout.sql.
+   */
+  payout_ready: boolean;
 };
 
 /** Whether a ticket type is currently purchasable. Mirrors the app's
@@ -225,6 +234,17 @@ export function lowestTicketPrice(types: ListTicketType[]): number | null {
 export function hasFreeTicket(types: ListTicketType[]): boolean {
   const active = types.filter((t) => t.is_active);
   return active.length > 0 && active.some((t) => t.price_pence === 0);
+}
+
+/**
+ * Can THIS ticket type actually be bought right now, payout-wise? A free
+ * type never needs a payout route. A paid type needs the event's resolved
+ * payout_ready — the one place per-ticket-type gating and event-level
+ * payout readiness meet; nowhere else re-derives readiness itself. Mirrors
+ * the mobile app's ticketTypePurchasable (lib/events-api.ts) exactly.
+ */
+export function ticketTypePurchasable(t: { price_pence: number }, eventPayoutReady: boolean): boolean {
+  return eventPayoutReady || t.price_pence === 0;
 }
 
 /** A list row is "free" using the same rule the app applies in its Free-only
@@ -419,7 +439,17 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
       updates = [];
     }
 
-    return { ...(ev as unknown as EventDetail), ticket_types: tt, updates };
+    // Fails closed: an unreadable answer is "not ready", never a guess that
+    // it is — matches every other payout-readiness read in this codebase.
+    let payoutReady = false;
+    try {
+      const { data: ready } = await sb.rpc("event_payout_ready", { p_event_id: id });
+      payoutReady = ready === true;
+    } catch {
+      payoutReady = false;
+    }
+
+    return { ...(ev as unknown as EventDetail), ticket_types: tt, updates, payout_ready: payoutReady };
   } catch {
     return null;
   }

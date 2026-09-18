@@ -8,7 +8,7 @@ import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
 import { describeCheckoutError } from "@/lib/checkout-errors";
-import { maxPerOrder } from "@/lib/events-data";
+import { maxPerOrder, ticketTypePurchasable } from "@/lib/events-data";
 
 const EVENTS = "#d4921a";
 // Buyer-facing booking fee — 95p per ticket plus 1.5% of face value.
@@ -41,6 +41,7 @@ export function TicketModal({
   ticketTypes,
   isLoggedIn,
   signInHref,
+  payoutReady,
 }: {
   open: boolean;
   onClose: () => void;
@@ -49,6 +50,14 @@ export function TicketModal({
   ticketTypes: TicketType[];
   isLoggedIn: boolean;
   signInHref: string;
+  /**
+   * From event_payout_ready — the whole-event signal. A wholly free event is
+   * always ready by that function's own all_free clause, so this only ever
+   * matters here for a MIXED event: it gates each individual paid ticket
+   * type (see ticketTypePurchasable below), while a free type is always
+   * selectable regardless.
+   */
+  payoutReady: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("select");
@@ -81,8 +90,12 @@ export function TicketModal({
     onClose();
   }
 
+  // Defensive, not just cosmetic: a paid type the UI never lets the buyer
+  // increment (see the +/- buttons below) is filtered out here too, so
+  // nothing built from stale quantity state could ever line-item a ticket
+  // type this event isn't payout-ready to sell.
   const lineItems: LineItem[] = ticketTypes
-    .filter((t) => (qty[t.id] ?? 0) > 0)
+    .filter((t) => (qty[t.id] ?? 0) > 0 && ticketTypePurchasable(t, payoutReady))
     .map((t) => ({ ticket_type_id: t.id, quantity: qty[t.id] }));
 
   const totalTickets = lineItems.reduce((s, li) => s + li.quantity, 0);
@@ -166,6 +179,12 @@ export function TicketModal({
               // The server enforces both; this only saves the buyer from
               // choosing a number it will refuse.
               const cap = maxPerOrder(t);
+              // This is the per-ticket-type half of the mixed-event rule: a
+              // free type never needs a payout route, a paid one does. Only
+              // ever false here within a mixed event — a wholly-paid,
+              // not-ready event never reaches this modal at all (see
+              // app/whats-on/[id]/page.tsx).
+              const purchasable = ticketTypePurchasable(t, payoutReady);
               return (
               <li key={t.id} className="flex items-center justify-between gap-4 rounded-xl border border-line bg-paper p-4 shadow-soft">
                 <div className="min-w-0">
@@ -174,30 +193,38 @@ export function TicketModal({
                   <p className="mt-0.5 font-display font-bold" style={{ color: EVENTS }}>
                     {gbp(t.price_pence)}
                   </p>
-                  {cap > 0 && (
+                  {!purchasable ? (
+                    <p className="mt-0.5 text-xs font-medium text-ink-muted">Paid tickets coming soon</p>
+                  ) : cap > 0 ? (
                     <p className="mt-0.5 text-xs text-ink-muted">Max {cap} per order</p>
-                  )}
+                  ) : null}
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <button
-                    onClick={() => setQty((q) => ({ ...q, [t.id]: Math.max(0, (q[t.id] ?? 0) - 1) }))}
-                    className="grid h-8 w-8 place-items-center rounded-full border border-line-strong font-bold text-ink transition hover:bg-sand disabled:opacity-30"
-                    disabled={(qty[t.id] ?? 0) === 0}
-                    aria-label={`Remove one ${t.name}`}
-                  >
-                    −
-                  </button>
-                  <span className="w-4 text-center font-semibold text-ink">{qty[t.id] ?? 0}</span>
-                  <button
-                    onClick={() => setQty((q) => ({ ...q, [t.id]: Math.min(cap, (q[t.id] ?? 0) + 1) }))}
-                    disabled={(qty[t.id] ?? 0) >= cap}
-                    className="grid h-8 w-8 place-items-center rounded-full font-bold text-paper transition hover:brightness-95 disabled:opacity-30 disabled:hover:brightness-100"
-                    style={{ background: EVENTS }}
-                    aria-label={`Add one ${t.name}`}
-                  >
-                    +
-                  </button>
-                </div>
+                {purchasable ? (
+                  <div className="flex shrink-0 items-center gap-3">
+                    <button
+                      onClick={() => setQty((q) => ({ ...q, [t.id]: Math.max(0, (q[t.id] ?? 0) - 1) }))}
+                      className="grid h-8 w-8 place-items-center rounded-full border border-line-strong font-bold text-ink transition hover:bg-sand disabled:opacity-30"
+                      disabled={(qty[t.id] ?? 0) === 0}
+                      aria-label={`Remove one ${t.name}`}
+                    >
+                      −
+                    </button>
+                    <span className="w-4 text-center font-semibold text-ink">{qty[t.id] ?? 0}</span>
+                    <button
+                      onClick={() => setQty((q) => ({ ...q, [t.id]: Math.min(cap, (q[t.id] ?? 0) + 1) }))}
+                      disabled={(qty[t.id] ?? 0) >= cap}
+                      className="grid h-8 w-8 place-items-center rounded-full font-bold text-paper transition hover:brightness-95 disabled:opacity-30 disabled:hover:brightness-100"
+                      style={{ background: EVENTS }}
+                      aria-label={`Add one ${t.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                ) : (
+                  <span className="shrink-0 rounded-pill bg-sand px-3 py-1.5 text-xs font-semibold text-ink-muted">
+                    Unavailable
+                  </span>
+                )}
               </li>
               );
             })}
@@ -319,6 +346,7 @@ export function TicketButton({
   priceText,
   isLoggedIn,
   signInHref,
+  payoutReady,
 }: {
   eventId: string;
   eventTitle: string;
@@ -326,6 +354,7 @@ export function TicketButton({
   priceText: string | null;
   isLoggedIn: boolean;
   signInHref: string;
+  payoutReady: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -347,6 +376,7 @@ export function TicketButton({
         ticketTypes={ticketTypes}
         isLoggedIn={isLoggedIn}
         signInHref={signInHref}
+        payoutReady={payoutReady}
       />
     </>
   );
