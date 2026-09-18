@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
-import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, payoutOnboardingErrorNotify, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -77,6 +77,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const notify = useNotify();
   const [form, setForm] = useState<FormState | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -207,12 +208,16 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
   async function launchStripe() {
     if (connectingStripe) return;
     setConnectingStripe(true);
+    let failure: { error: unknown } | null = null;
     try {
       await startOrResumePayoutSetup(businessId);
+    } catch (e) {
+      failure = { error: e };
     } finally {
       setConnectingStripe(false);
       router.refresh();
     }
+    if (failure) await notify(payoutOnboardingErrorNotify(failure.error));
   }
 
   async function toggleActive(p: Product) {

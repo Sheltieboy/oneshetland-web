@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { BIZ } from "@/lib/business-data";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import {
   fetchBusinessUnitItems,
   createUnitItem,
@@ -12,7 +12,7 @@ import {
   type BookUnitItem,
   type UnitItemUpsertInput,
 } from "@/lib/book-manage-items";
-import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, payoutOnboardingErrorNotify, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const field =
   "w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint";
@@ -55,6 +55,7 @@ function toForm(i: BookUnitItem): FormState {
 
 export function UnitItemsManager({ businessId, canPublish }: { businessId: string; canPublish: boolean }) {
   const confirm = useConfirm();
+  const notify = useNotify();
   const [items, setItems] = useState<BookUnitItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editorId, setEditorId] = useState<string | "new" | null>(null);
@@ -71,12 +72,16 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
   async function launchStripe() {
     if (connectingStripe) return;
     setConnectingStripe(true);
+    let failure: { error: unknown } | null = null;
     try {
       await startOrResumePayoutSetup(businessId);
+    } catch (e) {
+      failure = { error: e };
     } finally {
       setConnectingStripe(false);
       await load();
     }
+    if (failure) await notify(payoutOnboardingErrorNotify(failure.error));
   }
 
   const load = useCallback(async () => {

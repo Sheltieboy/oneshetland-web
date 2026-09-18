@@ -31,6 +31,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+import { retryAfterSecsFrom } from "@/lib/retry-after";
 
 export type PaymentState = {
   /** A card is saved with Stripe and can be charged. */
@@ -113,11 +114,13 @@ export async function startPayoutOnboarding(): Promise<{ url: string | null; alr
   const { data, error } = await sb.functions.invoke("create-connect-account");
   if (error) {
     let msg = "Could not start payout setup.";
+    const status = (error as { context?: { status?: number } }).context?.status;
+    const retryAfterSecs = retryAfterSecsFrom((error as { context?: unknown }).context);
     try {
       const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
       if (body?.error) msg = body.error;
     } catch { /* keep the generic message */ }
-    throw new Error(msg);
+    throw Object.assign(new Error(msg), status !== undefined ? { status } : {}, retryAfterSecs !== undefined ? { retryAfterSecs } : {});
   }
   const res = data as { url?: string; already_complete?: boolean } | null;
   if (res?.already_complete) return { url: null, alreadyComplete: true };

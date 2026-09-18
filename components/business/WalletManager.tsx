@@ -6,8 +6,8 @@ import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness, type WalletReceipt } from "@/lib/business-data";
 import { updateBusiness } from "@/lib/business-client";
 import { createClient } from "@/lib/supabase/client";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, classifyPayoutOnboardingError, payoutOnboardingErrorNotify, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
@@ -27,6 +27,7 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
 }) {
   const router = useRouter();
   const confirmDialog = useConfirm();
+  const notify = useNotify();
   const b = business;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +73,17 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
   async function connectBank() {
     if (busy === "bank") return;
     setBusy("bank"); setError(null);
+    let rateLimited: { error: unknown } | null = null;
     try {
       await startOrResumePayoutSetup(b.id);
       router.refresh();
-    } catch (e) { setError(e instanceof Error ? e.message : "Could not start Stripe."); } finally { setBusy(null); }
+    } catch (e) {
+      // A rate-limited response never shows its raw text — a friendly
+      // dialog instead; anything else keeps this page's existing banner.
+      if (classifyPayoutOnboardingError(e) === "rate_limited") rateLimited = { error: e };
+      else setError(e instanceof Error ? e.message : "Could not start Stripe.");
+    } finally { setBusy(null); }
+    if (rateLimited) await notify(payoutOnboardingErrorNotify(rateLimited.error));
   }
 
   async function setAccept(v: boolean) {

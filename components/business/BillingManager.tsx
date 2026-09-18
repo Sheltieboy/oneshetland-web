@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { CardSetup } from "@/components/payments/CardSetup";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { guardPayoutOnboardingLaunch, isPayoutOnboardingCoolingDown, classifyPayoutOnboardingError, payoutOnboardingErrorNotify } from "@/lib/payout-readiness";
 import {
   BIZ, TIER_LABELS, TIER_PRICE, PLAN_COMPARISON, TIER_PITCH, PREMIUM_ANNUAL_PRICE, PREMIUM_ANNUAL_PENCE, TIER_PRICE_PENCE, BOOKING_CAP_PENCE, BOOKING_CAP_UNITS,
   tierMeets, tierFor, tierUnlocks, isOnBoost, NFC_TILE_URL_PREFIX,
@@ -32,6 +33,7 @@ export function BillingManager({ business, intentTier, meter }: {
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const notify = useNotify();
   const b = business;
   const tier = b.subscription_tier;
   // Are they on yearly billing? No column records it, and none is needed: a
@@ -87,12 +89,25 @@ export function BillingManager({ business, intentTier, meter }: {
   async function connectBank() {
     setBusy("bank"); setError(null);
     const w = 680, h = 720;
-    const popup = window.open("about:blank", "stripe-connect", `width=${w},height=${h},left=${(window.screen.width - w) / 2},top=${(window.screen.height - h) / 2},scrollbars=yes`);
+    // Synchronous in-memory check, so no blank window is opened for a launch the
+    // shared guard is about to refuse (see guardPayoutOnboardingLaunch).
+    const popup = isPayoutOnboardingCoolingDown(b.id) ? null : window.open("about:blank", "stripe-connect", `width=${w},height=${h},left=${(window.screen.width - w) / 2},top=${(window.screen.height - h) / 2},scrollbars=yes`);
+    let rateLimited: { error: unknown } | null = null;
     try {
-      const { url } = await createBusinessOnboardingLink(b.id);
+      // Shares the same short per-business cooldown as every contextual
+      // launcher (see guardPayoutOnboardingLaunch's own doc comment) — this
+      // is the explicit Plan & payouts control, not a separate allowance.
+      const { url } = await guardPayoutOnboardingLaunch(b.id, () => createBusinessOnboardingLink(b.id));
       if (popup && !popup.closed) { popup.location.href = url; pollRef.current = setInterval(() => { if (popup.closed) { clearInterval(pollRef.current!); router.refresh(); } }, 700); }
       else window.location.href = url;
-    } catch (e) { popup?.close(); fail(e); } finally { setBusy(null); }
+    } catch (e) {
+      popup?.close();
+      // A rate-limited response never shows its raw text — a friendly
+      // dialog instead; anything else keeps this page's existing banner.
+      if (classifyPayoutOnboardingError(e) === "rate_limited") rateLimited = { error: e };
+      else fail(e);
+    } finally { setBusy(null); }
+    if (rateLimited) await notify(payoutOnboardingErrorNotify(rateLimited.error));
   }
 
   /* Cancel, or take a cancellation back */

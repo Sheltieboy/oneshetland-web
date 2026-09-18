@@ -10,6 +10,7 @@
 import { createClient } from "@/lib/supabase/client";
 import type { AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
+import { retryAfterSecsFrom } from "./retry-after";
 
 async function invoke<T = Record<string, unknown>>(name: string, body?: Record<string, unknown>): Promise<T> {
   const sb = createClient();
@@ -17,6 +18,13 @@ async function invoke<T = Record<string, unknown>>(name: string, body?: Record<s
   if (error) {
     let msg = error.message;
     let code: string | undefined;
+    // The raw HTTP status (429 for a rate-limited call, e.g. from
+    // local-business-onboard — see supabase/functions/_shared/rate-limit.ts)
+    // so a caller can distinguish that from an ordinary failure without
+    // pattern-matching message text — see classifyPayoutOnboardingError in
+    // lib/payout-readiness.ts.
+    const status = (error as { context?: { status?: number } }).context?.status;
+    const retryAfterSecs = retryAfterSecsFrom((error as { context?: unknown }).context);
     try {
       const ctx = await (error as { context?: { json?: () => Promise<{ error?: string; code?: string }> } }).context?.json?.();
       if (ctx?.error) msg = ctx.error;
@@ -26,7 +34,7 @@ async function invoke<T = Record<string, unknown>>(name: string, body?: Record<s
       // retrying with the same attempt reference.
       if (ctx?.code) code = ctx.code;
     } catch { /* */ }
-    throw Object.assign(new Error(msg), code ? { code } : {});
+    throw Object.assign(new Error(msg), code ? { code } : {}, status !== undefined ? { status } : {}, retryAfterSecs !== undefined ? { retryAfterSecs } : {});
   }
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
   return data as T;

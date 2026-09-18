@@ -13,8 +13,8 @@ import {
 } from "@/lib/events-manage-client";
 import type { ManageEvent } from "@/lib/events-manage";
 import { DEFAULT_PER_ORDER_MAX, parsePerOrderMax, normalisePerOrderMax } from "@/lib/event-ticket-utils";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, EVENT_SAVED_AS_DRAFT_PROMPT } from "@/lib/payout-readiness";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, classifyPayoutOnboardingError, payoutOnboardingErrorNotify, EVENT_SAVED_AS_DRAFT_PROMPT } from "@/lib/payout-readiness";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -48,6 +48,7 @@ export function BusinessEventForm({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const notify = useNotify();
   const isEdit = !!event;
 
   const [title, setTitle] = useState(event?.title ?? "");
@@ -216,8 +217,15 @@ export function BusinessEventForm({
         // button below; connectingStripe only swaps its label so "Saving…"
         // doesn't linger through a phase that isn't saving any more.
         setConnectingStripe(true);
-        await startOrResumePayoutSetup(businessId).catch(() => { /* surfaced via the event's own not-published banner */ });
+        let rateLimited: unknown = null;
+        await startOrResumePayoutSetup(businessId).catch((e) => {
+          // A rate-limited response gets the friendly message; any other
+          // failure stays surfaced via the event's own not-published banner,
+          // exactly as before.
+          if (classifyPayoutOnboardingError(e) === "rate_limited") rateLimited = e;
+        });
         setConnectingStripe(false);
+        if (rateLimited) await notify(payoutOnboardingErrorNotify(rateLimited));
       }
       router.push(`/business/${businessId}/manage/events/${targetId}`);
       router.refresh();

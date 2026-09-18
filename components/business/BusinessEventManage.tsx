@@ -7,8 +7,8 @@ import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/li
 import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
 import { ticketCapacity } from "@/lib/event-ticket-utils";
 import { setEventStatus, postEventUpdate, eventHasActivePaidTicket } from "@/lib/events-manage-client";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { startOrResumePayoutSetup } from "@/lib/payout-readiness";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { startOrResumePayoutSetup, payoutOnboardingErrorNotify } from "@/lib/payout-readiness";
 
 const STATUS_CFG: Record<EventStatus, { label: string; bg: string; color: string }> = {
   draft:     { label: "Draft",     bg: "#E2E8F0", color: "#475569" },
@@ -34,6 +34,7 @@ export function BusinessEventManage({
 }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const notify = useNotify();
   const base = `/business/${businessId}/manage/events`;
 
   const [statusBusy, setStatusBusy] = useState(false);
@@ -65,12 +66,18 @@ export function BusinessEventManage({
   async function goConnectStripe() {
     if (connectingStripe) return;
     setConnectingStripe(true);
+    let failure: { error: unknown } | null = null;
     try {
       await startOrResumePayoutSetup(businessId);
+    } catch (e) {
+      failure = { error: e };
     } finally {
       setConnectingStripe(false);
       router.refresh();
     }
+    // After the reset, not inside it: the button is already back to normal
+    // (and re-enabled) by the time the merchant reads this.
+    if (failure) await notify(payoutOnboardingErrorNotify(failure.error));
   }
 
   // Post-update form

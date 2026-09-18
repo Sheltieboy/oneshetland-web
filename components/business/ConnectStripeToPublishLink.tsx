@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { startOrResumePayoutSetup } from "@/lib/payout-readiness";
+import { useNotify } from "@/components/ui/ConfirmProvider";
+import { startOrResumePayoutSetup, payoutOnboardingErrorNotify } from "@/lib/payout-readiness";
 
 /**
  * The "Connect Stripe to publish" row on a payout-blocked draft, for pages
@@ -14,6 +15,7 @@ import { startOrResumePayoutSetup } from "@/lib/payout-readiness";
  */
 export function ConnectStripeToPublishLink({ businessId }: { businessId: string }) {
   const router = useRouter();
+  const notify = useNotify();
   const [busy, setBusy] = useState(false);
 
   async function go() {
@@ -23,12 +25,17 @@ export function ConnectStripeToPublishLink({ businessId }: { businessId: string 
     // reflecting the same flag.
     if (busy) return;
     setBusy(true);
+    let failure: { error: unknown } | null = null;
     try {
       await startOrResumePayoutSetup(businessId);
+    } catch (e) {
+      failure = { error: e };
     } finally {
       setBusy(false);
       router.refresh();
     }
+    // After the reset, so the row is already back to normal when this shows.
+    if (failure) await notify(payoutOnboardingErrorNotify(failure.error));
   }
 
   return (

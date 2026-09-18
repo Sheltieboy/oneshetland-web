@@ -86,6 +86,128 @@ function waitForClose(popup: Window): Promise<void> {
 }
 
 /**
+ * Two short, shared, per-business, in-memory guards around actually launching
+ * a payout onboarding link — the merchant-facing counterpart to
+ * supabase/functions/_shared/rate-limit.ts's own server-side ceiling on
+ * local-business-onboard / create-connect-account, found when several
+ * onboarding entry points were opened in quick succession and the raw
+ * "Too many requests" the server returns reached the merchant unexplained.
+ *
+ *  · LAUNCH GUARD (5s) — an anti-double-tap guard across screens. Starts
+ *    when any launch begins, whether it succeeds or not, and only stops
+ *    immediate repeat taps / cross-surface hammering. It is NOT a claim that
+ *    the server is limiting anyone.
+ *  · RATE-LIMIT BACKOFF — starts only after a genuine 429 from the server.
+ *    The server's own window for Connect/onboarding-link creation is an hour
+ *    (rate_limit_policies: stripe_account, 6 per 3600s) and its Retry-After is
+ *    the seconds left in that window — anything from 1s to an hour, so
+ *    retrying after only a few seconds would just earn another 429. The
+ *    server-provided Retry-After is used when the invocation layer exposes it
+ *    (see lib/retry-after.ts); otherwise a fixed fallback.
+ *
+ * Both are in memory only, cleared on reload — nothing persisted, no table.
+ * Every launcher shares the same two maps, keyed by businessId: the
+ * contextual guard below (event/product/pass/Wallet, via
+ * startOrResumePayoutSetup) AND the explicit "use my own business bank"
+ * Plan & payouts control, which does not route through
+ * startOrResumePayoutSetup at all — hopping between them for the same
+ * business is one burst, not a fresh allowance each time.
+ */
+const PAYOUT_ONBOARDING_LAUNCH_GUARD_MS = 5_000;
+const PAYOUT_ONBOARDING_BACKOFF_FALLBACK_MS = 60_000;
+const PAYOUT_ONBOARDING_BACKOFF_MAX_MS = 3_600_000;
+const payoutOnboardingLaunchGuardUntil = new Map<string, number>();
+const payoutOnboardingBackoffUntil = new Map<string, number>();
+
+/** True while the short launch guard OR a real-429 backoff is active. */
+export function isPayoutOnboardingCoolingDown(businessId: string): boolean {
+  const now = Date.now();
+  const guard = payoutOnboardingLaunchGuardUntil.get(businessId);
+  const backoff = payoutOnboardingBackoffUntil.get(businessId);
+  return (guard !== undefined && now < guard) || (backoff !== undefined && now < backoff);
+}
+
+/** True only while a backoff started by a real 429 is active. */
+export function isPayoutOnboardingBackedOff(businessId: string): boolean {
+  const backoff = payoutOnboardingBackoffUntil.get(businessId);
+  return backoff !== undefined && Date.now() < backoff;
+}
+
+function rateLimitedCooldownError(): Error {
+  // Reuses the exact wording enforceRateLimit() returns, so
+  // classifyPayoutOnboardingError treats a client-side block and a genuine
+  // server 429 identically — one signal, one code path. Never shown: every
+  // catch block turns it into the friendly message.
+  return Object.assign(new Error("Too many requests"), { status: 429 });
+}
+
+function startPayoutOnboardingBackoff(businessId: string, retryAfterSecs: number | undefined): void {
+  const ms = retryAfterSecs !== undefined && retryAfterSecs > 0
+    ? retryAfterSecs * 1000
+    : PAYOUT_ONBOARDING_BACKOFF_FALLBACK_MS;
+  payoutOnboardingBackoffUntil.set(businessId, Date.now() + Math.min(ms, PAYOUT_ONBOARDING_BACKOFF_MAX_MS));
+}
+
+/**
+ * Wraps one payout-onboarding launch call (creating/resuming an onboarding
+ * link): refuses without ever reaching the network while either guard is
+ * active, otherwise starts the short launch guard and makes the one real
+ * call. If that call comes back genuinely rate-limited, the longer backoff
+ * starts — a synthetic refusal from this function never does, so the
+ * backoff cannot extend itself.
+ */
+export async function guardPayoutOnboardingLaunch<T>(businessId: string, fn: () => Promise<T>): Promise<T> {
+  if (isPayoutOnboardingCoolingDown(businessId)) throw rateLimitedCooldownError();
+  payoutOnboardingLaunchGuardUntil.set(businessId, Date.now() + PAYOUT_ONBOARDING_LAUNCH_GUARD_MS);
+  try {
+    return await fn();
+  } catch (e) {
+    if (classifyPayoutOnboardingError(e) === "rate_limited") {
+      startPayoutOnboardingBackoff(businessId, (e as { retryAfterSecs?: number } | null | undefined)?.retryAfterSecs);
+    }
+    throw e;
+  }
+}
+
+export type PayoutOnboardingErrorKind = "rate_limited" | "ordinary";
+
+/**
+ * Distinguishes a rate-limited onboarding-launch failure — whether from this
+ * module's own cooldown above or from enforceRateLimit()'s real 429 — from
+ * an ordinary onboarding failure, so every catch block can show the right
+ * message without re-deriving this itself.
+ */
+export function classifyPayoutOnboardingError(err: unknown): PayoutOnboardingErrorKind {
+  const status = (err as { status?: number } | null | undefined)?.status;
+  if (status === 429) return "rate_limited";
+  const message = err instanceof Error ? err.message : typeof err === "string" ? err : "";
+  if (/too many requests/i.test(message)) return "rate_limited";
+  return "ordinary";
+}
+
+/**
+ * notify()-shaped options (components/ui/ConfirmProvider.tsx) for a caught
+ * onboarding error. A rate-limited response never shows its raw "Too many
+ * requests" text or any other raw Stripe/edge-function wording — the
+ * account's own state (Verification in progress, etc.) is untouched by
+ * this, since nothing here writes to the business at all.
+ */
+export function payoutOnboardingErrorNotify(err: unknown): { title: string; body: string; okLabel: string } {
+  if (classifyPayoutOnboardingError(err) === "rate_limited") {
+    return {
+      title: "Stripe setup is temporarily busy",
+      body: "Please wait a moment, then try again. Your existing payout setup, if any, has not been changed.",
+      okLabel: "OK",
+    };
+  }
+  return {
+    title: "Stripe onboarding failed",
+    body: err instanceof Error ? err.message : "Try again later",
+    okLabel: "OK",
+  };
+}
+
+/**
  * startOrResumePayoutSetup — the one contextual "Connect Stripe" action, for
  * every paid-activation guard above. Every caller used to hand the confirm
  * dialog a router.push to the business's Plan & payouts screen — one extra
@@ -114,7 +236,13 @@ function waitForClose(popup: Window): Promise<void> {
  * a stronger guarantee than passing one back in would give.
  */
 export async function startOrResumePayoutSetup(businessId: string): Promise<{ ready: boolean }> {
-  const popup = openStripePopup();
+  // A synchronous, in-memory check — no await, so it adds no task boundary
+  // between the click and the popup below. While a guard or backoff is
+  // active nothing will be launched, so no blank window is opened for a launch
+  // that cannot happen; the readiness check below still runs first, so an
+  // already-ready business is never told it is "busy".
+  const blocked = isPayoutOnboardingCoolingDown(businessId);
+  const popup = blocked ? null : openStripePopup();
   try {
     // Fresh canonical check first — never start onboarding a business that
     // is already payable, whether it always was or the caller's own state
@@ -123,6 +251,7 @@ export async function startOrResumePayoutSetup(businessId: string): Promise<{ re
       popup?.close();
       return { ready: true };
     }
+    if (blocked) throw rateLimitedCooldownError();
 
     const sb = createClient();
     const { data: priv } = await sb
@@ -132,9 +261,9 @@ export async function startOrResumePayoutSetup(businessId: string): Promise<{ re
 
     let url: string | null;
     if (usesOwnAccount) {
-      ({ url } = await createBusinessOnboardingLink(businessId));
+      ({ url } = await guardPayoutOnboardingLaunch(businessId, () => createBusinessOnboardingLink(businessId)));
     } else {
-      const central = await startPayoutOnboarding();
+      const central = await guardPayoutOnboardingLaunch(businessId, () => startPayoutOnboarding());
       if (central.alreadyComplete) {
         popup?.close();
         return { ready: await requirePayoutReadyForPaidActivation(businessId) };
