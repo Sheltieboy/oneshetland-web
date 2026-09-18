@@ -30,6 +30,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
 
 export type PaymentState = {
   /** A card is saved with Stripe and can be charged. */
@@ -89,4 +90,37 @@ export async function getPaymentState(
 export async function fetchCardOnFile(sb: SupabaseClient, userId: string): Promise<boolean> {
   const { data } = await sb.from("profiles").select("has_payment_method").eq("id", userId).maybeSingle();
   return !!data?.has_payment_method;
+}
+
+/**
+ * Starts or resumes CENTRAL (owner-level) payout onboarding — the account
+ * that receives every payout when a business has not been given its own
+ * (use_business_payout is off). Client-side only; mirrors the mobile app's
+ * lib/payment-state.ts.
+ *
+ * create-connect-account resolves an EXISTING account (profiles, then
+ * driver_profiles) before it creates one, so calling this twice cannot make
+ * a second Connect account, and it never touches a business's own account —
+ * that is a separate destination reached through createBusinessOnboardingLink
+ * (lib/business-client.ts) once use_business_payout is on.
+ *
+ * The single implementation of this call: ConnectPayoutsButton and
+ * startOrResumePayoutSetup (lib/payout-readiness.ts) both use it rather than
+ * each invoking the edge function inline.
+ */
+export async function startPayoutOnboarding(): Promise<{ url: string | null; alreadyComplete: boolean }> {
+  const sb = createClient();
+  const { data, error } = await sb.functions.invoke("create-connect-account");
+  if (error) {
+    let msg = "Could not start payout setup.";
+    try {
+      const body = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.();
+      if (body?.error) msg = body.error;
+    } catch { /* keep the generic message */ }
+    throw new Error(msg);
+  }
+  const res = data as { url?: string; already_complete?: boolean } | null;
+  if (res?.already_complete) return { url: null, alreadyComplete: true };
+  if (!res?.url) throw new Error("No onboarding link was returned.");
+  return { url: res.url, alreadyComplete: false };
 }

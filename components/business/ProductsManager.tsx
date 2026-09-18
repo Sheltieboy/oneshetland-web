@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
-import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -194,7 +194,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
       setForm(null); setRough("");
       router.refresh();
       if (canPublish && !wasActive && !activeToSave) {
-        if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); router.refresh(); }
       }
     } catch (e) { setMsg(e instanceof Error ? e.message : "Couldn't save"); }
     finally { setBusy(false); }
@@ -202,7 +202,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
 
   async function toggleActive(p: Product) {
     if (!p.is_active && !(await requirePayoutReadyForPaidActivation(businessId))) {
-      if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+      if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); router.refresh(); }
       return;
     }
     const sb = createClient();

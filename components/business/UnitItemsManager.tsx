@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { BIZ } from "@/lib/business-data";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
@@ -13,7 +12,7 @@ import {
   type BookUnitItem,
   type UnitItemUpsertInput,
 } from "@/lib/book-manage-items";
-import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const field =
   "w-full rounded-xl border border-line bg-paper px-4 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint";
@@ -55,7 +54,6 @@ function toForm(i: BookUnitItem): FormState {
 }
 
 export function UnitItemsManager({ businessId, canPublish }: { businessId: string; canPublish: boolean }) {
-  const router = useRouter();
   const confirm = useConfirm();
   const [items, setItems] = useState<BookUnitItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +144,7 @@ export function UnitItemsManager({ businessId, canPublish }: { businessId: strin
       close();
       await load();
       if (canPublish && !wasActive && !activeToSave) {
-        if (await confirm(PAYOUT_NOT_READY_PROMPT)) router.push(`/business/${businessId}/manage/billing`);
+        if (await confirm(PAYOUT_NOT_READY_PROMPT)) { await startOrResumePayoutSetup(businessId); await load(); }
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not save.");

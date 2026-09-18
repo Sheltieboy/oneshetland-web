@@ -14,7 +14,7 @@ import {
 import type { ManageEvent } from "@/lib/events-manage";
 import { DEFAULT_PER_ORDER_MAX, parsePerOrderMax, normalisePerOrderMax } from "@/lib/event-ticket-utils";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { requirePayoutReadyForPaidActivation, EVENT_SAVED_AS_DRAFT_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, EVENT_SAVED_AS_DRAFT_PROMPT } from "@/lib/payout-readiness";
 
 const AGE_RESTRICTIONS = ["All ages", "12+", "16+", "18+", "Under 18 only"] as const;
 
@@ -208,10 +208,12 @@ export function BusinessEventForm({
         targetId = await createBusinessEvent(businessId, input);
       }
       if (wantsPaidPublish && !effectivePublish && (await confirm(EVENT_SAVED_AS_DRAFT_PROMPT))) {
-        router.push(`/business/${businessId}/manage/billing`);
-      } else {
-        router.push(`/business/${businessId}/manage/events/${targetId}`);
+        // Connect Stripe opens directly on top of this page; either way the
+        // merchant lands back on the event they just saved, not the billing
+        // screen — see startOrResumePayoutSetup's own doc comment.
+        await startOrResumePayoutSetup(businessId).catch(() => { /* surfaced via the event's own not-published banner */ });
       }
+      router.push(`/business/${businessId}/manage/events/${targetId}`);
       router.refresh();
     } catch (e) {
       setError(errorMessage(e, "Could not save the event."));

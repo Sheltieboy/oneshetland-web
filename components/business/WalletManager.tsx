@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { BIZ, type ManagedBusiness, type WalletReceipt } from "@/lib/business-data";
-import { updateBusiness, createBusinessOnboardingLink } from "@/lib/business-client";
+import { updateBusiness } from "@/lib/business-client";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { requirePayoutReadyForPaidActivation, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 
 const penceOrDash = (p: number | null) => (p == null ? "—" : `£${(p / 100).toFixed(2)}`);
 
@@ -30,7 +30,6 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
   const b = business;
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [refunding, setRefunding] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<WalletReceipt | null>(null);
 
@@ -66,15 +65,16 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
     }
   }
 
+  // Routes to whichever existing onboarding flow is actually this business's
+  // payout destination — central or its own account, whichever
+  // business_payout_ready uses — instead of always assuming its own
+  // account. See startOrResumePayoutSetup's own doc comment.
   async function connectBank() {
     setBusy("bank"); setError(null);
-    const w = 680, h = 720;
-    const popup = window.open("about:blank", "stripe-connect", `width=${w},height=${h},left=${(window.screen.width - w) / 2},top=${(window.screen.height - h) / 2},scrollbars=yes`);
     try {
-      const { url } = await createBusinessOnboardingLink(b.id);
-      if (popup && !popup.closed) { popup.location.href = url; pollRef.current = setInterval(() => { if (popup.closed) { clearInterval(pollRef.current!); router.refresh(); } }, 700); }
-      else window.location.href = url;
-    } catch (e) { popup?.close(); setError(e instanceof Error ? e.message : "Could not start Stripe."); } finally { setBusy(null); }
+      await startOrResumePayoutSetup(b.id);
+      router.refresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not start Stripe."); } finally { setBusy(null); }
   }
 
   async function setAccept(v: boolean) {

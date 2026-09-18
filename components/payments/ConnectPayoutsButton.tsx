@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { startPayoutOnboarding } from "@/lib/payment-state";
 
 function openPopup(url: string): Window | null {
   const w = 680, h = 720;
@@ -35,17 +35,10 @@ export function ConnectPayoutsButton({ accent = "#032f4c", connected, pending }:
     setBusy(true); setError(null);
     const popup = openPopup("about:blank");
     try {
-      const sb = createClient();
-      const { data, error: fnErr } = await sb.functions.invoke("create-connect-account");
-      if (fnErr) {
-        let msg = "Could not start payout setup.";
-        try { const body = await (fnErr as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (body?.error) msg = body.error; } catch { /* */ }
-        throw new Error(msg);
-      }
-      if (data?.already_complete) { popup?.close(); router.refresh(); return; }
-      if (!data?.url) throw new Error("No onboarding link was returned.");
-      if (popup && !popup.closed) { popup.location.href = data.url as string; pollClose(popup); }
-      else window.location.href = data.url as string; // popup blocked → redirect
+      const { url, alreadyComplete } = await startPayoutOnboarding();
+      if (alreadyComplete) { popup?.close(); router.refresh(); return; }
+      if (popup && !popup.closed) { popup.location.href = url!; pollClose(popup); }
+      else window.location.href = url!; // popup blocked → redirect
     } catch (e) {
       popup?.close();
       setError(e instanceof Error ? e.message : "Could not start payout setup.");

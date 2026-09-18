@@ -8,6 +8,7 @@ import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
 import { ticketCapacity } from "@/lib/event-ticket-utils";
 import { setEventStatus, postEventUpdate, eventHasActivePaidTicket } from "@/lib/events-manage-client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { startOrResumePayoutSetup } from "@/lib/payout-readiness";
 
 const STATUS_CFG: Record<EventStatus, { label: string; bg: string; color: string }> = {
   draft:     { label: "Draft",     bg: "#E2E8F0", color: "#475569" },
@@ -56,8 +57,16 @@ export function BusinessEventManage({
     && eventHasActivePaidTicket(event.ticket_types)
     && !event.payout_ready;
 
-  function goConnectStripe() {
-    router.push(`/business/${businessId}/manage/billing`);
+  // Launches the correct Stripe onboarding flow directly for this business
+  // (see startOrResumePayoutSetup) instead of sending the merchant to the
+  // Plan & payouts screen — the popup opens on top of this exact page, so
+  // closing it already leaves the merchant here.
+  async function goConnectStripe() {
+    try {
+      await startOrResumePayoutSetup(businessId);
+    } finally {
+      router.refresh();
+    }
   }
 
   // Post-update form

@@ -3,6 +3,7 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { commercialTermsGate } from "@/lib/commercial-terms.server";
 import { BIZ } from "@/lib/business-data";
 import { getBusinessEvents, getEventSalesStats, groupEventsForManagement, type BusinessEventRow } from "@/lib/events-manage";
+import { ConnectStripeToPublishLink } from "@/components/business/ConnectStripeToPublishLink";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Events" };
@@ -110,14 +111,8 @@ function EventList({ title, events, base, businessId, checkedInByEvent, quiet }:
                 <span className="shrink-0 text-ink-faint">→</span>
               </Link>
               {/* Deliberately a sibling of the row Link above, not nested
-                  inside it — an anchor cannot contain another anchor, and
-                  this goes somewhere different (Plan & payouts, not this
-                  event) than the row itself does. */}
-              {notReadyPaidDraft && (
-                <Link href={`/business/${businessId}/manage/billing`} className="block border-t border-line px-4 py-2 text-xs font-bold text-amber-800 hover:underline">
-                  Connect Stripe to publish
-                </Link>
-              )}
+                  inside it — an anchor/button cannot nest inside an anchor. */}
+              {notReadyPaidDraft && <ConnectStripeToPublishLink businessId={businessId} />}
             </li>
           );
         })}
