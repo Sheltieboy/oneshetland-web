@@ -45,6 +45,14 @@ export type BusinessEventRow = {
   has_tickets: boolean;
   ticket_url: string | null;
   tickets_sold: number;
+  ticket_types: { is_active: boolean; price_pence: number }[];
+  /**
+   * From event_payout_ready(uuid) — only resolved for a draft that has an
+   * active paid ticket type (see getBusinessEvents below); every other row
+   * is left `false` and simply never reads it, since only that one case
+   * needs to say more than the plain status badge.
+   */
+  payout_ready: boolean;
 };
 
 /** Full event for the organiser manage + edit screens. */
@@ -97,7 +105,7 @@ export type EventSalesStats = {
 };
 
 const LIST_COLS =
-  "id, title, status, category, venue, locality, starts_at, ends_at, cover_url, has_tickets, ticket_url, tickets_sold";
+  "id, title, status, category, venue, locality, starts_at, ends_at, cover_url, has_tickets, ticket_url, tickets_sold, ticket_types:event_ticket_types(is_active,price_pence)";
 
 const DETAIL_COLS = `
   id, organiser_business_id, organiser_hub_id, title, description, category, status,
@@ -116,7 +124,61 @@ export async function getBusinessEvents(businessId: string): Promise<BusinessEve
     .select(LIST_COLS)
     .eq("organiser_business_id", businessId)
     .order("starts_at", { ascending: false });
-  return (data ?? []) as unknown as BusinessEventRow[];
+  const rows = (data ?? []) as unknown as BusinessEventRow[];
+
+  // Fails closed: an unreadable answer is "not ready", never a guess that it
+  // is. Only asked for a draft with an active paid ticket type — the one
+  // case this list needs to say more than the plain status badge.
+  await Promise.all(rows.map(async (r) => {
+    if (r.status !== "draft" || !r.ticket_types.some((t) => t.is_active && t.price_pence > 0)) return;
+    try {
+      const { data: ready } = await sb.rpc("event_payout_ready", { p_event_id: r.id });
+      r.payout_ready = ready === true;
+    } catch {
+      r.payout_ready = false;
+    }
+  }));
+
+  return rows;
+}
+
+export type ManagedEventGroups = {
+  drafts: BusinessEventRow[];
+  upcoming: BusinessEventRow[];
+  past: BusinessEventRow[];
+};
+
+/**
+ * Groups a business's events for the management list: drafts/needs-attention
+ * first, then upcoming published, then past/cancelled — the same three
+ * buckets the mobile app's groupEventsForManagement (lib/events-api.ts)
+ * uses, including the identical 6-hour "still upcoming" grace window this
+ * page's own upcoming/past split already used before this grouping existed.
+ *
+ * A cancelled, postponed or archived event — and a published one whose date
+ * has passed the grace window — all land in `past`, never hidden: historic
+ * events are never hidden simply because they are no longer upcoming.
+ */
+export function groupEventsForManagement(events: readonly BusinessEventRow[], now: Date = new Date()): ManagedEventGroups {
+  const nowMs = now.getTime();
+  const UPCOMING_GRACE_MS = 6 * 3600_000;
+  const drafts: BusinessEventRow[] = [];
+  const upcoming: BusinessEventRow[] = [];
+  const past: BusinessEventRow[] = [];
+  for (const e of events) {
+    if (e.status === "draft") { drafts.push(e); continue; }
+    if (e.status === "published" && new Date(e.starts_at).getTime() >= nowMs - UPCOMING_GRACE_MS) {
+      upcoming.push(e);
+      continue;
+    }
+    past.push(e);
+  }
+  const byStartAsc = (a: BusinessEventRow, b: BusinessEventRow) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
+  const byStartDesc = (a: BusinessEventRow, b: BusinessEventRow) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime();
+  drafts.sort(byStartAsc);
+  upcoming.sort(byStartAsc);
+  past.sort(byStartDesc);
+  return { drafts, upcoming, past };
 }
 
 /** A single event owned by this business, with ticket types + updates. */
