@@ -1,45 +1,53 @@
 "use client";
 
-import { useState } from "react";
-import { Turnstile } from "@/components/ui/Turnstile";
+import { useEffect, useRef, useState } from "react";
+import { loadTurnstile, TURNSTILE_SITE_KEY } from "@/lib/turnstile";
+import {
+  startMobileChallenge,
+  returnUrlFor,
+  type ChallengeOutcome,
+} from "@/lib/mobile-turnstile-challenge";
 
 /**
  * /mobile-turnstile-challenge
  *
- * Hosted Cloudflare Turnstile challenge for the iOS/Android app. Build #38's
- * signup screen has no first-party way to run a Turnstile widget itself — the
- * proven, OTA-safe pattern already used elsewhere in this app for exactly this
- * shape of problem (driver Connect onboarding) is to open a legitimate
- * oneshetland.com page inside expo-web-browser's openAuthSessionAsync, run the
- * web flow there, and hand a result back over the app's own oneshetland-fetch
- * URL scheme.
+ * Hosted Cloudflare Turnstile challenge for the iOS/Android app. The app opens
+ * this page in expo-web-browser's openAuthSessionAsync (lib/turnstile.ts in the
+ * app) and waits for a redirect to oneshetland-fetch://turnstile-callback.
  *
- * On a passed check, redirects to oneshetland-fetch://turnstile-callback?token=…
- * On failure/timeout, redirects to oneshetland-fetch://turnstile-callback?error=…
- * so the app never has to guess why nothing came back — it always gets an
- * explicit outcome, never silence.
+ * ALL of the behaviour lives in lib/mobile-turnstile-challenge.ts, which
+ * guarantees that redirect on every terminal condition — a token on success,
+ * `?error=<reason>` on error, timeout, expiry, script-load failure, script-load
+ * timeout, or a failed widget initialisation — so the app never has to guess
+ * why nothing came back. This file only renders and wires it to the browser.
  *
  * This page carries the same public site key as the web sign-up form
  * (NEXT_PUBLIC_TURNSTILE_SITE_KEY) and never sees the Turnstile secret key —
  * that only ever lives server-side, inside Supabase Auth's own verification.
+ * It deliberately does not use components/ui/Turnstile: that widget reports
+ * expiry and timeout only as "no token", which is the very gap this page has
+ * to close, and leaving it alone keeps the website's own forms untouched.
  */
 
-const RETURN_SCHEME = "oneshetland-fetch://turnstile-callback";
-
 export default function MobileTurnstileChallengePage() {
-  const [state, setState] = useState<"pending" | "done" | "failed">("pending");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [outcome, setOutcome] = useState<ChallengeOutcome | null>(null);
 
-  function handleToken(token: string | null) {
-    if (!token || state !== "pending") return;
-    setState("done");
-    window.location.href = `${RETURN_SCHEME}?token=${encodeURIComponent(token)}`;
-  }
+  useEffect(() => {
+    const run = startMobileChallenge({
+      siteKey: TURNSTILE_SITE_KEY,
+      loadScript: loadTurnstile,
+      getApi: () => window.turnstile,
+      getContainer: () => containerRef.current,
+      redirect: (url) => {
+        window.location.href = url;
+      },
+      onSettled: setOutcome,
+    });
+    return run.stop;
+  }, []);
 
-  function handleError() {
-    if (state !== "pending") return;
-    setState("failed");
-    window.location.href = `${RETURN_SCHEME}?error=challenge_failed`;
-  }
+  const failed = outcome !== null && "error" in outcome;
 
   return (
     <section className="mx-auto flex min-h-[60vh] max-w-sm flex-col items-center justify-center px-5 py-16 text-center">
@@ -48,16 +56,22 @@ export default function MobileTurnstileChallengePage() {
         Before you continue in the OneShetland app, please complete this quick verification.
       </p>
       <div className="mt-6">
-        {state === "pending" && (
-          <Turnstile onToken={handleToken} onError={handleError} />
-        )}
-        {state === "done" && (
+        {outcome === null && <div ref={containerRef} />}
+        {outcome !== null && !failed && (
           <p className="text-sm text-ink-soft">Verified — returning you to the app…</p>
         )}
-        {state === "failed" && (
-          <p className="text-sm text-rose-600">
-            Couldn&apos;t complete the check. Returning you to the app — please try again.
-          </p>
+        {failed && (
+          <>
+            <p className="text-sm text-rose-600">
+              Couldn&apos;t complete the check. Returning you to the app — please try again.
+            </p>
+            <a
+              href={returnUrlFor(outcome)}
+              className="mt-3 inline-block text-sm font-semibold text-navy underline"
+            >
+              Return to OneShetland
+            </a>
+          </>
         )}
       </div>
     </section>

@@ -20,6 +20,7 @@ export interface TurnstileRenderOptions {
   "error-callback"?: () => void;
   "expired-callback"?: () => void;
   "timeout-callback"?: () => void;
+  "unsupported-callback"?: () => void;
   theme?: "light" | "dark" | "auto";
   /**
    * "always"           — the widget is permanently visible (Cloudflare's default).
