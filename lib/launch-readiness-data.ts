@@ -186,8 +186,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "events-paid-purchase", area: "events", title: "Paid-ticket purchase acceptance (£1)",
       description: "A real buyer completes a £1 paid ticket purchase end to end in test mode.",
       status: "in_progress", criticality: "launch_blocker", weight: 8,
-      evidence: "Merchant Stripe onboarding physically completed, payout readiness cleared, paid event published, customer checkout reached the payment stage. The £1 payment itself has not completed: the 24 Sep test exposed the saved-card inconsistency (buyer has_payment_method=true with no bound Stripe customer); order fc96d938 left pending, 0 paid tickets.",
-      nextAction: "Deploy the saved-card fix, then repeat the £1 purchase with both saved card and new card.",
+      evidence: "Merchant Stripe onboarding physically completed, payout readiness cleared, paid event published, customer checkout reached the payment stage. The £1 payment itself has not completed: the 24 Sep tests exposed the saved-card inconsistency (buyer has_payment_method=true with no bound Stripe customer). The saved-card fix is now deployed (see payments-saved-card-event) but not yet physically accepted. Abandoned attempts left no charge: order fc96d938 cancelled by the expiry job (seat returned); order 5f10d192 still pending until the same job expires it (~16:05 UTC). 0 paid orders, 0 valid tickets, tickets_sold 0.",
+      nextAction: "Rebind the buyer's card via Add card, confirm the saved card shows, then complete the £1 purchase with the saved card and again with a new card.",
       lastUpdated: "2026-09-24",
     },
     {
@@ -231,9 +231,9 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "payments-saved-card-event", area: "payments", title: "Saved-card resolution for event checkout",
       description: "Ticket checkout uses the buyer's canonical default card, or says clearly why it can't.",
-      status: "in_progress", criticality: "launch_blocker", weight: 5,
-      evidence: "Implementation (canonical resolveSavedCard, explicit 409/402 instead of silent fallthrough, web 'Pay with' choice, 33 tests) is being released from the main launch session. Checked 24 Sep: not yet deployed — create-event-ticket-intent still v59 of 7 Sep, saved-card-state not deployed, web TicketModal change uncommitted.",
-      nextAction: "Release the fix, then physically accept checkout with a saved card and with a new card.",
+      status: "needs_verification", criticality: "launch_blocker", weight: 5,
+      evidence: "DEPLOYED 24 Sep, in the agreed order. Web b529ced live 15:12 UTC (production bundle carries saved-card-state, saved_card_unavailable, 'Pay with', 'Use a different card'). Mobile iOS OTA e02ed1e3 / update 01a0d3fa on runtime 990f08a7 (no native build). Server: saved-card-state v1 (new) and create-event-ticket-intent v60 (was v59), deployed source byte-identical to commit d1a9def; no other function changed. Unauthenticated and anon-key calls get a bare 401. 30 focused tests + mutation checks passed before release. NOT yet physically accepted: the buyer (darren.fullerton@gmail.com) still has has_payment_method=true with no bound Stripe customer and no claim row — deliberately not repaired — so they resolve as having no canonical card until they use Add card. Never yet exercised against a real customer/card in Stripe.",
+      nextAction: "Add card (existing flow) → reopen the paid-event checkout → confirm the saved card appears with brand + last4 and 'Pay £1.96' is explicit → then the £1 purchase with the saved card and again with a new card.",
       lastUpdated: "2026-09-24",
     },
     {
@@ -255,7 +255,7 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "payments-destination-charges", area: "payments", title: "Destination-charge routing",
       description: "Ticket money reaches the business's connected account, platform fee retained.",
       status: "needs_verification", criticality: "launch_blocker", weight: 4,
-      evidence: "Code proven: transfer_data[destination] + application_fee_amount on the platform account. No paid order yet to observe the transfer in Stripe.",
+      evidence: "Code proven: transfer_data[destination] + application_fee_amount on the platform account. Re-checked 24 Sep against the DEPLOYED create-event-ticket-intent v60: still a platform-account destination charge, fee constants unchanged (95p + 1.5%), no Stripe-Account header, no on_behalf_of. No paid order yet to observe the transfer in Stripe.",
       nextAction: "Confirm charge, fee and transfer in Stripe after the £1 purchase.",
       lastUpdated: "2026-09-24",
     },
