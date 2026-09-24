@@ -198,6 +198,14 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       nextAction: "After the £1 payment verify: paid order, issued ticket, unique QR/code, inventory decrement, organiser sales state, Stripe PaymentIntent, destination transfer and application fee, payout routing, scan/check-in.",
       lastUpdated: "2026-09-24",
     },
+    {
+      id: "events-ticket-ownership-display", area: "events", title: "'Your ticket' shown only for genuinely issued tickets",
+      description: "Personalised strips and cards mark an event as owned only when the buyer holds a valid or used ticket — never for a pending, cancelled, refunded or abandoned checkout.",
+      status: "not_started", criticality: "important", weight: 3,
+      evidence: "DEFECT DIAGNOSED 24 Sep, not yet fixed. The web homepage For You query (lib/for-you.server.ts) reads event_tickets by holder_id with NO status filter, so a pending_payment or cancelled reservation shows the 'your ticket' cue. Cleanup itself works (0 stale pending orders; the earlier attempt was cancelled on schedule) — but a cancelled row still matches, so the badge would persist after expiry. Correct definition already exists and is used by web My Tickets, mobile My Tickets, holds_ticket_for() and get_event_social_stats(): status in (valid, used). Production impact at diagnosis: 4 ticket rows, 1 upcoming holder/event pair (1 user) falsely qualifying. Mobile has no For You equivalent. No money involved: no charge, no issued ticket.",
+      nextAction: "Filter For You to valid/used from one shared definition, add a contract test over every client read of event_tickets, then physically confirm the badge is gone for the pending/cancelled reservation and still shows for a free-claimed or paid ticket.",
+      lastUpdated: "2026-09-24",
+    },
 
     /* ── Payments & payouts ──────────────────────────────────────────────── */
     {
