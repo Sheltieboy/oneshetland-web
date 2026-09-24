@@ -245,11 +245,11 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       lastUpdated: "2026-09-24",
     },
     {
-      id: "payments-saved-card-rebind", area: "payments", title: "Saved-card buyer rebind",
-      description: "Profiles flagged has_payment_method with no bound Stripe customer are reconciled.",
-      status: "not_started", criticality: "important", weight: 2,
-      evidence: "4 profiles in this state — all the owner's own test accounts. Not reconciled.",
-      nextAction: "Reconcile the 4 profiles (rebind or clear the flag) in a separate task.",
+      id: "payments-saved-card-rebind", area: "payments", title: "Saved-card state consistent across Account and checkout",
+      description: "has_payment_method can never be true without a canonical usable customer/card, and Account shows the same answer as checkout.",
+      status: "needs_verification", criticality: "important", weight: 2,
+      evidence: "24 Sep. Root cause: the flag was a cache, true for 4 profiles with no Stripe customer, and Account/Payments read the flag while checkout resolved the card canonically. Server: reconcile-saved-cards deployed (cron-secret gated, dry-run first); real run checked 6 profiles: 2 already consistent, 1 recovered (a provably-owned customer bound through the canonical claim/settle path, card attached), 3 flags correctly cleared (no provable customer, nothing created). Production now has 0 profiles flagged without a bound customer; guard trigger trg_profiles_card_flag_needs_customer and nightly job reconcile-saved-cards are live. 35 tests pass incl. live invariant checks. Web Account/Payments and mobile Account/Me now read the saved-card-state resolver (brand + last4 only). NOT verified: the rendered production Account, Payments & banking and paid-event checkout screens, which need a physical check.",
+      nextAction: "Physically open Payments & banking (web and app) and the paid-event checkout as the recovered buyer; confirm the badge shows the card and checkout shows the same card.",
       lastUpdated: "2026-09-24",
     },
     {
