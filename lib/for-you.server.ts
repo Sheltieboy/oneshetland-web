@@ -23,6 +23,7 @@
 
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { levelFromXp } from "@/lib/games-data";
+import { OWNED_TICKET_STATUSES } from "@/lib/event-ticket-utils";
 
 export type ForYouKind =
   | "fetch"
@@ -262,12 +263,20 @@ async function fetchTickets(sb: SB, userId: string): Promise<ForYouItem[]> {
     });
   }
 
-  // Upcoming event tickets the user holds (event_tickets → events).
+  // Upcoming event tickets the user genuinely OWNS (event_tickets → events).
+  //
+  // Ownership is status valid/used ONLY (OWNED_TICKET_STATUSES). This used to match
+  // on holder_id alone, so a pending_payment reservation or a cancelled/refunded
+  // ticket told the buyer "your ticket" for something they had not bought. The
+  // upcoming-event constraint sits INSIDE the query (events!inner + gte on the
+  // embedded start time) so past events cannot consume the row limit.
   try {
     const { data: tix } = await sb
       .from("event_tickets")
-      .select("id, event:events(id, title, starts_at, venue, cover_url)")
+      .select("id, event:events!inner(id, title, starts_at, venue, cover_url)")
       .eq("holder_id", userId)
+      .in("status", [...OWNED_TICKET_STATUSES])
+      .gte("event.starts_at", new Date().toISOString())
       .limit(6);
 
     const rows = ((tix ?? []) as unknown as {

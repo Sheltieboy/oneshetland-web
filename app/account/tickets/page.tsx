@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { TicketsLive, type TicketGroup } from "@/components/account/TicketsLive";
+import { OWNED_TICKET_STATUSES } from "@/lib/event-ticket-utils";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My tickets" };
@@ -31,7 +32,7 @@ export default async function MyTicketsPage() {
     // customer who backs out before paying still saw the tickets as theirs.
     .select("id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, venue, status), ticket_type:event_ticket_types(name)")
     .eq("holder_id", account.id)
-    .in("status", ["valid", "used"])
+    .in("status", [...OWNED_TICKET_STATUSES])
     .order("created_at", { ascending: false });
 
   const tickets = (data ?? []) as unknown as TicketRow[];

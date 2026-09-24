@@ -86,3 +86,32 @@ export function normalisePerOrderMax(v: PerOrderMaxDraft | number | null | undef
   if (!Number.isFinite(n)) return DEFAULT_PER_ORDER_MAX;
   return n < 1 ? 1 : n;
 }
+
+/**
+ * The ticket statuses that mean the holder GENUINELY OWNS a ticket, for every
+ * display of ownership ("your ticket", My Tickets, "you're going").
+ *
+ *   valid   issued and usable — a paid ticket after successful fulfilment, or a
+ *           free ticket after a successful claim
+ *   used    issued and already scanned in
+ *
+ * NOT ownership, and must never satisfy an ownership check:
+ *   pending_payment   a reservation created the moment checkout starts; the buyer
+ *                     has not paid and holds nothing
+ *   cancelled         an abandoned or expired checkout, or a voided ticket
+ *   refunded          the money went back
+ *
+ * This is the same definition the database uses — public.holds_ticket_for() and
+ * public.get_event_social_stats() both count only ('valid', 'used') — so a screen
+ * and the server cannot disagree about who owns what. A query that reads
+ * event_tickets by holder_id MUST constrain status with this list: matching on
+ * holder alone counts reservations, which is how a buyer who had not paid was
+ * told "your ticket".
+ */
+export const OWNED_TICKET_STATUSES = ["valid", "used"] as const;
+export type OwnedTicketStatus = (typeof OWNED_TICKET_STATUSES)[number];
+
+export function isOwnedTicketStatus(status: string | null | undefined): status is OwnedTicketStatus {
+  return status === "valid" || status === "used";
+}
+
