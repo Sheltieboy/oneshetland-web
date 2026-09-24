@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV: { group: string; items: { href: string; label: string; badgeKey?: string }[] }[] = [
-  { group: "Overview", items: [{ href: "/admin", label: "Dashboard" }] },
+  { group: "Overview", items: [
+    { href: "/admin", label: "Dashboard" },
+    { href: "/admin/launch-readiness", label: "Launch readiness" },
+  ] },
   { group: "Fetch", items: [
     { href: "/admin/drivers", label: "Driver approvals", badgeKey: "pendingDrivers" },
     { href: "/admin/operations", label: "Operations" },

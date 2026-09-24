@@ -7,18 +7,19 @@
 
 import { redirect } from "next/navigation";
 import { getAccount, type Account } from "@/lib/auth";
+import { adminAccessFor } from "@/lib/admin-access";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 
 export async function requireAdmin(): Promise<Account> {
   const a = await getAccount();
-  if (!a) redirect("/sign-in?next=/admin");
-  if (a.profile?.role !== "admin") redirect("/account");
-  return a;
+  const access = adminAccessFor(a);
+  if (access === "sign_in") redirect("/sign-in?next=/admin");
+  if (access === "deny") redirect("/account");
+  return a as Account;
 }
 
 export async function isAdmin(): Promise<boolean> {
-  const a = await getAccount();
-  return a?.profile?.role === "admin";
+  return adminAccessFor(await getAccount()) === "allow";
 }
 
 // Resilience wrappers: an admin page must never 500 on a schema/RLS difference.
