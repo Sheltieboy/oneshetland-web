@@ -8,6 +8,8 @@ import { startTicketPurchase, confirmTicketPurchase, type LineItem } from "@/lib
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { fetchWalletBalance } from "@/lib/local-commerce-client";
 import { describeCheckoutError } from "@/lib/checkout-errors";
+import { fetchSavedCardState, type SavedCardState } from "@/lib/saved-card-client";
+import { formatCardLabel } from "@/lib/card-label";
 import { maxPerOrder, ticketTypePurchasable } from "@/lib/events-data";
 
 const EVENTS = "#d4921a";
@@ -32,6 +34,7 @@ type TicketType = {
 };
 
 type Step = "select" | "pay" | "done";
+type Method = "saved" | "new";
 
 export function TicketModal({
   open,
@@ -68,6 +71,12 @@ export function TicketModal({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [ticketCount, setTicketCount] = useState(0);
   const [walletPence, setWalletPence] = useState<number | null>(null);
+  // What the buyer's saved card REALLY is, asked of the server (which asks
+  // Stripe) — never inferred from a profile flag. null = not answered yet.
+  const [cardState, setCardState] = useState<SavedCardState | null>(null);
+  // The card is preselected when there is one, but choosing it charges nothing:
+  // only the final Pay button does.
+  const [method, setMethod] = useState<Method>("new");
 
   useEffect(() => {
     if (!open || !isLoggedIn) return;
@@ -76,6 +85,24 @@ export function TicketModal({
     return () => { live = false; };
   }, [open, isLoggedIn]);
 
+  useEffect(() => {
+    if (!open || !isLoggedIn) return;
+    let live = true;
+    fetchSavedCardState().then((s) => {
+      if (!live) return;
+      setCardState(s);
+      setMethod(s.state === "card" ? "saved" : "new");
+    });
+    return () => { live = false; };
+  }, [open, isLoggedIn]);
+
+  /** Ask again — used when the server says the card the buyer chose is gone. */
+  async function refreshSavedCard() {
+    const s = await fetchSavedCardState();
+    setCardState(s);
+    return s;
+  }
+
   function reset() {
     setStep("select");
     setQty({});
@@ -83,6 +110,8 @@ export function TicketModal({
     setError(null);
     setClientSecret(null);
     setOrderId(null);
+    setCardState(null);
+    setMethod("new");
   }
 
   function handleClose() {
@@ -110,6 +139,12 @@ export function TicketModal({
   const totalPence = faceValuePence + bookingFeePence;
   const canWallet = walletPence != null && isPaid && walletPence >= totalPence;
 
+  const savedCard = cardState?.state === "card" ? cardState.card : null;
+  // The saved card is charged only when it exists AND the buyer has it selected.
+  const usingSaved = isPaid && savedCard != null && method === "saved";
+  // Until the server has answered, a paid checkout cannot say what it will charge.
+  const cardLoading = isLoggedIn && isPaid && cardState === null;
+
   // ── Checkout attempt id ──────────────────────────────────────────────────
   // Minted once for the purchase the buyer is making, and reused if they click
   // through again after a failure — that is what stops a retry creating a
@@ -129,6 +164,8 @@ export function TicketModal({
     try {
       const result = await startTicketPurchase(eventId, lineItems, {
         ...(viaWallet ? { payWithWallet: true } : {}),
+        // Explicit, every time: true only for a buyer who chose their saved card.
+        useSavedCard: !viaWallet && usingSaved,
         clientRequestId: attemptId(),
       });
       if ("free" in result || "charged" in result) {
@@ -143,7 +180,15 @@ export function TicketModal({
         setStep("pay");
       }
     } catch (e) {
-      setError(describeCheckoutError(e));
+      if ((e as { code?: string }).code === "saved_card_unavailable") {
+        // The card the buyer was shown is gone (or could not be checked). Say so,
+        // re-read the truth, and offer another way to pay — never switch quietly.
+        await refreshSavedCard();
+        setMethod("new");
+        setError((e as Error).message || "Your saved card isn\u2019t available. Please choose another way to pay.");
+      } else {
+        setError(describeCheckoutError(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -252,6 +297,31 @@ export function TicketModal({
             </div>
           )}
 
+          {/* How to pay. Choosing charges nothing; the button below does. */}
+          {isLoggedIn && isPaid && totalTickets > 0 && (
+            <div>
+              <p className="mb-2 text-sm font-semibold text-ink">Pay with</p>
+              <div className="space-y-2">
+                {savedCard && (
+                  <MethodRow
+                    selected={method === "saved"}
+                    onSelect={() => setMethod("saved")}
+                    accent={EVENTS}
+                    title={formatCardLabel(savedCard.brand, savedCard.last4)}
+                    sub="Your saved card"
+                  />
+                )}
+                <MethodRow
+                  selected={method === "new"}
+                  onSelect={() => setMethod("new")}
+                  accent={EVENTS}
+                  title={savedCard ? "Use a different card" : "Pay by card"}
+                  sub="Enter card details at the next step"
+                />
+              </div>
+            </div>
+          )}
+
           {error && (
             <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{error}</p>
           )}
@@ -260,7 +330,7 @@ export function TicketModal({
             <div className="space-y-3">
               <button
                 onClick={() => proceed(true)}
-                disabled={totalTickets === 0 || busy}
+                disabled={totalTickets === 0 || busy || cardLoading}
                 className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
                 style={{ background: EVENTS }}
               >
@@ -268,20 +338,20 @@ export function TicketModal({
               </button>
               <button
                 onClick={() => proceed(false)}
-                disabled={totalTickets === 0 || busy}
+                disabled={totalTickets === 0 || busy || cardLoading}
                 className="w-full rounded-pill border border-line-strong py-3 font-semibold text-ink transition hover:bg-sand disabled:opacity-40"
               >
-                {busy ? "Please wait…" : `Pay by card · ${gbp(totalPence)}`}
+                {busy ? "Please wait…" : usingSaved ? `Pay by saved card · ${gbp(totalPence)}` : `Pay by card · ${gbp(totalPence)}`}
               </button>
             </div>
           ) : (
             <button
               onClick={() => proceed(false)}
-              disabled={totalTickets === 0 || busy}
+              disabled={totalTickets === 0 || busy || cardLoading}
               className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
               style={{ background: EVENTS }}
             >
-              {busy ? "Please wait…" : isLoggedIn ? (isPaid ? `Continue · ${gbp(totalPence)}` : "Get free tickets") : "Sign in to continue"}
+              {busy ? "Please wait…" : isLoggedIn ? (isPaid ? (usingSaved ? `Pay ${gbp(totalPence)}` : `Continue · ${gbp(totalPence)}`) : "Get free tickets") : "Sign in to continue"}
             </button>
           )}
         </div>
@@ -379,5 +449,36 @@ export function TicketButton({
         payoutReady={payoutReady}
       />
     </>
+  );
+}
+
+function MethodRow({
+  selected, onSelect, accent, title, sub,
+}: {
+  selected: boolean; onSelect: () => void; accent: string;
+  title: string; sub: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={
+        "flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition " +
+        (selected ? "border-current" : "border-line hover:border-line-strong")
+      }
+      style={selected ? { color: accent, background: `${accent}0d` } : undefined}
+    >
+      <span
+        className="grid h-4 w-4 shrink-0 place-items-center rounded-full border-2"
+        style={{ borderColor: selected ? accent : "#cbd5e1" }}
+      >
+        {selected && <span className="h-2 w-2 rounded-full" style={{ background: accent }} />}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold text-ink">{title}</span>
+        <span className="block text-xs text-ink-muted">{sub}</span>
+      </span>
+    </button>
   );
 }

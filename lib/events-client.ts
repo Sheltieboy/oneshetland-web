@@ -46,9 +46,12 @@ export async function startTicketPurchase(
      * every retry a new key and remove the protection entirely.
      */
     clientRequestId?: string;
-  } = {},   // default to the buyer's saved card (server falls back to the card form if none) — matches the app
+  } = {},
 ): Promise<TicketPurchaseStart> {
-  const { useSavedCard = true, payWithWallet = false, clientRequestId } = opts;
+  // A saved card is charged ONLY when the caller says so, and the caller only
+  // says so after the buyer has chosen it and pressed Pay. There is no default:
+  // "a card exists" is never, on its own, permission to take money.
+  const { useSavedCard = false, payWithWallet = false, clientRequestId } = opts;
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-event-ticket-intent", {
     body: {
