@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAccount } from "@/lib/auth";
+import { resolveCardState } from "@/lib/payment-state";
 import type { OnboardingState } from "@/lib/onboarding";
 
 /**
@@ -14,11 +15,11 @@ export async function getOnboardingState(): Promise<OnboardingState | null> {
   if (!account) return null;
 
   const sb = await createClient();
-  const [{ data: p }, { data: dp }, { data: businesses }] = await Promise.all([
+  const [{ data: p }, { data: dp }, { data: businesses }, card] = await Promise.all([
     sb
       .from("profiles")
       .select(
-        "full_name, display_name, location_area, avatar_url, games_handle, has_payment_method, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled",
+        "full_name, display_name, location_area, avatar_url, games_handle, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled",
       )
       .eq("id", account.id)
       .maybeSingle(),
@@ -33,6 +34,8 @@ export async function getOnboardingState(): Promise<OnboardingState | null> {
       .eq("owner_id", account.id)
       .eq("is_active", true)
       .order("name"),
+    // The canonical saved-card answer (same one checkout uses), not the profile flag.
+    resolveCardState(sb),
   ]);
 
   const payoutAccountId = p?.stripe_account_id || dp?.stripe_account_id;
@@ -48,7 +51,7 @@ export async function getOnboardingState(): Promise<OnboardingState | null> {
     locationArea: p?.location_area ?? "",
     avatarUrl: p?.avatar_url ?? "",
     gamesHandle: p?.games_handle ?? "",
-    hasCard: Boolean(p?.has_payment_method),
+    hasCard: card.state === "card",
     payoutsConnected: Boolean(p?.stripe_payouts_enabled || dp?.stripe_payouts_enabled),
     payoutsPending: Boolean(payoutAccountId) && !onboardingComplete,
     ownedBusinesses: (businesses ?? []) as OnboardingState["ownedBusinesses"],

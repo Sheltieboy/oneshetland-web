@@ -25,17 +25,28 @@
  *
  * WHAT THIS RETURNS
  *
- * Booleans only. No cus_…, acct_… or pm_… ever leaves here, so the account
- * screens keep consuming safe derived state rather than raw Stripe identifiers.
+ * Safe derived state only: booleans, plus a card's brand and last four digits. No
+ * cus_…, acct_… or pm_… ever leaves here, so the account screens never hold a raw
+ * Stripe identifier.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { retryAfterSecsFrom } from "@/lib/retry-after";
 
+/**
+ * What the server found when it asked Stripe about this person's saved card.
+ * `unknown` means Stripe could not be asked — which is NOT the same as `none`.
+ */
+export type CardState = "card" | "none" | "unknown";
+
 export type PaymentState = {
-  /** A card is saved with Stripe and can be charged. */
+  /** A card is saved with Stripe and can be charged (canonical — see resolveCardState). */
   card_on_file: boolean;
+  card_state: CardState;
+  /** Safe display metadata only. Null unless card_state is "card". */
+  card_brand: string | null;
+  card_last4: string | null;
   /** Stripe will pay this person out. */
   payouts_connected: boolean;
   /** An account exists but Stripe has not finished verifying it. */
@@ -44,9 +55,43 @@ export type PaymentState = {
 
 export const NO_PAYMENT_STATE: PaymentState = {
   card_on_file: false,
+  card_state: "none",
+  card_brand: null,
+  card_last4: null,
   payouts_connected: false,
   payouts_pending: false,
 };
+
+export type ResolvedCard = { state: CardState; brand: string | null; last4: string | null };
+
+/**
+ * The ONE answer to "does this person have a saved card?" — the same one checkout
+ * uses. It asks the `saved-card-state` function, which resolves the card from
+ * Stripe through the canonical customer/payment-method helper (bound customer →
+ * attached cards → default) and returns brand + last4 only.
+ *
+ * It deliberately does NOT read profiles.has_payment_method. That flag is a cache,
+ * and it was true for profiles with no Stripe Customer at all: Account said "card
+ * added" while checkout said "pay by card". Anything that shows or decides on a
+ * saved card must come through here so the two can never disagree again.
+ */
+export async function resolveCardState(sb: SupabaseClient): Promise<ResolvedCard> {
+  try {
+    const { data, error } = await sb.functions.invoke("saved-card-state");
+    if (error || !data) return { state: "unknown", brand: null, last4: null };
+    if (data.state === "card") {
+      return {
+        state: "card",
+        brand: typeof data.brand === "string" ? data.brand : null,
+        last4: typeof data.last4 === "string" ? data.last4 : null,
+      };
+    }
+    if (data.state === "none") return { state: "none", brand: null, last4: null };
+    return { state: "unknown", brand: null, last4: null };
+  } catch {
+    return { state: "unknown", brand: null, last4: null };
+  }
+}
 
 /**
  * Resolves a user's effective card and payout state.
@@ -57,13 +102,14 @@ export async function getPaymentState(
   sb: SupabaseClient,
   userId: string,
 ): Promise<PaymentState> {
-  const [{ data: prof }, { data: drv }] = await Promise.all([
+  const [{ data: prof }, { data: drv }, card] = await Promise.all([
     sb.from("profiles")
-      .select("has_payment_method, stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
+      .select("stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
       .eq("id", userId).maybeSingle(),
     sb.from("driver_profiles")
       .select("stripe_account_id, stripe_onboarding_complete, stripe_payouts_enabled")
       .eq("id", userId).maybeSingle(),
+    resolveCardState(sb),
   ]);
 
   const hasAccount = !!(prof?.stripe_account_id || drv?.stripe_account_id);
@@ -71,7 +117,10 @@ export async function getPaymentState(
   const connected = !!(prof?.stripe_payouts_enabled || drv?.stripe_payouts_enabled);
 
   return {
-    card_on_file:      !!prof?.has_payment_method,
+    card_on_file:      card.state === "card",
+    card_state:        card.state,
+    card_brand:        card.brand,
+    card_last4:        card.last4,
     payouts_connected: connected,
     payouts_pending:   hasAccount && !onboarded,
   };
@@ -81,16 +130,13 @@ export async function getPaymentState(
 /**
  * Client-side: has the signed-in buyer got a card on file?
  *
- * Reads the same column getPaymentState() derives card_on_file from, so a
- * checkout and the Payments & banking screen cannot disagree about whether a
- * card exists. It is only ever a hint for the REQUEST — the backend re-resolves
- * the buyer's Stripe Customer from their own profile and asks Stripe for the
- * payment method, so a client claiming a card it does not have simply gets
- * "No saved card on file".
+ * Asks the same canonical resolver getPaymentState() uses (resolveCardState), so a
+ * checkout and the Payments & banking screen cannot disagree about whether a card
+ * exists. It is still only a hint for the REQUEST — the backend re-resolves the
+ * card itself — but it is now a hint from the same source, not from a flag.
  */
-export async function fetchCardOnFile(sb: SupabaseClient, userId: string): Promise<boolean> {
-  const { data } = await sb.from("profiles").select("has_payment_method").eq("id", userId).maybeSingle();
-  return !!data?.has_payment_method;
+export async function fetchCardOnFile(sb: SupabaseClient, _userId?: string): Promise<boolean> {
+  return (await resolveCardState(sb)).state === "card";
 }
 
 /**

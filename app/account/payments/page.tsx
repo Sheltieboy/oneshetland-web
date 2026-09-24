@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentState } from "@/lib/payment-state";
+import { formatCardLabel } from "@/lib/card-label";
 import { CardSetup } from "@/components/payments/CardSetup";
 import { ConnectPayoutsButton } from "@/components/payments/ConnectPayoutsButton";
 
@@ -18,8 +19,10 @@ export default async function PaymentsPage() {
   const sb = await createClient();
   // ONE derivation, shared with the My Account summary — see lib/payment-state.ts
   // for why these two screens used to disagree about the same user.
-  const { card_on_file: hasCard, payouts_connected: payoutsConnected, payouts_pending: payoutsPending } =
-    await getPaymentState(sb, account.id);
+  const {
+    card_on_file: hasCard, card_state: cardState, card_brand: cardBrand, card_last4: cardLast4,
+    payouts_connected: payoutsConnected, payouts_pending: payoutsPending,
+  } = await getPaymentState(sb, account.id);
 
   // Businesses the user owns — for the optional per-business overrides note.
   // Whether removing this card would leave a subscription without one. A bare
@@ -42,8 +45,9 @@ export default async function PaymentsPage() {
       <section className="rounded-card border border-line bg-paper p-5 shadow-soft">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Payment card</h2>
-          <span className="rounded-pill px-3 py-1 text-sm font-semibold" style={hasCard ? { background: "#DCFCE7", color: "#065F46" } : { background: "#FEF3C7", color: "#92400E" }}>{hasCard ? "On file ✓" : "Not set up"}</span>
+          <span className="rounded-pill px-3 py-1 text-sm font-semibold" style={hasCard ? { background: "#DCFCE7", color: "#065F46" } : { background: "#FEF3C7", color: "#92400E" }}>{hasCard ? "On file ✓" : cardState === "unknown" ? "Couldn\u2019t check" : "Not set up"}</span>
         </div>
+        {hasCard && <p className="mt-1 text-sm font-semibold text-ink">{formatCardLabel(cardBrand, cardLast4)}</p>}
         <p className="mt-1 text-sm text-ink-muted">Used for Fetch deliveries, event tickets, hub donations and memberships. Stored securely by Stripe and only charged when you pay for something.</p>
         <div className="mt-4"><CardSetup accent={NAVY} hasCard={hasCard} fundsSubscription={fundsSubscription} /></div>
       </section>

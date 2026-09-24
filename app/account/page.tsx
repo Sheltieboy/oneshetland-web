@@ -96,7 +96,7 @@ export default async function AccountOverview() {
           One card for everything you pay for, one bank account for everything you&apos;re paid.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payment card: {payments.card_on_file ? "added ✓" : "not set up"}</span>
+          <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payment card: {payments.card_state === "card" ? "added ✓" : payments.card_state === "unknown" ? "couldn\u2019t check" : "not set up"}</span>
           <span className="rounded-pill bg-sand px-3 py-1 text-sm font-semibold text-ink-soft">Payouts: {payments.payouts_connected ? "connected ✓" : payments.payouts_pending ? "verifying…" : "not connected"}</span>
         </div>
       </Link>

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getAccount } from "@/lib/auth";
+import { getPaymentState } from "@/lib/payment-state";
 import { createClient } from "@/lib/supabase/server";
 import { FETCH } from "@/lib/fetch-data";
 import { getRegions } from "@/lib/fetch-data.server";
@@ -13,8 +14,7 @@ export default async function NewRequestPage() {
   let hasCard = false;
   if (account) {
     const sb = await createClient();
-    const { data } = await sb.from("profiles").select("has_payment_method").eq("id", account.id).maybeSingle();
-    hasCard = !!data?.has_payment_method;
+    hasCard = (await getPaymentState(sb, account.id)).card_on_file;
   }
   const regions = await getRegions();
   return (
