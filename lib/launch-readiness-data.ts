@@ -460,8 +460,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "compliance-security", area: "compliance", title: "Security tests & audit remediation",
       description: "The 19 Aug audit's launch blockers closed and guarded by tests.",
       status: "needs_verification", criticality: "launch_blocker", weight: 6,
-      evidence: "RPC lockdown, identity binding, column locks and atomic redemption landed with rpc-exposure, identity-binding and column-locks suites. 24 Sep: column-locks suite fails from a stale fixture, not a regression — production has 0 hubs so its join returns no row, and it picked the admin's own driver row. Re-run by hand: business, insert and non-admin driver locks hold; hub locks cannot be exercised until a hub exists. No full re-audit since 19 Aug.",
-      nextAction: "Repair the column-locks fixture (no hub, admin-owned driver row), then re-run the audit's blocker list and record each closure.",
+      evidence: "RPC lockdown, identity binding, column locks and atomic redemption landed with rpc-exposure, identity-binding and column-locks suites. 24 Sep: column-locks investigation completed — no live security regression. The failure was a harness/fixture fault: production has 0 hubs and every owned business plus the first driver row belong to an admin (a trusted writer by design), so the probe returned no row. Live lock triggers and functions match migration 20260819180000. Harness repaired (delivers 0333065): non-admin business, hub and driver fixtures built inside a rolled-back transaction; 24/24 assertions pass against the live schema, including hub locks and driver self-approval. No production data or controls were changed. The rest of the 19 Aug blocker list has not been re-audited since 19 Aug.",
+      nextAction: "Review the remaining 19 Aug security-audit blocker list and close each outstanding item with evidence.",
       lastUpdated: "2026-09-24",
     },
     {
