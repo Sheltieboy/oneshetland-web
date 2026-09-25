@@ -273,18 +273,16 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "payments-live-cutover", area: "payments", title: "Stripe live-mode cutover",
       description: "Live keys, live prices, live webhook, Supabase secrets and live publishable key on web and app.",
-      status: "not_started", criticality: "launch_blocker", weight: 10,
-      evidence: "Both apps still use pk_test. Dashboard work only Darren can do (LAUNCH-CHECKLIST.md Phase 2).",
-      nextAction: "Work through LAUNCH-CHECKLIST.md Phase 2 in one sitting.",
-      lastUpdated: "2026-09-24",
+      status: "complete", criticality: "launch_blocker", weight: 10,
+      evidence: "CONFIRMED LIVE 25 Sep. Physical acceptance: the £1.96 event-ticket purchase moved real money on live Stripe. Independently read from Stripe server-side (masked): the server's Stripe secret is a live key and the PaymentIntents for the acceptance orders report livemode true; the live webhook delivered payment_intent.succeeded and transfer.created, each processed once. The saved card was a real card (Mastercard, not a Stripe test number). NOT independently verified by me: the publishable keys baked into the production web and app builds (the local .env files still hold pk_test, so they are not evidence either way).",
+      lastUpdated: "2026-09-25",
     },
     {
       id: "payments-live-acceptance", area: "payments", title: "Live-mode payment acceptance",
       description: "One real low-value payment through each money path, plus a refund.",
-      status: "blocked", criticality: "launch_blocker", weight: 6,
-      evidence: "Waits on live-mode cutover.",
-      nextAction: "LAUNCH-CHECKLIST.md Phase 6 after cutover.",
-      lastUpdated: "2026-09-24",
+      status: "complete", criticality: "launch_blocker", weight: 6,
+      evidence: "PHYSICALLY ACCEPTED 25 Sep on live Stripe for the paid-event money path: successful £1.96 payment, webhook fulfilment, destination charge with 96p application fee, £1.00 net to the organiser's connected account, ticket issued, scanned and checked in, second scan refused. Refunds proven: orders abcc7c92 and 245bd018 are each fully refunded in Stripe (£1.96 charge refunded, amount_refunded 196) and marked refunded in the database, refunded back to the real card by Darren. SCOPE: this covers the event-ticket path. Other money paths (product orders, wallet top-up, boosts, memberships, donations, gifts, Fetch) were not exercised live in this acceptance. NOTE: the third acceptance order 7d4a03a3 (the retest ticket, £1.96) is a live charge that is still NOT refunded.",
+      lastUpdated: "2026-09-25",
     },
 
     /* ── Wallet & commerce ───────────────────────────────────────────────── */
