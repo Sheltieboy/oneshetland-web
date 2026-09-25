@@ -185,18 +185,17 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "events-paid-purchase", area: "events", title: "Paid-ticket purchase acceptance (£1)",
       description: "A real buyer completes a £1 paid ticket purchase end to end in test mode.",
-      status: "in_progress", criticality: "launch_blocker", weight: 8,
-      evidence: "Merchant Stripe onboarding physically completed, payout readiness cleared, paid event published, customer checkout reached the payment stage. The £1 payment itself has not completed: the 24 Sep tests exposed the saved-card inconsistency (buyer has_payment_method=true with no bound Stripe customer). The saved-card fix is now deployed (see payments-saved-card-event) but not yet physically accepted. Abandoned attempts left no charge: order fc96d938 cancelled by the expiry job (seat returned); order 5f10d192 still pending until the same job expires it (~16:05 UTC). 0 paid orders, 0 valid tickets, tickets_sold 0.",
-      nextAction: "Rebind the buyer's card via Add card, confirm the saved card shows, then complete the £1 purchase with the saved card and again with a new card.",
-      lastUpdated: "2026-09-24",
+      status: "complete", criticality: "launch_blocker", weight: 8,
+      evidence: "Verified 25 Sep (read-only; DB plus Stripe read server-side, masked). Order abcc7c92 for 'ZZ TEST \u2014 Payout Gate Test': status paid 00:16:12 UTC, \u00a31.96 (\u00a31.00 face + 96p fee), one PaymentIntent pi_3UJ\u2026jgQM succeeded amount_received 196 gbp; 1 PaymentIntent for the order (search by metadata order_id); the 5 earlier attempts are all cancelled with cancelled tickets and never charged. Exactly one ticket valid (490a6084), 0 pending_payment; events.tickets_sold=1 and ticket type quantity_sold=1 (incremented once); webhooks payment_intent.succeeded and transfer.created each received once, status processed, attempts 1, no error. Organiser list and detail read 1 sold, 0 checked in, 0 pending (same data; not rendered). Ticket untouched: not scanned, checked_in_at null.",
+      lastUpdated: "2026-09-25",
     },
     {
       id: "events-post-payment", area: "events", title: "Order, ticket & payout after payment",
       description: "After a paid purchase: order paid, ticket valid and scannable, payment and transfer visible in Stripe.",
-      status: "blocked", criticality: "launch_blocker", weight: 6,
-      evidence: "No paid ticket order exists yet to inspect. Stays open until the £1 payment succeeds.",
-      nextAction: "After the £1 payment verify: paid order, issued ticket, unique QR/code, inventory decrement, organiser sales state, Stripe PaymentIntent, destination transfer and application fee, payout routing, scan/check-in.",
-      lastUpdated: "2026-09-24",
+      status: "in_progress", criticality: "launch_blocker", weight: 6,
+      evidence: "Verified after payment 25 Sep: order paid, one valid ticket with a validation hash, inventory incremented once, PaymentIntent succeeded, destination transfer and application fee correct, webhooks processed once, no duplicate order or PaymentIntent, abandoned orders cancelled with no inventory effect. STILL OPEN: the ticket has not been scanned or checked in (checked_in_at null, status valid), and the rendered organiser 'sold' figure and the buyer's ticket display have not been physically viewed.",
+      nextAction: "Physically scan or check in the valid ticket with the organiser tool, then confirm status used, checked-in count 1 and that a second scan is refused.",
+      lastUpdated: "2026-09-25",
     },
     {
       id: "events-ticket-ownership-display", area: "events", title: "'Your ticket' shown only for genuinely issued tickets",
@@ -239,9 +238,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "payments-saved-card-event", area: "payments", title: "Saved-card resolution for event checkout",
       description: "Ticket checkout uses the buyer's canonical default card, or says clearly why it can't.",
-      status: "needs_verification", criticality: "launch_blocker", weight: 5,
-      evidence: "DEPLOYED 24 Sep, in the agreed order. Web b529ced live 15:12 UTC (production bundle carries saved-card-state, saved_card_unavailable, 'Pay with', 'Use a different card'). Mobile iOS OTA e02ed1e3 / update 01a0d3fa on runtime 990f08a7 (no native build). Server: saved-card-state v1 (new) and create-event-ticket-intent v60 (was v59), deployed source byte-identical to commit d1a9def; no other function changed. Unauthenticated and anon-key calls get a bare 401. 30 focused tests + mutation checks passed before release. Buyer state since the generic reconciliation (payments-saved-card-rebind): the acceptance buyer (darren.fullerton@gmail.com, efb83e4b) now has a bound customer, a settled claim and 1 attached card in Stripe (dry run 25 Sep 00:07 UTC), so the saved card should appear without re-entry. NOT yet physically accepted, and never yet exercised as a real saved-card charge.",
-      nextAction: "Open the paid-event checkout as the buyer → confirm the saved card appears with brand + last4 without re-entering it and 'Pay £1.96' is explicit → then the £1 purchase with the saved card and again with a new card.",
+      status: "complete", criticality: "launch_blocker", weight: 5,
+      evidence: "Verified 25 Sep against the completed \u00a31.96 payment: the PaymentIntent's customer equals the buyer's canonical bound Stripe customer, and its payment method (Mastercard \u2022\u2022\u2022\u2022 3990, card) belongs to that same customer; no setup_future_usage, so an existing saved card was used rather than a card newly entered. Created by the deployed create-event-ticket-intent through the canonical resolver. Earlier attempts before the rebind and reconcile never reached a charge.",
       lastUpdated: "2026-09-25",
     },
     {
@@ -262,10 +260,9 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "payments-destination-charges", area: "payments", title: "Destination-charge routing",
       description: "Ticket money reaches the business's connected account, platform fee retained.",
-      status: "needs_verification", criticality: "launch_blocker", weight: 4,
-      evidence: "Code proven: transfer_data[destination] + application_fee_amount on the platform account. Re-checked 24 Sep against the DEPLOYED create-event-ticket-intent v60: still a platform-account destination charge, fee constants unchanged (95p + 1.5%), no Stripe-Account header, no on_behalf_of. No paid order yet to observe the transfer in Stripe.",
-      nextAction: "Confirm charge, fee and transfer in Stripe after the £1 purchase.",
-      lastUpdated: "2026-09-24",
+      status: "complete", criticality: "launch_blocker", weight: 4,
+      evidence: "Proven in Stripe 25 Sep on the real \u00a31.96 charge: PaymentIntent retrieved with the platform key and no Stripe-Account header (platform-account destination charge); transfer_data.destination equals the event's canonical payout account (event_payout_destination); application_fee_amount 96 matches the order's platform_fee_pence and the application-fee object (96, not refunded); transfer to the destination succeeded, not reversed; the destination account's payment is \u00a31.96 gross with 96p fee, net \u00a31.00 to the organiser. Charge paid, not refunded.",
+      lastUpdated: "2026-09-25",
     },
     {
       id: "payments-webhook-fulfilment", area: "payments", title: "Webhook fulfilment & idempotency",
