@@ -1,20 +1,30 @@
 import Link from "next/link";
 
 /**
- * Shared wrapper for policy/legal pages. Renders a consistent header, a
- * "draft — review before launch" notice, and prose styling. Content is passed
- * as children (server-rendered markup).
+ * Shared wrapper for policy/legal pages. Renders a consistent header, prose
+ * styling, and — by default — a "draft, review before launch" notice for
+ * pages that still need a solicitor's pass. Content is passed as children
+ * (server-rendered markup).
+ *
+ * `draft` defaults to `true` so every existing page keeps today's banner
+ * without needing to be touched; a page that has been reviewed and finalised
+ * (starting with Privacy, for the App Store submission) passes `draft={false}`
+ * to drop it, and shows the plain "operated by" line instead.
  */
-export function LegalLayout({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
+export function LegalLayout({ title, updated, draft = true, children }: { title: string; updated: string; draft?: boolean; children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-3xl px-5 py-12 sm:py-16">
       <Link href="/" className="text-sm font-semibold text-ink-soft hover:text-ink">← OneShetland</Link>
       <h1 className="mt-4 font-display text-4xl font-bold text-ink">{title}</h1>
       <p className="mt-2 text-sm text-ink-muted">Last updated {updated}</p>
 
-      <div className="mt-4 rounded-card border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        ⚠️ <span className="font-semibold">Draft.</span> These terms are a starting point and should be reviewed by a solicitor before launch. Operated by Darren Fullerton Consultancy Ltd, trading as OneShetland.
-      </div>
+      {draft ? (
+        <div className="mt-4 rounded-card border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          ⚠️ <span className="font-semibold">Draft.</span> These terms are a starting point and should be reviewed by a solicitor before launch. Operated by Darren Fullerton Consultancy Ltd, trading as OneShetland.
+        </div>
+      ) : (
+        <p className="mt-4 text-sm text-ink-muted">Operated by Darren Fullerton Consultancy Ltd, trading as OneShetland.</p>
+      )}
 
       <div className="legal mt-8 space-y-6 text-ink-soft">{children}</div>
 
