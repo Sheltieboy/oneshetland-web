@@ -440,8 +440,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "compliance-analytics-consent", area: "compliance", title: "Analytics consent",
       description: "Analytics only with consent.",
       status: "complete", criticality: "important", weight: 2,
-      evidence: "ConsentBanner gates AnalyticsProvider on the web.",
-      lastUpdated: "2026-08-29",
+      evidence: "CORRECTED 28 Sep. Previously marked complete on the strength of the web consent banner alone — the evidence never actually covered mobile, and mobile analytics was in fact opt-OUT by default (DEFAULT_CONSENT=true in lib/analytics.ts), creating and persisting an analytics id on every launch regardless of consent. Found during the Privacy Policy audit, fixed same day: mobile now defaults to off, creates/persists no identifier and queues/transmits nothing until the Settings toggle is explicitly turned on; a stray identifier left on a device by the old build is deleted the next time the app runs. A prior genuine opt-in is preserved exactly (CONSENT_KEY is written only by the toggle, so a stored value can only ever be a real choice). 20 tests (mobile-analytics-consent.node.test.ts), 4 mutation checks, all pass; privacy-cookie-disclosure suite updated and passing. Deployed: mobile-repo commits 124b673 + 8acdd56, iOS OTA group 614c6f84 (runtime 990f08a7, no native build needed — JS-only); web copy corrected in commit 4462faa, verified live.",
+      lastUpdated: "2026-09-28",
     },
     {
       id: "compliance-stripe-disclosure", area: "compliance", title: "Stripe disclosure",
