@@ -8,7 +8,7 @@ export default function PrivacyPage() {
       <p>This policy explains how OneShetland handles your personal data. The data controller is Darren Fullerton Consultancy Ltd, trading as OneShetland (&ldquo;we&rdquo;, &ldquo;us&rdquo;). It applies to the OneShetland website and the OneShetland iOS/mobile app alike — one account, one policy, across both.</p>
 
       <L h="What we collect">
-        <p>Account details (name, email, optional phone); profile details you choose to add; content you post (listings, events, memories/stories, photos, voice recordings, comments, and job or shift applications); transaction records including wallet top-ups, payments, loyalty stamps, points and reward redemptions; approximate location when you use location features (e.g. NFC stamps, nearby drivers); device tokens for push notifications if you enable them; and usage analytics (see below — opt-in on the website, on by default with an easy off switch in the app). Card and bank details are handled by Stripe — we never see or store full card numbers.</p>
+        <p>Account details (name, email, optional phone); profile details you choose to add; content you post (listings, events, memories/stories, photos, voice recordings, comments, and job or shift applications); transaction records including wallet top-ups, payments, loyalty stamps, points and reward redemptions; approximate location when you use location features (e.g. NFC stamps, nearby drivers); device tokens for push notifications if you enable them; and — only if you opt in — usage analytics (see below). Card and bank details are handled by Stripe — we never see or store full card numbers.</p>
       </L>
 
       <L h="How we use it">
@@ -18,7 +18,7 @@ export default function PrivacyPage() {
       <L h="Analytics &amp; cookies">
         <p>We run our own privacy-respecting analytics — <strong>there are no third-party advertising trackers on OneShetland</strong>, and nothing here is used to build an advertising profile of you.</p>
 
-        <p><strong>On the website, our analytics is opt-in.</strong> It only runs <em>if you accept it</em> in the consent banner. Until you accept, <strong>no analytics identifier is created at all</strong> — nothing is stored in your browser and nothing is sent. If you decline, it stays off. <strong>In the app, analytics runs by default</strong>, the same way most apps behave, but you can turn it off at any time in Account → Notification preferences — doing so stops it immediately. On either platform, when analytics is on it records product events (like &ldquo;viewed an event&rdquo;) against a random identifier, not your name. We also count clicks on our social-media short links (oneshetland.com/go/&hellip;) anonymously — no cookie is set and no profile is built.</p>
+        <p><strong>Our analytics is opt-in, on the website and in the app alike.</strong> On the website it only runs <em>if you accept it</em> in the consent banner. In the app it only runs <em>if you turn it on</em> in Account → Notification preferences. Either way, until you say yes, <strong>no analytics identifier is created at all</strong> — nothing is stored on your device and nothing is sent. If you decline, or simply never choose, it stays off. You can change your mind at any time in the same place, on either platform, and it takes effect immediately. When analytics is on, it records product events (like &ldquo;viewed an event&rdquo;) against a random identifier, not your name. We also count clicks on our social-media short links (oneshetland.com/go/&hellip;) anonymously — no cookie is set and no profile is built.</p>
 
         <p><strong>Storage we need to run the site.</strong> Separately from analytics, your browser stores a few things so OneShetland works: your sign-in session; your answer to the analytics banner (so we stop asking); and things you set up yourself, such as a shopping basket or a saved preference. None of this is used for advertising profiling.</p>
 
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
       </L>
 
       <L h="Lawful basis">
-        <p>We rely on: performance of a contract (running your account and transactions); legitimate interests (keeping the platform safe and improving it, publishing business directory information, and app analytics, which is on by default but easy to turn off); consent (marketing, push notifications and website analytics, each of which you can withdraw anytime); and legal obligation (tax, fraud prevention, Gift Aid records).</p>
+        <p>We rely on: performance of a contract (running your account and transactions); legitimate interests (keeping the platform safe and improving it, and publishing business directory information); consent (marketing, push notifications, and analytics on both the website and in the app, each of which you can withdraw anytime); and legal obligation (tax, fraud prevention, Gift Aid records).</p>
       </L>
 
       <L h="Who we share it with">
