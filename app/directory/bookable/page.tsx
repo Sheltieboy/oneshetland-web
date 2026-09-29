@@ -1,18 +1,27 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  getBookableBusinesses,
-  getServiceCounts,
+  getBookableServices,
+  money,
   CATEGORIES,
   CATEGORY_LABEL,
   SHETLAND_AREAS,
 } from "@/lib/local-data";
-import { BusinessCard } from "@/components/local/LocalUI";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Book in Shetland" };
 
 const DIR = "#4f46e5";
+
+/** "1h 30m" / "45m" / "2h" — same shape as the owner-side formatter in
+ *  lib/book-manage-items.ts, kept separate because that module is
+ *  "use client" and this page is a server component. */
+function duration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 export default async function BookablePage({
   searchParams,
@@ -20,8 +29,18 @@ export default async function BookablePage({
   searchParams: Promise<{ category?: string; area?: string }>;
 }) {
   const { category, area } = await searchParams;
-  const businesses = await getBookableBusinesses({ category, area });
-  const counts = await getServiceCounts(businesses.map((b) => b.id));
+  const services = await getBookableServices({ category, area });
+
+  // Group by business — the business is still shown and still clickable for
+  // context, it just is not the unit of the list any more. Order follows
+  // the query's own order (verified-then-name business order, display_order
+  // within a business), not re-sorted here.
+  const businessOrder: string[] = [];
+  const seen = new Set<string>();
+  for (const s of services) {
+    if (!seen.has(s.business_id)) { seen.add(s.business_id); businessOrder.push(s.business_id); }
+  }
+  const grouped = businessOrder.map((id) => services.filter((s) => s.business_id === id));
 
   // Build a /directory/bookable URL preserving filters, overriding given keys.
   const buildHref = (overrides: Record<string, string | null>) => {
@@ -62,8 +81,8 @@ export default async function BookablePage({
           </p>
           <h1 className="mt-2 font-display text-5xl font-bold leading-none sm:text-6xl">Book in Shetland</h1>
           <p className="mt-4 max-w-xl text-lg text-paper/90">
-            Every Shetland business taking bookings — barbers and beauty, boat trips, classes and
-            more. Pick a place, then book a slot.
+            Everything you can book right now — barbers and beauty, boat trips, classes and more.
+            Pick a service, pick a slot.
           </p>
         </div>
       </section>
@@ -87,23 +106,48 @@ export default async function BookablePage({
       <div className="mx-auto max-w-6xl px-5 py-12 sm:py-14">
         <div className="mb-8 flex items-baseline justify-between">
           <h2 className="font-display text-2xl font-bold">
-            {category ? CATEGORY_LABEL[category] ?? "Bookable" : "Bookable businesses"}
+            {category ? CATEGORY_LABEL[category] ?? "Bookable" : "Bookable services"}
           </h2>
           <p className="text-sm text-ink-muted">
-            {businesses.length} place{businesses.length === 1 ? "" : "s"}
+            {services.length} service{services.length === 1 ? "" : "s"}
           </p>
         </div>
 
-        {businesses.length > 0 ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {businesses.map((b) => {
-              const n = counts[b.id] ?? 0;
+        {grouped.length > 0 ? (
+          <div className="space-y-6">
+            {grouped.map((group) => {
+              const b = group[0];
+              const bizHref = `/directory/${b.business_slug ?? b.business_id}`;
               return (
-                <div key={b.id} className="flex flex-col gap-2">
-                  <BusinessCard b={b} />
-                  <p className="px-1 text-xs font-semibold text-ink-muted">
-                    📅 {n === 0 ? "Bookings open" : `${n} service${n === 1 ? "" : "s"} to book`}
-                  </p>
+                <div key={b.business_id} className="overflow-hidden rounded-2xl border border-line bg-paper shadow-soft">
+                  <Link href={bizHref} className="flex items-center gap-3 border-b border-line bg-sand/60 px-4 py-3 transition hover:bg-sand">
+                    <span className="font-display font-bold text-ink hover:underline">{b.business_name}</span>
+                    {b.business_category && (
+                      <span className="text-xs font-semibold text-ink-muted">{CATEGORY_LABEL[b.business_category] ?? b.business_category}</span>
+                    )}
+                  </Link>
+                  <div className="divide-y divide-line">
+                    {group.map((s) => (
+                      <div key={s.id} className="flex items-center justify-between gap-4 p-4">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-ink">{s.name}</h3>
+                          <p className="text-sm text-ink-muted">
+                            {duration(s.duration_minutes)}{s.description ? ` · ${s.description}` : ""}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3">
+                          <span className="font-display text-lg font-bold" style={{ color: DIR }}>{money(s.price_pence)}</span>
+                          <Link
+                            href={`${bizHref}?book=${s.id}`}
+                            className="rounded-pill px-4 py-1.5 text-sm font-semibold text-paper transition hover:brightness-95"
+                            style={{ background: DIR }}
+                          >
+                            Book
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })}

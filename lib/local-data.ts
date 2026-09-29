@@ -486,49 +486,84 @@ export async function getAllBusinesses(
 }
 
 /* ── Bookable browse ──────────────────────────────────────────────────────── */
-export async function getBookableBusinesses(
+
+export type BookableService = {
+  id: string;
+  business_id: string;
+  name: string;
+  description: string | null;
+  duration_minutes: number;
+  price_pence: number;
+  category: string | null;
+  business_name: string;
+  business_logo_url: string | null;
+  business_category: string | null;
+  business_slug: string | null;
+  business_address: string | null;
+};
+
+/**
+ * Active services at businesses that are actually live for bookings — the
+ * thing "Book" pointed customers at a business LIST to find, making them
+ * open a business, scroll to "Book online" and pick a service themselves.
+ *
+ * Eligibility is the same isBookableLive() rule the app and business-detail
+ * page already use (accepts_bookings AND subscription_tier === 'premium' AND
+ * is_active), applied here explicitly rather than reconstructed: the
+ * function this replaces filtered only on accepts_bookings, so a business
+ * that had toggled bookings on without (or after losing) Premium could
+ * appear here while its own "Book online" section would not show it.
+ */
+export async function getBookableServices(
   opts: { category?: string; area?: string } = {},
-): Promise<Business[]> {
+): Promise<BookableService[]> {
   const sb = publicClient();
   try {
-    let q = sb
+    // Exactly isBookableLive()'s rule — no subscription_until check, because
+    // that function does not have one either. Adding one here would not fix
+    // anything; it would just give web a stricter answer than mobile to the
+    // same question, a new mismatch in place of the old one.
+    let bizQ = sb
       .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .eq("accepts_bookings", true)
-      .order("subscription_tier", { ascending: false })
+      .eq("subscription_tier", "premium")
       .order("is_verified", { ascending: false })
       .order("name", { ascending: true })
       .limit(200);
-    if (opts.category) q = q.eq("category", opts.category);
+    if (opts.category) bizQ = bizQ.eq("category", opts.category);
     if (opts.area) {
       const a = sanitizeOrTerm(opts.area);
-      if (a) q = q.ilike("address", `%${a}%`);
+      if (a) bizQ = bizQ.ilike("address", `%${a}%`);
     }
-    const { data } = await q;
-    return (data ?? []) as unknown as Business[];
+    const { data: bizRows } = await bizQ;
+    const businesses = (bizRows ?? []) as unknown as Business[];
+    if (businesses.length === 0) return [];
+    const bizMap = new Map(businesses.map((b) => [b.id, b]));
+
+    const services = unwrapPublic("bookable services on /directory/bookable", await sb
+      .from("book_services")
+      .select("id, business_id, name, description, duration_minutes, price_pence, category, display_order, created_at")
+      .eq("is_active", true)
+      .in("business_id", businesses.map((b) => b.id))
+      .order("display_order", { ascending: true })
+      .order("created_at", { ascending: false }), []);
+
+    const out: BookableService[] = [];
+    for (const s of services as Array<{ id: string; business_id: string; name: string; description: string | null; duration_minutes: number; price_pence: number; category: string | null }>) {
+      const b = bizMap.get(s.business_id);
+      if (!b) continue;
+      out.push({
+        id: s.id, business_id: s.business_id, name: s.name, description: s.description,
+        duration_minutes: s.duration_minutes, price_pence: s.price_pence, category: s.category,
+        business_name: b.name, business_logo_url: b.logo_url,
+        business_category: b.category, business_slug: b.slug, business_address: b.address,
+      });
+    }
+    return out;
   } catch {
     return [];
-  }
-}
-
-/** Count of active bookable services per business (for the bookable browse). */
-export async function getServiceCounts(businessIds: string[]): Promise<Record<string, number>> {
-  if (businessIds.length === 0) return {};
-  const sb = publicClient();
-  try {
-    const data = unwrapPublic("service counts on /directory/bookable", await sb
-      .from("book_services")
-      .select("business_id")
-      .eq("is_active", true)
-      .in("business_id", businessIds), []);
-    const counts: Record<string, number> = {};
-    for (const r of data as { business_id: string }[]) {
-      counts[r.business_id] = (counts[r.business_id] ?? 0) + 1;
-    }
-    return counts;
-  } catch {
-    return {};
   }
 }
 

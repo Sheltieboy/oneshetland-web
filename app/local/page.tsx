@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getLocalFeed, getActiveLocalPasses, getNoticeBroadcastState, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
+import { getLocalFeed, getActiveLocalPasses, getBookableServices, money, getNoticeBroadcastState, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
 import { getAccount } from "@/lib/auth";
 import { NoticeBroadcast } from "@/components/notices/NoticeBroadcast";
 import { SafeImage } from "@/components/ui/SafeImage";
@@ -12,6 +12,7 @@ const LOCAL = "#7c3aed";
 const JOBS_COLOR = "#0ea5e9";
 const OFFERS_COLOR = "#d97706";
 const PASSES_COLOR = "#7c3aed";
+const BOOK_COLOR = "#059669";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   food_drink: "🍽",
@@ -37,6 +38,14 @@ function fmtDate(iso: string) {
   });
 }
 
+/** "1h 30m" / "45m" / "2h" */
+function formatServiceDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+
 export default async function LocalPage({
   searchParams,
 }: {
@@ -45,9 +54,10 @@ export default async function LocalPage({
   const { area } = await searchParams;
   // Events are What's On's job now — Local no longer fetches or duplicates
   // its own carousel of them.
-  const [{ jobs, businesses, notices, offers }, passes] = await Promise.all([
+  const [{ jobs, businesses, notices, offers }, passes, bookableServices] = await Promise.all([
     getLocalFeed(area),
     getActiveLocalPasses(9),
+    getBookableServices({ area }),
   ]);
   // Only platform admins see the island-wide broadcast control.
   const account = await getAccount();
@@ -57,9 +67,12 @@ export default async function LocalPage({
     : {};
   const areaLabel = SHETLAND_AREAS.find((a) => a.key === area)?.label;
 
-  // Curated-proposition counts (Local = offers / passes / bookable / cashback,
-  // not an exhaustive business list — that lives in the Directory).
-  const bookableCount = businesses.filter((b) => b.accepts_bookings).length;
+  // Curated-proposition counts (Local = offers / passes / bookable services /
+  // cashback, not an exhaustive business list — that lives in the Directory).
+  // bookableServices counts SERVICES, not businesses with the flag toggled on
+  // — "1 bookable spots" used to count a business that had turned bookings on
+  // with zero actual services to book, which is not a "spot" a customer can
+  // do anything with.
   const cashbackCount = businesses.filter((b) => (b.cashback_percent ?? 0) > 0).length;
 
   // Every stat and pillar here hangs off something that is actually true right
@@ -68,7 +81,7 @@ export default async function LocalPage({
   // reading "0" never advertises emptiness as if it were a feature.
   const hasOffers = offers.length > 0;
   const hasPasses = passes.length > 0;
-  const hasBookable = bookableCount > 0;
+  const hasBookable = bookableServices.length > 0;
   const hasCashback = cashbackCount > 0;
   const pillars = [
     ...(hasOffers
@@ -78,7 +91,7 @@ export default async function LocalPage({
       ? [{ emoji: "🎫", title: "Passes & experiences", body: "Buy once, use more than once", href: "#passes", color: PASSES_COLOR }]
       : []),
     ...(hasBookable
-      ? [{ emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" }]
+      ? [{ emoji: "📅", title: "Book now", body: "Pick a service, pick a slot", href: "#book", color: BOOK_COLOR }]
       : []),
     ...(hasCashback
       ? [{ emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL }]
@@ -135,7 +148,7 @@ export default async function LocalPage({
           {[
             ...(hasOffers ? [{ n: offers.length, label: "live offers" }] : []),
             ...(hasPasses ? [{ n: passes.length, label: "passes & experiences" }] : []),
-            ...(hasBookable ? [{ n: bookableCount, label: "bookable spots" }] : []),
+            ...(hasBookable ? [{ n: bookableServices.length, label: `bookable service${bookableServices.length === 1 ? "" : "s"}` }] : []),
             ...(hasCashback ? [{ n: cashbackCount, label: "cashback partners" }] : []),
           ].map(({ n, label }) => (
             <div key={label} className="px-6 py-3 first:pl-0 last:pr-0">
@@ -329,6 +342,61 @@ export default async function LocalPage({
                         <p className="mt-1 text-xs font-semibold" style={{ color: PASSES_COLOR }}>
                           {p.uses_per_purchase > 1 ? `${p.uses_per_purchase} uses` : "1 use"}
                           {p.valid_days !== null ? ` · ${p.valid_days}d valid` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* ── Book now ─────────────────────────────────────────────────────────
+            Service-first, not business-first: finding something to book used
+            to mean opening a business from a list and scrolling to "Book
+            online" to see what it actually offered. Each card here already
+            is a bookable service — its own CTA drops straight into that
+            service's slot picker on the business page (?book=<serviceId>,
+            the same mechanism the gift-claim flow already used), never
+            through a business list first. */}
+        {hasBookable && (
+          <section id="book" className="scroll-mt-24">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: BOOK_COLOR }}>
+                  Pick a service, pick a slot
+                </p>
+                <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Book now</h2>
+              </div>
+              <Link href="/directory/bookable" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
+                See all →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {bookableServices.slice(0, 6).map((s) => {
+                const cat = s.business_category ?? "other";
+                const bizHref = `/directory/${s.business_slug ?? s.business_id}`;
+                return (
+                  <Link
+                    key={s.id}
+                    href={`${bizHref}?book=${s.id}`}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+                  >
+                    <div className="flex flex-1 items-start gap-3 p-4">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line bg-sand text-lg">
+                        {CATEGORY_EMOJI[cat] ?? "📅"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold" style={{ color: LOCAL }}>
+                          {CATEGORY_LABEL[cat] ?? cat}
+                        </p>
+                        <p className="font-display text-base font-bold leading-snug text-ink group-hover:underline">
+                          {s.name}
+                        </p>
+                        <p className="mt-0.5 text-sm text-ink-muted truncate">{s.business_name}</p>
+                        <p className="mt-1 text-xs font-semibold" style={{ color: BOOK_COLOR }}>
+                          {formatServiceDuration(s.duration_minutes)} · {money(s.price_pence)}
                         </p>
                       </div>
                     </div>
