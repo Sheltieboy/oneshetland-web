@@ -507,28 +507,28 @@ export type BookableService = {
  * thing "Book" pointed customers at a business LIST to find, making them
  * open a business, scroll to "Book online" and pick a service themselves.
  *
- * Eligibility is the same isBookableLive() rule the app and business-detail
- * page already use (accepts_bookings AND subscription_tier === 'premium' AND
- * is_active), applied here explicitly rather than reconstructed: the
- * function this replaces filtered only on accepts_bookings, so a business
- * that had toggled bookings on without (or after losing) Premium could
- * appear here while its own "Book online" section would not show it.
+ * Bookings is a Pro-and-above feature (TIER_FEATURES.bookable in
+ * lib/listing-tiers.ts — the same map business-detail's own showServices
+ * gate reads, and the same rule the server-side business_meets_tier(id,
+ * 'pro') trigger on accepts_bookings enforces), applied here explicitly
+ * rather than reconstructed: this used to require subscription_tier to be
+ * exactly 'premium', which meant a legitimate Pro business could turn
+ * bookings on server-side and then be invisible here regardless. Expressed
+ * as the same tier enumeration the rest of this file already uses for
+ * identical "Pro or above" questions (getFeaturedBusinesses), not a new
+ * pattern.
  */
 export async function getBookableServices(
   opts: { category?: string; area?: string } = {},
 ): Promise<BookableService[]> {
   const sb = publicClient();
   try {
-    // Exactly isBookableLive()'s rule — no subscription_until check, because
-    // that function does not have one either. Adding one here would not fix
-    // anything; it would just give web a stricter answer than mobile to the
-    // same question, a new mismatch in place of the old one.
     let bizQ = sb
       .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
       .eq("accepts_bookings", true)
-      .eq("subscription_tier", "premium")
+      .in("subscription_tier", ["pro", "premium"])
       .order("is_verified", { ascending: false })
       .order("name", { ascending: true })
       .limit(200);
