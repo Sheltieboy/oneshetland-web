@@ -14,7 +14,18 @@ export type RedemptionTicket = {
 };
 
 export async function startRedemption(kind: RedeemKind, refId: string, amount?: number): Promise<RedemptionTicket> {
-  const { data, error } = await createClient().functions.invoke("local-redeem-start", {
+  const sb = createClient();
+  // supabase-js falls back to the plain anon key when getSession() cannot
+  // produce a live access token (expired session, dead refresh token) — a
+  // customer with a stale tab open would then call local-redeem-start with
+  // no real identity attached, and its own auth check correctly, safely
+  // refuses it as "Unauthorised". That is accurate but unhelpful: it reads
+  // as a permissions problem on the pass itself. Checked here first so it
+  // reads as what it is — same idiom as addToAppleWallet().
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error("Your session has expired — sign in again to redeem this.");
+
+  const { data, error } = await sb.functions.invoke("local-redeem-start", {
     body: { kind, ref_id: refId, amount },
   });
   if (error) throw new Error(await fnError(error, "Could not start redemption."));
