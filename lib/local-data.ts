@@ -183,6 +183,69 @@ export async function getFeaturedBusinesses(limit = 8): Promise<Business[]> {
   }
 }
 
+export type FeedPass = {
+  id: string;
+  business_id: string;
+  name: string;
+  price_pence: number;
+  uses_per_purchase: number;
+  valid_days: number | null;
+  image_url: string | null;
+  business_name: string;
+  business_logo_url: string | null;
+  business_category: string | null;
+  business_slug: string | null;
+};
+
+/**
+ * Passes / multi-use unit items available to buy right now, across every
+ * eligible business — the Local landing page had no discovery surface for
+ * these at all; a business's own detail page showed them correctly, but
+ * nothing pointed a browsing visitor toward that page for this reason.
+ *
+ * RLS on book_unit_items already refuses a row unless the business currently,
+ * live, meets Premium (`business_meets_tier(business_id, 'premium')`) — the
+ * same rule the checkout itself enforces — so this can never surface a pass
+ * a customer couldn't actually buy. It additionally drops a business that has
+ * been deactivated, which that RLS rule does not check.
+ */
+export async function getActiveLocalPasses(limit = 9): Promise<FeedPass[]> {
+  const sb = publicClient();
+  const itemsRes = await sb
+    .from("book_unit_items")
+    .select("id, business_id, name, price_pence, uses_per_purchase, valid_days, image_url, stock")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(limit * 3); // over-fetch: some drop out on the business join below
+  const items = unwrapPublic("local:passes", itemsRes, []);
+
+  const available = items.filter((i) => i.stock === null || i.stock > 0);
+  const bizIds = [...new Set(available.map((i) => i.business_id))];
+  if (bizIds.length === 0) return [];
+
+  const bizRes = await sb
+    .from(PUBLIC_BUSINESS)
+    .select("id, name, logo_url, category, slug, is_active")
+    .in("id", bizIds);
+  const bizRows = unwrapPublic("local:passes:businesses", bizRes, []);
+  const bizMap = new Map(bizRows.map((b) => [b.id, b]));
+
+  const out: FeedPass[] = [];
+  for (const it of available) {
+    const b = bizMap.get(it.business_id);
+    if (!b || !b.is_active) continue;
+    out.push({
+      id: it.id, business_id: it.business_id, name: it.name,
+      price_pence: it.price_pence, uses_per_purchase: it.uses_per_purchase,
+      valid_days: it.valid_days, image_url: it.image_url,
+      business_name: b.name, business_logo_url: b.logo_url,
+      business_category: b.category, business_slug: b.slug,
+    });
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
 /**
  * Live offers for the public pages.
  *
@@ -630,12 +693,17 @@ export async function getLocalFeed(area?: string): Promise<{
     ),
     safe(
       (async () => {
+        // NOT ordered by subscription_tier text: "pro" sorts above "premium"
+        // alphabetically, so a plain text-descending order silently ranked a
+        // lower paying tier first the moment one existed. is_verified, then
+        // recency, is also what the mobile app's own Local feed uses — the
+        // same order, not two different answers to "what comes first".
         let q = sb.from(PUBLIC_BUSINESS)
           .select(LIST_COLS)
           .eq("is_active", true)
-          .order("subscription_tier", { ascending: false })
           .order("is_verified", { ascending: false })
-          .limit(6);
+          .order("created_at", { ascending: false })
+          .limit(20);
         if (area) q = q.ilike("address", `%${area}%`);
         const { data } = await q;
         return (data ?? []) as unknown as Business[];

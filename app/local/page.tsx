@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getLocalFeed, getNoticeBroadcastState, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
+import { getLocalFeed, getActiveLocalPasses, getNoticeBroadcastState, offerBadge, SHETLAND_AREAS } from "@/lib/local-data";
 import { getAccount } from "@/lib/auth";
 import { NoticeBroadcast } from "@/components/notices/NoticeBroadcast";
 import { SafeImage } from "@/components/ui/SafeImage";
@@ -9,9 +9,9 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Local" };
 
 const LOCAL = "#7c3aed";
-const EVENTS_COLOR = "#d4921a";
 const JOBS_COLOR = "#0ea5e9";
 const OFFERS_COLOR = "#d97706";
+const PASSES_COLOR = "#7c3aed";
 
 const CATEGORY_EMOJI: Record<string, string> = {
   food_drink: "🍽",
@@ -36,11 +36,6 @@ function fmtDate(iso: string) {
     weekday: "short", day: "numeric", month: "short",
   });
 }
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("en-GB", {
-    hour: "2-digit", minute: "2-digit",
-  });
-}
 
 export default async function LocalPage({
   searchParams,
@@ -48,7 +43,12 @@ export default async function LocalPage({
   searchParams: Promise<{ area?: string }>;
 }) {
   const { area } = await searchParams;
-  const { events, jobs, businesses, notices, offers } = await getLocalFeed(area);
+  // Events are What's On's job now — Local no longer fetches or duplicates
+  // its own carousel of them.
+  const [{ jobs, businesses, notices, offers }, passes] = await Promise.all([
+    getLocalFeed(area),
+    getActiveLocalPasses(9),
+  ]);
   // Only platform admins see the island-wide broadcast control.
   const account = await getAccount();
   const isAdmin = account?.profile?.role === "admin";
@@ -57,21 +57,32 @@ export default async function LocalPage({
     : {};
   const areaLabel = SHETLAND_AREAS.find((a) => a.key === area)?.label;
 
-  // Curated-proposition counts (Local = offers / bookable / cashback, not an
-  // exhaustive business list — that lives in the Directory).
+  // Curated-proposition counts (Local = offers / passes / bookable / cashback,
+  // not an exhaustive business list — that lives in the Directory).
   const bookableCount = businesses.filter((b) => b.accepts_bookings).length;
   const cashbackCount = businesses.filter((b) => (b.cashback_percent ?? 0) > 0).length;
 
-  // Everything about offers on this page hangs off the offers we actually have.
-  // No flag, nothing to switch back on — the first published offer restores the
-  // stat, the tile and the section together.
+  // Every stat and pillar here hangs off something that is actually true right
+  // now. No flag, nothing to remember to switch back on — the first thing that
+  // qualifies restores its own stat, pillar and section together, and a count
+  // reading "0" never advertises emptiness as if it were a feature.
   const hasOffers = offers.length > 0;
+  const hasPasses = passes.length > 0;
+  const hasBookable = bookableCount > 0;
+  const hasCashback = cashbackCount > 0;
   const pillars = [
     ...(hasOffers
       ? [{ emoji: "🏷", title: "Offers & deals", body: "Exclusive savings from local businesses", href: "#offers", color: OFFERS_COLOR }]
       : []),
-    { emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" },
-    { emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL },
+    ...(hasPasses
+      ? [{ emoji: "🎫", title: "Passes & experiences", body: "Buy once, use more than once", href: "#passes", color: PASSES_COLOR }]
+      : []),
+    ...(hasBookable
+      ? [{ emoji: "📅", title: "Bookable experiences", body: "Reserve a table, a slot or a stay", href: "/directory/bookable", color: "#059669" }]
+      : []),
+    ...(hasCashback
+      ? [{ emoji: "👛", title: "Cashback partners", body: "Earn back when you spend in your wallet", href: "/directory", color: LOCAL }]
+      : []),
   ];
 
   return (
@@ -114,16 +125,18 @@ export default async function LocalPage({
       </section>
 
       {/* ── Stats strip ─────────────────────────────────────────────────── */}
-      {/* The offer count appears only when there is something to count. A
-          headline reading "0 live offers" is a worse first impression than no
-          headline at all, and it comes back on its own the moment a business
-          publishes one — driven by `offers`, with nothing to remember to switch. */}
+      {/* Every stat here appears only when there is something to count. A
+          headline reading "0 live offers" or "0 bookable spots" is a worse
+          first impression than no headline at all, and each one comes back on
+          its own the moment it has something to say — driven by the same data
+          as its pillar and section above, nothing to remember to switch. */}
       <div className="border-b border-line bg-paper">
         <div className="mx-auto flex max-w-6xl divide-x divide-line px-5">
           {[
             ...(hasOffers ? [{ n: offers.length, label: "live offers" }] : []),
-            { n: bookableCount, label: "bookable spots" },
-            { n: cashbackCount, label: "cashback partners" },
+            ...(hasPasses ? [{ n: passes.length, label: "passes & experiences" }] : []),
+            ...(hasBookable ? [{ n: bookableCount, label: "bookable spots" }] : []),
+            ...(hasCashback ? [{ n: cashbackCount, label: "cashback partners" }] : []),
           ].map(({ n, label }) => (
             <div key={label} className="px-6 py-3 first:pl-0 last:pr-0">
               <span className="font-display text-xl font-bold text-ink">{n}</span>
@@ -142,7 +155,7 @@ export default async function LocalPage({
             there are offers — so with none it was a link that scrolled nowhere.
             It travels with its destination now. The grid follows the count so a
             two-tile row still fills the width. */}
-        <section className={"grid gap-4 " + (pillars.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
+        <section className={"grid gap-4 sm:grid-cols-2 " + (pillars.length >= 4 ? "lg:grid-cols-4" : pillars.length === 3 ? "lg:grid-cols-3" : "")}>
           {pillars.map((p) => (
             <Link
               key={p.title}
@@ -251,6 +264,81 @@ export default async function LocalPage({
           </section>
         )}
 
+        {/* ── Passes & experiences ────────────────────────────────────────────
+            Multi-use passes (class packs, day passes) bought once and spent
+            down over several visits — distinct from a timed booking, and
+            previously undiscoverable from Local at all: a business's own page
+            showed these correctly, but nothing here ever pointed at one. */}
+        {hasPasses && (
+          <section id="passes" className="scroll-mt-24">
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest" style={{ color: PASSES_COLOR }}>
+                  Buy once, use more than once
+                </p>
+                <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Passes &amp; experiences</h2>
+              </div>
+              <Link href="/directory" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
+                Find more →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {passes.map((p) => {
+                const cat = p.business_category ?? "other";
+                const href = `/directory/${p.business_slug ?? p.business_id}`;
+                return (
+                  <Link
+                    key={p.id}
+                    href={href}
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+                  >
+                    {/* Cover */}
+                    <div className="relative h-36 sm:h-40" style={{ background: PASSES_COLOR + "14" }}>
+                      {p.image_url ? (
+                        <SafeImage src={p.image_url} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center">
+                          <span className="text-5xl opacity-25">{CATEGORY_EMOJI[cat] ?? "🎫"}</span>
+                        </div>
+                      )}
+                      {/* Price badge */}
+                      <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-black text-white shadow"
+                        style={{ background: PASSES_COLOR }}>
+                        🎫 £{(p.price_pence / 100).toFixed(2)}
+                      </div>
+                    </div>
+                    {/* Body */}
+                    <div className="flex flex-1 items-start gap-3 p-4">
+                      <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-line bg-sand">
+                        {p.business_logo_url ? (
+                          <img src={p.business_logo_url} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center text-lg">
+                            {CATEGORY_EMOJI[cat] ?? "📍"}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold" style={{ color: LOCAL }}>
+                          {CATEGORY_LABEL[cat] ?? cat}
+                        </p>
+                        <p className="font-display text-base font-bold leading-snug text-ink group-hover:underline">
+                          {p.name}
+                        </p>
+                        <p className="mt-0.5 text-sm text-ink-muted truncate">{p.business_name}</p>
+                        <p className="mt-1 text-xs font-semibold" style={{ color: PASSES_COLOR }}>
+                          {p.uses_per_purchase > 1 ? `${p.uses_per_purchase} uses` : "1 use"}
+                          {p.valid_days !== null ? ` · ${p.valid_days}d valid` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* ── Businesses ──────────────────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between gap-4 mb-6">
@@ -311,78 +399,6 @@ export default async function LocalPage({
             </div>
           )}
         </section>
-        {/* ── Events ──────────────────────────────────────────────────────── */}
-        <section>
-          <div className="flex items-center justify-between gap-4 mb-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest" style={{ color: EVENTS_COLOR }}>
-                {areaLabel ? `Events in ${areaLabel}` : "What's on"}
-              </p>
-              <h2 className="mt-0.5 font-display text-2xl font-bold sm:text-3xl">Upcoming events</h2>
-            </div>
-            <Link href="/whats-on" className="shrink-0 rounded-full border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand">
-              See all →
-            </Link>
-          </div>
-
-          {events.length === 0 ? (
-            <EmptySection
-              icon="📅"
-              title="No events listed yet"
-              body={areaLabel ? `Be the first to add an event in ${areaLabel}.` : "Check back soon — events are added regularly."}
-            />
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {events.map((ev) => (
-                <Link
-                  key={ev.id}
-                  href={`/whats-on/${ev.id}`}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
-                >
-                  {/* Cover */}
-                  <div className="relative h-36 bg-events/10 sm:h-40">
-                    {ev.cover_url ? (
-                      <SafeImage src={ev.cover_url} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center">
-                        <span className="text-5xl opacity-20">📅</span>
-                      </div>
-                    )}
-                    {/* Date badge */}
-                    <div className="absolute left-3 top-3 rounded-xl bg-white/95 px-2.5 py-1.5 shadow backdrop-blur-sm">
-                      <p className="text-center text-xs font-black uppercase tracking-wide leading-none" style={{ color: EVENTS_COLOR }}>
-                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { month: "short" })}
-                      </p>
-                      <p className="text-center text-xl font-black leading-tight text-ink">
-                        {new Date(ev.starts_at).toLocaleDateString("en-GB", { day: "numeric" })}
-                      </p>
-                    </div>
-                    {/* Tickets pill */}
-                    {ev.has_tickets && (
-                      <div className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-xs font-bold shadow"
-                        style={{ background: EVENTS_COLOR, color: "#fff" }}>
-                        {ev.price_text ?? "Get tickets"}
-                      </div>
-                    )}
-                  </div>
-                  {/* Body */}
-                  <div className="flex flex-1 flex-col p-4">
-                    <p className="font-display text-base font-bold leading-snug text-ink group-hover:text-events">
-                      {ev.title}
-                    </p>
-                    <p className="mt-1 text-sm text-ink-muted">
-                      {fmtDate(ev.starts_at)} · {fmtTime(ev.starts_at)}
-                    </p>
-                    {ev.venue && (
-                      <p className="mt-0.5 text-xs text-ink-faint">{ev.venue}</p>
-                    )}
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
         {/* ── Jobs ────────────────────────────────────────────────────────── */}
         {(jobs.length > 0) && (
           <section>
