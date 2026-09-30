@@ -227,13 +227,10 @@ export async function createBooking(input: CreateBookingInput): Promise<{ id: st
     throw error;
   }
 
-  // If this booking was paid by a gift, mark the gift as used (mirrors the app's book-api.ts).
-  if (input.giftId) {
-    await sb
-      .from("book_gifts")
-      .update({ status: "used", used_at: new Date().toISOString() })
-      .eq("id", input.giftId);
-  }
+  // If this booking was paid by a gift, the sync_gift_status_with_booking
+  // trigger has already moved it to 'used' server-side, atomically with the
+  // insert above — book_gifts has no UPDATE policy for the customer, so a
+  // client-side update here would silently affect zero rows.
 
   // Notify the business owner (fire-and-forget).
   sb.functions.invoke("notify-booking", { body: { booking_id: (data as { id: string }).id, event: "created" } }).catch(() => {});
