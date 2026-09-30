@@ -2,7 +2,7 @@ import Link from "next/link";
 import { StatusPill } from "@/components/admin/AdminUI";
 import {
   CRITICALITY_LABEL, FILTERS, FILTER_LABEL, STATUS_CONTRIBUTION, STATUS_LABEL,
-  computeReadiness, filterItems, inLaunchScope, isOpenBlocker, isStatus, recentlyCompleted, sortForDisplay,
+  computeAreaReadiness, computeReadiness, filterItems, inLaunchScope, isOpenBlocker, isStatus, recentlyCompleted, sortForDisplay,
   type ReadinessDataset, type ReadinessFilter, type ReadinessItem, type Status,
 } from "@/lib/launch-readiness";
 
@@ -81,6 +81,7 @@ function ItemRow({ item, areaTitle }: { item: ReadinessItem; areaTitle?: string 
 
 export function LaunchReadinessDashboard({ data, view, area }: { data: ReadinessDataset; view: ReadinessFilter; area: string | null }) {
   const summary = computeReadiness(data);
+  const byArea = computeAreaReadiness(data);
   const areaTitle = Object.fromEntries(data.categories.map((c) => [c.id, c.title]));
   const launchItems = data.items.filter(inLaunchScope);
   const postLaunch = data.items.filter((i) => !inLaunchScope(i));
@@ -183,12 +184,17 @@ export function LaunchReadinessDashboard({ data, view, area }: { data: Readiness
         </div>
         <div className="mb-5 flex flex-wrap gap-1.5">
           <Link href={hrefFor(view, null)} className={"rounded-pill px-3 py-1 text-xs font-semibold " + (!validArea ? "bg-navy text-white" : "bg-sand text-ink-soft hover:bg-line")}>All areas</Link>
-          {data.categories.map((c) => (
-            <Link key={c.id} href={hrefFor(view, c.id)}
-              className={"rounded-pill px-3 py-1 text-xs font-semibold " + (validArea === c.id ? "bg-navy text-white" : "bg-sand text-ink-soft hover:bg-line")}>
-              {c.title}
-            </Link>
-          ))}
+          {data.categories.map((c) => {
+            const active = validArea === c.id;
+            const pct = byArea[c.id]?.percent;
+            return (
+              <Link key={c.id} href={hrefFor(view, c.id)}
+                className={"inline-flex items-baseline gap-2 rounded-pill px-3 py-1 text-xs font-semibold " + (active ? "bg-navy text-white" : "bg-sand text-ink-soft hover:bg-line")}>
+                {c.title}
+                {pct != null && <span className={"text-[0.6875rem] font-medium tabular-nums " + (active ? "text-white/70" : "text-ink-faint")}>{pct}%</span>}
+              </Link>
+            );
+          })}
         </div>
 
         {shown.length === 0 ? (
@@ -199,7 +205,8 @@ export function LaunchReadinessDashboard({ data, view, area }: { data: Readiness
               const inArea = shown.filter((i) => i.area === c.id);
               if (inArea.length === 0) return null;
               const all = launchItems.filter((i) => i.area === c.id);
-              const areaSummary = computeReadiness({ categories: data.categories, items: all });
+              const areaSummary = byArea[c.id];
+              if (!areaSummary) return null;
               return (
                 <div key={c.id}>
                   <div className="mb-2 flex flex-wrap items-center gap-3">

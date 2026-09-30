@@ -147,6 +147,18 @@ export function computeReadiness(data: ReadinessDataset): ReadinessSummary {
   };
 }
 
+/**
+ * Readiness per area, by running computeReadiness over that area's items — the
+ * same weights, contributions and flooring as the headline, never a second
+ * formula. An area with no launch-scope items is null, not a fake 0%.
+ */
+export function computeAreaReadiness(data: ReadinessDataset): Record<string, ReadinessSummary | null> {
+  return Object.fromEntries(data.categories.map((c) => {
+    const items = data.items.filter((i) => i.area === c.id);
+    return [c.id, items.some(inLaunchScope) ? computeReadiness({ categories: data.categories, items }) : null];
+  }));
+}
+
 export const FILTERS = ["all", "blockers", "attention", "complete"] as const;
 export type ReadinessFilter = (typeof FILTERS)[number];
 
