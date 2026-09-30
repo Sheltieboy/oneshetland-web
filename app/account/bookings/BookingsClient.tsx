@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { gbp } from "@/lib/currency";
 import { fetchMyBookings, cancelBooking, type MyBooking, type BookingStatus } from "@/lib/book-data";
+import { fetchMyGiftsReceived, type MyGiftReceived } from "@/lib/passes-data";
 import { SHETLAND_TZ } from "@/lib/shetland-time";
 
 const LOCAL = "#7c3aed";
@@ -24,6 +25,7 @@ function formatTime(iso: string): string {
 
 export function BookingsClient() {
   const [bookings, setBookings] = useState<MyBooking[] | null>(null);
+  const [gifts, setGifts] = useState<MyGiftReceived[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -31,8 +33,12 @@ export function BookingsClient() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const rows = await fetchMyBookings();
+      const [rows, giftRows] = await Promise.all([
+        fetchMyBookings(),
+        fetchMyGiftsReceived().catch(() => [] as MyGiftReceived[]),
+      ]);
       setBookings(rows);
+      setGifts(giftRows);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load your bookings.");
       setBookings([]);
@@ -42,6 +48,16 @@ export function BookingsClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Claimed booking gifts with no live booking against them yet. `booked` is
+  // a live join against book_bookings (excluding cancelled) — see
+  // fetchMyGiftsReceived — so a cancelled gift-funded booking reverting the
+  // gift to 'claimed' makes it reappear here on the next load, and a real
+  // rebooking removes it again. No separate refresh logic needed.
+  const giftsToBook = useMemo(
+    () => gifts.filter((g) => g.kind === "booking" && g.status === "claimed" && !g.booked),
+    [gifts],
+  );
 
   const { upcoming, past } = useMemo(() => {
     const now = Date.now();
@@ -96,6 +112,17 @@ export function BookingsClient() {
         <p className="rounded-card border border-line bg-paper px-4 py-3 text-sm text-rose-600">{error}</p>
       )}
 
+      {giftsToBook.length > 0 && (
+        <section>
+          <h2 className="mb-3 font-display text-xl font-bold text-ink">Gifts to book</h2>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {giftsToBook.map((g) => (
+              <GiftToBookRow key={g.id} gift={g} />
+            ))}
+          </ul>
+        </section>
+      )}
+
       <Section title="Upcoming" emptyText="You have no upcoming bookings.">
         {upcoming.map((b) => (
           <BookingRow
@@ -117,6 +144,32 @@ export function BookingsClient() {
         ))}
       </Section>
     </div>
+  );
+}
+
+// A claimed booking gift with no live booking against it yet. Same
+// ?book=<serviceId>&gift=<giftId> deep link the gift-claim flow already
+// uses (see ServicesSection/BookServiceModal) — the recipient never has to
+// go dig out the original email to use an entitlement already on their
+// account.
+function GiftToBookRow({ gift }: { gift: MyGiftReceived }) {
+  const bizHref = `/directory/${gift.business_slug ?? gift.business_id}`;
+  return (
+    <li className="rounded-card border border-line bg-paper p-4 shadow-soft">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-display font-bold text-ink">{gift.service_name ?? "Booking"}</p>
+          {gift.business_name && <p className="truncate text-sm text-ink-soft">{gift.business_name}</p>}
+        </div>
+        <a
+          href={`${bizHref}?book=${gift.service_id}&gift=${gift.id}`}
+          className="shrink-0 rounded-pill px-4 py-1.5 text-sm font-semibold text-paper transition hover:brightness-95"
+          style={{ background: LOCAL }}
+        >
+          Book now
+        </a>
+      </div>
+    </li>
   );
 }
 

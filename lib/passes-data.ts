@@ -104,6 +104,7 @@ export interface MyGiftReceived {
   status: "claimed" | "used";
   business_id: string;
   business_name: string | null;
+  business_slug: string | null;
   service_id: string | null;
   service_name: string | null;
   unit_item_id: string | null;
@@ -178,7 +179,7 @@ export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
     .select(
       `id, code, kind, status, business_id, service_id, unit_item_id,
        purchaser_name, message, claimed_at, expires_at,
-       business:local_businesses ( name ),
+       business:local_businesses ( name, slug ),
        service:book_services ( name ),
        unit_item:book_unit_items ( name )`,
     )
@@ -193,7 +194,8 @@ export async function fetchMyGiftsReceived(): Promise<MyGiftReceived[]> {
     kind: r.kind as "unit" | "booking",
     status: r.status as "claimed" | "used",
     business_id: r.business_id as string,
-    business_name: (r.business as { name?: string } | null)?.name ?? null,
+    business_name: (r.business as { name?: string; slug?: string } | null)?.name ?? null,
+    business_slug: (r.business as { name?: string; slug?: string } | null)?.slug ?? null,
     service_id: (r.service_id as string | null) ?? null,
     service_name: (r.service as { name?: string } | null)?.name ?? null,
     unit_item_id: (r.unit_item_id as string | null) ?? null,

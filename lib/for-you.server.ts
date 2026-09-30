@@ -107,6 +107,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
   const [
     fetchItems,
     bookingItems,
+    giftToBookItems,
     ticketItems,
     loyaltyItems,
     walletItems,
@@ -117,6 +118,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
   ] = await Promise.all([
     safe(fetchDeliveries(sb, userId)),
     safe(fetchBookings(sb, userId)),
+    safe(fetchGiftsToBook(sb, userId)),
     safe(fetchTickets(sb, userId)),
     safe(fetchLoyalty(sb, userId)),
     safe(fetchWallet(sb, userId)),
@@ -129,6 +131,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
   const all = [
     ...fetchItems,
     ...bookingItems,
+    ...giftToBookItems,
     ...ticketItems,
     ...loyaltyItems,
     ...walletItems,
@@ -221,6 +224,53 @@ async function fetchBookings(sb: SB, userId: string): Promise<ForYouItem[]> {
       ts: -new Date(r.starts_at).getTime(), // soonest first
     };
   });
+}
+
+/* ── Claimed booking gifts with nowhere to go yet ─────────────────────────────
+   Deliberately a single, lightweight nudge — My Bookings' own "Gifts to
+   book" section is the actionable destination, so this points there rather
+   than re-implementing the direct ?book=&gift= link a third time. */
+
+async function fetchGiftsToBook(sb: SB, userId: string): Promise<ForYouItem[]> {
+  const { data: claimed } = await sb
+    .from("book_gifts")
+    .select("id, created_at, service:book_services(name), business:local_businesses(name)")
+    .eq("claimed_by_user_id", userId)
+    .eq("status", "claimed")
+    .eq("kind", "booking")
+    .order("claimed_at", { ascending: false })
+    .limit(5);
+
+  const rows = (claimed ?? []) as unknown as {
+    id: string;
+    created_at: string;
+    service: { name: string } | null;
+    business: { name: string } | null;
+  }[];
+  if (!rows.length) return [];
+
+  // Same "no live booking against it" derivation as fetchMyGiftsReceived —
+  // status alone is not enough to prove it's actually unspent right now.
+  const giftIds = rows.map((r) => r.id);
+  const { data: booked } = await sb.from("book_bookings").select("gift_id").in("gift_id", giftIds).neq("status", "cancelled");
+  const bookedIds = new Set((booked ?? []).map((b) => (b as { gift_id: string }).gift_id));
+  const unspent = rows.filter((r) => !bookedIds.has(r.id));
+  if (!unspent.length) return [];
+
+  const g = unspent[0];
+  return [
+    {
+      id: `gift-to-book-${g.id}`,
+      kind: "booking",
+      priority: 8,
+      icon: "calendar",
+      title: "You have a gift to book",
+      subtitle: g.service?.name ? `${g.service.name}${g.business?.name ? ` · ${g.business.name}` : ""}` : "Pick a time — no need to find the email",
+      href: "/account/bookings",
+      accent: ACCENT.booking,
+      ts: new Date(g.created_at).getTime(),
+    },
+  ];
 }
 
 /* ── Event tickets / passes ─────────────────────────────────────────────────── */
