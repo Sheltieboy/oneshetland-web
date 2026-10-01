@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { BIZ } from "@/lib/business-data";
 import { gbp } from "@/lib/currency";
+import { fetchWalletSavingsBenchmark, type WalletSavingsBenchmark } from "@/lib/wallet-data";
 
 /**
  * TransactionsLedger — the business's full money statement (v1). One read-time
@@ -63,6 +64,10 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
   const [rows, setRows] = useState<Txn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [benchmark, setBenchmark] = useState<WalletSavingsBenchmark | null>(null);
+
+  // Loaded once — the benchmark rarely changes and isn't period-dependent.
+  useEffect(() => { fetchWalletSavingsBenchmark().then(setBenchmark).catch(() => {}); }, []);
 
   const load = useCallback(async (key: PresetKey) => {
     setLoading(true); setError(null);
@@ -94,6 +99,29 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
     }
     return { grossIn, refunds, fees, cashback, netIn, costsOut, net: netIn - costsOut };
   }, [rows]);
+
+  // Estimated against the configured benchmark — a comparison, never an
+  // assertion about this merchant's real card-processing contract. Scoped to
+  // genuine pay-at-till Wallet payments (kind "wallet_payment") only: a
+  // wallet-funded gift, pass or shop order is charged at THAT rail's own
+  // commission, not the wallet rate, so comparing it against a card
+  // benchmark here would compare the wrong fee to the wrong thing.
+  const savings = useMemo(() => {
+    if (!benchmark || !benchmark.enabled) return null;
+    const walletRows = rows.filter((r) => r.direction === "in" && r.kind === "wallet_payment");
+    if (walletRows.length === 0) return null;
+    let sales = 0, walletFees = 0, cardFees = 0;
+    for (const r of walletRows) {
+      sales += r.gross_pence;
+      walletFees += r.fee_pence;
+      cardFees += Math.floor((r.gross_pence * benchmark.card_percent_bps) / 10_000) + benchmark.card_fixed_pence;
+    }
+    // Never shown as a misleading negative "saved" figure — if a
+    // misconfigured benchmark ever sits below the wallet rate, the honest
+    // commercial answer is "nothing to show", not "minus three pounds".
+    const estimatedSaved = Math.max(0, cardFees - walletFees);
+    return { sales, walletFees, cardFees, estimatedSaved };
+  }, [rows, benchmark]);
 
   function exportCsv() {
     const head = ["Date", "Type", "Description", "Customer", "Direction", "Gross (£)", "Platform fee (£)", "Cashback (£)", "Net (£)", "Status", "Reference"];
@@ -145,6 +173,26 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
         <Stat label="Cashback funded" value={`− ${gbp(totals.cashback)}`} />
         <Stat label="Net to you" value={gbp(totals.net)} accent />
       </div>
+
+      {/* Saved with Wallet — commercial, not accounting-heavy. Hidden
+          entirely when the benchmark is disabled or there's nothing to
+          compare yet, rather than showing a £0.00 that reads as a bug. */}
+      {savings && (
+        <div className="rounded-card border border-line bg-paper p-4 shadow-soft">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Saved with Wallet</p>
+          <p className="mt-1 font-display text-2xl font-bold" style={{ color: BIZ }}>{gbp(savings.estimatedSaved)} this period</p>
+          <p className="mt-1 text-xs text-ink-faint">
+            Estimated against a {(benchmark!.card_percent_bps / 100).toFixed(2)}% card-payment benchmark
+            {benchmark!.card_fixed_pence > 0 ? ` + ${gbp(benchmark!.card_fixed_pence)}` : ""} — a configured
+            comparison, not your actual card-processing rate.
+          </p>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+            <div><p className="text-ink-faint">Wallet sales</p><p className="font-semibold text-ink">{gbp(savings.sales)}</p></div>
+            <div><p className="text-ink-faint">Wallet fees</p><p className="font-semibold text-ink">{gbp(savings.walletFees)}</p></div>
+            <div><p className="text-ink-faint">Benchmark card fees</p><p className="font-semibold text-ink">{gbp(savings.cardFees)}</p></div>
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto rounded-card border border-line bg-paper shadow-soft">

@@ -50,3 +50,22 @@ export async function fetchWalletTransactions(limit = 50): Promise<WalletTransac
     business: r.business_id ? bizMap[r.business_id] ?? null : null,
   }));
 }
+
+export interface WalletSavingsBenchmark {
+  card_percent_bps: number;
+  card_fixed_pence: number;
+  enabled: boolean;
+}
+
+/**
+ * The admin-configured "what a normal card payment would have cost"
+ * comparison benchmark — a deliberately configurable estimate, never a real
+ * processor's contract. admin_config itself is admin-only; this RPC hands
+ * over exactly these three values and nothing else from that table.
+ */
+export async function fetchWalletSavingsBenchmark(): Promise<WalletSavingsBenchmark> {
+  const sb = createClient();
+  const { data, error } = await sb.rpc("get_wallet_savings_benchmark").maybeSingle();
+  if (error || !data) return { card_percent_bps: 175, card_fixed_pence: 0, enabled: true };
+  return data as WalletSavingsBenchmark;
+}
