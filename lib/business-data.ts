@@ -146,6 +146,16 @@ export type WalletReceipt = {
   refund_state?: "none" | "refunded";
   refunded_at?: string | null;
   refund_transaction_id?: string | null;
+  /**
+   * The literal transfer_state of this spend. 'failed' is the only value
+   * ever synchronously paired with an automatic reversal in the same
+   * request (wallet-ledger.ts) — Stripe rejected the transfer outright and
+   * it never reached this business. 'reversed' means it genuinely reached
+   * them ('sent') before a later, separate refund clawed it back.
+   * 'pending'/'unresolved' are awaiting resolution and must not be read
+   * either way.
+   */
+  transfer_state?: string | null;
 };
 /** Rotating at-till redemption code (table: local_business_codes). */
 export type BusinessCode = { business_id: string; current_code: string; expires_at: string; updated_at: string };

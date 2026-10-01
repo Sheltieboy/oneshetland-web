@@ -160,30 +160,43 @@ export function WalletManager({ business, receipts, canEnable, payoutReady }: {
                     <p className="text-sm font-semibold text-ink">{r.customer_first_name ?? "Customer"}</p>
                     <p className="text-xs text-ink-muted">{new Date(r.created_at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  {r.transfer_state === "failed" ? (
+                    /* The Connect transfer was REJECTED outright and never
+                       reached this business — this is automatic recovery
+                       from that failure, not a refund of money the merchant
+                       actually received. Must never say "to you" or show a
+                       fee. */
                     <div className="text-right text-sm">
-                      <p className="font-bold text-ink">£{(r.gross_pence / 100).toFixed(2)} paid</p>
-                      <p className="text-xs" style={{ color: BIZ }}>{penceOrDash(r.net_pence)} to you{r.cashback_pence ? ` · £${(r.cashback_pence / 100).toFixed(2)} cashback` : ""}</p>
+                      <p className="font-bold text-ink">Failed wallet payment</p>
+                      <p className="text-xs text-rose-700">£{(r.gross_pence / 100).toFixed(2)} attempted · customer automatically refunded</p>
+                      <span className="mt-1 inline-block rounded-lg bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">No payout to business</span>
                     </div>
-                    {r.refund_state === "refunded" ? (
-                      /* Kept in history — the money did arrive before it went back
-                         — but stated, and unpressable. The Refund control used to
-                         return after a reload and hand back a second "Refunded"
-                         for a payment already returned. */
-                      <span className="shrink-0 rounded-lg bg-sand px-2.5 py-1 text-xs font-semibold text-ink-muted">
-                        Refunded
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => { setError(null); setConfirm(r); }}
-                        disabled={refunding !== null}
-                        className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
-                      >
-                        Refund
-                      </button>
-                    )}
-                  </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="text-right text-sm">
+                        <p className="font-bold text-ink">£{(r.gross_pence / 100).toFixed(2)} paid</p>
+                        <p className="text-xs" style={{ color: BIZ }}>{penceOrDash(r.net_pence)} to you{r.cashback_pence ? ` · £${(r.cashback_pence / 100).toFixed(2)} cashback` : ""}</p>
+                      </div>
+                      {r.refund_state === "refunded" ? (
+                        /* Kept in history — the money did arrive before it went back
+                           — but stated, and unpressable. The Refund control used to
+                           return after a reload and hand back a second "Refunded"
+                           for a payment already returned. */
+                        <span className="shrink-0 rounded-lg bg-sand px-2.5 py-1 text-xs font-semibold text-ink-muted">
+                          Refunded
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => { setError(null); setConfirm(r); }}
+                          disabled={refunding !== null}
+                          className="shrink-0 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold text-ink-soft hover:text-ink disabled:opacity-50"
+                        >
+                          Refund
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

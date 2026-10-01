@@ -24,6 +24,15 @@ interface Txn {
   net_pence: number;
   status: string;
   reference: string | null;
+  /**
+   * The literal transfer_state of the underlying Wallet spend (null for
+   * every non-Wallet rail). 'failed' is the only value ever synchronously
+   * paired with an automatic reversal in the same request — Stripe
+   * rejected the transfer outright and it never reached this business,
+   * however this row's own fee/net figures read. 'reversed' means it
+   * genuinely reached them before a later, separate refund clawed it back.
+   */
+  transfer_state: string | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -148,14 +157,21 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
   }, [rows, benchmark]);
 
   function exportCsv() {
-    const head = ["Date", "Type", "Description", "Customer", "Direction", "Gross (£)", "Platform fee (£)", "Cashback (£)", "Net (£)", "Status", "Reference"];
+    const head = ["Date", "Type", "Description", "Customer", "Direction", "Gross (£)", "Platform fee (£)", "Cashback (£)", "Net (£)", "Status", "Reference", "Merchant paid"];
     // CR too: a description carrying a bare \r would otherwise split the row.
     const esc = (v: string) => /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
     const p = (n: number) => (n / 100).toFixed(2);
+    // "Merchant paid" distinguishes a failed, auto-reversed transfer (No —
+    // the stored fee/net figures never actually moved) from a genuine sale,
+    // refunded or not (Yes — gross/fee/net are what really happened, even if
+    // later reversed). Read straight off the RPC's own transfer_state, never
+    // inferred from amounts.
     const lines = rows.map((r) => [
       new Date(r.occurred_at).toISOString().slice(0, 10),
-      KIND_LABEL[r.kind] ?? r.kind, r.description, r.counterparty, r.direction,
+      r.transfer_state === "failed" ? "Failed wallet payment" : (KIND_LABEL[r.kind] ?? r.kind),
+      r.description, r.counterparty, r.direction,
       p(r.gross_pence), p(r.fee_pence), p(r.cashback_pence), p(r.net_pence), r.status, r.reference ?? "",
+      r.transfer_state === "failed" ? "No" : "Yes",
     ].map((c) => esc(String(c))).join(","));
     // U+FEFF, so the file opens EF BB BF. The data was always valid UTF-8;
     // without the mark Excel guesses the encoding from the bytes and renders
@@ -237,27 +253,46 @@ export function TransactionsLedger({ businessId, businessName }: { businessId: s
                 <th className="px-4 py-3 text-right font-bold">Fee</th>
                 <th className="px-4 py-3 text-right font-bold">Cashback</th>
                 <th className="px-4 py-3 text-right font-bold">Net</th>
+                <th className="px-4 py-3 text-right font-bold">Merchant paid</th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b border-line/60 last:border-0">
-                  <td className="whitespace-nowrap px-4 py-3 text-ink-soft">{fmtDate(r.occurred_at)}</td>
-                  <td className="px-4 py-3">
-                    <span className="font-semibold text-ink">{KIND_LABEL[r.kind] ?? r.kind}</span>
-                    <span className="block text-xs text-ink-faint">{r.description}</span>
-                  </td>
-                  <td className="px-4 py-3 text-ink-soft">{r.counterparty}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink">{gbp(r.gross_pence)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.fee_pence ? `− ${gbp(r.fee_pence)}` : "—"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{r.cashback_pence ? `− ${gbp(r.cashback_pence)}` : "—"}</td>
-                  <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (r.direction === "in" ? "text-emerald-700" : "text-rose-600")}>
-                    {r.direction === "in" ? gbp(r.net_pence)
-                      : r.direction === "refund" ? `− ${gbp(Math.abs(r.net_pence))}`
-                      : `− ${gbp(r.gross_pence)}`}
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r, i) => {
+                // 'failed' is the only transfer_state ever synchronously
+                // paired with an automatic reversal — Stripe rejected this
+                // transfer outright and it never reached this business,
+                // however the stored fee/net figures read. Must never show
+                // a fee or a net figure implying the money passed through.
+                const failed = r.transfer_state === "failed";
+                return (
+                  <tr key={i} className="border-b border-line/60 last:border-0">
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-soft">{fmtDate(r.occurred_at)}</td>
+                    <td className="px-4 py-3">
+                      <span className="font-semibold text-ink">{failed ? "Failed wallet payment" : (KIND_LABEL[r.kind] ?? r.kind)}</span>
+                      <span className="block text-xs text-ink-faint">
+                        {failed
+                          ? (r.direction === "in"
+                              ? `${gbp(r.gross_pence)} attempted · customer automatically refunded`
+                              : `${gbp(Math.abs(r.gross_pence))} automatically refunded · no fee was ever charged`)
+                          : r.description}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-ink-soft">{r.counterparty}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-ink">{gbp(r.gross_pence)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{failed ? "—" : (r.fee_pence ? `− ${gbp(r.fee_pence)}` : "—")}</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-ink-faint">{failed ? "—" : (r.cashback_pence ? `− ${gbp(r.cashback_pence)}` : "—")}</td>
+                    <td className={"px-4 py-3 text-right font-semibold tabular-nums " + (failed ? "text-ink-faint" : r.direction === "in" ? "text-emerald-700" : "text-rose-600")}>
+                      {failed ? gbp(0)
+                        : r.direction === "in" ? gbp(r.net_pence)
+                        : r.direction === "refund" ? `− ${gbp(Math.abs(r.net_pence))}`
+                        : `− ${gbp(r.gross_pence)}`}
+                    </td>
+                    <td className={"px-4 py-3 text-right text-xs font-semibold " + (failed ? "text-rose-700" : "text-ink-faint")}>
+                      {failed ? "No" : "Yes"}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
