@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { gbp } from "@/lib/currency";
 
 /**
@@ -15,6 +16,19 @@ import { gbp } from "@/lib/currency";
  * can never disagree about what "available" means.
  */
 
+interface Topup {
+  id: string;
+  stripe_topup_id: string | null;
+  amount_pence: number;
+  status: string;
+  reserve_target_pence: number;
+  desired_headroom_pence: number;
+  failure_message: string | null;
+  expected_availability_date: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 interface Snapshot {
   enabled: boolean;
   available_pence: number;
@@ -26,8 +40,12 @@ interface Snapshot {
   coverage_bps: number | null;
   low_coverage_bps: number;
   critical_coverage_bps: number;
+  desired_headroom_pence: number;
+  recommended_funding_pence: number | null;
+  funding_enabled: boolean;
   status: "healthy" | "low" | "critical" | "disabled" | "unknown";
   error?: string;
+  recent_topups: Topup[];
 }
 
 // Representative Wallet till payments, used only to show "how much MORE is
@@ -44,31 +62,39 @@ const STATUS_STYLE: Record<Snapshot["status"], { label: string; bg: string; fg: 
   unknown:  { label: "Unreadable", bg: "#fee2e2", fg: "#991b1b" },
 };
 
+const TOPUP_STATUS_LABEL: Record<string, string> = {
+  creating: "Creating…",
+  pending: "Pending with Stripe",
+  succeeded: "Succeeded",
+  failed: "Failed",
+  canceled: "Cancelled",
+  reversed: "Reversed",
+  error: "Error",
+};
+
 export function WalletLiquidityPanel() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const sb = createClient();
-        const { data, error: err } = await sb.functions.invoke("wallet-liquidity-snapshot");
-        if (cancelled) return;
-        if (err || (data as { error?: string })?.error) {
-          setError((data as { error?: string })?.error ?? err?.message ?? "Could not load liquidity");
-        } else {
-          setSnapshot(data as Snapshot);
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : "Could not load liquidity");
-      } finally {
-        if (!cancelled) setLoading(false);
+  const load = useCallback(async () => {
+    try {
+      const sb = createClient();
+      const { data, error: err } = await sb.functions.invoke("wallet-liquidity-snapshot");
+      if (err || (data as { error?: string })?.error) {
+        setError((data as { error?: string })?.error ?? err?.message ?? "Could not load liquidity");
+      } else {
+        setSnapshot(data as Snapshot);
+        setError(null);
       }
-    })();
-    return () => { cancelled = true; };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load liquidity");
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => { load(); }, [load]);
 
   return (
     <Card>
@@ -141,6 +167,12 @@ export function WalletLiquidityPanel() {
               hint="Available − reserve. Must exceed £0 by at least a transfer's size before that transfer can be permitted."
             />
             <Stat label="Coverage" value={snapshot.coverage_bps === null ? "—" : `${(snapshot.coverage_bps / 100).toFixed(0)}%`} />
+            <Stat
+              label="Recommended funding"
+              value={snapshot.recommended_funding_pence === null ? "—" : gbp(snapshot.recommended_funding_pence)}
+              accent={!!snapshot.recommended_funding_pence}
+              hint={`Targets reserve (${gbp(snapshot.reserve_pence)}) + desired headroom (${gbp(snapshot.desired_headroom_pence)}) together — reaching the reserve alone is not the goal.`}
+            />
           </div>
 
           <div className="mt-4 rounded-xl border border-line bg-paper p-3">
@@ -164,6 +196,8 @@ export function WalletLiquidityPanel() {
             </div>
           </div>
 
+          <FundingSection snapshot={snapshot} onFunded={load} />
+
           <p className="mt-3 text-xs text-ink-faint">
             Low below {(snapshot.low_coverage_bps / 100).toFixed(0)}% coverage · Critical below{" "}
             {(snapshot.critical_coverage_bps / 100).toFixed(0)}%. {snapshot.status === "disabled"
@@ -173,6 +207,134 @@ export function WalletLiquidityPanel() {
         </>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * Fund Wallet reserve — platform working capital only, never customer
+ * Wallet credit. If wallet.liquidity.funding_enabled is false (the current
+ * production setting — a live capability check found no bank-account
+ * source and no topup capability flag on this account, but could not prove
+ * either way without a real POST), this shows Stripe Dashboard funding
+ * instructions instead of a live action. It never fakes the action.
+ */
+function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: () => void }) {
+  const confirm = useConfirm();
+  const [amountInput, setAmountInput] = useState(
+    snapshot.recommended_funding_pence ? (snapshot.recommended_funding_pence / 100).toFixed(2) : "",
+  );
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  // One id per mount, not per click — a double-tap of the same button reuses
+  // the SAME client_request_id, so the server's unique constraint (and
+  // Stripe's own Idempotency-Key) catch it as a replay, never a second Topup.
+  const [requestId] = useState(() => crypto.randomUUID());
+
+  async function fund() {
+    const pence = Math.round(parseFloat(amountInput) * 100);
+    if (!Number.isFinite(pence) || pence <= 0) { setSubmitError("Enter a valid amount."); return; }
+    const ok = await confirm({
+      title: "Fund Wallet reserve?",
+      body: `This creates a real Stripe Topup for ${gbp(pence)} of OneShetland's own platform working capital. ` +
+        "It does not credit any customer's Wallet balance and cannot be undone once Stripe accepts it.",
+      confirmLabel: `Fund ${gbp(pence)}`,
+      danger: true,
+    });
+    if (!ok) return;
+    setSubmitting(true); setSubmitError(null);
+    try {
+      const sb = createClient();
+      const { data, error } = await sb.functions.invoke("wallet-liquidity-fund", {
+        body: { amount_pence: pence, client_request_id: requestId },
+      });
+      const body = data as { error?: string } | null;
+      if (error || body?.error) {
+        setSubmitError(body?.error ?? error?.message ?? "Could not start funding.");
+        return;
+      }
+      onFunded();
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : "Could not start funding.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+      <h3 className="font-display text-base font-bold text-ink">Fund Wallet reserve</h3>
+
+      {snapshot.funding_enabled ? (
+        <>
+          <p className="mt-1 text-xs text-ink-faint">
+            Creates a real Stripe Topup of OneShetland's own platform working capital — not customer Wallet credit.
+          </p>
+          <div className="mt-3 flex flex-wrap items-end gap-3">
+            <label className="text-sm">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-faint">Amount (£)</span>
+              <input
+                type="number" min="10" max="1000" step="0.01"
+                value={amountInput}
+                onChange={(e) => setAmountInput(e.target.value)}
+                disabled={submitting}
+                className="w-32 rounded-lg border border-line px-3 py-2 text-sm"
+              />
+            </label>
+            <button
+              onClick={fund}
+              disabled={submitting}
+              className="rounded-pill px-4 py-2 text-sm font-bold text-paper disabled:opacity-50"
+              style={{ background: "#991b1b" }}
+            >
+              {submitting ? "Starting…" : "Fund Wallet reserve"}
+            </button>
+          </div>
+          {submitError && <p className="mt-2 text-sm text-rose-600">{submitError}</p>}
+        </>
+      ) : (
+        // The fallback — never a fake/dead action. Stated plainly, with the
+        // exact amount and a direct path to do it manually in Stripe.
+        <div className="mt-2 rounded-lg bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-900">Funding must currently be completed in Stripe</p>
+          <p className="mt-1 text-sm text-amber-800">
+            {snapshot.recommended_funding_pence
+              ? `Recommended: ${gbp(snapshot.recommended_funding_pence)}, to bring available balance up to the reserve (${gbp(snapshot.reserve_pence)}) plus the desired operating headroom (${gbp(snapshot.desired_headroom_pence)}).`
+              : "Available balance already covers the reserve and desired headroom — no funding needed right now."}
+          </p>
+          <p className="mt-2 text-xs text-amber-800">
+            Add funds specifically for Connect transfers / the platform's transferable balance — not a customer
+            refund or a business payout. This panel updates automatically once Stripe reports the funds available.
+          </p>
+          <a
+            href="https://dashboard.stripe.com/balance/overview"
+            target="_blank" rel="noreferrer"
+            className="mt-2 inline-block rounded-pill border border-amber-300 bg-paper px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+          >
+            Open Stripe Dashboard →
+          </a>
+        </div>
+      )}
+
+      {snapshot.recent_topups.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Pending / recent funding</p>
+          <div className="mt-2 divide-y divide-line">
+            {snapshot.recent_topups.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <div>
+                  <p className="font-semibold text-ink">{gbp(t.amount_pence)} · {TOPUP_STATUS_LABEL[t.status] ?? t.status}</p>
+                  <p className="text-xs text-ink-faint">
+                    {t.stripe_topup_id ?? "no Stripe id yet"} · created {new Date(t.created_at).toLocaleDateString("en-GB")}
+                    {t.expected_availability_date && ` · expected available ${t.expected_availability_date}`}
+                  </p>
+                  {t.failure_message && <p className="text-xs text-rose-600">{t.failure_message}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
