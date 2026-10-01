@@ -196,9 +196,21 @@ export function DashboardTop({ data, base, next, listingDone }: {
                   big and in a monospace face where 0/O and 1/I don't argue. */}
               <p className="font-mono text-3xl font-black tracking-[0.2em] text-ink">{code}</p>
             </div>
-            <Link href={`${base}/counter`} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft" style={{ background: BIZ }}>
-              Open counter mode
-            </Link>
+            {/* Two jobs, two links — both open the same till, "Take payment"
+                just leads with the wallet charge instead of loyalty actions.
+                It used to be reachable only via "Loyalty programme", which a
+                merchant looking to take a payment had no reason to click. */}
+            <div className="flex flex-wrap gap-2">
+              <Link href={`${base}/loyalty?intent=wallet`} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft" style={{ background: "#0e7490" }}>
+                Take payment
+              </Link>
+              <Link href={`${base}/loyalty`} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft" style={{ background: BIZ }}>
+                Add loyalty
+              </Link>
+              <Link href={`${base}/counter`} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft" style={{ background: BIZ }}>
+                Open counter mode
+              </Link>
+            </div>
           </div>
         </section>
       )}

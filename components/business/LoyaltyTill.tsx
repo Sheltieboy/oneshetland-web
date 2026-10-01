@@ -6,9 +6,15 @@ import { tillLookup, tillAction, createChargeRequest, getChargeStatus, type Till
 /**
  * LoyaltyTill — staff enter (or scan into the box) a customer's ONE member code,
  * see their status at this business, then add a stamp / points / give a reward /
- * apply an offer. Web mirror of the app's local-till screen.
+ * apply an offer / take a wallet payment. Web mirror of the app's local-till
+ * screen — same lookup, same charge request, same approval flow either way.
+ *
+ * `intent="wallet"` (from the dashboard's "Take payment" link) only reorders
+ * which group renders first and relabels the heading; it is the same
+ * component, the same requestCharge/lookup logic, not a second till.
  */
-export function LoyaltyTill({ businessId, accent }: { businessId: string; accent: string }) {
+export function LoyaltyTill({ businessId, accent, intent = "loyalty" }: { businessId: string; accent: string; intent?: "loyalty" | "wallet" }) {
+  const walletFirst = intent === "wallet";
   const [code, setCode] = useState("");
   const [data, setData] = useState<TillLookup | null>(null);
   const [amount, setAmount] = useState("");
@@ -65,10 +71,74 @@ export function LoyaltyTill({ businessId, accent }: { businessId: string; accent
   const card = data?.card;
   const btn = "flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-bold text-white transition hover:brightness-95 disabled:opacity-50";
 
+  // Loyalty actions — unchanged, just named so it can render either before
+  // or after the charge box depending on intent.
+  const loyaltyActions = (
+    <>
+      {program?.type === "stamps" && (
+        <button onClick={() => act("stamp")} disabled={busy} className={btn} style={{ background: accent }}>Add a stamp</button>
+      )}
+      {program?.type === "points" && (
+        <div className="flex gap-2">
+          <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="£ spent" className="w-28 rounded-lg border border-line bg-paper px-3 text-ink shadow-soft outline-none" />
+          <button onClick={() => act("points", { amountPence: Math.round(parseFloat(amount) * 100) })} disabled={busy || !(parseFloat(amount) > 0)} className={btn} style={{ background: accent }}>Add points</button>
+        </div>
+      )}
+      {data?.ready_reward && (
+        <button onClick={() => act("redeem_reward")} disabled={busy} className={btn} style={{ background: "#16a34a" }}>Give reward: {data.ready_reward.reward}</button>
+      )}
+      {data?.offers.filter((o) => !o.claimed).map((o) => (
+        <button key={o.id} onClick={() => act("redeem_offer", { offerId: o.id })} disabled={busy} className={btn} style={{ background: "#d97706" }}>Apply offer: {o.title} ({o.badge})</button>
+      ))}
+    </>
+  );
+
+  // Charge by scan — unchanged logic; only its position relative to
+  // loyaltyActions depends on intent.
+  const chargeBox = (
+    <div className="mt-1 rounded-xl border border-dashed border-line bg-cream/40 p-3">
+      {!charge ? (
+        <>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-faint">Take a wallet payment</p>
+          <div className="flex gap-2">
+            <div className="flex items-center rounded-lg border border-line bg-paper px-3">
+              <span className="text-sm font-bold text-ink">£</span>
+              <input value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0.00" aria-label="Amount to charge in pounds" className="w-24 bg-transparent px-2 py-2.5 text-sm font-bold text-ink outline-none" />
+            </div>
+            <button onClick={requestCharge} disabled={busy || !(parseFloat(chargeAmount) > 0)} className={btn} style={{ background: "#0e7490" }}>
+              {busy ? "…" : `Request £${(parseFloat(chargeAmount) > 0 ? parseFloat(chargeAmount) : 0).toFixed(2)}`}
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs text-ink-faint">The customer approves it on their own phone before you&apos;re paid.</p>
+        </>
+      ) : (
+        <div className="text-center">
+          {(charge.status === "pending" || charge.status === "charging") && (
+            <p className="text-sm font-semibold text-ink-soft">
+              <span className="mr-1 inline-block animate-pulse">⏳</span>
+              Waiting for {data?.customer.name} to approve £{(charge.amountPence / 100).toFixed(2)}…
+            </p>
+          )}
+          {charge.status === "paid" && <p className="text-sm font-bold text-emerald-600">✓ Paid £{(charge.amountPence / 100).toFixed(2)}</p>}
+          {charge.status === "declined" && <p className="text-sm font-bold text-rose-600">Customer declined</p>}
+          {charge.status === "expired" && <p className="text-sm font-bold text-amber-600">Request expired — try again</p>}
+          {charge.status === "failed" && <p className="text-sm font-bold text-rose-600">Payment failed (they&apos;ve not been charged)</p>}
+          <button onClick={() => setCharge(null)} className="mt-2 text-xs font-bold text-ink-soft hover:text-ink">
+            {charge.status === "pending" || charge.status === "charging" ? "Cancel" : "New charge"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="rounded-card border border-line bg-paper p-5 shadow-soft">
-      <h2 className="font-display text-xl font-bold text-ink">Loyalty till</h2>
-      <p className="mt-1 text-sm text-ink-soft">Enter the customer&apos;s member code to add a stamp, add points or give a reward.</p>
+      <h2 className="font-display text-xl font-bold text-ink">{walletFirst ? "Take payment" : "Loyalty till"}</h2>
+      <p className="mt-1 text-sm text-ink-soft">
+        {walletFirst
+          ? "Scan the customer's member card to charge their OneShetland wallet."
+          : "Enter the customer's member code to add a stamp, add points or give a reward."}
+      </p>
 
       {!data ? (
         <div className="mt-4 flex gap-2">
@@ -101,56 +171,13 @@ export function LoyaltyTill({ businessId, accent }: { businessId: string; accent
 
           {toast && <p className={"text-center text-sm font-semibold " + (toast.ok ? "text-emerald-600" : "text-rose-600")}>{toast.text}</p>}
 
-          {program?.type === "stamps" && (
-            <button onClick={() => act("stamp")} disabled={busy} className={btn} style={{ background: accent }}>Add a stamp</button>
-          )}
-          {program?.type === "points" && (
-            <div className="flex gap-2">
-              <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="£ spent" className="w-28 rounded-lg border border-line bg-paper px-3 text-ink shadow-soft outline-none" />
-              <button onClick={() => act("points", { amountPence: Math.round(parseFloat(amount) * 100) })} disabled={busy || !(parseFloat(amount) > 0)} className={btn} style={{ background: accent }}>Add points</button>
-            </div>
-          )}
-          {data.ready_reward && (
-            <button onClick={() => act("redeem_reward")} disabled={busy} className={btn} style={{ background: "#16a34a" }}>Give reward: {data.ready_reward.reward}</button>
-          )}
-          {data.offers.filter((o) => !o.claimed).map((o) => (
-            <button key={o.id} onClick={() => act("redeem_offer", { offerId: o.id })} disabled={busy} className={btn} style={{ background: "#d97706" }}>Apply offer: {o.title} ({o.badge})</button>
-          ))}
+          {/* One lookup, one set of actions — intent only reorders which
+              group renders first; neither group's own logic changes. */}
+          {walletFirst && chargeBox}
 
-          {/* ── Charge by scan ─────────────────────────────────────────────── */}
-          <div className="mt-1 rounded-xl border border-dashed border-line bg-cream/40 p-3">
-            {!charge ? (
-              <>
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-faint">Take a wallet payment</p>
-                <div className="flex gap-2">
-                  <div className="flex items-center rounded-lg border border-line bg-paper px-3">
-                    <span className="text-sm font-bold text-ink">£</span>
-                    <input value={chargeAmount} onChange={(e) => setChargeAmount(e.target.value.replace(/[^0-9.]/g, ""))} inputMode="decimal" placeholder="0.00" aria-label="Amount to charge in pounds" className="w-24 bg-transparent px-2 py-2.5 text-sm font-bold text-ink outline-none" />
-                  </div>
-                  <button onClick={requestCharge} disabled={busy || !(parseFloat(chargeAmount) > 0)} className={btn} style={{ background: "#0e7490" }}>
-                    {busy ? "…" : `Request £${(parseFloat(chargeAmount) > 0 ? parseFloat(chargeAmount) : 0).toFixed(2)}`}
-                  </button>
-                </div>
-                <p className="mt-1.5 text-xs text-ink-faint">The customer approves it on their own phone before you&apos;re paid.</p>
-              </>
-            ) : (
-              <div className="text-center">
-                {(charge.status === "pending" || charge.status === "charging") && (
-                  <p className="text-sm font-semibold text-ink-soft">
-                    <span className="mr-1 inline-block animate-pulse">⏳</span>
-                    Waiting for {data.customer.name} to approve £{(charge.amountPence / 100).toFixed(2)}…
-                  </p>
-                )}
-                {charge.status === "paid" && <p className="text-sm font-bold text-emerald-600">✓ Paid £{(charge.amountPence / 100).toFixed(2)}</p>}
-                {charge.status === "declined" && <p className="text-sm font-bold text-rose-600">Customer declined</p>}
-                {charge.status === "expired" && <p className="text-sm font-bold text-amber-600">Request expired — try again</p>}
-                {charge.status === "failed" && <p className="text-sm font-bold text-rose-600">Payment failed (they&apos;ve not been charged)</p>}
-                <button onClick={() => setCharge(null)} className="mt-2 text-xs font-bold text-ink-soft hover:text-ink">
-                  {charge.status === "pending" || charge.status === "charging" ? "Cancel" : "New charge"}
-                </button>
-              </div>
-            )}
-          </div>
+          {loyaltyActions}
+
+          {!walletFirst && chargeBox}
 
           <button onClick={reset} className="w-full py-2 text-sm font-bold text-ink-soft hover:text-ink">Next customer</button>
         </div>

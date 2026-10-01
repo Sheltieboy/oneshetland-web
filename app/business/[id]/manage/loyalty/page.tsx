@@ -14,9 +14,19 @@ import { HelpTip } from "@/components/help/HelpTip";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Loyalty programme" };
 
-export default async function LoyaltyPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function LoyaltyPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  // ?intent=wallet — from the dashboard's "Take payment" link. Same page,
+  // same till component; only the heading and the till's own ordering change.
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id);
+  const sp = (await searchParams) ?? {};
+  const wallet = sp.intent === "wallet";
   // One acceptance per business covers every commercial screen. Directory
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Loyalty");
@@ -27,14 +37,29 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
     getLoyaltyProgram(business.id),
     getBusinessCode(business.id),
   ]);
+
+  // The one-card till — scan/enter the customer's member code and act.
+  // Opened as "Take payment", it leads; opened as "Loyalty programme", it
+  // sits below the programme configuration where it always has.
+  const till = (
+    <div className="mt-8">
+      <LoyaltyTill businessId={business.id} accent={BIZ} intent={wallet ? "wallet" : "loyalty"} />
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
       <h1 className="mt-3 mb-2 flex items-center gap-2.5 font-display text-3xl font-bold sm:text-4xl">
-        Loyalty programme
+        {wallet ? "Take payment" : "Loyalty programme"}
         <HelpTip topic="loyalty-stamps" />
       </h1>
-      <p className="mb-6 text-ink-soft">Reward regulars with stamps or points.</p>
+      <p className="mb-6 text-ink-soft">
+        {wallet ? "Scan the customer's member card." : "Reward regulars with stamps or points."}
+      </p>
+
+      {wallet && till}
+
       {pro ? (
         <LoyaltyManager businessId={business.id} program={program} canConfigure />
       ) : (
@@ -60,10 +85,7 @@ export default async function LoyaltyPage({ params }: { params: Promise<{ id: st
         </CapabilityPaywall>
       )}
 
-      {/* The one-card till — scan/enter the customer's member code and act. */}
-      <div className="mt-8">
-        <LoyaltyTill businessId={business.id} accent={BIZ} />
-      </div>
+      {!wallet && till}
 
       {/* Stamp a customer — they read this rotating code and enter it in their app
           to collect a stamp / redeem a reward. Mirrors the app's stamp scanner
