@@ -123,6 +123,14 @@ export function LoyaltyTill({ businessId, accent, intent = "loyalty" }: { busine
           {charge.status === "declined" && <p className="text-sm font-bold text-rose-600">Customer declined</p>}
           {charge.status === "expired" && <p className="text-sm font-bold text-amber-600">Request expired — try again</p>}
           {charge.status === "failed" && <p className="text-sm font-bold text-rose-600">Payment failed (they&apos;ve not been charged)</p>}
+          {charge.status === "liquidity_unavailable" && (
+            // An intentional operational refusal, before any debit — never
+            // the same red "Payment failed" a genuine Stripe rejection gets.
+            <div>
+              <p className="text-sm font-bold text-amber-800">Wallet temporarily unavailable</p>
+              <p className="mt-0.5 text-xs text-ink-faint">No money was taken. Ask the customer to use another payment method.</p>
+            </div>
+          )}
           <button onClick={() => setCharge(null)} className="mt-2 text-xs font-bold text-ink-soft hover:text-ink">
             {charge.status === "pending" || charge.status === "charging" ? "Cancel" : "New charge"}
           </button>

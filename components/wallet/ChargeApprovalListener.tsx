@@ -63,6 +63,9 @@ export function usePendingCharge() {
 
 const ACCENT = "#0e7490";
 const DANGER = "#e11d48";
+// Neutral/warning — never DANGER. The liquidity preflight is an intentional
+// operational refusal before any debit, not a payment failure.
+const NEUTRAL = "#92400e";
 
 /**
  * The states this pop-up distinguishes for the customer:
@@ -74,13 +77,17 @@ const DANGER = "#e11d48";
  *               insufficient funds, a transfer failure) — never rendered as
  *               success
  *   declined  — the customer chose Decline; nothing was ever charged
+ *   liquidity_unavailable — the server's own liquidity preflight declined
+ *               BEFORE any debit (executeWalletPayment's dedicated reason,
+ *               never the generic 'failed'/payment-failure path above).
+ *               Nothing is wrong with this customer or this payment.
  *
  * "ask" is also the only phase in which a merchant cancellation or expiry is
  * allowed to silently close the request (see dismissIfSettledElsewhere) — a
  * customer who has moved past "ask" already has their own definitive answer
  * and must never have it snatched away by a realtime event arriving late.
  */
-type Phase = "ask" | "working" | "succeeded" | "failed" | "declined";
+type Phase = "ask" | "working" | "succeeded" | "failed" | "declined" | "liquidity_unavailable";
 
 interface Outcome {
   text: string;
@@ -141,9 +148,14 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
    * left 'pending' — expired, for instance — while this customer had it open
    * or merely pending in the background.
    *
-   * "working", "succeeded" and "declined" are fully protected: once the
-   * customer has an answer in flight or landed, nothing here may touch `req`
-   * again. "succeeded" in particular guards against the request's own final
+   * "working", "succeeded", "declined" and "liquidity_unavailable" are fully
+   * protected: once the customer has an answer in flight or landed, nothing
+   * here may touch `req` again. Unlike "failed" below, "liquidity_unavailable"
+   * is only ever reached when wallet-charge-approve's own structured JSON
+   * response actually arrived — never from an ambiguous transport failure —
+   * so it is already a definitive answer with nothing left to reconcile
+   * against a later realtime row update. "succeeded" in particular guards
+   * against the request's own final
    * "paid" UPDATE — the very same realtime event this effect subscribes to —
    * arriving AFTER respondToCharge() already resolved locally and flipped
    * phase to "succeeded". Without that guard, the trailing UPDATE would clear
@@ -177,7 +189,7 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
   const dismissIfSettledElsewhere = useCallback((row: Row) => {
     if (row.status === "pending") return;
     const phase = phaseRef.current;
-    if (phase === "working" || phase === "succeeded" || phase === "declined") return;
+    if (phase === "working" || phase === "succeeded" || phase === "declined" || phase === "liquidity_unavailable") return;
     const current = reqRef.current;
     if (!current || current.id !== row.id) return;
 
@@ -275,6 +287,15 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
         setPhase("succeeded");
       }
     } catch (e) {
+      // 'liquidity_unavailable' is an intentional operational refusal, before
+      // any debit — the customer's wallet is untouched. Never the same
+      // destructive "failed" phase a genuine declined/failed payment gets.
+      const reason = (e as { reason?: string } | null)?.reason;
+      if (reason === "liquidity_unavailable") {
+        setOutcome({ text: "No money has been taken. Please use another payment method." });
+        setPhase("liquidity_unavailable");
+        return;
+      }
       // e.message is already a safe, friendly string: respondToCharge's
       // invokeErr() unwraps the edge function's own JSON `error` field
       // (a deliberate message such as "This request is already paid.", or
@@ -303,6 +324,7 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
     phase === "succeeded" ? "Payment complete"
     : phase === "failed" ? "Payment failed"
     : phase === "declined" ? "Request declined"
+    : phase === "liquidity_unavailable" ? "Wallet temporarily unavailable"
     : "Approve payment?";
 
   return (
@@ -312,9 +334,18 @@ export function ChargeApprovalListener({ children }: { children: React.ReactNode
         open={!!req && !dismissed}
         onClose={() => { if (phase !== "working") setDismissed(true); }}
         title={title}
-        accent={phase === "failed" ? DANGER : ACCENT}
+        accent={phase === "failed" ? DANGER : phase === "liquidity_unavailable" ? NEUTRAL : ACCENT}
       >
-        {!req ? null : phase === "succeeded" ? (
+        {!req ? null : phase === "liquidity_unavailable" ? (
+          // An intentional operational refusal, before any debit — never the
+          // same destructive icon/colour a genuine payment failure gets.
+          <div className="py-4 text-center">
+            <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: NEUTRAL }}>i</span>
+            <p className="mt-4 font-semibold text-ink">Wallet temporarily unavailable</p>
+            <p className="mt-1 text-ink-soft">{outcome?.text}</p>
+            <button onClick={finish} className="mt-5 rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: ACCENT }}>Close</button>
+          </div>
+        ) : phase === "succeeded" ? (
           <div className="space-y-5 py-2 text-center">
             <span className="mx-auto grid h-16 w-16 place-items-center rounded-full text-3xl text-paper" style={{ background: ACCENT }}>✓</span>
             <div>

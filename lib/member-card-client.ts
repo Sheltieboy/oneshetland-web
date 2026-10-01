@@ -33,10 +33,25 @@ export async function getMyMemberCode(): Promise<string> {
   return data as string;
 }
 
-async function invokeErr(error: unknown): Promise<Error> {
+/**
+ * reason travels on the thrown Error as a plain property — never stringified
+ * into the message — so a caller can distinguish 'liquidity_unavailable'
+ * (an intentional operational refusal) from every other failure precisely,
+ * instead of pattern-matching the message text.
+ */
+export interface WalletInvokeError extends Error { reason?: string }
+
+async function invokeErr(error: unknown): Promise<WalletInvokeError> {
   let msg = (error as { message?: string }).message ?? "Something went wrong";
-  try { const b = await (error as { context?: { json?: () => Promise<{ error?: string }> } }).context?.json?.(); if (b?.error) msg = b.error; } catch { /* */ }
-  return new Error(msg);
+  let reason: string | undefined;
+  try {
+    const b = await (error as { context?: { json?: () => Promise<{ error?: string; reason?: string }> } }).context?.json?.();
+    if (b?.error) msg = b.error;
+    if (b?.reason) reason = b.reason;
+  } catch { /* */ }
+  const err: WalletInvokeError = new Error(msg);
+  if (reason) err.reason = reason;
+  return err;
 }
 
 async function callTill(body: Record<string, unknown>): Promise<unknown> {
@@ -63,7 +78,10 @@ export function tillAction(
    it on their own phone before any money moves. See wallet-charge-* edge fns. */
 
 export interface ChargeRequest { request_id: string; customer_name: string; amount_pence: number; expires_at: string; }
-export type ChargeStatus = "pending" | "charging" | "paid" | "declined" | "expired" | "failed";
+// 'liquidity_unavailable' is a distinct, intentional operational refusal —
+// the liquidity preflight declined BEFORE any debit. Never render it like
+// 'failed' (a genuine Stripe transfer rejection, already reversed).
+export type ChargeStatus = "pending" | "charging" | "paid" | "declined" | "expired" | "failed" | "cancelled" | "liquidity_unavailable";
 
 /** Business side: raise a pending charge request from a scanned member code. */
 export async function createChargeRequest(memberCode: string, amountPence: number, businessId?: string): Promise<ChargeRequest> {
