@@ -392,8 +392,8 @@ async function invokeAdmin<T>(fn: string, body: Record<string, unknown>): Promis
  * after the funding session, so the session must exist BEFORE the bank
  * transfer is sent:
  *
- *   1. StartSessionView  — review amount and details; "Start funding transfer"
- *                          records the session. NO send instruction, NO copy
+ *   1. StartSessionView  — review amount and details; "Create funding
+ *                          instructions" records the session. NO send instruction, NO copy
  *                          buttons here: nothing invites sending money yet.
  *   2. ActiveSessionView — the frozen exact amount and details with copy
  *                          buttons, and only now "Now send exactly £X".
@@ -424,7 +424,7 @@ function PushFunding({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: (
               <div key={s.id} className="py-2 text-sm">
                 <p className="font-semibold text-ink">{gbp(s.requested_amount_pence)} · {SESSION_LABEL[s.status]}</p>
                 <p className="text-xs text-ink-faint">
-                  started {new Date(s.created_at).toLocaleDateString("en-GB")}
+                  created {new Date(s.created_at).toLocaleDateString("en-GB")}
                   {s.received_amount_pence !== null && ` · received ${gbp(s.received_amount_pence)}`}
                 </p>
                 {s.resolution_note && <p className="text-xs text-ink-faint">{s.resolution_note}</p>}
@@ -461,10 +461,9 @@ function StartSessionView({ snapshot, onChanged }: { snapshot: Snapshot; onChang
   async function startSession() {
     if (!validAmount) { setErr("Enter a valid amount."); return; }
     const ok = await confirm({
-      title: "Start funding transfer?",
-      body: "This records the transfer in OneShetland. No money is moved yet. You will then be shown the exact " +
-        `amount (${gbp(amountPence)}) and the bank details to send it to.`,
-      confirmLabel: "Start funding transfer",
+      title: "Create funding instructions?",
+      body: "This does not move any money. OneShetland will record the amount you intend to send and then show you the bank details to use.",
+      confirmLabel: "Create instructions",
     });
     if (!ok) return;
     setBusy(true); setErr(null);
@@ -495,8 +494,8 @@ function StartSessionView({ snapshot, onChanged }: { snapshot: Snapshot; onChang
       ) : (
         <>
           <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-            Do not send any money yet. Start the funding transfer first — OneShetland can only recognise money that
-            reaches Stripe after the transfer has been started.
+            Do not send any money yet. Create the funding instructions first — OneShetland can only recognise money
+            that reaches Stripe after the instructions have been created.
           </p>
           <div className="flex flex-wrap items-end gap-3">
             <label className="text-sm">
@@ -512,7 +511,7 @@ function StartSessionView({ snapshot, onChanged }: { snapshot: Snapshot; onChang
               className="rounded-pill px-4 py-2 text-sm font-bold text-paper disabled:opacity-50"
               style={{ background: "#166534" }}
             >
-              {busy ? "Starting…" : "Start funding transfer"}
+              {busy ? "Creating…" : "Create funding instructions"}
             </button>
           </div>
           {detailsConfigured === false && (
@@ -535,9 +534,9 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
 
   async function cancelSession() {
     const ok = await confirm({
-      title: "Cancel this funding transfer?",
+      title: "Cancel these funding instructions?",
       body: "Use this only if you have NOT sent the transfer. It does not recall money already sent.",
-      confirmLabel: "Cancel funding transfer",
+      confirmLabel: "Cancel instructions",
       danger: true,
     });
     if (!ok) return;
@@ -552,9 +551,9 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <MiniStat label="Exact amount to send" value={gbp(session.requested_amount_pence)} strong />
-        <MiniStat label="Transfer started" value={new Date(session.created_at).toLocaleString("en-GB")} />
+        <MiniStat label="Instructions created" value={new Date(session.created_at).toLocaleString("en-GB")} />
         <MiniStat label="Target available balance" value={gbp(session.target_available_pence)} />
-        <MiniStat label="Available when started" value={gbp(session.baseline_available_pence)} />
+        <MiniStat label="Available when created" value={gbp(session.baseline_available_pence)} />
         <MiniStat label="Current available" value={gbp(snapshot.available_pence)} />
         <MiniStat label="Wallet status" value={STATUS_STYLE[snapshot.status].label} />
       </div>
@@ -562,12 +561,16 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
       {session.status === "awaiting_funds" ? (
         <>
           <div className="rounded-lg border-2 border-emerald-600 bg-emerald-50 p-3">
-            <p className="text-sm font-bold text-emerald-900">
-              Now send exactly {gbp(session.requested_amount_pence)} from the OneShetland business bank using FPS/BACS.
+            <h4 className="font-display text-base font-bold text-emerald-900">Funding instructions ready</h4>
+            <p className="mt-1 text-sm font-bold text-emerald-900">
+              Now send exactly {gbp(session.requested_amount_pence)} from the OneShetland business bank using FPS or BACS.
+            </p>
+            <p className="mt-1 text-sm text-emerald-900">
+              OneShetland will watch Stripe and update this page when the funds arrive.
             </p>
             <p className="mt-1 text-xs text-emerald-900">
               FPS normally arrives faster (about 2 hours); BACS may take 2–3 business days. Send exactly this amount —
-              OneShetland recognises the transfer by its amount, and watches Stripe automatically.
+              it is how the transfer is recognised.
             </p>
             <div className="mt-2">
               <CopyButton label="Copy amount" value={(session.requested_amount_pence / 100).toFixed(2)} />
@@ -578,7 +581,7 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
             onClick={cancelSession} disabled={busy}
             className="text-xs font-semibold text-rose-700 underline disabled:opacity-50"
           >
-            I haven't sent it — cancel this funding transfer
+            I haven't sent it — cancel these funding instructions
           </button>
         </>
       ) : (
