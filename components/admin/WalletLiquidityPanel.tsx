@@ -225,10 +225,13 @@ function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: 
   );
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  // One id per mount, not per click — a double-tap of the same button reuses
+  // One id per attempt, not per click — a double-tap of the same button reuses
   // the SAME client_request_id, so the server's unique constraint (and
   // Stripe's own Idempotency-Key) catch it as a replay, never a second Topup.
-  const [requestId] = useState(() => crypto.randomUUID());
+  // It is replaced only after the server DEFINITIVELY refused the attempt (an
+  // HTTP error body): that attempt's row is dead, and reusing its id would
+  // replay the failure forever instead of reaching Stripe again.
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
 
   async function fund() {
     const pence = Math.round(parseFloat(amountInput) * 100);
@@ -247,8 +250,15 @@ function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: 
       const { data, error } = await sb.functions.invoke("wallet-liquidity-fund", {
         body: { amount_pence: pence, client_request_id: requestId },
       });
-      const body = data as { error?: string } | null;
+      let body = data as { error?: string } | null;
+      let refused = !!body?.error;
+      if (error && (error as { name?: string }).name === "FunctionsHttpError") {
+        refused = true;
+        body = await ((error as unknown as { context?: Response }).context?.json?.() ?? Promise.resolve(null))
+          .catch(() => null);
+      }
       if (error || body?.error) {
+        if (refused) setRequestId(crypto.randomUUID());
         setSubmitError(body?.error ?? error?.message ?? "Could not start funding.");
         return;
       }
