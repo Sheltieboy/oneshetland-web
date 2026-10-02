@@ -29,6 +29,26 @@ interface Topup {
   updated_at: string;
 }
 
+interface FundingSession {
+  id: string;
+  requested_amount_pence: number;
+  target_available_pence: number;
+  baseline_available_pence: number;
+  status: "awaiting_funds" | "pending_at_stripe" | "available" | "expired" | "cancelled" | "failed";
+  received_amount_pence: number | null;
+  resolution_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface FundingDetails {
+  beneficiary: string;
+  account_number: string;
+  sort_code: string;
+  instructions: string | null;
+  updated_at: string;
+}
+
 interface Snapshot {
   enabled: boolean;
   available_pence: number;
@@ -46,6 +66,7 @@ interface Snapshot {
   status: "healthy" | "low" | "critical" | "disabled" | "unknown";
   error?: string;
   recent_topups: Topup[];
+  funding_sessions: FundingSession[];
 }
 
 // Representative Wallet till payments, used only to show "how much MORE is
@@ -213,10 +234,9 @@ export function WalletLiquidityPanel() {
 /**
  * Fund Wallet reserve — platform working capital only, never customer
  * Wallet credit. If wallet.liquidity.funding_enabled is false (the current
- * production setting — a live capability check found no bank-account
- * source and no topup capability flag on this account, but could not prove
- * either way without a real POST), this shows Stripe Dashboard funding
- * instructions instead of a live action. It never fakes the action.
+ * production setting — Stripe offers this account only a push bank transfer
+ * for the Payments balance, not a linked-bank debit Topup), this shows the
+ * push-transfer workflow instead of a live Stripe action. It never fakes it.
  */
 function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: () => void }) {
   const confirm = useConfirm();
@@ -302,27 +322,9 @@ function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: 
           {submitError && <p className="mt-2 text-sm text-rose-600">{submitError}</p>}
         </>
       ) : (
-        // The fallback — never a fake/dead action. Stated plainly, with the
-        // exact amount and a direct path to do it manually in Stripe.
-        <div className="mt-2 rounded-lg bg-amber-50 p-3">
-          <p className="text-sm font-semibold text-amber-900">Funding must currently be completed in Stripe</p>
-          <p className="mt-1 text-sm text-amber-800">
-            {snapshot.recommended_funding_pence
-              ? `Recommended: ${gbp(snapshot.recommended_funding_pence)}, to bring available balance up to the reserve (${gbp(snapshot.reserve_pence)}) plus the desired operating headroom (${gbp(snapshot.desired_headroom_pence)}).`
-              : "Available balance already covers the reserve and desired headroom — no funding needed right now."}
-          </p>
-          <p className="mt-2 text-xs text-amber-800">
-            Add funds specifically for Connect transfers / the platform's transferable balance — not a customer
-            refund or a business payout. This panel updates automatically once Stripe reports the funds available.
-          </p>
-          <a
-            href="https://dashboard.stripe.com/balance/overview"
-            target="_blank" rel="noreferrer"
-            className="mt-2 inline-block rounded-pill border border-amber-300 bg-paper px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
-          >
-            Open Stripe Dashboard →
-          </a>
-        </div>
+        // Routine funding: a push bank transfer from the business bank,
+        // tracked and recognised by OneShetland. No Stripe Dashboard needed.
+        <PushFunding snapshot={snapshot} onChanged={onFunded} />
       )}
 
       {snapshot.recent_topups.length > 0 && (
@@ -347,6 +349,352 @@ function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: 
     </div>
   );
 }
+
+const SESSION_LABEL: Record<FundingSession["status"], string> = {
+  awaiting_funds: "Awaiting funds",
+  pending_at_stripe: "Received by Stripe — pending",
+  available: "Funded",
+  expired: "Unresolved",
+  cancelled: "Cancelled",
+  failed: "Failed",
+};
+
+interface InvokeResult<T> { data: T | null; error: string | null; refused: boolean }
+
+async function invokeAdmin<T>(fn: string, body: Record<string, unknown>): Promise<InvokeResult<T>> {
+  try {
+    const sb = createClient();
+    const { data, error } = await sb.functions.invoke(fn, { body });
+    let payload = data as (T & { error?: string }) | null;
+    let refused = !!payload?.error;
+    if (error && (error as { name?: string }).name === "FunctionsHttpError") {
+      refused = true;
+      payload = await ((error as unknown as { context?: Response }).context?.json?.() ?? Promise.resolve(null))
+        .catch(() => null);
+    }
+    if (error || payload?.error) {
+      return { data: null, error: payload?.error ?? error?.message ?? "Request failed.", refused };
+    }
+    return { data: payload, error: null, refused: false };
+  } catch (e) {
+    return { data: null, error: e instanceof Error ? e.message : "Request failed.", refused: false };
+  }
+}
+
+/**
+ * Push-transfer funding. Stripe offers this platform only "Transfer from your
+ * bank" (FPS / BACS) for the Payments balance, so the operator sends the money
+ * from the business bank; OneShetland works out the amount, shows the
+ * beneficiary details (platform-admin only), records the intent, and
+ * recognises the money when it reaches Stripe. Nothing here moves money.
+ */
+function PushFunding({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: () => void }) {
+  const confirm = useConfirm();
+  const sessions = snapshot.funding_sessions ?? [];
+  const open = sessions.find((s) => s.status === "awaiting_funds" || s.status === "pending_at_stripe") ?? null;
+  const latest = sessions[0] ?? null;
+  const recommended = snapshot.recommended_funding_pence;
+
+  const [amountInput, setAmountInput] = useState(recommended ? (recommended / 100).toFixed(2) : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+
+  const amountPence = Math.round(parseFloat(amountInput) * 100);
+  const targetAvailable = snapshot.reserve_pence + snapshot.desired_headroom_pence;
+
+  async function startSession() {
+    if (!Number.isFinite(amountPence) || amountPence <= 0) { setErr("Enter a valid amount."); return; }
+    const ok = await confirm({
+      title: "Record this funding transfer?",
+      body: `This records that you are sending ${gbp(amountPence)} from the OneShetland business bank to Stripe, so ` +
+        "OneShetland can watch for it. It does not move any money and does not touch any customer's Wallet balance.",
+      confirmLabel: "I'm sending this transfer",
+    });
+    if (!ok) return;
+    setBusy(true); setErr(null);
+    const r = await invokeAdmin("wallet-liquidity-funding-session", {
+      action: "start", requested_amount_pence: amountPence, client_request_id: requestId,
+    });
+    setBusy(false);
+    if (r.error) { if (r.refused) setRequestId(crypto.randomUUID()); setErr(r.error); return; }
+    setRequestId(crypto.randomUUID());
+    onChanged();
+  }
+
+  async function cancelSession(id: string) {
+    const ok = await confirm({
+      title: "Cancel this funding record?",
+      body: "Use this only if you did not send the transfer. It does not recall money already sent.",
+      confirmLabel: "Cancel record",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true); setErr(null);
+    const r = await invokeAdmin("wallet-liquidity-funding-session", { action: "cancel", session_id: id });
+    setBusy(false);
+    if (r.error) { setErr(r.error); return; }
+    onChanged();
+  }
+
+  return (
+    <div className="mt-2 space-y-3">
+      <SessionBanner session={open ?? latest} open={!!open} snapshot={snapshot} />
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <MiniStat label="Recommended transfer" value={recommended === null ? "—" : gbp(recommended)} strong />
+        <MiniStat label="Target available balance" value={gbp(targetAvailable)} />
+        <MiniStat label="Current available" value={gbp(snapshot.available_pence)} />
+        <MiniStat label="Reserve" value={gbp(snapshot.reserve_pence)} />
+        <MiniStat label="Desired headroom" value={gbp(snapshot.desired_headroom_pence)} />
+        <MiniStat label="Wallet status" value={STATUS_STYLE[snapshot.status].label} />
+      </div>
+
+      <p className="text-sm text-ink-muted">
+        Transfer this amount from the OneShetland business bank to the Stripe Payments balance. FPS normally arrives
+        faster (about 2 hours); BACS may take 2–3 business days.
+      </p>
+
+      {open ? (
+        <div className="rounded-lg border border-line p-3 text-sm">
+          <p className="font-semibold text-ink">Tracking a {gbp(open.requested_amount_pence)} transfer</p>
+          <p className="text-xs text-ink-faint">
+            Recorded {new Date(open.created_at).toLocaleString("en-GB")}. OneShetland checks Stripe automatically — this
+            page updates when the money arrives.
+          </p>
+          {open.status === "awaiting_funds" && (
+            <button
+              onClick={() => cancelSession(open.id)} disabled={busy}
+              className="mt-2 text-xs font-semibold text-rose-700 underline disabled:opacity-50"
+            >
+              I didn't send it — cancel this record
+            </button>
+          )}
+        </div>
+      ) : recommended === 0 ? (
+        <p className="rounded-lg bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
+          Available balance already covers the reserve and desired headroom — no funding needed right now.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="text-sm">
+            <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-faint">Amount you are sending (£)</span>
+            <input
+              type="number" min="10" step="0.01" value={amountInput}
+              onChange={(e) => setAmountInput(e.target.value)} disabled={busy}
+              className="w-36 rounded-lg border border-line px-3 py-2 text-sm"
+            />
+          </label>
+          <CopyButton label="Copy amount" value={Number.isFinite(amountPence) && amountPence > 0 ? (amountPence / 100).toFixed(2) : ""} />
+          <button
+            onClick={startSession} disabled={busy || !Number.isFinite(amountPence) || amountPence <= 0}
+            className="rounded-pill px-4 py-2 text-sm font-bold text-paper disabled:opacity-50"
+            style={{ background: "#166534" }}
+          >
+            {busy ? "Recording…" : "I'm sending this transfer"}
+          </button>
+        </div>
+      )}
+      {err && <p className="text-sm text-rose-600">{err}</p>}
+
+      <FundingDetailsBlock />
+
+      {sessions.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Funding transfers</p>
+          <div className="mt-1 divide-y divide-line">
+            {sessions.map((s) => (
+              <div key={s.id} className="py-2 text-sm">
+                <p className="font-semibold text-ink">{gbp(s.requested_amount_pence)} · {SESSION_LABEL[s.status]}</p>
+                <p className="text-xs text-ink-faint">
+                  recorded {new Date(s.created_at).toLocaleDateString("en-GB")}
+                  {s.received_amount_pence !== null && ` · received ${gbp(s.received_amount_pence)}`}
+                </p>
+                {s.resolution_note && <p className="text-xs text-ink-faint">{s.resolution_note}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-[11px] text-ink-faint">
+        For troubleshooting only:{" "}
+        <a href="https://dashboard.stripe.com/balance/overview" target="_blank" rel="noreferrer" className="underline">
+          View in Stripe
+        </a>
+      </p>
+    </div>
+  );
+}
+
+function SessionBanner({ session, open, snapshot }: { session: FundingSession | null; open: boolean; snapshot: Snapshot }) {
+  if (!session) return null;
+  if (session.status === "awaiting_funds") {
+    return (
+      <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+        {gbp(session.requested_amount_pence)} funding transfer awaiting Stripe
+      </p>
+    );
+  }
+  if (session.status === "pending_at_stripe") {
+    return (
+      <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+        Received by Stripe — pending availability
+        <span className="block text-xs font-normal">
+          {gbp(session.received_amount_pence ?? session.requested_amount_pence)} has reached Stripe but is not yet
+          transferable. Wallet protection still treats it as unavailable.
+        </span>
+      </p>
+    );
+  }
+  if (session.status === "available" && !open) {
+    return (
+      <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
+        <p className="font-semibold">Reserve funded</p>
+        <p>Spendable headroom: {gbp(snapshot.headroom_pence)}</p>
+        <p>Wallet status: {STATUS_STYLE[snapshot.status].label}</p>
+      </div>
+    );
+  }
+  if (session.status === "expired" || session.status === "failed") {
+    return (
+      <p className="rounded-lg bg-rose-50 p-3 text-sm font-semibold text-rose-700">
+        {session.status === "expired" ? "Funding transfer unresolved" : "Funding transfer failed"}
+        <span className="block text-xs font-normal">{session.resolution_note}</span>
+      </p>
+    );
+  }
+  return null;
+}
+
+function MiniStat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="rounded-lg border border-line bg-paper p-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{label}</p>
+      <p className={"font-display font-bold text-ink " + (strong ? "text-lg" : "text-base")}>{value}</p>
+    </div>
+  );
+}
+
+function CopyButton({ label, value }: { label: string; value: string }) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard unavailable — the value is visible to copy by hand */ }
+  }
+  return (
+    <button
+      type="button" onClick={copy} disabled={!value}
+      className="rounded-pill border border-line bg-paper px-3 py-1.5 text-xs font-bold text-ink hover:bg-surface disabled:opacity-40"
+    >
+      {copied ? "Copied" : label}
+    </button>
+  );
+}
+
+const fmtSortCode = (sc: string) => sc.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1-$2-$3");
+
+/** Stripe's push-funding beneficiary details. Platform-admin only, fetched on demand, never logged. */
+function FundingDetailsBlock() {
+  const [details, setDetails] = useState<FundingDetails | null>(null);
+  const [configured, setConfigured] = useState<boolean | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({ beneficiary: "", account_number: "", sort_code: "", instructions: "" });
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await invokeAdmin<{ configured: boolean; details: FundingDetails | null }>("wallet-funding-details", { action: "get" });
+    if (r.error || !r.data) { setErr(r.error ?? "Could not load the funding details."); return; }
+    setConfigured(r.data.configured);
+    setDetails(r.data.details);
+    if (!r.data.configured) setEditing(true);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  function startEdit() {
+    setForm({
+      beneficiary: details?.beneficiary ?? "", account_number: details?.account_number ?? "",
+      sort_code: details ? fmtSortCode(details.sort_code) : "", instructions: details?.instructions ?? "",
+    });
+    setEditing(true);
+  }
+
+  async function save() {
+    setSaving(true); setErr(null);
+    const r = await invokeAdmin<{ configured: boolean; details: FundingDetails }>("wallet-funding-details", { action: "set", ...form });
+    setSaving(false);
+    if (r.error || !r.data) { setErr(r.error ?? "Could not save."); return; }
+    setDetails(r.data.details); setConfigured(true); setEditing(false);
+  }
+
+  return (
+    <div className="rounded-lg border border-line p-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-faint">Stripe funding bank details</p>
+      {configured === null && !err ? (
+        <p className="mt-1 text-sm text-ink-muted">Loading…</p>
+      ) : editing ? (
+        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {!configured && (
+            <p className="text-xs text-ink-faint sm:col-span-2">
+              Enter the bank details Stripe shows under Balances → Add funds → Payments balance → “Transfer from your
+              bank”. Stripe has no API for these, so they are entered once here. Only platform admins can see them.
+            </p>
+          )}
+          <Field label="Beneficiary" value={form.beneficiary} onChange={(v) => setForm({ ...form, beneficiary: v })} />
+          <Field label="Account number" value={form.account_number} onChange={(v) => setForm({ ...form, account_number: v })} />
+          <Field label="Sort code" value={form.sort_code} onChange={(v) => setForm({ ...form, sort_code: v })} />
+          <Field label="Payment instructions (optional)" value={form.instructions} onChange={(v) => setForm({ ...form, instructions: v })} />
+          <div className="flex gap-2 sm:col-span-2">
+            <button onClick={save} disabled={saving} className="rounded-pill bg-ink px-4 py-1.5 text-xs font-bold text-paper disabled:opacity-50">
+              {saving ? "Saving…" : "Save details"}
+            </button>
+            {configured && (
+              <button onClick={() => setEditing(false)} disabled={saving} className="text-xs font-semibold underline">Cancel</button>
+            )}
+          </div>
+        </div>
+      ) : details ? (
+        <div className="mt-2 space-y-2 text-sm">
+          <DetailRow label="Beneficiary" value={details.beneficiary} copyLabel="Copy beneficiary" />
+          <DetailRow label="Account number" value={details.account_number} copyLabel="Copy account number" />
+          <DetailRow label="Sort code" value={fmtSortCode(details.sort_code)} copyValue={details.sort_code} copyLabel="Copy sort code" />
+          {details.instructions && <p className="text-xs text-ink-muted">{details.instructions}</p>}
+          <button onClick={startEdit} className="text-xs font-semibold underline">Edit details</button>
+        </div>
+      ) : null}
+      {err && <p className="mt-2 text-sm text-rose-600">{err}</p>}
+    </div>
+  );
+}
+
+function DetailRow({ label, value, copyLabel, copyValue }: { label: string; value: string; copyLabel: string; copyValue?: string }) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">{label}</p>
+        <p className="font-mono text-sm font-semibold text-ink">{value}</p>
+      </div>
+      <CopyButton label={copyLabel} value={copyValue ?? value} />
+    </div>
+  );
+}
+
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="text-sm">
+      <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-ink-faint">{label}</span>
+      <input
+        value={value} onChange={(e) => onChange(e.target.value)} autoComplete="off"
+        className="w-full rounded-lg border border-line px-3 py-2 text-sm"
+      />
+    </label>
+  );
+}
+
 
 function Stat({ label, value, accent, hint }: { label: string; value: string; accent?: boolean; hint?: string }) {
   return (
