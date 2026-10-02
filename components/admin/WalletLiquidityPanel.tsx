@@ -36,6 +36,7 @@ interface FundingSession {
   baseline_available_pence: number;
   status: "awaiting_funds" | "pending_at_stripe" | "available" | "expired" | "cancelled" | "failed";
   received_amount_pence: number | null;
+  expected_available_at: string | null;
   resolution_note: string | null;
   created_at: string;
   updated_at: string;
@@ -352,8 +353,8 @@ function FundingSection({ snapshot, onFunded }: { snapshot: Snapshot; onFunded: 
 
 const SESSION_LABEL: Record<FundingSession["status"], string> = {
   awaiting_funds: "Awaiting funds",
-  pending_at_stripe: "Received by Stripe — pending",
-  available: "Funded",
+  pending_at_stripe: "Received by Stripe / Pending",
+  available: "Available",
   expired: "Unresolved",
   cancelled: "Cancelled",
   failed: "Failed",
@@ -426,6 +427,8 @@ function PushFunding({ snapshot, onChanged }: { snapshot: Snapshot; onChanged: (
                 <p className="text-xs text-ink-faint">
                   created {new Date(s.created_at).toLocaleDateString("en-GB")}
                   {s.received_amount_pence !== null && ` · received ${gbp(s.received_amount_pence)}`}
+                  {s.status === "pending_at_stripe" && s.expected_available_at &&
+                    ` · expected available ${fmtDate(s.expected_available_at)}`}
                 </p>
                 {s.resolution_note && <p className="text-xs text-ink-faint">{s.resolution_note}</p>}
               </div>
@@ -549,14 +552,25 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        <MiniStat label="Exact amount to send" value={gbp(session.requested_amount_pence)} strong />
-        <MiniStat label="Instructions created" value={new Date(session.created_at).toLocaleString("en-GB")} />
-        <MiniStat label="Target available balance" value={gbp(session.target_available_pence)} />
-        <MiniStat label="Available when created" value={gbp(session.baseline_available_pence)} />
-        <MiniStat label="Current available" value={gbp(snapshot.available_pence)} />
-        <MiniStat label="Wallet status" value={STATUS_STYLE[snapshot.status].label} />
-      </div>
+      {session.status === "awaiting_funds" ? (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <MiniStat label="Exact amount to send" value={gbp(session.requested_amount_pence)} strong />
+          <MiniStat label="Instructions created" value={new Date(session.created_at).toLocaleString("en-GB")} />
+          <MiniStat label="Target available balance" value={gbp(session.target_available_pence)} />
+          <MiniStat label="Available when created" value={gbp(session.baseline_available_pence)} />
+          <MiniStat label="Current available" value={gbp(snapshot.available_pence)} />
+          <MiniStat label="Wallet status" value={STATUS_STYLE[snapshot.status].label} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <MiniStat label="Received by Stripe" value={gbp(session.received_amount_pence ?? session.requested_amount_pence)} strong />
+          <MiniStat label="Stripe pending balance" value={gbp(snapshot.pending_pence)} />
+          <MiniStat label="Current available" value={gbp(snapshot.available_pence)} />
+          <MiniStat label="Target available balance" value={gbp(session.target_available_pence)} />
+          <MiniStat label="Wallet status" value={STATUS_STYLE[snapshot.status].label} />
+          <MiniStat label="Expected available" value={session.expected_available_at ? fmtDate(session.expected_available_at) : "—"} />
+        </div>
+      )}
 
       {session.status === "awaiting_funds" ? (
         <>
@@ -586,8 +600,7 @@ function ActiveSessionView({ session, snapshot, onChanged }: { session: FundingS
         </>
       ) : (
         <p className="rounded-lg border border-line p-3 text-sm text-ink-muted">
-          Stripe has received {gbp(session.received_amount_pence ?? session.requested_amount_pence)}. Do not send it
-          again — this page updates when it becomes available.
+          No action is needed. A new funding transfer can be created only after this one becomes available.
         </p>
       )}
       {err && <p className="text-sm text-rose-600">{err}</p>}
@@ -606,19 +619,26 @@ function SessionBanner({ session, open, snapshot }: { session: FundingSession | 
   }
   if (session.status === "pending_at_stripe") {
     return (
-      <p className="rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
-        Received by Stripe — pending availability
-        <span className="block text-xs font-normal">
-          {gbp(session.received_amount_pence ?? session.requested_amount_pence)} has reached Stripe but is not yet
-          transferable. Wallet protection still treats it as unavailable.
-        </span>
-      </p>
+      <div className="rounded-lg border-2 border-sky-600 bg-sky-50 p-3 text-sky-950">
+        <h4 className="font-display text-base font-bold">Funding received by Stripe</h4>
+        <p className="mt-1 text-sm font-semibold">
+          {gbp(session.received_amount_pence ?? session.requested_amount_pence)} has been received and is waiting to
+          become available.
+        </p>
+        <p className="mt-1 text-sm font-bold">Do not send this transfer again.</p>
+        <p className="mt-1 text-xs">
+          No action is needed right now. Wallet payments are still limited by Stripe's available balance, so the Wallet
+          can stay {STATUS_STYLE[snapshot.status].label} until the funds become available
+          {session.expected_available_at ? ` (expected ${fmtDate(session.expected_available_at)})` : ""}.
+        </p>
+      </div>
     );
   }
   if (session.status === "available" && !open) {
     return (
       <div className="rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900">
-        <p className="font-semibold">Reserve funded</p>
+        <p className="font-semibold">{snapshot.status === "healthy" ? "Reserve funded" : "Funding available"}</p>
+        <p>The funds are now in Stripe's available balance.</p>
         <p>Spendable headroom: {gbp(snapshot.headroom_pence)}</p>
         <p>Wallet status: {STATUS_STYLE[snapshot.status].label}</p>
       </div>
@@ -662,6 +682,8 @@ function CopyButton({ label, value }: { label: string; value: string }) {
     </button>
   );
 }
+
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 const fmtSortCode = (sc: string) => sc.replace(/^(\d{2})(\d{2})(\d{2})$/, "$1-$2-$3");
 
