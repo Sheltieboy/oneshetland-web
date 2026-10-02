@@ -3,6 +3,7 @@ import { AdminHeader } from "@/components/admin/AdminUI";
 import { MembershipRefunds } from "@/components/admin/MembershipRefunds";
 import { BoostPurchases } from "@/components/admin/BoostPurchases";
 import { WalletLiquidityPanel } from "@/components/admin/WalletLiquidityPanel";
+import { RefundReconciliationPanel } from "@/components/admin/RefundReconciliationPanel";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments · Admin" };
@@ -28,6 +29,7 @@ export default async function AdminPaymentsPage() {
         sub="Membership payments and refunds. Refunds reverse the hub's payout and return the OneShetland fee."
       />
       <WalletLiquidityPanel />
+      <RefundReconciliationPanel />
       <MembershipRefunds purchases={purchases} />
       <BoostPurchases purchases={boosts} />
     </>
