@@ -127,6 +127,7 @@ export function BusinessEventManage({
         <span className="inline-block rounded-full px-3 py-1 text-xs font-bold" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
         <p className="text-sm text-ink-muted">{fmtDateTime(event.starts_at)}{event.venue ? ` · ${event.venue}` : ""}</p>
         <div className="ml-auto flex gap-2">
+          <Link href={`${base}/${event.id}/orders`} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand">Ticket orders</Link>
           <Link href={`${base}/${event.id}/edit`} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand">Edit</Link>
           {/* A draft isn't publicly visible (events_public_read — a
               non-published event is is_hidden, readable only by its

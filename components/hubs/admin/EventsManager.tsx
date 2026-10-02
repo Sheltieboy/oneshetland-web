@@ -233,13 +233,13 @@ export function EventsManager({ hubId, events, accent, hubVerified = false }: { 
           {upcoming.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Upcoming</p>
-              <ul className="space-y-2">{upcoming.map(ev => <EventRow key={ev.id} ev={ev} accent={accent} editingId={editingId} onEdit={openEdit} onCancelEdit={() => setEditingId(null)} editState={{ editTitle, setEditTitle, editDate, setEditDate, editEndDate, setEditEndDate, editVenue, setEditVenue, editLocality, setEditLocality, editCategory, setEditCategory, editPriceText, setEditPriceText, editVisibility, setEditVisibility, editTicketMode, setEditTicketMode, editTicketUrl, setEditTicketUrl, editTicketTypes, setEditTicketTypes, editBusy, editError }} onSave={saveEdit} onCancel={cancel} onDelete={async (id) => { await deleteEvent(id); router.refresh(); }} />)}</ul>
+              <ul className="space-y-2">{upcoming.map(ev => <EventRow key={ev.id} ev={ev} accent={accent} hubId={hubId} editingId={editingId} onEdit={openEdit} onCancelEdit={() => setEditingId(null)} editState={{ editTitle, setEditTitle, editDate, setEditDate, editEndDate, setEditEndDate, editVenue, setEditVenue, editLocality, setEditLocality, editCategory, setEditCategory, editPriceText, setEditPriceText, editVisibility, setEditVisibility, editTicketMode, setEditTicketMode, editTicketUrl, setEditTicketUrl, editTicketTypes, setEditTicketTypes, editBusy, editError }} onSave={saveEdit} onCancel={cancel} onDelete={async (id) => { await deleteEvent(id); router.refresh(); }} />)}</ul>
             </div>
           )}
           {past.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Past</p>
-              <ul className="space-y-2">{past.map(ev => <EventRow key={ev.id} ev={ev} accent={accent} editingId={editingId} onEdit={openEdit} onCancelEdit={() => setEditingId(null)} editState={{ editTitle, setEditTitle, editDate, setEditDate, editEndDate, setEditEndDate, editVenue, setEditVenue, editLocality, setEditLocality, editCategory, setEditCategory, editPriceText, setEditPriceText, editVisibility, setEditVisibility, editTicketMode, setEditTicketMode, editTicketUrl, setEditTicketUrl, editTicketTypes, setEditTicketTypes, editBusy, editError }} onSave={saveEdit} onCancel={cancel} onDelete={async (id) => { await deleteEvent(id); router.refresh(); }} />)}</ul>
+              <ul className="space-y-2">{past.map(ev => <EventRow key={ev.id} ev={ev} accent={accent} hubId={hubId} editingId={editingId} onEdit={openEdit} onCancelEdit={() => setEditingId(null)} editState={{ editTitle, setEditTitle, editDate, setEditDate, editEndDate, setEditEndDate, editVenue, setEditVenue, editLocality, setEditLocality, editCategory, setEditCategory, editPriceText, setEditPriceText, editVisibility, setEditVisibility, editTicketMode, setEditTicketMode, editTicketUrl, setEditTicketUrl, editTicketTypes, setEditTicketTypes, editBusy, editError }} onSave={saveEdit} onCancel={cancel} onDelete={async (id) => { await deleteEvent(id); router.refresh(); }} />)}</ul>
             </div>
           )}
         </>
@@ -263,8 +263,8 @@ type EditState = {
   editBusy: boolean; editError: string | null;
 };
 
-function EventRow({ ev, accent, editingId, onEdit, onCancelEdit, editState, onSave, onCancel, onDelete }: {
-  ev: AdminEvent; accent: string; editingId: string | null;
+function EventRow({ ev, accent, hubId, editingId, onEdit, onCancelEdit, editState, onSave, onCancel, onDelete }: {
+  ev: AdminEvent; accent: string; hubId: string; editingId: string | null;
   onEdit: (ev: AdminEvent) => void; onCancelEdit: () => void;
   editState: EditState;
   onSave: (id: string) => void; onCancel: (id: string) => void; onDelete: (id: string) => void;
@@ -323,6 +323,9 @@ function EventRow({ ev, accent, editingId, onEdit, onCancelEdit, editState, onSa
         <span className="mt-1.5 inline-block rounded-full px-2 py-0.5 text-xs font-bold" style={{ background: b.bg, color: b.color }}>{b.label}</span>
       </div>
       <div className="flex shrink-0 gap-2">
+        {ev.has_tickets && (
+          <a href={`/hubs/${hubId}/manage/events/${ev.id}/orders`} className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink hover:bg-sand">Ticket orders</a>
+        )}
         {ev.status !== "cancelled" && (
           <button onClick={() => onEdit(ev)} className="rounded-pill border border-line-strong px-3 py-1.5 text-sm font-semibold text-ink hover:bg-sand">Edit</button>
         )}
