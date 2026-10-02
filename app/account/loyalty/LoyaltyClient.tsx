@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { fetchMyLoyaltyCards, isRewardReady, type LoyaltyCard } from "@/lib/loyalty-data";
 import { getMyMemberCode } from "@/lib/member-card-client";
 import { addToAppleWallet } from "@/lib/apple-wallet-client";
-import { addToGoogleWallet } from "@/lib/google-wallet-client";
+import { addToGoogleWallet, GoogleWalletError, GOOGLE_WALLET_UNAVAILABLE } from "@/lib/google-wallet-client";
 
 const LOCAL = "#7c3aed";
 
@@ -140,13 +140,24 @@ function LoyaltyCardRow({ card }: { card: LoyaltyCard }) {
 function WalletButtons() {
   const [busy, setBusy] = useState<null | "apple" | "google">(null);
   const [err, setErr] = useState<string | null>(null);
+  // A ref, not just state: a second click can land before React has re-rendered the button disabled.
+  const inFlight = useRef(false);
   const run = async (which: "apple" | "google") => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setErr(null); setBusy(which);
     try {
+      // Called synchronously from the click, so the browser still treats the tab the Google flow opens as the customer's own.
       if (which === "apple") await addToAppleWallet();
       else await addToGoogleWallet();
-    } catch (e) { setErr(e instanceof Error ? e.message : "Could not add the pass."); }
-    finally { setBusy(null); }
+    } catch (e) {
+      // Never silent. Google's messages are already safe to show; anything else gets the generic line.
+      setErr(
+        which === "google"
+          ? (e instanceof GoogleWalletError ? e.message : GOOGLE_WALLET_UNAVAILABLE)
+          : (e instanceof Error ? e.message : "Could not add the pass."),
+      );
+    } finally { inFlight.current = false; setBusy(null); }
   };
   const cls = "inline-flex items-center gap-2 rounded-lg bg-black/25 px-3.5 py-2 text-xs font-bold text-paper transition hover:bg-black/35 disabled:opacity-50";
   return (
@@ -157,7 +168,7 @@ function WalletButtons() {
       <button onClick={() => run("google")} disabled={busy !== null} className={cls}>
         {busy === "google" ? "Preparing…" : "Add to Google Wallet"}
       </button>
-      {err && <p className="w-full text-xs text-rose-200">{err}</p>}
+      {err && <p role="alert" className="w-full text-xs text-rose-200">{err}</p>}
     </div>
   );
 }
