@@ -17,6 +17,11 @@ import { gbp } from "@/lib/currency";
  * refund-reconcile Edge Function (admin-only; the tables are not reachable
  * from a browser).
  *
+ * A Wallet-funded event order has no PaymentIntent, charge or application fee, so it is
+ * judged from the Wallet ledger (the spend and the credit that reversed it) and the one
+ * Connect transfer. It appears in the same list. It is never repaired from here: a Wallet
+ * refund is completed by pressing Refund again on the order, which is idempotent.
+ *
  * Checking is read-only. "Repair" moves money, so it asks for explicit
  * confirmation, states exactly what will move, and is recorded server-side
  * against the admin who pressed it.
@@ -44,12 +49,18 @@ interface Row {
   first_flagged_at: string | null;
   repaired_at: string | null;
   last_checked_at: string;
+  /** Wallet-funded event orders only (rail "event_ticket_wallet"): no PaymentIntent, no charge, no fee. */
+  order_id?: string | null;
+  wallet_gap_pence?: number;
+  ledger_tx_id?: string | null;
 }
+
+const WALLET_RAIL = "event_ticket_wallet";
 
 interface Listing {
   open_count: number;
   rows: Row[];
-  unverified_event_refunds: { order_id: string; payment_intent_id: string; total_pence: number; refunded_at: string | null }[];
+  unverified_event_refunds: { order_id: string; payment_intent_id: string | null; total_pence: number; refunded_at: string | null }[];
 }
 
 const STATE_LABEL: Record<State, { label: string; bg: string; fg: string }> = {
@@ -137,7 +148,7 @@ export function RefundReconciliationPanel() {
       </div>
       <p className="mt-1 text-sm text-ink-faint">
         A refund is reconciled only when the customer was refunded, the merchant's transfer was reversed and the
-        platform fee was returned. An order marked “refunded” does not prove the merchant's money came back.
+        platform fee was returned (for a Wallet payment: the ledger credit equals the spend and the transfer is fully reversed). An order marked “refunded” does not prove the merchant's money came back.
       </p>
 
       {error && <p className="mt-3 text-sm text-rose-600">{error}</p>}
@@ -162,21 +173,30 @@ export function RefundReconciliationPanel() {
             </p>
           )}
 
-          {open.map((r) => (
+          {open.map((r) => {
+            const wallet = r.rail === WALLET_RAIL;
+            const label = wallet && r.state === "needs_repair"
+              ? { label: "Refund incomplete", bg: STATE_LABEL.needs_repair.bg, fg: STATE_LABEL.needs_repair.fg }
+              : STATE_LABEL[r.state];
+            return (
             <div key={r.charge_id} className="mt-3 rounded-xl border border-line p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span
                   className="rounded-pill px-3 py-1 text-xs font-bold"
-                  style={{ background: STATE_LABEL[r.state].bg, color: STATE_LABEL[r.state].fg }}
+                  style={{ background: label.bg, color: label.fg }}
                 >
-                  {STATE_LABEL[r.state].label}
+                  {label.label}
                 </span>
-                <span className="text-xs text-ink-faint">{r.rail.replace("_", " ")}</span>
+                <span className="text-xs text-ink-faint">{wallet ? "event ticket · Wallet" : r.rail.replace("_", " ")}</span>
               </div>
               <dl className="mt-2 grid gap-1 text-sm sm:grid-cols-3">
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Customer</dt>
-                  <dd className="font-semibold text-ink">refunded {gbp(r.amount_refunded_pence)} of {gbp(r.charge_amount_pence)}</dd>
+                  <dd className={"font-semibold " + (wallet && (r.wallet_gap_pence ?? 0) !== 0 ? "text-rose-600" : "text-ink")}>
+                    {wallet
+                      ? `credited ${gbp(r.amount_refunded_pence)} of ${gbp(r.charge_amount_pence)} to the Wallet`
+                      : `refunded ${gbp(r.amount_refunded_pence)} of ${gbp(r.charge_amount_pence)}`}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">Merchant</dt>
@@ -187,22 +207,32 @@ export function RefundReconciliationPanel() {
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">OneShetland fee</dt>
-                  <dd className={"font-semibold " + (r.fee_gap_pence > 0 ? "text-rose-600" : "text-ink")}>
-                    {r.fee_gap_pence > 0 ? `${gbp(r.fee_gap_pence)} not refunded` : "refunded"}
+                  <dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                    {wallet ? "Booking fee" : "OneShetland fee"}
+                  </dt>
+                  <dd className={"font-semibold " + (!wallet && r.fee_gap_pence > 0 ? "text-rose-600" : "text-ink")}>
+                    {wallet
+                      ? (r.wallet_gap_pence ?? 0) === 0 ? "returned with the Wallet credit" : "not yet returned"
+                      : r.fee_gap_pence > 0 ? `${gbp(r.fee_gap_pence)} not refunded` : "refunded"}
                   </dd>
                 </div>
               </dl>
               <p className="mt-2 break-all text-[11px] text-ink-faint">
-                {r.payment_intent_id} · {r.charge_id}
-                {r.transfer_id && ` · ${r.transfer_id}`}
-                {r.fee_id && ` · ${r.fee_id}`}
+                {wallet
+                  ? <>Order {r.order_id}{r.ledger_tx_id && ` · ledger ${r.ledger_tx_id}`}{r.transfer_id && ` · ${r.transfer_id}`}</>
+                  : <>{r.payment_intent_id} · {r.charge_id}{r.transfer_id && ` · ${r.transfer_id}`}{r.fee_id && ` · ${r.fee_id}`}</>}
               </p>
               {r.first_flagged_at && (
                 <p className="text-[11px] text-ink-faint">First flagged {new Date(r.first_flagged_at).toLocaleString("en-GB")}</p>
               )}
               {r.last_error && <p className="mt-1 text-xs text-rose-600">Last repair attempt: {r.last_error}</p>}
-              {r.state === "needs_review" ? (
+              {wallet ? (
+                <p className="mt-2 text-xs text-ink-muted">
+                  {r.state === "needs_review"
+                    ? "The ledger and Stripe disagree in a way a person must look at. Nothing is repaired from here."
+                    : "Complete it by pressing Refund again on the order — the Wallet refund is idempotent and never pays twice."}
+                </p>
+              ) : r.state === "needs_review" ? (
                 <p className="mt-2 text-xs text-ink-muted">
                   Partial refund — which part belongs to the merchant needs a person to decide in Stripe.
                 </p>
@@ -216,7 +246,8 @@ export function RefundReconciliationPanel() {
                 </button>
               )}
             </div>
-          ))}
+            );
+          })}
 
           {settled.length > 0 && (
             <details className="mt-3">
@@ -226,7 +257,7 @@ export function RefundReconciliationPanel() {
               <div className="mt-1 divide-y divide-line">
                 {settled.map((r) => (
                   <p key={r.charge_id} className="py-1 text-xs text-ink-muted">
-                    {STATE_LABEL[r.state].label} · {gbp(r.amount_refunded_pence)} · {r.charge_id}
+                    {STATE_LABEL[r.state].label} · {gbp(r.amount_refunded_pence)} · {r.rail === WALLET_RAIL ? `Wallet order ${r.order_id}` : r.charge_id}
                   </p>
                 ))}
               </div>

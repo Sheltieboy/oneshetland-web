@@ -288,9 +288,9 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "commerce-local-wallet", area: "commerce", title: "Local Wallet",
       description: "Top-up, pay-at-till charge approval, cancellation and refunds.",
       status: "needs_verification", criticality: "important", weight: 4,
-      evidence: "Charge approval recovery and success state (web 5f2de03, 7d9c1db), server-side cancel (20f1382), refunds (b744b1b), with suites. Physical test-mode acceptance not recorded here.",
-      nextAction: "Confirm a test-mode top-up and till charge were physically completed.",
-      lastUpdated: "2026-09-12",
+      evidence: "Charge approval recovery and success state (web 5f2de03, 7d9c1db), server-side cancel (20f1382), refunds (b744b1b), with suites. Physical test-mode acceptance not recorded here. NOT COMPLETE — WALLET LIQUIDITY GATE GAPS (recorded 2 Oct 2026, code-verified, NOT patched): three Wallet-funded merchant-settlement routes still debit the customer and only THEN attempt the Stripe Connect transfer, with no liquidity preflight: hub donation, hub membership and pass purchase (unit_purchase) — all in the wallet-checkout function (its own debitAndTransfer; no reference to liquidity anywhere in it). A Wallet payment whose transfer Stripe refuses for insufficient platform funds is caught by the automatic reversal afterwards, but the customer is debited first; the canonical gate refuses BEFORE the debit. For comparison the gate is in place on event tickets (create-event-ticket-intent, withWalletLiquidityGate, with the Wallet event refund proven live 2 Oct) and gifts (create-gift-intent), and product orders and till charges run the preflight in wallet-pay.ts. Shift boosts are correctly outside it: the platform keeps the money, so there is no merchant transfer to settle. Wallet cannot be Complete until those three routes use the canonical gate.",
+      nextAction: "Put hub donation, hub membership and pass purchase (wallet-checkout) behind the canonical Wallet liquidity gate, with tests and a live proof; then confirm a test-mode top-up and till charge were physically completed.",
+      lastUpdated: "2026-10-02",
     },
     {
       id: "commerce-products", area: "commerce", title: "Products & basket",
