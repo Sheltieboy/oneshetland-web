@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import {
   pounds, purchaserLabel, ticketSummary, orderStatusBadge, checkedInLabel,
-  ticketStatusLabel, refundConfirmation,
+  ticketStatusLabel, paymentMethodLabel, refundConfirmation,
 } from "@/lib/event-orders-utils";
 
 /**
@@ -26,7 +26,7 @@ interface Ticket {
   checked_in_at: string | null; attendee_name: string | null; attendee_email: string | null;
 }
 interface Order {
-  id: string; status: string; created_at: string; paid_at: string | null; refunded_at: string | null;
+  id: string; status: string; payment_method: string; created_at: string; paid_at: string | null; refunded_at: string | null;
   total_pence: number; booking_fee_pence: number; ticket_subtotal_pence: number; tickets_count: number;
   purchaser: { id: string; name: string | null; email: string | null };
   tickets: Ticket[]; checked_in_count: number; refundable: boolean;
@@ -92,7 +92,9 @@ export function EventOrders({ eventId }: { eventId: string }) {
         setError(message ?? "The refund could not be completed.");
       } else {
         setError(null);
-        setNotice(`${pounds(order.total_pence)} has been refunded to ${purchaserLabel(order)}. Their ${order.tickets_count === 1 ? "ticket is" : "tickets are"} no longer valid.`);
+        setNotice(order.payment_method === "wallet"
+          ? `${pounds(order.total_pence)} has been returned to ${purchaserLabel(order)}'s OneShetland Wallet. Their ${order.tickets_count === 1 ? "ticket is" : "tickets are"} no longer valid.`
+          : `${pounds(order.total_pence)} has been refunded to ${purchaserLabel(order)}. Their ${order.tickets_count === 1 ? "ticket is" : "tickets are"} no longer valid.`);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "The refund could not be completed.");
@@ -145,6 +147,7 @@ export function EventOrders({ eventId }: { eventId: string }) {
                     {o.purchaser.email && <p className="text-sm text-ink">{o.purchaser.email}</p>}
                     <dl className="space-y-1 text-sm">
                       <Row k="Paid" v={pounds(o.total_pence)} strong />
+                      <Row k="Paid with" v={paymentMethodLabel(o)} />
                       {o.total_pence > 0 && <Row k="Tickets" v={pounds(o.ticket_subtotal_pence)} />}
                       {o.booking_fee_pence > 0 && <Row k="Booking fee" v={pounds(o.booking_fee_pence)} />}
                       <Row k="Purchased" v={fmt(o.paid_at ?? o.created_at)} />
