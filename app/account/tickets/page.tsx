@@ -2,13 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { TicketsLive, type TicketGroup } from "@/components/account/TicketsLive";
-import { OWNED_TICKET_STATUSES } from "@/lib/event-ticket-utils";
+import { TicketsLive, type TicketItem } from "@/components/account/TicketsLive";
+import { HISTORY_TICKET_STATUSES, type HistoryOrder } from "@/lib/ticket-lifecycle";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My tickets" };
-
-const EVENTS = "#d4921a";
 
 type TicketRow = {
   id: string;
@@ -16,8 +14,16 @@ type TicketRow = {
   status: string | null;
   attendee_name: string | null;
   checked_in_at: string | null;
-  event: { id: string; title: string; starts_at: string | null; venue: string | null; status: string | null } | null;
+  event: {
+    id: string;
+    title: string;
+    starts_at: string | null;
+    ends_at: string | null;
+    venue: string | null;
+    status: string | null;
+  } | null;
   ticket_type: { name: string | null } | null;
+  order: HistoryOrder | null;
 };
 
 export default async function MyTicketsPage() {
@@ -25,43 +31,50 @@ export default async function MyTicketsPage() {
   if (!account) redirect("/sign-in?next=/account/tickets");
 
   const sb = await createClient();
-  const { data } = await sb
-    .from("event_tickets")
-    // Only PAID tickets belong in "My tickets". Unpaid rows are created with
-    // status 'pending_payment' the moment checkout starts; without this filter a
-    // customer who backs out before paying still saw the tickets as theirs.
-    .select("id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, venue, status), ticket_type:event_ticket_types(name)")
-    .eq("holder_id", account.id)
-    .in("status", [...OWNED_TICKET_STATUSES])
-    .order("created_at", { ascending: false });
+  // HISTORY, not ownership: paid (valid), used and REFUNDED tickets. A refunded
+  // ticket used to vanish from this page; it now lands in the Past tab as a
+  // record. Unpaid rows (status 'pending_payment', created the moment checkout
+  // starts) stay out — a customer who backs out before paying never held one.
+  // Ownership elsewhere (For You, social stats) is unchanged: valid/used only.
+  //
+  // Privacy: holder_id is the signed-in customer and RLS enforces it. The
+  // embedded order is theirs by ticket_orders_buyer_read; a ticket bought for
+  // them by someone else has no order here, so no purchaser data comes with it.
+  const BASE = "id, backup_code, status, attendee_name, checked_in_at, event:events(id, title, starts_at, ends_at, venue, status), ticket_type:event_ticket_types(name)";
+  const ORDER = "order:event_ticket_orders(buyer_id, status, total_pence, tickets_count, paid_at, refunded_at, stripe_payment_intent_id)";
+  const query = (select: string) =>
+    sb
+      .from("event_tickets")
+      .select(select)
+      .eq("holder_id", account.id)
+      .in("status", [...HISTORY_TICKET_STATUSES])
+      .order("created_at", { ascending: false });
 
-  const tickets = (data ?? []) as unknown as TicketRow[];
-
-  // Group by event, most recent event first (already ordered by created_at desc).
-  // This render is the starting truth; TicketsLive keeps it current from the
-  // same table while the page stays open.
-  const byEvent = new Map<string, TicketGroup>();
-  for (const t of tickets) {
-    const key = t.event?.id ?? "unknown";
-    if (!byEvent.has(key)) {
-      byEvent.set(key, {
-        key,
-        title: t.event?.title ?? "Event",
-        when: t.event?.starts_at ?? "",
-        venue: t.event?.venue ?? null,
-        status: t.event?.status ?? null,
-        items: [],
-      });
-    }
-    byEvent.get(key)!.items.push({
-      id: t.id,
-      status: t.status,
-      checked_in_at: t.checked_in_at,
-      backup_code: t.backup_code,
-      attendee_name: t.attendee_name,
-      ticket_type_name: t.ticket_type?.name ?? null,
-    });
+  let { data, error } = await query(`${BASE}, ${ORDER}`);
+  if (error) {
+    // The money lines are an enhancement: if reading the order fails the customer
+    // still sees their tickets, a refunded one included — just without the amounts.
+    console.warn("[account/tickets] order embed failed, retrying without it:", error.message);
+    ({ data, error } = await query(BASE));
   }
+
+  const tickets = ((data ?? []) as unknown as TicketRow[]).map<TicketItem>((t) => ({
+    id: t.id,
+    status: t.status,
+    checked_in_at: t.checked_in_at,
+    backup_code: t.backup_code,
+    attendee_name: t.attendee_name,
+    ticket_type_name: t.ticket_type?.name ?? null,
+    event: {
+      id: t.event?.id ?? "unknown",
+      title: t.event?.title ?? "Event",
+      starts_at: t.event?.starts_at ?? null,
+      ends_at: t.event?.ends_at ?? null,
+      venue: t.event?.venue ?? null,
+      status: t.event?.status ?? null,
+    },
+    order: t.order ?? null,
+  }));
 
   return (
     <div className="space-y-6">
@@ -71,17 +84,9 @@ export default async function MyTicketsPage() {
         <p className="mt-1 text-sm text-ink-muted">Event tickets you&apos;ve bought. Show the code at the door.</p>
       </div>
 
-      {byEvent.size === 0 ? (
-        <div className="rounded-card border border-line bg-paper p-10 text-center shadow-soft">
-          <p className="font-display text-lg font-bold text-ink">No tickets yet</p>
-          <p className="mx-auto mt-2 max-w-sm text-sm text-ink-soft">When you buy tickets to a Shetland event, they&apos;ll appear here.</p>
-          <Link href="/whats-on" className="mt-5 inline-block rounded-pill px-5 py-2.5 text-sm font-semibold text-paper" style={{ background: EVENTS }}>
-            Browse What&apos;s On
-          </Link>
-        </div>
-      ) : (
-        <TicketsLive userId={account.id} groups={[...byEvent.values()]} />
-      )}
+      {/* One list, two tabs: TicketsLive splits it with ticketLifecycle() so a ticket
+          moves to Past the moment it stops being usable, without a reload. */}
+      <TicketsLive userId={account.id} tickets={tickets} />
     </div>
   );
 }

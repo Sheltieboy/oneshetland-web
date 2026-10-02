@@ -44,7 +44,7 @@ export function newlyUsedIds(prev: LiveTicket[], next: LiveTicket[]): string[] {
  * returned; rows it did not return are left exactly as they were, so a partial
  * response can never silently downgrade a ticket.
  */
-export function mergeServerTickets(current: LiveTicket[], server: LiveTicket[]): LiveTicket[] {
+export function mergeServerTickets<T extends LiveTicket>(current: T[], server: T[]): T[] {
   const byId = new Map(server.map((t) => [t.id, t]));
   return current.map((t) => byId.get(t.id) ?? t);
 }
