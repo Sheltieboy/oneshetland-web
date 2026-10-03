@@ -24,12 +24,15 @@ import { InvoiceHistory } from "@/components/business/InvoiceHistory";
 import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { subscriptionConfirmCopy } from "@/lib/subscription-confirm";
 import { BoostCheckout } from "@/components/business/BoostCheckout";
+import { launchGrantCopy, type LaunchGrant } from "@/lib/launch-grant";
 
-export function BillingManager({ business, intentTier, meter }: {
+export function BillingManager({ business, intentTier, meter, launchGrant }: {
   business: ManagedBusiness;
   intentTier?: "pro" | "premium";
   /** Pro only — bookings taken this month and what they cost. */
   meter?: { booked: number; billed: number; feePence: number; capped: boolean } | null;
+  /** A manually granted launch-partner plan, if one is giving this business its access right now. */
+  launchGrant?: LaunchGrant | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -438,9 +441,11 @@ export function BillingManager({ business, intentTier, meter }: {
       <section className={card}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Your plan</h2>
-          <span className="rounded-pill px-3 py-1 text-sm font-bold" style={{ background: `${BIZ}1a`, color: BIZ }}>{TIER_LABELS[tier]} · {TIER_PRICE[tier]}</span>
+          <span className="rounded-pill px-3 py-1 text-sm font-bold" style={{ background: `${BIZ}1a`, color: BIZ }}>{launchGrant ? launchGrantCopy(launchGrant, TIER_LABELS[tier]).badge : `${TIER_LABELS[tier]} · ${TIER_PRICE[tier]}`}</span>
         </div>
-        {b.subscription_until && (
+        {launchGrant ? (
+          <p className="mt-1 text-sm text-ink-muted">{launchGrantCopy(launchGrant, TIER_LABELS[tier]).line}</p>
+        ) : b.subscription_until && (
           <p className="mt-1 text-sm text-ink-muted">{isOnBoost(b) ? "Boost expires" : b.subscription_cancel_at_period_end ? "Cancels on" : "Renews"} {new Date(b.subscription_until).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
         )}
 
@@ -469,7 +474,7 @@ export function BillingManager({ business, intentTier, meter }: {
               next hard reload. It can only ever HIDE: nothing here can offer
               a boost the preview did not already approve, so the two cannot
               disagree in the direction that would take somebody's money. */}
-          {!b.subscription_connected && boostPreview?.boost_eligible && (
+          {!b.subscription_connected && !launchGrant && boostPreview?.boost_eligible && (
             <div className="mt-3 rounded-xl border border-line p-3">
               <p className="text-sm font-semibold text-ink">Or try Pro for a short time</p>
               <p className="text-xs text-ink-muted">One-off payment, no subscription — just unlocked for the duration.</p>
