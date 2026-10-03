@@ -139,14 +139,14 @@ export default async function WorkHubPage({
           visibleShifts.length === 0 ? (
             <EmptyState icon="⚡" title="No shifts right now" body="Nothing matches just now — check back soon, new shifts are posted throughout the day." cta={{ label: "Post a shift", href: "/shifts/new", color: SHIFTS }} />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {visibleShifts.map((s) => <ShiftCard key={s.id} shift={s} />)}
             </div>
           )
         ) : jobs.length === 0 ? (
           <EmptyState icon="💼" title="No jobs match" body="Try clearing filters or a different category — new roles are posted regularly." cta={{ label: "Post a job", href: "/jobs/new", color: JOBS }} />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {jobs.map((j) => <JobCard key={j.id} job={j} />)}
           </div>
         )}
