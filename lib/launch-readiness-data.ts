@@ -396,8 +396,17 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "web-key-routes", area: "web", title: "Key production routes",
       description: "Home, directory, events, business pages, sitemap, robots and not-found recovery.",
       status: "complete", criticality: "important", weight: 2,
-      evidence: "Public surface contract and not-found recovery suites; sitemap and robots in place.",
-      lastUpdated: "2026-09-15",
+      evidence: "Public surface contract and not-found recovery suites; sitemap and robots in place. SHARED-LINK 404 FIXED AND VERIFIED LIVE 3 Oct 2026 (web d55bb5a): app-minted share URLs /give/<campaignId> and /b/<slug> used to 404 for anyone without the app. Now /give/<id> redirects (307) to /hubs/campaign/<id> and /b/<slug> to /directory/<slug>. Production check: a real campaign id and a real business slug each redirect once and end on HTTP 200; invalid ids/slugs still end on 404; /g/* and /t/* unchanged (200). Guarded by tests/app-link-redirects.test.mjs (5 pass). No mobile, Apple, Wallet or payment code changed.",
+      lastUpdated: "2026-10-03",
+    },
+
+    {
+      id: "mobile-business-universal-link", area: "mobile", title: "Business share link opens the installed app (/b/*)",
+      description: "https://oneshetland.com/b/<slug> should open the business profile in the app when it is installed.",
+      status: "not_started", criticality: "nice_to_have", weight: 1, scope: "post_launch",
+      evidence: "/b/* currently opens the web business page rather than the installed app because it is not yet included in the iOS association file or Android intent filters (association route paths are /t/*, /g/*, /give/*; app.json intentFilters likewise). The web fallback itself works (/b/<slug> redirects to /directory/<slug>, verified live 3 Oct 2026). The mobile app/b/[slug].tsx handler exists but is unreachable by universal link.",
+      nextAction: "After the current App Store build is in review/released: add /b/* to the association route and to app.json associatedDomains/intentFilters, then verify on a device with the app installed. Do not change those files while the build is in review.",
+      lastUpdated: "2026-10-03",
     },
 
     /* ── Notifications & email ───────────────────────────────────────────── */
