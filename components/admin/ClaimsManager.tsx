@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
@@ -60,6 +61,9 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
               {r.evidence && <p className="mt-1 max-w-prose text-sm text-ink-soft">“{r.evidence}”</p>}
               <p className="mt-1 text-xs text-ink-faint">{new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
             </div>
+            {r.status === "approved" && r.business?.id && (
+              <Link href={`/admin/claims?status=launch&business=${r.business.id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">Launch partner access →</Link>
+            )}
             {r.status === "pending" && (
               <div className="flex gap-2">
                 <button onClick={() => approve(r)} disabled={busy === r.id} className="rounded-pill bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">Approve</button>
