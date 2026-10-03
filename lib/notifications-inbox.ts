@@ -65,7 +65,11 @@ const SCREEN_ALIASES: Record<string, string> = {
   "local-my-passes": "/account/passes",
   "local-my-gifts": "/account/gifts",
   "local-my-bookings": "/account/bookings",
-  "my-event-tickets": "/account/memberships",
+  "my-event-tickets": "/account/tickets",
+  "my-orders": "/account/orders",
+  "local-business-dashboard": "/business",
+  "my-posted-shifts": "/shifts/manage",
+  "cruise-day": "/cruise",
   notices: "/local",
 };
 
@@ -77,13 +81,15 @@ export function webNotificationRoute(data: Record<string, unknown> | null): stri
 
   // Employer applicants pipeline needs the job id.
   if (screen === "job-applicants" && typeof data.job_id === "string") return `/jobs/${data.job_id}/applicants`;
+  // A shop order update is the buyer's; it must resolve before the generic order_id (event tickets) below.
+  if (typeof data.product_order_id === "string") return "/account/orders";
   if (screen && SCREEN_ALIASES[screen]) return SCREEN_ALIASES[screen];
 
   // Id-based fallbacks (most specific first) — mirrors the app's order.
   if (typeof data.shift_id === "string") return `/shifts/${data.shift_id}`;
   if (typeof data.job_id === "string") return `/jobs/${data.job_id}`;
   if (typeof data.hub_id === "string") return `/hubs/${data.hub_id}`;
-  if (typeof data.order_id === "string") return "/account/memberships";
+  if (typeof data.order_id === "string") return "/account/tickets";
   if (typeof data.event_id === "string") return `/whats-on/${data.event_id}`;
   if (typeof data.request_id === "string") return "/fetch";
   if (typeof data.memory_id === "string") return `/memories/${data.memory_id}`;

@@ -23,9 +23,10 @@ export function NotificationInbox() {
   const router = useRouter();
   const [items, setItems] = useState<InboxNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    fetchInbox().then(setItems).catch(() => {}).finally(() => setLoading(false));
+    fetchInbox().then(setItems).catch(() => setFailed(true)).finally(() => setLoading(false));
   }, []);
 
   const onTap = (item: InboxNotification) => {
@@ -46,6 +47,15 @@ export function NotificationInbox() {
 
   if (loading) {
     return <p className="mt-6 text-ink-muted">Loading…</p>;
+  }
+
+  if (failed) {
+    return (
+      <div role="alert" className="mt-10 rounded-xl border border-line bg-paper p-10 text-center">
+        <p className="font-display text-lg font-semibold text-ink">We couldn&rsquo;t load your notifications</p>
+        <p className="mt-1 text-ink-soft">Please refresh the page and try again.</p>
+      </div>
+    );
   }
 
   if (items.length === 0) {

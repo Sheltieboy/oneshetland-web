@@ -50,6 +50,7 @@ function Toggle({ on, onChange, disabled, label }: { on: boolean; onChange: () =
 export function NotificationPrefsForm({ userId, initial }: { userId: string; initial: NotificationPrefs }) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(initial);
   const [savedAt, setSavedAt] = useState<number>(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   // Analytics consent is stored client-side (localStorage), mirroring the app.
@@ -62,11 +63,20 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
   };
 
   async function persist(next: NotificationPrefs) {
+    const previous = prefs;
     setPrefs(next);
+    setSaveError(null);
     try {
-      await createClient().from("notification_preferences").upsert({ user_id: userId, ...next, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      // supabase-js reports a refused write in `error`, it does not throw — so check it, or a failed save
+      // would still say "Saved".
+      const { error } = await createClient().from("notification_preferences").upsert({ user_id: userId, ...next, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (error) throw error;
       setSavedAt(Date.now());
-    } catch { /* non-fatal */ }
+    } catch {
+      setPrefs(previous);
+      setSavedAt(0);
+      setSaveError("That change didn\u2019t save. Please try again.");
+    }
   }
   const set = (k: keyof NotificationPrefs, v: NotificationPrefs[keyof NotificationPrefs]) => persist({ ...prefs, [k]: v });
   const setGroup = (keys: ModuleKey[], on: boolean) => {
@@ -155,7 +165,8 @@ export function NotificationPrefsForm({ userId, initial }: { userId: string; ini
         </div>
       </div>
 
-      {savedAt > 0 && <p className="text-sm font-semibold text-emerald-600">Saved ✓</p>}
+      {saveError && <p role="alert" className="text-sm font-semibold text-rose-600">{saveError}</p>}
+      {!saveError && savedAt > 0 && <p className="text-sm font-semibold text-emerald-600">Saved ✓</p>}
     </div>
   );
 }
