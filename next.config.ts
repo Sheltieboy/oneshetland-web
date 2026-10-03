@@ -89,6 +89,18 @@ const nextConfig: NextConfig = {
       { source: "/find-candidates/:path*", destination: "/jobs", permanent: true },
       { source: "/spik_word", destination: "/spik", permanent: true },
       { source: "/about", destination: "/", permanent: true },
+      /**
+       * Share/QR links minted by the mobile app (hub-campaign share, business
+       * profile). With the app installed the universal link opens it; this is
+       * what everyone else lands on instead of a 404. Temporary (307) on
+       * purpose: these are app-link URLs, not moved pages, and a cached 308
+       * would outlive any dedicated landing page we add later.
+       *   /give/<campaignId> → the hub campaign page
+       *   /b/<slug>          → the directory profile (that route resolves slugs)
+       * An unknown id/slug still 404s, at the destination.
+       */
+      { source: "/give/:id", destination: "/hubs/campaign/:id", permanent: false },
+      { source: "/b/:slug", destination: "/directory/:slug", permanent: false },
     ];
   },
   /** Clean URL for the (unlisted, noindex) partnership proposal one-pager. */
