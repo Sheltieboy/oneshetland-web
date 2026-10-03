@@ -35,10 +35,13 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
     setBusy(r.id);
     try {
       const sb = createClient();
-      await sb.from("business_claims").update({ status: "rejected" }).eq("id", r.id);
+      // A refused write reports in `error`; without this the screen said "rejected" and told the claimant so
+      // even when nothing had changed.
+      const { error } = await sb.from("business_claims").update({ status: "rejected" }).eq("id", r.id);
+      if (error) throw error;
       sb.functions.invoke("notify-claim", { body: { claim_id: r.id, outcome: "rejected" } }).catch(() => {});
       patch(r.id, "rejected");
-    }
+    } catch (e) { notify({ title: "Couldn't reject", body: e instanceof Error ? e.message : "Could not reject.", tone: "error" }); }
     finally { setBusy(null); }
   }
 
