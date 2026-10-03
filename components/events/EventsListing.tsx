@@ -288,8 +288,10 @@ function DateGroupedList({ events }: { events: EventListItem[] }) {
         const d = new Date(g.events[0].starts_at);
         const weekday = d.toLocaleDateString("en-GB", { weekday: "long" });
         const dayMonth = d.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+        // minmax(0,1fr), not an implicit auto column: an auto track grows to the longest nowrap line (a long venue name
+        // such as Mareel's) and pushes the whole page wider than a phone.
         return (
-          <div key={g.key} className="grid gap-5 md:grid-cols-[170px_1fr]">
+          <div key={g.key} className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[170px_minmax(0,1fr)]">
             <div className="md:sticky md:top-24 md:self-start">
               <p className="font-display text-2xl font-bold" style={{ color: EVENTS }}>
                 {weekday}
