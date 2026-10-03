@@ -168,7 +168,7 @@ export default async function LocalPage({
             there are offers — so with none it was a link that scrolled nowhere.
             It travels with its destination now. The grid follows the count so a
             two-tile row still fills the width. */}
-        <section className={"grid gap-4 sm:grid-cols-2 " + (pillars.length >= 4 ? "lg:grid-cols-4" : pillars.length === 3 ? "lg:grid-cols-3" : "")}>
+        <section className={"grid grid-cols-1 gap-4 sm:grid-cols-2 " + (pillars.length >= 4 ? "lg:grid-cols-4" : pillars.length === 3 ? "lg:grid-cols-3" : "")}>
           {pillars.map((p) => (
             <Link
               key={p.title}
@@ -219,7 +219,7 @@ export default async function LocalPage({
                 All deals & rewards →
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {offers.map((o) => {
                 const cat = o.business?.category ?? "other";
                 const href = `/directory/${o.business?.slug ?? o.business_id}`;
@@ -295,7 +295,7 @@ export default async function LocalPage({
                 Find more →
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {passes.map((p) => {
                 const cat = p.business_category ?? "other";
                 const href = `/directory/${p.business_slug ?? p.business_id}`;
@@ -373,7 +373,7 @@ export default async function LocalPage({
                 See all →
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {bookableServices.slice(0, 6).map((s) => {
                 const cat = s.business_category ?? "other";
                 const bizHref = `/directory/${s.business_slug ?? s.business_id}`;
@@ -429,7 +429,7 @@ export default async function LocalPage({
               cta={{ label: "Add a business", href: "/directory/new" }}
             />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {businesses.map((b) => (
                 <Link
                   key={b.id}
@@ -481,7 +481,7 @@ export default async function LocalPage({
                 See all →
               </Link>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {jobs.map((j) => (
                 <Link
                   key={j.id}
@@ -520,7 +520,7 @@ export default async function LocalPage({
                 See all →
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {notices.map((n) => (
                 <div key={n.id} className="rounded-2xl border border-line bg-paper p-5 shadow-soft">
                   {n.hub && (
