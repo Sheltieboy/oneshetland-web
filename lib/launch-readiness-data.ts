@@ -575,8 +575,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "operations-support", area: "operations", title: "Support process",
       description: "A public way to get help and someone answering it.",
       status: "needs_verification", criticality: "important", weight: 2,
-      evidence: "Public Support page (9c493ac, 14 Sep). Contact mailbox not confirmed.",
-      lastUpdated: "2026-09-14",
+      evidence: "AUDITED 3 Oct 2026. Public: /support (payments and refunds, account and login, businesses) plus every legal page offer hello@oneshetland.com; the footer links Support on every page; all 17 public routes checked live return 200 (only a deliberate nonsense URL 404s). Mailboxes are real: the domain's MX accepts hello@, support@ and appreview@ as recipients and refuses a nonexistent address (RCPT check only, no email sent). Mobile had no help route at all, so Help and support was added to the Me tab, the Account screen and the sign-in footer (committed, not yet published as an update). Operator side: SUPPORT-RUNBOOK.md gives an action path for account, payment/refund, Wallet settlement, merchant, content report, privacy/data request, outage and secret exposure, mapped to the real admin tools (/admin/payments, /admin/reports, /admin/claims, /admin/compliance). 21 source-level tests guard the routes, addresses and web/app parity. REMAINING: nothing can prove from outside that a person reads hello@ and support@ (and that both reach the same person). Send one test email from an outside address to each and confirm it arrives. Known gaps recorded in the runbook: no alert when a content report arrives, the reports queue records a decision but does not remove content, a single operator for the published 24-hour promise.",
+      lastUpdated: "2026-10-03",
     },
     {
       id: "operations-error-monitoring", area: "operations", title: "Error monitoring",
