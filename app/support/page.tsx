@@ -20,6 +20,13 @@ export default function SupportPage() {
             <a href="mailto:hello@oneshetland.com" className="font-semibold text-ink underline">hello@oneshetland.com</a>.
             Tell us what you were trying to do and, if you have one, your account email — it helps us find things faster.
           </p>
+          <p>
+            You can also call us on{" "}
+            <a href="tel:+441595922404" className="font-semibold text-ink underline">01595 922404</a>{" "}
+            (+44 1595 922404). We can&rsquo;t always answer live, so if we miss you please leave a message with your name,
+            number and what you need, and we&rsquo;ll get back to you. For anything involving payments or your account,
+            email is quickest because we can keep a record of it.
+          </p>
         </L>
 
         <L h="Payments &amp; refunds">
