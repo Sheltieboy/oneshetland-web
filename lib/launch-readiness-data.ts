@@ -500,9 +500,9 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     {
       id: "compliance-secret-rotation", area: "compliance", title: "Secret hygiene",
       description: "Google service-account key rotated; cron endpoint secret set.",
-      status: "needs_verification", criticality: "important", weight: 2,
-      evidence: "cron-auth suite exists. Rotation of the Google key (launch checklist 5.1) unconfirmed.",
-      lastUpdated: "2026-09-24",
+      status: "complete", criticality: "important", weight: 2,
+      evidence: "CRON_SECRET verified. The exposed Google Wallet service-account key (236e0b63) was revoked on 2 Oct 2026 and Google's public key listing no longer contains it. The replacement key (2d5131e4) is installed in production (GOOGLE_WALLET_SA_JSON digest matches it). Production Google Wallet flow physically accepted end to end: the web Add to Google Wallet button opens Google's save page, the Shop Local Shetland card previews, saves into Google Wallet and shows member name, member ID and QR. That test also corrected the issuer id to the 19-digit value, linked the service account as Developer, and created the approved loyalty class. The old local JSON was deleted; remotely reachable history of both repos holds no credential material (no key file, key id or private-key block). The issuer is still in Google's Demo mode ([TEST ONLY] label); that is tracked separately as publishing follow-up, not a blocker here. Supabase database-password rotation remains recommended hardening only. A second active key (a6b81e3b) has unknown provenance and is being investigated separately.",
+      lastUpdated: "2026-10-03",
     },
     {
       id: "compliance-under-18", area: "compliance", title: "Under-18 support",
