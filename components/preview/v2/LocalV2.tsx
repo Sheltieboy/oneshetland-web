@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { SHETLAND_AREAS, CATEGORY_LABEL } from "@/lib/local-data";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
-import type { ShelfJob } from "@/lib/home-shelves";
 import { PILLARS, PILLAR_ORDER, density, type Merch, type Pillar } from "@/lib/preview-v2";
 import { CropImg, MerchCard, PillarSection, Rail } from "@/components/preview/v2/Merch";
 import { Band, Heading } from "@/components/preview/v2/HomeV2";
@@ -243,29 +242,6 @@ export function BusinessesCurated({ businesses }: { businesses: CuratedBusiness[
             </Link>
           );
         })}
-      </div>
-    </Band>
-  );
-}
-
-/* ── Jobs (supporting) ────────────────────────────────────────────────────── */
-
-export function JobsCompact({ jobs }: { jobs: ShelfJob[] }) {
-  if (jobs.length === 0) return null;
-  const green = "#2a8b5c";
-  return (
-    <Band>
-      <Heading eyebrow="Work" title="Hiring locally" color={green} cta={{ label: "All jobs", href: "/jobs" }} />
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {jobs.slice(0, 4).map((j) => (
-          <Link key={j.id} href={`/jobs/${j.id}`} className="group flex items-center gap-4 rounded-2xl border-l-4 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift" style={{ borderColor: green }}>
-            <span className="min-w-0 flex-1">
-              <span className="block line-clamp-2 font-display text-lg font-bold leading-snug text-ink">{j.title}</span>
-              <span className="mt-0.5 block truncate text-sm text-ink-muted">{[j.employer, j.where].filter(Boolean).join(" · ")}</span>
-            </span>
-            {j.pay_text && <span className="hidden shrink-0 rounded-pill px-3 py-1 text-xs font-bold sm:block" style={{ background: green + "1a", color: green }}>{j.pay_text}</span>}
-          </Link>
-        ))}
       </div>
     </Band>
   );

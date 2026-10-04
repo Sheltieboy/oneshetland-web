@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { formatEventDate, formatEventTime, type HomeEvent, type HomeNotice, type HomeCampaign } from "@/lib/home-data";
-import type { ShelfJob, ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
+import type { ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import type { CruiseHomeCard } from "@/lib/cruise-data";
 import type { GamePrompt } from "@/lib/home-extras";
@@ -238,45 +238,6 @@ export function CommerceGateway({ commerce }: { commerce: Record<Pillar, Merch[]
         </div>
       </div>
     </section>
-  );
-}
-
-/* ── Work in Shetland ──────────────────────────────────────────────────────── */
-
-export function WorkV2({ jobs }: { jobs: ShelfJob[] }) {
-  if (jobs.length === 0) return null;
-  const [lead, ...rest] = jobs;
-  const green = "#2a8b5c";
-  return (
-    <Band>
-      <Heading eyebrow="Work in Shetland" title="Who's hiring" color={green} cta={{ label: "View all jobs", href: "/jobs" }} />
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <Link href={`/jobs/${lead.id}`} className="group relative isolate flex min-h-[300px] overflow-hidden rounded-3xl shadow-lift lg:col-span-7">
-          <CropImg src="/preview-v2/cafe.jpg" crop={{ cx: 0.55, cy: 0.35, z: 1.2 }} className="absolute inset-0 -z-10" />
-          <div className="absolute inset-0 -z-10" style={{ background: "linear-gradient(100deg, rgba(6,78,59,.95) 30%, rgba(6,78,59,.7) 60%, rgba(6,78,59,.25))" }} />
-          <div className="flex w-full flex-col justify-between p-6 text-white sm:p-9">
-            <span className="self-start rounded-pill bg-white/20 px-3 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm">Featured vacancy{lead.contract_type ? ` · ${lead.contract_type.replace(/-/g, " ")}` : ""}</span>
-            <div>
-              <h3 className="max-w-lg font-display text-3xl font-bold leading-[1.05] sm:text-5xl">{lead.title}</h3>
-              <p className="mt-3 text-base font-medium text-white/90">{[lead.employer, lead.where].filter(Boolean).join(" · ")}</p>
-              {lead.pay_text && <p className="mt-2 font-display text-2xl font-bold text-emerald-200">{lead.pay_text}</p>}
-              <span className="mt-4 inline-block rounded-pill bg-white px-5 py-2 text-sm font-bold text-emerald-900">View vacancy →</span>
-            </div>
-          </div>
-        </Link>
-        <div className="flex flex-col gap-3 lg:col-span-5">
-          {rest.slice(0, 3).map((j) => (
-            <Link key={j.id} href={`/jobs/${j.id}`} className="group flex flex-1 items-center gap-4 rounded-2xl border-l-4 bg-white p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift" style={{ borderColor: green }}>
-              <span className="min-w-0 flex-1">
-                <span className="block line-clamp-2 font-display text-lg font-bold leading-snug text-ink">{j.title}</span>
-                <span className="mt-0.5 block truncate text-sm text-ink-muted">{[j.employer, j.where].filter(Boolean).join(" · ")}</span>
-              </span>
-              {j.pay_text && <span className="shrink-0 rounded-pill px-3 py-1 text-xs font-bold" style={{ background: green + "1a", color: green }}>{j.pay_text}</span>}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </Band>
   );
 }
 

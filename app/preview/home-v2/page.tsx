@@ -15,8 +15,11 @@ import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
 import { AudienceChip } from "@/components/home/AudienceChip";
 import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
+import { buildWork, parseMix } from "@/lib/preview-work";
+import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
+import { HomeWork } from "@/components/preview/v2/WorkV2";
 import { PreviewBar } from "@/components/preview/v2/PreviewBar";
-import { LivePills, RightNow, DiscoverLocal, CommerceGateway, WorkV2, IslandMosaic, CommunityV2, ExploreV2 } from "@/components/preview/v2/HomeV2";
+import { LivePills, RightNow, DiscoverLocal, CommerceGateway, IslandMosaic, CommunityV2, ExploreV2 } from "@/components/preview/v2/HomeV2";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Home V2 (design preview)", robots: { index: false, follow: false } };
@@ -25,8 +28,9 @@ export const metadata: Metadata = { title: "Home V2 (design preview)", robots: {
  * Home V2 — DESIGN PREVIEW. Not linked from anywhere, not indexed, and nothing here replaces `/`.
  * ?state=live|empty|seed|full  ?as=public|admin
  */
-export default async function HomeV2({ searchParams }: { searchParams: Promise<{ state?: string; as?: string }> }) {
-  const { state, viewer } = parsePreview(await searchParams);
+export default async function HomeV2({ searchParams }: { searchParams: Promise<{ state?: string; as?: string; work?: string }> }) {
+  const sp = await searchParams;
+  const { state, viewer } = parsePreview(sp);
   const now = new Date();
   const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience] = await Promise.all([
     getHomeData(),
@@ -39,6 +43,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
     getBookableServices({}).catch(() => []),
     getAudience(),
   ]);
+  const work = buildWork(state, parseMix(sp.work), { jobs: mapLiveJobs(shelves.hiring), shifts: state === "live" ? await loadLiveShifts() : [] }, now);
   const visiting = audience === "visiting";
   const showCruise = cruiseWorthShowing(cruise, now);
   const commerce = buildCommerce(state, viewer, mapLiveCommerce({ products: shelves.freshProducts, offers: data.offers, passes, services }));
@@ -84,7 +89,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
       <CommerceGateway commerce={commerce} />
 
       {/* 6 · WORK */}
-      <WorkV2 jobs={shelves.hiring} />
+      <HomeWork work={work} now={now} />
 
       {/* 7 · ISLAND LIFE */}
       <IslandMosaic boat={shelves.boat} story={shelves.story} spik={shelves.spik} game={getTodaysGame()} />
