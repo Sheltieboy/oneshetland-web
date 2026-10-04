@@ -30,7 +30,7 @@ export function TestRibbon({ tag }: { tag: NonNullable<Merch["tag"]> }) {
       className="absolute left-0 top-3 z-10 flex items-center gap-1.5 rounded-r-md px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-black shadow"
       style={{ background: "repeating-linear-gradient(135deg,#facc15 0 8px,#fde68a 8px 16px)" }}
     >
-      {tag} · QA only
+      TEST · ADMIN ONLY
     </span>
   );
 }

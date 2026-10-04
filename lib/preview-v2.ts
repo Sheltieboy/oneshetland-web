@@ -98,7 +98,7 @@ export const PILLARS: Record<Pillar, {
     tagline: "Passes, tours and days out across the isles.",
     emptyTitle: "Days out, coming soon",
     emptyBody: "Guided walks, boat trips, workshops and multi-visit passes — buy once, use more than once.",
-    cta: { label: "List an experience", href: "/business" }, seeAll: "/directory",
+    cta: { label: "List an experience", href: "/business" }, seeAll: "/local#experiences",
     cats: ["Heritage", "Wildlife", "Boat trips", "Workshops"],
   },
 };
@@ -165,7 +165,7 @@ const QA_ITEMS: Omit<Merch, "href">[] = [
 const BASES: Record<Pillar, Omit<Merch, "id" | "pillar" | "href">[]> = {
   shop: SHOP_BASE, offers: OFFER_BASE, book: BOOK_BASE, experiences: EXP_BASE,
 };
-const HREF: Record<Pillar, string> = { shop: "/shop", offers: "/local#offers", book: "/directory/bookable", experiences: "/directory" };
+const HREF: Record<Pillar, string> = { shop: "/shop", offers: "/local#offers", book: "/directory/bookable", experiences: "/local#experiences" };
 const COUNTS: Record<"seed" | "full", Record<Pillar, number>> = {
   seed: { shop: 3, offers: 2, book: 2, experiences: 3 },
   full: { shop: 24, offers: 22, book: 20, experiences: 21 },

@@ -79,26 +79,12 @@ export function rankBusinesses(rows: CuratedRow[], now: Date, limit: number): Cu
       is_verified: b.is_verified, address: b.address,
     });
   }
-  // A shelf of eight banks and solicitors is not "open for business". Take the best of each kind first (at most
-  // ceil(limit / 2) of any one category), then top up from whatever is left, still best first.
-  const cap = Math.max(1, Math.ceil(limit / 2));
-  const perCategory = new Map<string, number>();
-  const out: CuratedBusiness[] = [];
-  for (const b of unique) {
-    const c = b.category ?? "";
-    if ((perCategory.get(c) ?? 0) >= cap) continue;
-    perCategory.set(c, (perCategory.get(c) ?? 0) + 1);
-    out.push(b);
-    if (out.length >= limit) return out;
-  }
-  for (const b of unique) {
-    if (out.length >= limit) break;
-    if (!out.includes(b)) out.push(b);
-  }
-  return interleave(out);
+  // A shelf of eight banks and solicitors is not "open for business": deal the best of each kind in turn
+  // (café, shop, service, stay, café, …), best first within each kind, until the shelf is full.
+  return interleave(unique).slice(0, limit);
 }
 
-/** Show the shelf as a mix too: café, shop, service, stay, café, … (best first within each kind). */
+/** Deal one from each kind in turn: café, shop, service, stay, café, … (best first within each kind). */
 function interleave(list: CuratedBusiness[]): CuratedBusiness[] {
   const order = ["food_drink", "retail", "services", "accommodation"];
   const lanes = order.map((c) => list.filter((b) => b.category === c));

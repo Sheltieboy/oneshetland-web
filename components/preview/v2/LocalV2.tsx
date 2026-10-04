@@ -38,7 +38,7 @@ export function LocalHero({ areaKey, base }: { areaKey?: string; base: string })
         </form>
         <div className="-mx-5 mt-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <Link href={base} className={chip(!areaKey)}>All Shetland</Link>
-          {SHETLAND_AREAS.map((a) => <Link key={a.key} href={`${base}&area=${encodeURIComponent(a.key)}`} className={chip(areaKey === a.key)}>{a.label}</Link>)}
+          {SHETLAND_AREAS.map((a) => <Link key={a.key} href={`${base}${base.includes("?") ? "&" : "?"}area=${encodeURIComponent(a.key)}`} className={chip(areaKey === a.key)}>{a.label}</Link>)}
         </div>
       </div>
     </section>
@@ -82,14 +82,13 @@ export function SixPillars({ commerce, businessCount }: { commerce: Record<Pilla
   );
 }
 
-/** A loyalty card drawn in CSS: stamps filling in. Decorative. */
+/** Decorative: an empty stamp card — nothing earned, no business named. It must never read as someone's actual card. */
 function RewardsArt() {
   return (
     <div aria-hidden className="absolute right-3 top-3 -z-10 w-[62%] max-w-[210px] rotate-6 rounded-2xl bg-white/95 p-3 shadow-lift">
-      <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-violet-900"><span>Sample Café</span><span>5 / 8</span></div>
-      <div className="mt-2 grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-4 gap-1.5">
         {Array.from({ length: 8 }, (_, i) => (
-          <span key={i} className={"grid aspect-square place-items-center rounded-full text-[10px] font-black " + (i < 5 ? "bg-violet-600 text-white" : "border-2 border-dashed border-violet-300 text-violet-300")}>{i < 5 ? "★" : ""}</span>
+          <span key={i} className="grid aspect-square place-items-center rounded-full border-2 border-dashed border-violet-300 text-[10px] font-black text-violet-300" />
         ))}
       </div>
     </div>
@@ -197,20 +196,12 @@ export function RewardsPanel() {
           </ol>
           <Link href="/loyalty" className="mt-7 inline-block rounded-pill bg-white px-6 py-3 text-sm font-bold text-violet-900 shadow-lift">Explore Local rewards →</Link>
         </div>
-        {/* the card, drawn in CSS */}
-        <div className="relative mx-auto w-full max-w-xs sm:max-w-md" aria-hidden>
-          <div className="rotate-[-4deg] rounded-3xl bg-white p-4 text-violet-950 shadow-lift sm:p-6">
-            <div className="flex items-center justify-between"><span className="font-display text-xl font-bold">Sample Café</span><span className="rounded-pill bg-violet-100 px-3 py-1 text-xs font-black text-violet-800">5 of 8</span></div>
-            <div className="mt-5 grid grid-cols-4 gap-3">
-              {Array.from({ length: 8 }, (_, i) => (
-                <span key={i} className={"grid aspect-square place-items-center rounded-full text-lg font-black " + (i < 5 ? "bg-violet-600 text-white" : "border-2 border-dashed border-violet-300 text-violet-300")}>{i < 5 ? "★" : i + 1}</span>
-              ))}
-            </div>
-            <p className="mt-5 text-sm font-semibold text-violet-800">3 more stamps for a free coffee</p>
-          </div>
-          <div className="absolute -bottom-5 -right-2 rotate-3 rounded-2xl bg-amber-300 px-5 py-3 text-amber-950 shadow-lift">
-            <span className="block text-[10px] font-black uppercase tracking-widest">Wallet</span>
-            <span className="block font-display text-2xl font-black">£12.50</span>
+        {/* an honest invitation — not a card that looks as if it already belongs to someone */}
+        <div className="relative mx-auto w-full max-w-xs sm:max-w-md">
+          <div className="rotate-[-3deg] rounded-3xl bg-white p-6 text-violet-950 shadow-lift sm:p-8">
+            <p className="font-display text-3xl font-bold leading-tight">Collect rewards locally</p>
+            <p className="mt-3 text-base text-violet-900/85">Find participating businesses and start earning stamps and points.</p>
+            <Link href="/loyalty" className="mt-6 inline-block rounded-pill bg-violet-700 px-6 py-3 text-sm font-bold text-white shadow-soft">Explore rewards →</Link>
           </div>
         </div>
       </div>
