@@ -95,6 +95,17 @@ export function rankBusinesses(rows: CuratedRow[], now: Date, limit: number): Cu
     if (out.length >= limit) break;
     if (!out.includes(b)) out.push(b);
   }
+  return interleave(out);
+}
+
+/** Show the shelf as a mix too: café, shop, service, stay, café, … (best first within each kind). */
+function interleave(list: CuratedBusiness[]): CuratedBusiness[] {
+  const order = ["food_drink", "retail", "services", "accommodation"];
+  const lanes = order.map((c) => list.filter((b) => b.category === c));
+  const out: CuratedBusiness[] = [];
+  for (let i = 0; out.length < list.length; i++) {
+    for (const lane of lanes) if (lane[i]) out.push(lane[i]);
+  }
   return out;
 }
 
