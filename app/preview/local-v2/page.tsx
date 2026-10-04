@@ -5,8 +5,11 @@ import { getCuratedBusinesses } from "@/lib/curated-businesses";
 import { getActiveLocalPasses, getBookableServices, SHETLAND_AREAS } from "@/lib/local-data";
 import { buildCommerce, mapLiveCommerce, parsePreview } from "@/lib/preview-v2";
 import { publicClient } from "@/lib/supabase/public";
+import { buildWork, parseMix } from "@/lib/preview-work";
+import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
+import { LocalWork } from "@/components/preview/v2/WorkV2";
 import { PreviewBar } from "@/components/preview/v2/PreviewBar";
-import { LocalHero, SixPillars, GoodLocally, PillarBand, RewardsPanel, BusinessesCurated, JobsCompact, ForBusinesses } from "@/components/preview/v2/LocalV2";
+import { LocalHero, SixPillars, GoodLocally, PillarBand, RewardsPanel, BusinessesCurated, ForBusinesses } from "@/components/preview/v2/LocalV2";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Local V2 (design preview)", robots: { index: false, follow: false } };
@@ -15,7 +18,7 @@ export const metadata: Metadata = { title: "Local V2 (design preview)", robots: 
  * Local V2 — DESIGN PREVIEW. Not linked from anywhere, not indexed, and nothing here replaces `/local`.
  * ?state=live|empty|seed|full  ?as=public|admin  ?area=<area key>
  */
-export default async function LocalV2({ searchParams }: { searchParams: Promise<{ state?: string; as?: string; area?: string }> }) {
+export default async function LocalV2({ searchParams }: { searchParams: Promise<{ state?: string; as?: string; area?: string; work?: string }> }) {
   const sp = await searchParams;
   const { state, viewer } = parsePreview(sp);
   const areaKey = SHETLAND_AREAS.find((a) => a.key === sp.area)?.key;
@@ -29,6 +32,8 @@ export default async function LocalV2({ searchParams }: { searchParams: Promise<
     publicClient().from("local_businesses").select("id", { count: "exact", head: true }).eq("is_active", true).then((r) => r.count ?? 0, () => 0),
   ]);
   const commerce = buildCommerce(state, viewer, mapLiveCommerce({ products: shelves.freshProducts, offers: data.offers, passes, services }));
+  const now = new Date();
+  const work = buildWork(state, parseMix(sp.work), { jobs: mapLiveJobs(shelves.hiring), shifts: state === "live" ? await loadLiveShifts() : [] }, now);
   const base = `/preview/local-v2?state=${state}&as=${viewer}`;
 
   return (
@@ -43,7 +48,7 @@ export default async function LocalV2({ searchParams }: { searchParams: Promise<
       <PillarBand pillar="experiences" items={commerce.experiences} />
       <RewardsPanel />
       <BusinessesCurated businesses={businesses} />
-      <JobsCompact jobs={shelves.hiring} />
+      <LocalWork work={work} now={now} />
       <ForBusinesses />
     </>
   );
