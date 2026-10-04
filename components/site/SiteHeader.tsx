@@ -184,6 +184,14 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             </Link>
             {user ? (
               <>
+                {/* The bell is hidden below sm; this is how a phone reaches the notifications inbox. */}
+                <Link
+                  href="/notifications"
+                  onClick={() => setOpen(false)}
+                  className="mt-2 rounded-pill border border-line-strong px-4 py-3 text-center text-base font-semibold text-ink"
+                >
+                  Notifications
+                </Link>
                 <Link
                   href="/account"
                   onClick={() => setOpen(false)}

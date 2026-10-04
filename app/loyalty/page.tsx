@@ -4,7 +4,7 @@ import { SafeImage } from "@/components/ui/SafeImage";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Shop Local Shetland — loyalty & rewards",
+  title: "Local rewards — loyalty & Wallet",
   description:
     "Collect stamps, earn points and grab local deals at Shetland businesses — all in one place, on OneShetland.",
 };
@@ -70,7 +70,7 @@ export default async function LoyaltyHubPage() {
         style={{ background: `linear-gradient(135deg, ${LOYAL} 0%, #4f46e5 55%, #0ea5e9 100%)` }}
       >
         <span className="inline-block rounded-pill bg-paper/20 px-3 py-1 text-xs font-bold uppercase tracking-wide">
-          Shop Local Shetland
+          Local rewards
         </span>
         <h1 className="mt-3 font-display text-3xl font-bold leading-tight sm:text-4xl">
           One card for every shop in Shetland

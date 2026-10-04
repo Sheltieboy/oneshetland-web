@@ -1,5 +1,6 @@
 import { publicClient } from "./supabase/public";
 import { unwrapPublic } from "./public-read";
+import { noticeHref } from "./home-curation";
 
 /* ── Types (the slim shapes the homepage renders) ─────────────────────────── */
 export type HomeEvent = {
@@ -46,6 +47,8 @@ export type HomeNotice = {
   publisher: string;
   logo_url: string | null;
   brand_color: string | null;
+  /** Where tapping the notice goes: its fundraiser, event, hub or business — never a generic page. */
+  href: string;
 };
 
 export type HomeJob = {
@@ -257,9 +260,9 @@ async function fetchNotices(sb: SB, now: string): Promise<HomeNotice[]> {
     .from("notices")
     .select(
       `id, severity, title, body, locality, published_at,
-       publisher_business_id, publisher_user_id, publisher_hub_id,
-       hub:hubs ( name, logo_url, brand_color ),
-       business:local_businesses ( name, logo_url, brand_color )`,
+       publisher_business_id, publisher_user_id, publisher_hub_id, campaign_id, event_id,
+       hub:hubs ( id, slug, name, logo_url, brand_color ),
+       business:local_businesses ( id, slug, name, logo_url, brand_color )`,
     )
     .eq("is_hidden", false)
     .eq("visibility", "public")
@@ -269,8 +272,8 @@ async function fetchNotices(sb: SB, now: string): Promise<HomeNotice[]> {
     .limit(8);
 
   return ((data ?? []) as Record<string, unknown>[]).map((r) => {
-    const hub = r.hub as { name?: string; logo_url?: string; brand_color?: string } | null;
-    const business = r.business as { name?: string; logo_url?: string; brand_color?: string } | null;
+    const hub = r.hub as { id?: string; slug?: string; name?: string; logo_url?: string; brand_color?: string } | null;
+    const business = r.business as { id?: string; slug?: string; name?: string; logo_url?: string; brand_color?: string } | null;
     return {
       id: r.id as string,
       severity: (r.severity as string) ?? null,
@@ -284,6 +287,7 @@ async function fetchNotices(sb: SB, now: string): Promise<HomeNotice[]> {
         (r.publisher_hub_id ? "Community hub" : r.publisher_business_id ? "Local business" : "Member"),
       logo_url: hub?.logo_url ?? business?.logo_url ?? null,
       brand_color: hub?.brand_color ?? business?.brand_color ?? null,
+      href: noticeHref({ campaign_id: r.campaign_id as string | null, event_id: r.event_id as string | null, hub, business }),
     };
   });
 }
@@ -292,6 +296,7 @@ async function fetchJobs(sb: SB, now: string): Promise<HomeJob[]> {
   const { data } = await sb
     .from("jobs")
     .select("id, title, location, pay_text, posted_at")
+    .eq("status", "open")
     .eq("is_hidden", false)
     .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order("is_featured", { ascending: false })

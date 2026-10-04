@@ -78,7 +78,7 @@ export const SECTIONS: Section[] = [
   },
   {
     key: "jobs",
-    label: "Work",
+    label: "Jobs",
     href: "/jobs",
     color: "#2a8b5c",
     token: "jobs",

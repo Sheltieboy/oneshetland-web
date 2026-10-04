@@ -2,28 +2,10 @@ import { publicClient } from "./supabase/public";
 import { getRecentMemories } from "./memories-data";
 
 /**
- * home-shelves.ts — data for the homepage's shelf bands (Featured this week,
- * Offers & rewards, Eat/drink/shop rails, Island life, Hiring now).
- *
- * The paid ladder lives here: premium businesses fill the Featured shelf,
- * pro+ sort first in the rails. When nobody is paying yet, shelves fall back
- * to fresh real content ("New on OneShetland") so nothing renders empty —
- * and flip to paid automatically as subscriptions arrive.
+ * home-shelves.ts — data for the homepage's remaining shelves: new products, open jobs, and the island-life
+ * cards (a boat, a memory, the Spik word). Businesses are curated separately (lib/curated-businesses.ts).
+ * Every shelf is optional: an empty one is simply not rendered.
  */
-
-const TIER_RANK: Record<string, number> = { premium: 2, pro: 1, free: 0 };
-
-export type ShelfBusiness = {
-  id: string;
-  name: string;
-  category: string | null;
-  description: string | null;
-  logo_url: string | null;
-  cover_url: string | null;
-  slug: string | null;
-  subscription_tier: string;
-  is_claimed: boolean;
-};
 
 export type ShelfJob = {
   id: string;
@@ -61,10 +43,6 @@ export type ShelfProduct = {
 };
 
 export type HomeShelves = {
-  featured: ShelfBusiness[]; // 3+ → shelf renders; premium first, fallback fresh
-  anyPaid: boolean;          // true once a premium/pro business is in the shelf
-  eatDrink: ShelfBusiness[];
-  shops: ShelfBusiness[];
   freshProducts: ShelfProduct[];
   hiring: ShelfJob[];
   boat: ShelfBoat;
@@ -73,87 +51,21 @@ export type HomeShelves = {
 };
 
 type SB = ReturnType<typeof publicClient>;
-const BIZ_COLS = "id, name, category, description, logo_url, cover_url, slug, subscription_tier, is_claimed";
 
 const safe = async <T>(p: Promise<T>, fallback: T): Promise<T> => {
   try { return await p; } catch { return fallback; }
 };
 
-const byTier = (a: ShelfBusiness, b: ShelfBusiness) =>
-  (TIER_RANK[b.subscription_tier] ?? 0) - (TIER_RANK[a.subscription_tier] ?? 0);
-
 export async function getHomeShelves(): Promise<HomeShelves> {
   const sb = publicClient();
-  const [featured, eatDrink, shops, freshProducts, hiring, boat, story, spik] = await Promise.all([
-    safe(fetchFeatured(sb), []),
-    safe(fetchRail(sb, ["food_drink"]), []),
-    safe(fetchRail(sb, ["retail", "services"]), []),
+  const [freshProducts, hiring, boat, story, spik] = await Promise.all([
     safe(fetchFreshProducts(sb), []),
     safe(fetchHiring(sb), []),
     safe(fetchBoat(sb), null),
     safe(fetchStory(), null),
     safe(fetchSpik(sb), null),
   ]);
-  return {
-    featured,
-    anyPaid: featured.some((b) => TIER_RANK[b.subscription_tier] > 0),
-    eatDrink,
-    shops,
-    freshProducts,
-    hiring,
-    boat,
-    story,
-    spik,
-  };
-}
-
-/** Premium (paying) businesses first; topped up with fresh claimed/logo'd ones. */
-async function fetchFeatured(sb: SB): Promise<ShelfBusiness[]> {
-  const now = new Date().toISOString();
-  const { data: paid } = await sb
-    .from("local_businesses")
-    .select(BIZ_COLS)
-    .eq("is_active", true)
-    .in("subscription_tier", ["premium", "pro"])
-    .or(`subscription_until.is.null,subscription_until.gt.${now}`)
-    .limit(6);
-  const out = ((paid ?? []) as ShelfBusiness[]).sort(byTier);
-
-  if (out.length < 3) {
-    // Fallback: newest claimed businesses, then newest with a logo — real,
-    // fresh content so the shelf never renders empty pre-monetisation.
-    const have = new Set(out.map((b) => b.id));
-    const names = new Set(out.map((b) => b.name.toLowerCase().trim()));
-    const { data: fresh } = await sb
-      .from("local_businesses")
-      .select(BIZ_COLS)
-      .eq("is_active", true)
-      .not("logo_url", "is", null)
-      .order("is_claimed", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(12);
-    for (const b of (fresh ?? []) as ShelfBusiness[]) {
-      if (out.length >= 3) break;
-      const key = b.name.toLowerCase().trim();
-      // Same trading name twice on one shelf looks broken (dupes exist across
-      // directory sources) — one card per name.
-      if (!have.has(b.id) && !names.has(key)) { out.push(b); have.add(b.id); names.add(key); }
-    }
-  }
-  return out.slice(0, 3);
-}
-
-async function fetchRail(sb: SB, categories: string[]): Promise<ShelfBusiness[]> {
-  const { data } = await sb
-    .from("local_businesses")
-    .select(BIZ_COLS)
-    .eq("is_active", true)
-    .in("category", categories)
-    .not("logo_url", "is", null)
-    .order("created_at", { ascending: false })
-    .limit(24);
-  // Paid tiers sort to the front of the rail — the visible "Pro sorts first".
-  return ((data ?? []) as ShelfBusiness[]).sort(byTier).slice(0, 10);
+  return { freshProducts, hiring, boat, story, spik };
 }
 
 /** Newest products across every shop — the Shop Shetland discovery rail. */

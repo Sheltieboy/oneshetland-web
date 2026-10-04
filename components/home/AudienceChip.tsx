@@ -27,7 +27,7 @@ const OPTIONS: { key: Audience; emoji: string; label: string }[] = [
   { key: "visiting", emoji: "🧳", label: "I'm visiting" },
 ];
 
-export function AudienceChip({ audience }: { audience: Audience }) {
+export function AudienceChip({ audience, compact = false }: { audience: Audience; compact?: boolean }) {
   const router = useRouter();
   const [current, setCurrent] = useState<Audience>(audience);
   const [pending, startTransition] = useTransition();
@@ -54,10 +54,13 @@ export function AudienceChip({ audience }: { audience: Audience }) {
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <p className="text-sm text-ink-muted">
-        <span className="font-semibold text-ink">Show me Shetland as…</span>{" "}
-        <span className="text-ink-faint">nothing gets hidden, it just reorders the page.</span>
-      </p>
+      {/* Compact (in the hero): the control alone. Its effect — Plan a day first for visitors — is visible at once. */}
+      {!compact && (
+        <p className="text-sm text-ink-muted">
+          <span className="font-semibold text-ink">Show me Shetland as…</span>{" "}
+          <span className="text-ink-faint">nothing gets hidden, it just reorders the page.</span>
+        </p>
+      )}
 
       <div
         role="group"
