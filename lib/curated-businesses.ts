@@ -68,17 +68,32 @@ export function rankBusinesses(rows: CuratedRow[], now: Date, limit: number): Cu
     .map((b) => ({ b, s: businessScore(b, now) }))
     .sort((x, y) => y.s - x.s || (y.b.created_at ?? "").localeCompare(x.b.created_at ?? ""));
   const seen = new Set<string>();
-  const out: CuratedBusiness[] = [];
+  const unique: CuratedBusiness[] = [];
   for (const { b } of scored) {
     const key = norm(b.name);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    out.push({
+    unique.push({
       id: b.id, name: b.name, category: b.category, description: b.description, logo_url: b.logo_url,
       cover_url: b.cover_url, slug: b.slug, subscription_tier: b.subscription_tier, is_claimed: b.is_claimed,
       is_verified: b.is_verified, address: b.address,
     });
+  }
+  // A shelf of eight banks and solicitors is not "open for business". Take the best of each kind first (at most
+  // ceil(limit / 2) of any one category), then top up from whatever is left, still best first.
+  const cap = Math.max(1, Math.ceil(limit / 2));
+  const perCategory = new Map<string, number>();
+  const out: CuratedBusiness[] = [];
+  for (const b of unique) {
+    const c = b.category ?? "";
+    if ((perCategory.get(c) ?? 0) >= cap) continue;
+    perCategory.set(c, (perCategory.get(c) ?? 0) + 1);
+    out.push(b);
+    if (out.length >= limit) return out;
+  }
+  for (const b of unique) {
     if (out.length >= limit) break;
+    if (!out.includes(b)) out.push(b);
   }
   return out;
 }

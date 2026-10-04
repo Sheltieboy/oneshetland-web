@@ -716,6 +716,7 @@ export async function getLocalFeed(area?: string): Promise<{
       (async () => {
         let q = sb.from("jobs")
           .select("id, title, location, pay_text, posted_at")
+          .eq("status", "open")
           .eq("is_hidden", false)
           .or(`expires_at.is.null,expires_at.gt.${now}`)
           .order("posted_at", { ascending: false })
