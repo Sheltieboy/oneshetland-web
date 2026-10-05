@@ -8,6 +8,8 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import nextConfig from "../next.config.ts";
 import { getPreviewConfig, previewSlugs } from "../lib/launch-preview/registry.ts";
+import { isReviewToken, reviewToken, reviewEnabled } from "../lib/launch-preview/review.ts";
+import { existsSync } from "node:fs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -17,10 +19,11 @@ describe("configuration", () => {
     for (const slug of previewSlugs()) {
       const c = getPreviewConfig(slug);
       assert.equal(c.slug, slug);
-      assert.ok(c.products.length >= 4 && c.products.length <= 6, "4–6 representative products");
+      assert.ok(c.products.length === 0 || (c.products.length >= 4 && c.products.length <= 6), "no products, or 4–6 representative products");
       for (const p of c.products) {
         assert.ok(p.price > 0 && Number.isFinite(p.price));
-        assert.deepEqual(Object.keys(p).sort(), ["blurb", "id", "image", "price", "title"], "a preview product has no stock, sku, checkout or link field");
+        const keys = Object.keys(p).sort().filter((k) => k !== "source");
+        assert.deepEqual(keys, ["blurb", "id", "image", "price", "title"], "a preview product has no stock, sku, checkout or link field (only an optional source page)");
       }
     }
     assert.equal(getPreviewConfig("nope"), null);
@@ -36,6 +39,76 @@ describe("configuration", () => {
       }
     }
     assert.doesNotMatch(read("scripts/launch-invite.mjs"), /\b[0-9a-f]{64}\b/);
+  });
+});
+
+describe("the launch-partner batch", () => {
+  const batch = ["shetland-jewellery", "the-dowry", "peerie-shop", "da-craft-shed", "shetland-soap-company"];
+  test("all five exist, are bound to distinct Directory records, and are in the safe holding state", () => {
+    const ids = new Set();
+    for (const slug of batch) {
+      const c = getPreviewConfig(slug);
+      assert.ok(c, slug);
+      assert.match(c.directoryBusinessId, /^[0-9a-f-]{36}$/);
+      assert.ok(!ids.has(c.directoryBusinessId), "one business per preview");
+      ids.add(c.directoryBusinessId);
+      assert.equal(c.claim, "holding", `${slug}: claiming stays closed until the invitation is deliberately issued`);
+    }
+    assert.notEqual(getPreviewConfig("love-from-shetland").claim, "holding", "the approved Love From Shetland flow is unchanged");
+  });
+  test("every external product, price and image traces to a source URL on the business's own site", () => {
+    for (const slug of batch) {
+      const c = getPreviewConfig(slug);
+      assert.ok(c.sources.length >= 1, `${slug}: sources recorded`);
+      const hosts = new Set(c.sources.map((x) => new URL(x.url).host));
+      for (const p of c.products) { assert.ok(p.source, `${slug}/${p.id}: no source`); assert.ok(hosts.has(new URL(p.source).host), `${slug}/${p.id}: source host is not a recorded source`); }
+      if (c.experience) assert.ok(new URL(c.experience.source).host && c.sources.some((x) => x.url === c.experience.source), `${slug}: experience source recorded`);
+      for (const x of c.sources) assert.match(x.url, /^https:\/\//);
+      for (const img of [c.business.image.src, c.experience?.image.src].filter(Boolean)) if (img.startsWith("/")) assert.ok(existsSync(new URL(`../public${img}`, import.meta.url)), `${slug}: ${img} missing`);
+    }
+  });
+  test("nothing invented: no offer, discount, reward amount, stock or availability wording in a config", () => {
+    for (const slug of batch) {
+      const text = JSON.stringify(getPreviewConfig(slug));
+      assert.doesNotMatch(text, /\d+\s?% off|discount|free delivery|in stock|sold out|limited time|expires|deadline/i, slug);
+    }
+  });
+  test("Peerie Shop is bound to the SHOP record only and claims nothing about the café's ownership", () => {
+    const c = getPreviewConfig("peerie-shop");
+    assert.equal(c.directoryBusinessId, "796a8ec6-d7a4-4af0-b77b-460ca31ab1da");
+    assert.doesNotMatch(JSON.stringify(c), /649c7844|01a8147a|Peerie Isles/);
+    assert.doesNotMatch(JSON.stringify(c), /our café|your café|owned by|run by/i);
+  });
+  test("Da Craft Shed's products carry no third-party maker or brand name", () => {
+    const c = getPreviewConfig("da-craft-shed");
+    for (const p of c.products) assert.doesNotMatch(p.title, /Emma Ball|Aister|Uradale|Laxdale|Knotted Compass|Jamieson/i, p.title);
+  });
+  test("Shetland Jewellery shows an experience but marks it as not bookable on OneShetland", () => {
+    const c = getPreviewConfig("shetland-jewellery");
+    assert.ok(c.experience);
+    assert.match(read("components/launch-preview/PreviewPage.tsx"), /not bookable on OneShetland/);
+  });
+});
+
+describe("internal review access", () => {
+  const secret = "a".repeat(32);
+  const dev = { NODE_ENV: "development", LAUNCH_PREVIEW_REVIEW_SECRET: secret };
+  test("works only in development, with a long-enough secret, for the exact slug", () => {
+    const t = reviewToken("the-dowry", secret);
+    assert.ok(isReviewToken("the-dowry", t, dev));
+    assert.equal(isReviewToken("peerie-shop", t, dev), false, "a token is for one slug");
+    assert.equal(isReviewToken("the-dowry", t, { ...dev, NODE_ENV: "production" }), false, "a production server never accepts one");
+    assert.equal(isReviewToken("the-dowry", t, { NODE_ENV: "development" }), false, "no secret, no door");
+    assert.equal(isReviewToken("the-dowry", reviewToken("the-dowry", "short"), { NODE_ENV: "development", LAUNCH_PREVIEW_REVIEW_SECRET: "short" }), false, "a short secret is refused");
+    assert.equal(isReviewToken("the-dowry", "x".repeat(64), dev), false);
+    assert.equal(reviewEnabled({ NODE_ENV: "test", LAUNCH_PREVIEW_REVIEW_SECRET: secret }), false);
+  });
+  test("a review session can neither claim nor reach the claim page", () => {
+    assert.match(read("app/launch/[slug]/claim/page.tsx"), /open\.review \|\| open\.cfg\.claim === "holding"/);
+    assert.match(read("lib/launch-preview/invite.server.ts"), /isReviewToken\(slug, token\)/);
+  });
+  test("the review secret is not in source control", () => {
+    assert.doesNotMatch(read("scripts/launch-review-urls.mjs"), /LAUNCH_PREVIEW_REVIEW_SECRET=[0-9a-f]{20}/);
   });
 });
 

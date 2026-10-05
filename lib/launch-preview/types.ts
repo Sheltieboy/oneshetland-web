@@ -17,7 +17,31 @@ export interface PreviewProduct {
   image: string;
   /** One honest line, in our words, describing the item. */
   blurb: string;
+  /** The public page on the business's own site this item (name, price, picture) was taken from. Recorded for the owner and for review. */
+  source?: string;
 }
+
+export interface PreviewPhoto { src: string; alt: string; /** CSS object-position for cropping a wide photo into a tall frame, e.g. '30% 50%'. */ position?: string }
+
+/** An experience the business's own public site already offers, shown as it COULD look on OneShetland. Never bookable. */
+export interface PreviewExperience {
+  title: string;
+  blurb: string;
+  image: PreviewPhoto;
+  /** Short facts exactly as the business states them publicly (duration, price…). Omit anything not public. */
+  meta?: string;
+  price?: string;
+  source: string;
+}
+
+/** A source of public information used on the page. Every external product, price, image or description traces to one. */
+export interface PreviewSource { label: string; url: string; used: string }
+
+/** Where a business sits in OneShetland's real categories (drives tile colour and label, as on Home V2 / Local V2). */
+export type PreviewCategory = 'retail' | 'food_drink' | 'services';
+
+/** The possibilities cards shown in "Things you could do — if you want to". Always labelled as examples. */
+export type PreviewPossibility = 'offers' | 'rewards' | 'discovery';
 
 export interface PreviewConfig {
   /** URL slug: /launch/{slug}. Also the key invites are issued under. */
@@ -26,24 +50,71 @@ export interface PreviewConfig {
   /** Existing Directory record to read (read-only) for name, description and location. Null = use the config values only. */
   directoryBusinessId: string | null;
 
+  /**
+   * 'live'    — the claim button leads into the real claim flow (needs a database invitation).
+   * 'holding' — the safe default for a preview still being prepared: the button explains that claiming is not open yet,
+   *             and the claim page itself refuses. Switch to 'live' only when the invitation is actually being issued.
+   * Omitted = 'live' (Love From Shetland, already approved).
+   */
+  claim?: 'live' | 'holding';
+  /** One line naming the pitch ("Products + experiences"). Shown on the internal review index only. */
+  positioning?: string;
+
   hero: {
     /** Short line under the main headline, written for this business. */
     support: string;
+    /** Three display lines; the last is accented. Defaults to the shop headline. */
+    headline?: [string, string, string];
+    /** 'photo' (default) shows the business photo. 'ambient' is for businesses whose own site has no strong photograph. */
+    treatment?: 'photo' | 'ambient';
+    /** CSS object-position for the ambient hero background (defaults to the photo's own position). */
+    position?: string;
+    /** Small pictures overlapping the hero photo; defaults to the first two products. */
+    collage?: { src: string; alt: string; label: string; price?: number }[];
   };
 
   business: {
     categoryLabel: string;
+    /** The business's real OneShetland category; default 'retail'. */
+    category?: PreviewCategory;
+    /** Short word on the Home tile / Local card / search row, e.g. "Shop", "Eat & drink". Default "Shop". */
+    pillarLabel?: string;
+    /** The OneShetland logo already on the listing (shown small, on tiles). Falls back to the photo. */
+    logo?: string;
     locality: string;
     /** Used only if the Directory record cannot be read. */
     description: string;
     tags: string[];
     /** A public photograph of the business, already on its OneShetland listing. */
-    image: { src: string; alt: string };
+    image: PreviewPhoto;
   };
 
+  /** 0–6 representative items. Empty for a business whose proposition is not a shop. */
   products: PreviewProduct[];
+  /** Heading override for the products section: [plain, accented]. */
+  productsTitle?: [string, string];
+  /** Extra line under the products, e.g. a clarification about makers. */
+  productsNote?: string;
+  /** A genuine experience from the business's own site, if there is one. */
+  experience?: PreviewExperience;
+  /** Shows how a booking/reservation entry could appear. Only where the business's own site really takes bookings. */
+  booking?: { cta: string; line: string };
+  /** The business story, using only what its own public material supports. */
+  story?: { eyebrow: string; title: [string, string]; body: string[]; source: string };
+  /** Cards for "Things you could do". Default: offers, rewards, discovery. */
+  possibilities?: PreviewPossibility[];
+  /** Extra sentence on the Rewards card, for an example specific to the business. Clearly an example. */
+  rewardsNote?: string;
+  /** Show "Already selling online?" (default: true when there are products). */
+  catalogue?: boolean;
+  /** Launch-offer line about appearing across OneShetland; default "Your products can appear across OneShetland". */
+  appearLine?: string;
+  /** Replaces step 4 of the six steps, for a business with no catalogue. */
+  stepFour?: [string, string];
   /** What is searched for in the "search" mock. */
   searchTerm: string;
-  /** Where the public information came from, shown to the owner in the footer of the products section. */
+  /** The main public site, linked under the products. */
   sourceSite: { label: string; url: string };
+  /** Every source of public information used. */
+  sources: PreviewSource[];
 }

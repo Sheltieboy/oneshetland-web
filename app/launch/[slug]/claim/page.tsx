@@ -22,7 +22,8 @@ export const metadata: Metadata = {
 export default async function LaunchClaim({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const open = await openPrivatePreview(slug);
-  if (!open) notFound();
+  // Claiming is closed for a preview that is still being prepared, and for a local review of any preview.
+  if (!open || open.review || open.cfg.claim === "holding") notFound();
 
   const account = await getAccount();
   if (!account) redirect(`/sign-in?next=${encodeURIComponent(`/launch/${slug}/claim`)}`);
