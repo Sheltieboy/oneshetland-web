@@ -1,14 +1,14 @@
 "use server";
 
 import { requireAdmin } from "@/lib/admin-data.server";
-import { publicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
+  candidateFor, createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
+import { prepareEligibility } from "@/lib/launch-partners/eligibility";
 import { checkEmail, defaultEmailDraft } from "@/lib/launch-partners/email";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 
@@ -29,9 +29,17 @@ export async function searchCandidatesAction(q: string): Promise<Result<{ rows: 
 export async function prepareCampaignAction(input: { businessId: string; positioning?: string }): Promise<Result<{ id: string }>> {
   await requireAdmin();
   try {
-    const { data } = await publicClient().from("local_businesses_public")
+    // Eligibility is decided by the SAME function the search card uses (lib/launch-partners/eligibility.ts), from the same facts.
+    const cand = await candidateFor(input.businessId);
+    if (!cand) return { ok: false, error: "That business was not found." };
+    const elig = prepareEligibility(cand);
+    if (!elig.ok) return { ok: false, error: elig.reason };
+    // The record to draft from is read with the ADMINISTRATOR's own session: admins see the live Directory record even when
+    // it is hidden from public discovery (a test fixture). Nothing here is shown publicly, and nothing is written to it.
+    const sb = await createClient();
+    const { data } = await sb.from("local_businesses_public")
       .select("id, name, category, description, address, locality, logo_url, cover_url, website, tags").eq("id", input.businessId).maybeSingle();
-    if (!data) return { ok: false, error: "That business isn't in the public Directory, so there's nothing to draft from." };
+    if (!data) return { ok: false, error: "That business's Directory record could not be read just now. Please try again." };
     const rec = data as DirectoryRecord;
     const slug = slugFromName(rec.name);
     const preview = parsePreviewConfig(buildPreviewSkeleton(rec, slug), slug);

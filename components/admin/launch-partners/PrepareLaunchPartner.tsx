@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
 import { prepareCampaignAction, searchCandidatesAction } from "@/app/admin/launch-partners/actions";
 import type { CandidateRow } from "@/lib/launch-partners/campaigns.server";
+import { eligibilityOf } from "@/lib/launch-partners/eligibility";
 
 const POSITIONINGS = ["Products + experiences", "Bookings + local discovery", "Shop + local + rewards", "Products + Shetland makers", "Products + local story"];
 
@@ -60,13 +61,13 @@ export function PrepareLaunchPartner({ onClose }: { onClose: () => void }) {
       {rows && rows.length === 0 && <p className="mt-3 text-sm text-ink-muted">No Directory business matches “{q}”.</p>}
       {rows && rows.length > 0 && (
         <ul className="mt-4 space-y-3">
-          {rows.map((c) => (
+          {rows.map((c) => { const el = eligibilityOf(c); return (
             <li key={c.business_id} className="rounded-xl border border-line p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-display font-bold text-ink">{c.name}</p>
-                    <StatusPill label={c.is_active ? "Publicly listed" : "Not publicly listed"} tone={c.is_active ? "green" : "gray"} />
+                    <StatusPill label={el.label} tone={el.tone} />
                     <StatusPill label={c.is_claimed ? "Claimed" : "Unclaimed"} tone={c.is_claimed ? "blue" : "gray"} />
                     {c.has_campaign && <StatusPill label="Already a launch partner" tone="purple" />}
                   </div>
@@ -75,13 +76,15 @@ export function PrepareLaunchPartner({ onClose }: { onClose: () => void }) {
                     {c.owner_name ? `Owner: ${c.owner_name}` : "No owner"} · Plan: {c.plan_live ? c.tier : "Free"} ·{" "}
                     {c.product_count} product{c.product_count === 1 ? "" : "s"}, {c.service_count} service{c.service_count === 1 ? "" : "s"}, {c.offer_count} offer{c.offer_count === 1 ? "" : "s"}, {c.pass_count} pass{c.pass_count === 1 ? "" : "es"}
                   </p>
+                  {el.state === "hidden_from_public" && <p className="mt-1 text-xs text-ink-muted">Visitors can’t see this listing (it’s a test fixture). You can still prepare a private preview from it.</p>}
+                  {!el.canPrepare && <p className="mt-1 text-xs font-semibold text-rose-700">{el.reason}</p>}
                 </div>
                 {c.has_campaign
                   ? <Link href={`/admin/launch-partners/${c.campaign_id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">Open →</Link>
-                  : <button onClick={() => prepare(c)} disabled={busy !== null} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50">{busy === c.business_id ? "Preparing…" : "Prepare launch preview"}</button>}
+                  : <button onClick={() => prepare(c)} disabled={busy !== null || !el.canPrepare} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50">{busy === c.business_id ? "Preparing…" : "Prepare launch preview"}</button>}
               </div>
             </li>
-          ))}
+          ); })}
         </ul>
       )}
     </Card>

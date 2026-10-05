@@ -6,6 +6,7 @@
  * cannot read the tables directly (they grant nothing to any client role), and it contains no way to send email.
  */
 import { createClient } from "@/lib/supabase/server";
+import { publicClient } from "@/lib/supabase/public";
 import type { PipelineRow } from "./status";
 import type { PreviewConfig } from "../launch-preview/types";
 import type { PageDraft } from "../business-page/types";
@@ -17,7 +18,7 @@ import { parsePageDraft, parsePreviewConfig } from "./validate";
 
 export interface CandidateRow {
   business_id: string; name: string; category: string | null; address?: string | null; locality: string | null;
-  is_active: boolean; is_claimed: boolean; has_owner?: boolean; owner_name: string | null; tier: string | null; plan_live: boolean;
+  is_active: boolean; /** Can an ANONYMOUS visitor see it? (active AND not hidden from public discovery) */ publicly_visible: boolean; is_claimed: boolean; has_owner?: boolean; owner_name: string | null; tier: string | null; plan_live: boolean;
   product_count: number; service_count: number; offer_count: number; pass_count: number;
   has_campaign: boolean; campaign_id: string | null; campaign_slug: string | null; campaign_stage: string | null;
 }
@@ -61,7 +62,26 @@ export const getCampaign = async (id: string): Promise<CampaignDetail | null> =>
   const r = await rpc<Record<string, unknown> | null>("admin_launch_partner_get", { p_id: id });
   return r ? normaliseRow<CampaignDetail>(r) : null;
 };
-export const searchCandidates = async (q: string): Promise<CandidateRow[]> => (await rpc<CandidateRow[] | null>("admin_launch_partner_candidates", { p_query: q })) ?? [];
+/**
+ * Candidates as the Admin screen and the Prepare action both see them: the admin lookup's facts, plus the one fact the
+ * lookup cannot know — whether an anonymous visitor really sees the listing. That is asked of the PUBLIC view with the
+ * public key, i.e. exactly what a visitor gets (so a hidden test fixture is reported as hidden, not as listed).
+ */
+export async function searchCandidates(q: string): Promise<CandidateRow[]> {
+  const rows = (await rpc<Omit<CandidateRow, "publicly_visible">[] | null>("admin_launch_partner_candidates", { p_query: q })) ?? [];
+  if (!rows.length) return [];
+  let visible = new Set<string>();
+  try {
+    const { data } = await publicClient().from("local_businesses_public").select("id").in("id", rows.map((r) => r.business_id));
+    visible = new Set((data ?? []).map((r) => r.id as string));
+  } catch { /* if the public check cannot be made, nothing is claimed to be public */ }
+  return rows.map((r) => ({ ...r, publicly_visible: r.is_active && visible.has(r.business_id) }));
+}
+
+/** The single candidate for a business id, with the same facts the search shows. */
+export async function candidateFor(businessId: string): Promise<CandidateRow | null> {
+  return (await searchCandidates(businessId)).find((r) => r.business_id === businessId) ?? null;
+}
 
 export const createCampaign = (a: { businessId: string; slug: string; positioning?: string | null; preview?: PreviewConfig | null; page?: PageDraft | null; isTest?: boolean }) =>
   rpc<string>("admin_launch_partner_create", {

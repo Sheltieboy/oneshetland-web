@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
 import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
+import { listingState, prepareEligibility, eligibilityOf, LISTING_LABEL } from "../lib/launch-partners/eligibility.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
 import { buildPageDraft } from "../lib/launch-partners/draft.ts";
 import { planSections, availability, heroActions, chooseHeroVisual, enforceLive, MAX_HERO_ACTIONS } from "../lib/business-page/sections.ts";
@@ -307,5 +308,48 @@ describe("private outreach content never reaches public output", () => {
   test("the outreach copy appears in no public page source, no sitemap and no API route", () => {
     for (const f of walkSrc("app/api")) assert.doesNotMatch(readFileSync(f, "utf8"), /launch-partners\/email|outreach|INVITATION_CTA/, f);
     assert.doesNotMatch(read("app/sitemap.ts"), /launch|outreach/);
+  });
+});
+
+
+describe("Directory eligibility: the card and the Prepare action cannot contradict each other", () => {
+  const ALL = [{ is_active: true, publicly_visible: true }, { is_active: true, publicly_visible: false }, { is_active: false, publicly_visible: false }, { is_active: false, publicly_visible: true }];
+
+  test("THE reported contradiction: an active test fixture hidden from public discovery is NOT labelled 'Publicly listed' — and it CAN be prepared", () => {
+    const fixture = { is_active: true, publicly_visible: false }; // ZZ TEST — OneShetland Acceptance Fixture (active, registered in discovery_fixtures)
+    const e = eligibilityOf(fixture);
+    assert.equal(e.state, "hidden_from_public"); assert.equal(e.label, "Hidden from public discovery"); assert.notEqual(e.label, LISTING_LABEL.listed);
+    assert.equal(e.canPrepare, true); assert.equal(e.reason, null);
+    assert.equal(prepareEligibility(fixture).ok, true, "the action and the card agree: no 'isn't in the public Directory' error for this record");
+  });
+  test("'Publicly listed' appears only when an anonymous visitor really sees the business", () => {
+    for (const f of ALL) assert.equal(eligibilityOf(f).label === "Publicly listed", f.is_active && f.publicly_visible, JSON.stringify(f));
+    assert.equal(listingState({ is_active: false, publicly_visible: true }), "unlisted", "an inactive record is never reported as listed");
+  });
+  test("preparing is blocked exactly when the card says 'Not publicly listed' (inactive) — never for a listed or hidden-fixture business", () => {
+    for (const f of ALL) { const e = eligibilityOf(f); assert.equal(e.canPrepare, f.is_active, JSON.stringify(f)); assert.equal(!e.canPrepare, e.state === "unlisted"); assert.equal(!e.canPrepare, e.reason !== null); }
+    assert.match(prepareEligibility({ is_active: false, publicly_visible: false }).reason, /isn't active in the OneShetland Directory/);
+  });
+  test("the old contradictory message is gone, and the card and the action share ONE eligibility function", () => {
+    const a = read("app/admin/launch-partners/actions.ts"), card = read("components/admin/launch-partners/PrepareLaunchPartner.tsx");
+    assert.doesNotMatch(a + card, /isn't in the public Directory/);
+    assert.match(a, /prepareEligibility\(cand\)/); assert.match(card, /eligibilityOf\(c\)/);
+    assert.match(card, /<StatusPill label=\{el\.label\} tone=\{el\.tone\} \/>/); assert.doesNotMatch(card, /"Publicly listed"/, "the card never hard-codes the label from a raw flag");
+    assert.match(card, /disabled=\{busy !== null \|\| !el\.canPrepare\}/);
+  });
+  test("both read the same facts: the action re-queries the SAME candidate lookup the search uses (public visibility asked of the anonymous view)", () => {
+    const m = read("lib/launch-partners/campaigns.server.ts"), a = read("app/admin/launch-partners/actions.ts");
+    assert.match(m, /export async function candidateFor/); assert.match(m, /publicClient\(\)\.from\("local_businesses_public"\)\.select\("id"\)\.in\("id"/);
+    assert.match(m, /publicly_visible: r\.is_active && visible\.has\(r\.business_id\)/);
+    assert.match(a, /candidateFor\(input\.businessId\)/);
+  });
+  test("the record to draft from is read with the administrator's own session (so a hidden fixture can be prepared), never the anonymous client", () => {
+    const a = read("app/admin/launch-partners/actions.ts");
+    const fn = a.slice(a.indexOf("export async function prepareCampaignAction"), a.indexOf("export async function importExistingAction"));
+    assert.match(fn, /const sb = await createClient\(\)/); assert.match(fn, /sb\.from\("local_businesses_public"\)/); assert.doesNotMatch(fn, /publicClient/);
+    assert.doesNotMatch(fn, /\.(insert|update|upsert|delete)\(/, "reading only: the Directory record is never written");
+  });
+  test("if the public check cannot be made, nothing is claimed to be public", () => {
+    assert.match(read("lib/launch-partners/campaigns.server.ts"), /let visible = new Set<string>\(\);[^]*catch \{ \/\* if the public check cannot be made, nothing is claimed to be public \*\/ \}/);
   });
 });
