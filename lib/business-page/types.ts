@@ -12,9 +12,24 @@
  */
 import type { PreviewExperience, PreviewPhoto, PreviewProduct } from "../launch-preview/types.ts";
 
-/** Everything a Business Page V2 can show. Order is decided by sections.ts; absent content means the section is skipped. */
+/**
+ * Everything a Business Page V2 can show BELOW the hero. Order is decided by sections.ts; absent content means the
+ * section is skipped. (The primary actions live inside the hero — see heroActions in sections.ts.)
+ */
 export type SectionId =
-  | "actions" | "hours" | "story" | "shop" | "offers" | "book" | "experience" | "rewards" | "events" | "useful" | "location" | "contact";
+  | "hours" | "story" | "shop" | "offers" | "book" | "experience" | "rewards" | "events" | "useful" | "location" | "contact";
+
+/** How the hero is filled. `brand` is the deliberate fallback for a business with no suitable photograph. */
+export type HeroVisualKind = "photo" | "mosaic" | "brand";
+export const HERO_VISUALS: readonly HeroVisualKind[] = ["photo", "mosaic", "brand"];
+
+/**
+ * The two render modes of ONE component set.
+ *   prepared — the private owner/admin preview. May show clearly-marked examples and suggestions.
+ *   live     — the customer-facing page. Renders ONLY genuine published content; every example, idea and
+ *              hypothetical is removed before it reaches the page (see model.ts and enforceLive in sections.ts).
+ */
+export type PageMode = "prepared" | "live";
 
 /** Which of the business's strengths leads the page. Chosen per business in Admin, or inferred from its content. */
 export type Emphasis = "story_then_shop" | "shop_first" | "book_first" | "experience_first";
@@ -37,7 +52,13 @@ export interface PageDraft {
     headline?: string;
     /** One line under the name. */
     tagline: string;
+    /** The pill above the name, e.g. "Hand-made jewellery". Defaults to the Directory category. Prepared mode only. */
+    eyebrow?: string;
+    /** Where, as the business describes it ("Weisdale, Shetland"). Prepared mode only; live uses the Directory address. */
+    locality?: string;
     image: PreviewPhoto;
+    /** What fills the hero: the photograph, a mosaic of product pictures, or the branded card. Default: decided from what exists. */
+    treatment?: HeroVisualKind;
   };
   story?: { eyebrow?: string; title: string; body: string[]; source?: string };
   /** EXAMPLE items shown only while the business has no real products. Never for sale; replaced by the real catalogue. */
@@ -58,23 +79,32 @@ export interface PageDraft {
 export interface ModelItem { id: string; title: string; pricePounds: number; image: string | null; blurb?: string; href?: string; example: boolean }
 export interface ModelEvent { id: string; title: string; startsAt: string; venue: string | null }
 export interface ModelOffer { id: string; title: string; description: string | null; image: string | null }
+export interface ModelPass { id: string; name: string; description: string | null; pricePence: number | null; image: string | null }
 export interface ModelService { id: string; name: string; description: string | null; durationMinutes: number | null; pricePence: number | null }
 
 /** What the page renders. Built by model.ts; every field is plain data (safe to serialise). */
 export interface BusinessPageModel {
-  mode: "draft" | "live";
+  mode: PageMode;
   emphasis: Emphasis;
   layout?: SectionId[];
   identity: {
     id: string; name: string; categoryLabel: string | null; categoryKey: string | null; locality: string | null;
     address: string | null; verified: boolean; claimed: boolean; logo: string | null; accent: string;
   };
-  hero: { headline: string; tagline: string | null; image: PreviewPhoto | null };
+  hero: {
+    headline: string; tagline: string | null; image: PreviewPhoto | null;
+    visual: HeroVisualKind;
+    /** Up to three product pictures for the mosaic / overlapping thumbnails. Real products in live mode. */
+    collage: { src: string; alt: string; price?: number }[];
+  };
   story: { eyebrow: string; title: string; body: string[]; source?: string } | null;
   about: string | null;
   shop: { title: string; items: ModelItem[]; example: boolean } | null;
   offers: ModelOffer[];
   book: { example: boolean; cta: string; line: string; services: ModelService[] } | null;
+  /** Real passes / experiences the business sells (both modes). */
+  passes: ModelPass[];
+  /** A prepared EXAMPLE experience (prepared mode only). */
   experience: (PreviewExperience & { example: true }) | null;
   rewards: { example: boolean; title: string; body: string } | null;
   events: ModelEvent[];

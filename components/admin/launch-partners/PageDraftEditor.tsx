@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { savePageDraftAction } from "@/app/admin/launch-partners/actions";
 import { Field, SaveBar, Section, inputCls, lines } from "./fields";
-import { EMPHASES, EMPHASIS_LABEL, type Emphasis, type PageDraft } from "@/lib/business-page/types";
+import { EMPHASES, EMPHASIS_LABEL, HERO_VISUALS, type Emphasis, type HeroVisualKind, type PageDraft } from "@/lib/business-page/types";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 
 /**
@@ -49,6 +49,12 @@ export function PageDraftEditor({ id, initial, preview, previewHref }: { id: str
           {EMPHASES.map((e) => <option key={e} value={e}>{EMPHASIS_LABEL[e]}</option>)}
         </select></Field>
         <Field label="Headline" hint="defaults to the business name"><input className={inputCls} value={d.hero.headline ?? ""} onChange={(e) => setHero({ headline: e.target.value || undefined })} /></Field>
+        <Field label="Label above the name" hint="e.g. Hand-made jewellery"><input className={inputCls} value={d.hero.eyebrow ?? ""} onChange={(e) => setHero({ eyebrow: e.target.value || undefined })} /></Field>
+        <Field label="Place" hint="e.g. Weisdale, Shetland"><input className={inputCls} value={d.hero.locality ?? ""} onChange={(e) => setHero({ locality: e.target.value || undefined })} /></Field>
+        <Field label="Hero picture"><select className={inputCls} value={d.hero.treatment ?? ""} onChange={(e) => setHero({ treatment: (e.target.value || undefined) as HeroVisualKind | undefined })}>
+          <option value="">Decide automatically</option>
+          {HERO_VISUALS.map((v) => <option key={v} value={v}>{v === "photo" ? "The photograph" : v === "mosaic" ? "A mosaic of product pictures" : "The branded card (no photograph)"}</option>)}
+        </select></Field>
         <div className="sm:col-span-2"><Field label="Tagline"><input className={inputCls} value={d.hero.tagline} onChange={(e) => setHero({ tagline: e.target.value })} /></Field></div>
         <Field label="Lead picture address"><input className={inputCls} value={d.hero.image.src} onChange={(e) => setHero({ image: { ...d.hero.image, src: e.target.value } })} /></Field>
         <Field label="Picture description"><input className={inputCls} value={d.hero.image.alt} onChange={(e) => setHero({ image: { ...d.hero.image, alt: e.target.value } })} /></Field>

@@ -8,7 +8,7 @@ export const GOOGLE_MAPS_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? ""
 
 /* The Google Maps JS API has no bundled types here; we treat `google` loosely. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare global { interface Window { google?: any; __osMapsPromise?: Promise<void> } }
+declare global { interface Window { google?: any; __osMapsPromise?: Promise<void>; gm_authFailure?: () => void } }
 
 let promise: Promise<void> | null = null;
 

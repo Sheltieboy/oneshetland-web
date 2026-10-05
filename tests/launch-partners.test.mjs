@@ -10,7 +10,8 @@ import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_
 import { composeInvitationEmail, checkEmail, renderPreview, LINK_PLACEHOLDER } from "../lib/launch-partners/email.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
 import { buildPageDraft } from "../lib/launch-partners/draft.ts";
-import { planSections, availability } from "../lib/business-page/sections.ts";
+import { planSections, availability, heroActions, chooseHeroVisual, enforceLive, MAX_HERO_ACTIONS } from "../lib/business-page/sections.ts";
+import { PREPARED_COPY } from "../lib/business-page/prepared-copy.ts";
 import { buildBusinessPageModel } from "../lib/business-page/model.ts";
 import { getPreviewConfig, previewSlugs } from "../lib/launch-preview/registry.ts";
 import { CATALOGUE_OPTIONS } from "../lib/launch-preview/catalogue.ts";
@@ -131,16 +132,16 @@ describe("Business Page V2 adapts to each business", () => {
   const model = (slug, over = {}) => {
     const cfg = getPreviewConfig(slug);
     return buildBusinessPageModel({
-      mode: "draft", business: { id: "b", name: cfg.businessName, category: cfg.business.category ?? "retail", description: cfg.business.description, address: "1 High St, Lerwick", lat: 60.15, lng: -1.14, logo_url: null, cover_url: null, brand_color: null, phone: "01595 000000", website: null, email: null, opening_hours: { mon: "9-5" }, opening_hours_until: null, is_verified: false, is_claimed: false, accepts_bookings: false },
-      fallback: { id: "b", name: cfg.businessName }, categoryLabels: { retail: "Retail", food_drink: "Food & Drink" }, products: [], offers: [], services: [], loyalty: null, events: [], draft: buildPageDraft(cfg), ...over,
+      mode: "prepared", business: { id: "b", name: cfg.businessName, category: cfg.business.category ?? "retail", description: cfg.business.description, address: "1 High St, Lerwick", lat: 60.15, lng: -1.14, logo_url: null, cover_url: null, brand_color: null, phone: "01595 000000", website: null, email: null, opening_hours: { mon: "9-5" }, opening_hours_until: null, is_verified: false, is_claimed: false, accepts_bookings: false },
+      fallback: { id: "b", name: cfg.businessName }, categoryLabels: { retail: "Retail", food_drink: "Food & Drink" }, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(cfg), ...over,
     });
   };
   test("Shetland Jewellery: story → shop → workshop experience, then the practical sections", () => {
-    assert.deepEqual(planSections(model("shetland-jewellery")), ["actions", "story", "shop", "experience", "rewards", "hours", "location", "contact"]);
+    assert.deepEqual(planSections(model("shetland-jewellery")), ["story", "shop", "experience", "rewards", "hours", "location", "contact"]);
   });
   test("The Dowry: booking leads, then about/discovery, then rewards ideas", () => {
     const o = planSections(model("the-dowry"));
-    assert.equal(o[1], "book"); assert.ok(o.indexOf("book") < o.indexOf("story") && o.indexOf("story") < o.indexOf("rewards")); assert.ok(!o.includes("shop"), "no shop section for a business with no products");
+    assert.equal(o[0], "book"); assert.ok(o.indexOf("book") < o.indexOf("story") && o.indexOf("story") < o.indexOf("rewards")); assert.ok(!o.includes("shop"), "no shop section for a business with no products");
   });
   test("Shetland Soap Company: story → shop", () => {
     const o = planSections(model("shetland-soap-company")); assert.ok(o.indexOf("story") < o.indexOf("shop"));
@@ -164,7 +165,7 @@ describe("Business Page V2 adapts to each business", () => {
   });
   test("an explicit layout from Admin reorders the middle only", () => {
     const m = model("shetland-jewellery"); m.layout = ["experience", "shop", "story"];
-    assert.deepEqual(planSections(m).slice(0, 4), ["actions", "experience", "shop", "story"]);
+    assert.deepEqual(planSections(m).slice(0, 3), ["experience", "shop", "story"]);
     assert.ok(availability(m).location);
   });
   test("a real booking replaces the example booking", () => {
@@ -264,5 +265,141 @@ describe("guarantees: admin-only, private drafts, nothing automatic", () => {
     }
     const s = read("lib/launch-partners/campaigns.server.ts");
     assert.doesNotMatch(s.slice(s.indexOf("export async function readPageDraft"), s.indexOf("export interface ImportOutcome")), /contact_email/);
+  });
+});
+
+
+describe("prepared vs live: the customer-facing page shows only genuine content", () => {
+  const biz = (o = {}) => ({ id: "b", name: "Shetland Jewellery", category: "retail", description: "A family jewellery business in Weisdale.", address: "Weisdale, Shetland", lat: 60.2, lng: -1.3, logo_url: null, cover_url: null, brand_color: null, phone: "01595 830000", website: "https://example.co.uk", email: null, opening_hours: null, opening_hours_until: null, is_verified: false, is_claimed: false, accepts_bookings: false, ...o });
+  const build = (mode, over = {}, slug = "shetland-jewellery") => buildBusinessPageModel({ mode, business: biz(), fallback: { id: "b", name: "Shetland Jewellery" }, categoryLabels: { retail: "Retail" }, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig(slug)), ...over });
+
+  test("a fully populated draft contributes NOTHING to a live model", () => {
+    for (const slug of previewSlugs()) {
+      const m = build("live", {}, slug);
+      assert.equal(m.mode, "live");
+      assert.equal(m.shop, null, `${slug}: no example products`);
+      assert.equal(m.book, null, `${slug}: no example booking`);
+      assert.equal(m.experience, null, `${slug}: no example experience`);
+      assert.equal(m.rewards, null, `${slug}: no suggested rewards`);
+      assert.deepEqual(m.useful, []); assert.equal(m.story, null);
+      assert.equal(m.hero.collage.length, 0);
+      assert.deepEqual(planSections(m).filter((x) => ["shop", "book", "experience", "rewards", "useful"].includes(x)), [], slug);
+    }
+  });
+  test("live uses the Directory facts only: description as About, genuine cover or the branded fallback", () => {
+    const m = build("live");
+    assert.equal(m.about, "A family jewellery business in Weisdale."); assert.equal(m.hero.visual, "brand"); assert.equal(m.hero.image, null);
+    assert.deepEqual(planSections(m), ["story", "location", "contact"]);
+    assert.equal(build("live", { business: biz({ cover_url: "https://x/cover.jpg" }) }).hero.visual, "photo");
+  });
+  test("live shows real products, real services, real loyalty and real passes — and none of them is marked as an example", () => {
+    const m = build("live", {
+      business: biz({ accepts_bookings: true }),
+      products: [{ id: "p1", title: "Ring", price_pence: 4500, photos: ["https://x/r.jpg"] }, { id: "p2", title: "Pendant", price_pence: 9000, photos: ["https://x/p.jpg"] }, { id: "p3", title: "Brooch", price_pence: 6500, photos: ["https://x/b.jpg"] }],
+      services: [{ id: "s1", name: "Workshop tour", description: null, duration_minutes: 60, price_pence: 500 }],
+      loyalty: { type: "stamps", stamps_required: 8, stamp_reward: "a free repair", points_per_pound: null, points_for_pound: null },
+      passes: [{ id: "u1", name: "Tour pass", description: null, price_pence: 1500, image_url: null }],
+    });
+    assert.ok(m.shop.items.every((i) => i.example === false)); assert.equal(m.shop.example, false);
+    assert.equal(m.book.example, false); assert.equal(m.rewards.example, false); assert.equal(m.passes.length, 1);
+    assert.equal(m.hero.visual, "mosaic", "no photograph but three real product pictures → mosaic");
+    assert.deepEqual(planSections(m), ["shop", "story", "experience", "book", "rewards", "location", "contact"]);
+  });
+  test("enforceLive is a last line of defence: a live model that somehow carries examples is cleaned", () => {
+    const dirty = { ...build("prepared"), mode: "live" };
+    assert.ok(dirty.shop.example && dirty.experience && dirty.rewards.example && dirty.story, "precondition: the prepared model has examples");
+    const m = enforceLive(dirty);
+    assert.equal(m.shop, null); assert.equal(m.experience, null); assert.equal(m.rewards, null); assert.equal(m.book, null); assert.equal(m.story, null); assert.deepEqual(m.useful, []);
+    const mixed = enforceLive({ ...dirty, shop: { title: "Shop", example: false, items: [{ id: "1", title: "Real", pricePounds: 5, image: null, example: false }, { id: "2", title: "Fake", pricePounds: 5, image: null, example: true }] } });
+    assert.deepEqual(mixed.shop.items.map((i) => i.id), ["1"]);
+    assert.equal(enforceLive(build("prepared")).shop.example, true, "prepared mode is untouched");
+  });
+  test("prepared mode keeps its examples, and every one is flagged so the page can mark it", () => {
+    const m = build("prepared");
+    assert.ok(m.shop.items.every((i) => i.example)); assert.equal(m.experience.example, true); assert.equal(m.rewards.example, true);
+    assert.equal(m.hero.visual, "photo");
+  });
+  test("the words that mark something as an example live in ONE module and in no live-capable file", () => {
+    assert.equal(PREPARED_COPY.intro, "This is a private preview of how your real OneShetland page could look. Example sections disappear unless you choose to set them up.");
+    assert.equal(PREPARED_COPY.bar, "Private draft · Not public"); assert.equal(PREPARED_COPY.tag, "Example · not live");
+    const forbidden = /Example|Idea\b|Not set up|Replaced by|\bcould\b|[Rr]epresentative|Suggestion|not for sale/;
+    const files = ["lib/business-page/model.ts", "lib/business-page/sections.ts", "lib/business-page/tokens.ts", "lib/business-page/load.server.ts", "components/business-page/BusinessPageV2.tsx", "components/business-page/LocationPanel.tsx", "components/business-page/slots.ts", "components/design-v2/primitives.tsx"];
+    for (const f of files) assert.doesNotMatch(read(f), forbidden, `${f} spells out prepared-only wording`);
+  });
+  test("prepared-only wording is reached only through PREPARED_COPY, and the page strips examples before rendering", () => {
+    const page = read("components/business-page/BusinessPageV2.tsx");
+    assert.match(page, /const model = enforceLive\(given\)/);
+    assert.match(page, /\{prepared && <DraftBar/); assert.match(page, /\{prepared && <p [^>]*>\{PREPARED_COPY\.intro\}/);
+    for (const k of ["notForSale", "tag", "bookingNote", "experienceNote", "rewardsTag"]) assert.match(page, new RegExp(`PREPARED_COPY\\.${k}`));
+  });
+  test("slots are never offered an example item", () => {
+    const page = read("components/business-page/BusinessPageV2.tsx");
+    assert.match(page, /p\.example \? <span[^]*?: slots\.productAction\?\.\(p\)/);
+    assert.match(page, /\{!r\.example && slots\.rewardsProgress/);
+  });
+});
+
+describe("hero: actions come from real capabilities; the visual always has something deliberate", () => {
+  const base = { mode: "live", emphasis: undefined, identity: { id: "b", name: "X" }, shop: null, book: null, offers: [], passes: [], experience: null, rewards: null, events: [], useful: [], story: null, about: null, location: { address: null, lat: null, lng: null, mapHref: null }, contact: { phone: null, website: null, email: null }, hours: { hours: null, until: null } };
+  test("a business with nothing gets no buttons at all", () => assert.deepEqual(heroActions(base), []));
+  test("each button exists only for a capability the business has", () => {
+    const ids = (o) => heroActions({ ...base, ...o }).map((a) => a.id);
+    assert.deepEqual(ids({ shop: { items: [{}] } }), ["shop"]);
+    assert.deepEqual(ids({ offers: [{}] }), ["offers"]);
+    assert.deepEqual(ids({ passes: [{}] }), ["experience"]);
+    assert.deepEqual(ids({ location: { address: "a", lat: null, lng: null, mapHref: "https://maps/x" } }), ["directions"]);
+    assert.deepEqual(ids({ contact: { phone: "123", website: "https://w", email: null } }), ["call", "website"]);
+  });
+  test("the lead action follows the emphasis, and there are never more than the maximum", () => {
+    const rich = { shop: { items: [{}] }, book: { cta: "Reserve a table" }, offers: [{}], passes: [{}], location: { address: "a", lat: null, lng: null, mapHref: "https://maps/x" }, contact: { phone: "1", website: "https://w", email: null } };
+    assert.equal(heroActions({ ...base, ...rich, emphasis: "book_first" })[0].id, "book");
+    assert.equal(heroActions({ ...base, ...rich, emphasis: "shop_first" })[0].id, "shop");
+    assert.equal(heroActions({ ...base, ...rich, emphasis: "experience_first" })[0].id, "experience");
+    assert.equal(heroActions({ ...base, ...rich }).length, MAX_HERO_ACTIONS);
+  });
+  test("hero visual: photograph, then product mosaic, then the branded card — never nothing", () => {
+    assert.equal(chooseHeroVisual(undefined, true, 0), "photo"); assert.equal(chooseHeroVisual(undefined, false, 3), "mosaic"); assert.equal(chooseHeroVisual(undefined, false, 1), "brand");
+    assert.equal(chooseHeroVisual("mosaic", true, 3), "mosaic"); assert.equal(chooseHeroVisual("mosaic", true, 1), "photo", "an explicit mosaic without enough pictures falls back");
+    assert.equal(chooseHeroVisual("photo", false, 0), "brand", "an explicit photo with no photograph falls back");
+    assert.equal(chooseHeroVisual("brand", true, 3), "brand");
+  });
+  test("Love From Shetland leads with its products, Shetland Jewellery with its photograph — different heroes from different content", () => {
+    const mk = (slug) => buildBusinessPageModel({ mode: "prepared", business: null, fallback: { id: "b", name: slug }, categoryLabels: {}, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig(slug)) });
+    assert.equal(mk("love-from-shetland").hero.visual, "mosaic"); assert.equal(mk("shetland-jewellery").hero.visual, "photo"); assert.equal(mk("the-dowry").hero.visual, "brand");
+  });
+});
+
+describe("the map fails gracefully", () => {
+  test("Google's rejection hook and a load timeout both lead to the caller's fallback, never to Google's error box", () => {
+    const m = read("components/local/BusinessLocationMap.tsx");
+    assert.match(m, /window\.gm_authFailure = /); assert.match(m, /setTimeout\(/); assert.match(m, /fallback/);
+    const panel = read("components/business-page/LocationPanel.tsx");
+    assert.match(panel, /fallback=\{card\}/); assert.match(panel, /Open in Maps/);
+  });
+});
+
+describe("admin pipeline: small polish", () => {
+  test("test fixtures are kept out of the normal pipeline", async () => {
+    const { realRows, isTestRow, countByStatus } = await import("../lib/launch-partners/status.ts");
+    const rows = [row({ id: "a" }), row({ id: "t", is_test: true, stage: "preparing" })];
+    assert.deepEqual(realRows(rows).map((r) => r.id), ["a"]); assert.ok(isTestRow(rows[1]));
+    assert.equal(Object.values(countByStatus(realRows(rows))).reduce((x, y) => x + y, 0), 1);
+    const ui = read("components/admin/launch-partners/Pipeline.tsx"); assert.match(ui, /filter === "test" \? tests/); assert.match(ui, /Test <span/);
+  });
+  test("the Next action leads somewhere that already exists", async () => {
+    const { nextActionHref } = await import("../lib/launch-partners/status.ts");
+    assert.equal(nextActionHref(row({ id: "c1" })), "/admin/launch-partners/c1#preview");
+    assert.equal(nextActionHref(row({ id: "c1", stage: "preparing", has_preview: true })), "/admin/launch-partners/c1#page");
+    assert.equal(nextActionHref(row({ id: "c1", stage: "preparing", has_preview: true, has_page_draft: true })), "/admin/launch-partners/c1#status");
+    assert.equal(nextActionHref(row({ id: "c1", stage: "ready_to_invite" })), "/admin/launch-partners/c1#invitation");
+    assert.equal(nextActionHref(row({ id: "c1", stage: "ready_to_invite", invite: { status: "open" } })), "/admin/launch-partners/c1#email");
+    assert.equal(nextActionHref(row({ stage: "sent", claim: { status: "pending", created_at: "x" } })), "/admin/claims?status=pending");
+    assert.equal(nextActionHref(row({ business_id: "b9", stage: "sent", claim: { status: "approved", created_at: "x" }, has_owner: true })), "/admin/claims?status=launch&business=b9");
+  });
+  test("email readiness is one compact cell", () => {
+    assert.equal(pipelineCells(row()).email.label, "—");
+    assert.equal(pipelineCells(row({ has_contact_email: true })).email.label, "contact");
+    assert.equal(pipelineCells(row({ has_email_draft: true })).email.label, "draft");
+    assert.equal(pipelineCells(row({ has_contact_email: true, has_email_draft: true })).email.label, "ready");
   });
 });

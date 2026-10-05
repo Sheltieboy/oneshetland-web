@@ -110,6 +110,25 @@ export function nextAction(r: PipelineRow, status: PipelineStatus = derivePipeli
   }
 }
 
+/**
+ * Where the "Next:" sentence should take Darren — a destination that already exists. Section links point into the
+ * partner's editor; a claim goes to the existing Business claims screen, and a Premium grant to its existing
+ * launch-partner access tab for that business.
+ */
+export function nextActionHref(r: PipelineRow, status: PipelineStatus = derivePipelineStatus(r)): string {
+  const edit = `/admin/launch-partners/${r.id}`;
+  switch (status) {
+    case "candidate": return `${edit}#preview`;
+    case "preparing": return `${edit}${!r.has_preview ? "#preview" : !r.has_page_draft ? "#page" : "#status"}`;
+    case "ready_to_invite": return `${edit}${!inviteUsable(r) ? "#invitation" : !r.has_contact_email || !r.has_email_draft ? "#email" : "#status"}`;
+    case "sent": return `${edit}${r.invite.status === "expired" || r.invite.status === "revoked" ? "#invitation" : "#status"}`;
+    case "claim_submitted": return "/admin/claims?status=pending";
+    case "claimed": return r.grant ? `${edit}#status` : `/admin/claims?status=launch&business=${r.business_id}`;
+    case "setting_up": return r.grant ? `${edit}#status` : `/admin/claims?status=launch&business=${r.business_id}`;
+    default: return `${edit}#status`;
+  }
+}
+
 export interface PipelineCell { label: string; ok: boolean }
 
 /** The at-a-glance columns: Preview / Invitation / Viewed / Claim / Plan / Products. */
@@ -122,9 +141,14 @@ export function pipelineCells(r: PipelineRow) {
     viewed: { label: r.first_viewed_at ? (r.view_count > 1 ? `✓ ×${r.view_count}` : "✓") : "—", ok: !!r.first_viewed_at } satisfies PipelineCell,
     claim: { label: r.claim ? (r.claim.status === "approved" ? "approved" : r.claim.status) : "—", ok: r.claim?.status === "approved" } satisfies PipelineCell,
     plan: { label: r.grant ? `${r.grant.tier} (launch)` : r.plan_live ? (r.tier ?? "paid") : "—", ok: !!r.grant || r.plan_live } satisfies PipelineCell,
+    email: { label: r.has_contact_email && r.has_email_draft ? "ready" : r.has_contact_email ? "contact" : r.has_email_draft ? "draft" : "—", ok: r.has_contact_email && r.has_email_draft } satisfies PipelineCell,
     products: { label: r.import_batch_count > 0 || r.product_count > 0 ? `${r.product_count} (${r.active_product_count} live)` : "—", ok: r.product_count > 0 } satisfies PipelineCell,
   };
 }
+
+/** Test fixtures are kept out of the normal pipeline and its counts; they have their own filter. */
+export const isTestRow = (r: PipelineRow): boolean => r.is_test;
+export const realRows = (rows: PipelineRow[]): PipelineRow[] => rows.filter((r) => !r.is_test);
 
 export function countByStatus(rows: PipelineRow[]): Record<PipelineStatus, number> {
   const out = Object.fromEntries([...STATUS_ORDER, "archived"].map((s) => [s, 0])) as Record<PipelineStatus, number>;

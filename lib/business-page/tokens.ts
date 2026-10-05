@@ -24,3 +24,14 @@ export function accentOf(brand: string | null | undefined, fallback: string): st
   if (brand && /^#?[0-9a-f]{6}$/i.test(brand)) return brand.startsWith("#") ? brand : `#${brand}`;
   return fallback;
 }
+
+/** A concise hero line: whole sentences up to `max` characters; only if the first sentence alone is longer is it cut at a word. */
+export function tagline(text: string, max = 200): string {
+  const t = text.replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
+  const sentences = t.match(/[^.!?]+[.!?]+(?:\s|$)/g)?.map((x) => x.trim()) ?? [t];
+  let out = "";
+  for (const sen of sentences) { if ((out ? out + " " + sen : sen).length > max) break; out = out ? out + " " + sen : sen; }
+  if (out) return out;
+  const cut = t.slice(0, max).replace(/\s+\S*$/, "");
+  return `${cut.replace(/[,;:—-]+$/, "")}…`;
+}

@@ -8,7 +8,7 @@
  * Pure: no database, no framework.
  */
 import type { PreviewConfig } from "../launch-preview/types.ts";
-import { EMPHASES, type PageDraft } from "../business-page/types.ts";
+import { EMPHASES, HERO_VISUALS, type PageDraft } from "../business-page/types.ts";
 
 /** Our own path ("/launch/…") or an https address. Never javascript:, data:, http:, or a protocol-relative "//host". */
 export const isSafeUrl = (v: unknown): v is string =>
@@ -66,6 +66,8 @@ export function parsePageDraft(raw: unknown): Parsed<PageDraft> {
   if (d.version !== 1) return fail("Unknown page draft version.");
   if (!isObj(d.hero) || !str(d.hero.tagline, 400) || !photoOk(d.hero.image)) return fail("The page needs a tagline and a picture.");
   if (d.hero.headline !== undefined && !str(d.hero.headline, 160)) return fail("The headline is too long.");
+  if ((d.hero.eyebrow !== undefined && !str(d.hero.eyebrow, 120)) || (d.hero.locality !== undefined && !str(d.hero.locality, 160))) return fail("The hero label or place is too long.");
+  if (d.hero.treatment !== undefined && !(HERO_VISUALS as readonly string[]).includes(String(d.hero.treatment))) return fail("Unknown hero treatment.");
   if (d.emphasis !== undefined && !(EMPHASES as readonly string[]).includes(d.emphasis)) return fail("Unknown emphasis.");
   if (d.story !== undefined && !(isObj(d.story) && str(d.story.title, 200) && Array.isArray(d.story.body) && d.story.body.length <= 8 && d.story.body.every((p: unknown) => str(p, 2000)))) return fail("The story is incomplete.");
   if (d.products !== undefined && !(Array.isArray(d.products) && d.products.length <= 6 && d.products.every((p: unknown) => isObj(p) && str(p.id, 80) && str(p.title, 200) && typeof p.price === "number" && p.price > 0 && isSafeUrl(p.image) && str(p.blurb, 400)))) return fail("An example product is incomplete.");

@@ -5,10 +5,10 @@
 import { CATEGORY_LABEL, getBusiness, getBusinessEventsAndJobs, getBusinessExtras } from "@/lib/local-data";
 import { getShopProducts } from "@/lib/shop-data";
 import { buildBusinessPageModel } from "./model";
-import type { BusinessPageModel, PageDraft } from "./types";
+import type { BusinessPageModel, PageDraft, PageMode } from "./types";
 
 export async function loadBusinessPageModel(a: {
-  businessId: string; mode: "draft" | "live"; draft: PageDraft | null; fallback: { name: string; locality?: string | null; description?: string | null };
+  businessId: string; mode: PageMode; draft: PageDraft | null; fallback: { name: string; locality?: string | null; description?: string | null };
 }): Promise<BusinessPageModel> {
   const [business, extras, ev, products] = await Promise.all([
     getBusiness(a.businessId), getBusinessExtras(a.businessId), getBusinessEventsAndJobs(a.businessId), getShopProducts(a.businessId),
@@ -25,6 +25,7 @@ export async function loadBusinessPageModel(a: {
     categoryLabels: CATEGORY_LABEL,
     products: products.map((p) => ({ id: p.id, title: p.title, price_pence: p.price_pence, photos: p.photos })),
     offers: extras.offers.map((o) => ({ id: o.id, title: o.title, description: o.description ?? null, image_url: (o as { image_url?: string | null }).image_url ?? null })),
+    passes: extras.unitItems.map((u) => ({ id: u.id, name: u.name, description: u.description ?? null, price_pence: u.price_pence ?? null, image_url: u.image_url ?? null })),
     services: extras.services.map((s) => ({ id: s.id, name: s.name, description: s.description ?? null, duration_minutes: s.duration_minutes ?? null, price_pence: s.price_pence ?? null })),
     loyalty: extras.loyalty ? { type: extras.loyalty.type, stamps_required: extras.loyalty.stamps_required ?? null, stamp_reward: extras.loyalty.stamp_reward ?? null, points_per_pound: extras.loyalty.points_per_pound ?? null, points_for_pound: extras.loyalty.points_for_pound ?? null } : null,
     events: ev.events.map((e) => ({ id: e.id, title: e.title, starts_at: e.starts_at, venue: e.venue ?? null })),

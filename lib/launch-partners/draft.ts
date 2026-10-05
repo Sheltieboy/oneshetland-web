@@ -6,8 +6,8 @@
  * preview is simply left out; nothing is invented.
  */
 import type { PreviewConfig } from "../launch-preview/types.ts";
-import type { Emphasis, PageDraft } from "../business-page/types.ts";
-import { shorten } from "../business-page/tokens.ts";
+import type { Emphasis, HeroVisualKind, PageDraft } from "../business-page/types.ts";
+import { shorten, tagline } from "../business-page/tokens.ts";
 
 /** Which strength leads each existing partner's page (from the approved positioning). */
 export const EMPHASIS_BY_SLUG: Record<string, Emphasis> = {
@@ -29,6 +29,15 @@ export const POSITIONING_BY_SLUG: Record<string, string> = {
   "shetland-soap-company": "Products + local/social-enterprise story",
 };
 
+/**
+ * What fills each partner's hero. Love From Shetland's only photograph of its own is a small shopfront crop, so its
+ * strongest imagery is its products: a mosaic. The Dowry and Peerie Shop have no strong photograph: the branded
+ * card. Shetland Jewellery's workshop photograph is large and genuine: the photograph.
+ */
+export const HERO_BY_SLUG: Record<string, HeroVisualKind> = {
+  "love-from-shetland": "mosaic", "shetland-jewellery": "photo", "the-dowry": "brand", "peerie-shop": "brand", "da-craft-shed": "photo", "shetland-soap-company": "photo",
+};
+
 export function inferEmphasisForPreview(cfg: PreviewConfig): Emphasis {
   if (EMPHASIS_BY_SLUG[cfg.slug]) return EMPHASIS_BY_SLUG[cfg.slug];
   if (cfg.booking && cfg.products.length === 0) return "book_first";
@@ -44,8 +53,11 @@ export function buildPageDraft(cfg: PreviewConfig): PageDraft {
     emphasis: inferEmphasisForPreview(cfg),
     hero: {
       headline: cfg.businessName,
-      tagline: shorten(cfg.business.description, 150),
+      tagline: tagline(cfg.business.description),
+      eyebrow: cfg.business.categoryLabel.replace(/^Shop · /, ""),
+      locality: cfg.business.locality,
       image: { ...cfg.business.image },
+      ...(HERO_BY_SLUG[cfg.slug] ? { treatment: HERO_BY_SLUG[cfg.slug] } : cfg.hero.treatment === "ambient" ? { treatment: "brand" as const } : {}),
     },
     // The researched story if there is one; otherwise the researched description, so the page always has an About.
     story: cfg.story

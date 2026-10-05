@@ -19,7 +19,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { business } = await requireBusinessOwner(id, { returnPath: `/business/${id}/manage/page-draft` });
   const d = await readPageDraft(business.id);
   if (!d) notFound();
-  const model = await loadBusinessPageModel({ businessId: business.id, mode: "draft", draft: d.draft, fallback: { name: business.name } });
+  const model = await loadBusinessPageModel({ businessId: business.id, mode: "prepared", draft: d.draft, fallback: { name: business.name } });
   return (
     <>
       <div className="border-b border-line bg-white"><div className="mx-auto max-w-6xl px-5 py-2 text-sm"><Link href={`/business/${business.id}/manage`} className="font-semibold text-ink-soft hover:text-ink">← Back to your dashboard</Link></div></div>
