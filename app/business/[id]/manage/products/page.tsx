@@ -24,9 +24,11 @@ export default async function ProductsPage({ params }: { params: Promise<{ id: s
   const { premium } = await getEffectiveTier(business.id);
 
   const sb = await createClient(); // owner session — RLS shows hidden products too
-  const [{ data: products }, { data: shipping }] = await Promise.all([
+  const [{ data: products }, { data: shipping }, { data: lastImport }] = await Promise.all([
     sb.from("products").select("*").eq("business_id", business.id).order("created_at", { ascending: false }),
     sb.from("business_shipping").select("*").eq("business_id", business.id).maybeSingle(),
+    sb.from("import_batches").select("status, counts, total_items, created_at").eq("business_id", business.id)
+      .not("status", "in", "(queued,applying,cancelled)").order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const ids = (products ?? []).map((p) => p.id);
   const { data: variants } = ids.length
@@ -54,6 +56,7 @@ export default async function ProductsPage({ params }: { params: Promise<{ id: s
         products={(products ?? []) as Product[]}
         variantsByProduct={variantsByProduct}
         shipping={(shipping ?? null) as BusinessShipping | null}
+        latestImport={lastImport ? { status: lastImport.status as string, count: ((lastImport.counts as Record<string, number> | null)?.create ?? 0) + ((lastImport.counts as Record<string, number> | null)?.update ?? 0), when: lastImport.created_at as string } : null}
       />
     </div>
   );

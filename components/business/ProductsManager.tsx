@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, payoutOnboardingErrorNotify, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
+import { fmtDay } from "@/components/business/product-import/shared";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -67,13 +68,15 @@ const EMPTY: FormState = {
   collect_only: false, free_uk_post: false, variants: [],
 };
 
-export function ProductsManager({ businessId, products: initial, variantsByProduct, shipping: initialShipping, canPublish }: {
+export function ProductsManager({ businessId, products: initial, variantsByProduct, shipping: initialShipping, canPublish, latestImport }: {
   businessId: string;
   products: Product[];
   variantsByProduct: Record<string, ProductVariant[]>;
   shipping: BusinessShipping | null;
   /** Effective Premium. Everything else on this page works without it. */
   canPublish: boolean;
+  /** The most recent finished import, for the one quiet status line under "Add products". */
+  latestImport?: { status: string; count: number; when: string } | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -86,8 +89,26 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
   const [botBusy, setBotBusy] = useState(false);
   const set = (patch: Partial<FormState>) => setForm((f) => (f ? { ...f, ...patch } : f));
 
+  // The add/edit form lives on this page rather than at an address of its own, so the browser's Back button would
+  // leave Products altogether. Opening the form takes one history step; Back (or Cancel) closes it and the
+  // merchant is still on Products.
+  const formStep = useRef(false);
+  useEffect(() => {
+    const onPop = () => { if (formStep.current) { formStep.current = false; setForm(null); setMsg(null); } };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  function openForm(f: FormState) {
+    if (!formStep.current) { window.history.pushState(null, "", window.location.href); formStep.current = true; }
+    setForm(f); setMsg(null);
+  }
+  function closeForm() {
+    setForm(null); setMsg(null);
+    if (formStep.current) { formStep.current = false; window.history.back(); }
+  }
+
   function editProduct(p: Product) {
-    setForm({
+    openForm({
       id: p.id, title: p.title, description: p.description ?? "", category: p.category ?? "other",
       price: pounds(p.price_pence), photos: p.photos ?? [],
       stock_mode: p.stock_mode, stock: p.stock == null ? "" : String(p.stock),
@@ -95,7 +116,6 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
       collect_only: p.collect_only, free_uk_post: p.free_uk_post,
       variants: (variantsByProduct[p.id] ?? []).map((v) => ({ id: v.id, name: v.name, delta: v.price_delta_pence ? pounds(v.price_delta_pence) : "", stock: v.stock == null ? "" : String(v.stock) })),
     });
-    setMsg(null);
   }
 
   async function askPeerieBot() {
@@ -193,7 +213,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
         if (v.id) await sb.from("product_variants").update(vrow).eq("id", v.id);
         else await sb.from("product_variants").insert(vrow);
       }
-      setForm(null); setRough("");
+      setRough(""); closeForm();
       router.refresh();
       if (canPublish && !wasActive && !activeToSave) {
         if (await confirm(PAYOUT_NOT_READY_PROMPT)) await launchStripe();
@@ -363,7 +383,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
               What can I sell on OneShetland?
             </Link>
             <div className="flex gap-2">
-            <button onClick={() => { setForm(null); setMsg(null); }} className="rounded-pill px-4 py-2 text-sm font-bold text-ink-muted hover:bg-sand">Cancel</button>
+            <button onClick={closeForm} className="rounded-pill px-4 py-2 text-sm font-bold text-ink-muted hover:bg-sand">Cancel</button>
             <button onClick={save} disabled={busy}
               className="rounded-pill px-5 py-2 text-sm font-bold text-white disabled:opacity-50" style={{ background: SHOP }}>
               {busy ? "Saving…" : form.id ? "Save changes" : "Add product"}
@@ -373,9 +393,12 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
         </div>
       ) : (
         <section aria-labelledby="add-products-h" className="rounded-card border border-line bg-white p-4 shadow-soft">
-          <h2 id="add-products-h" className="font-display text-lg font-bold text-navy">Add products</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="add-products-h" className="font-display text-lg font-bold text-navy">Add products</h2>
+            <Link href={`/business/${businessId}/manage/products/import/history`} className="text-sm font-bold text-ink-soft underline underline-offset-2 hover:text-ink">Import history →</Link>
+          </div>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <button onClick={() => { setForm(EMPTY); setMsg(null); }}
+            <button onClick={() => openForm(EMPTY)}
               className="rounded-card border-2 border-dashed bg-white/60 p-3 text-left transition hover:bg-white"
               style={{ borderColor: `${SHOP}66` }}>
               <span className="block text-sm font-bold text-ink">＋ Add manually</span>
@@ -388,6 +411,11 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
               <span className="mt-0.5 block text-xs text-ink-muted">Lots at once from a CSV file.</span>
             </Link>
           </div>
+          {latestImport && (
+            <p className="mt-3 text-xs text-ink-soft">
+              Latest import: {latestImport.status === "undone" ? "undone" : `${latestImport.count} product${latestImport.count === 1 ? "" : "s"}`} · {fmtDay(latestImport.when)}
+            </p>
+          )}
           <p className="mt-3 text-xs text-ink-muted">
             Connect an existing shop — Shopify · WooCommerce · Square <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 font-bold text-ink-soft">Coming next</span>
           </p>

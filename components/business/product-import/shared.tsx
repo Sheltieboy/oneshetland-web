@@ -35,6 +35,22 @@ export type Batch = {
 export type BatchDetail = { batch: Batch; items: BatchRow[] };
 export type HistoryEntry = Pick<Batch, "id" | "status" | "filename" | "created_at" | "counts" | "total_items" | "undo_expires_at">;
 
+export const STATUS_LABEL: Record<string, string> = {
+  queued: "Not started", applying: "Unfinished — carry on to finish it", complete: "Finished", complete_with_errors: "Finished with problems", undone: "Undone", cancelled: "Cancelled",
+};
+
+/** Fixed zone so the server render and the browser agree (a merchant in Shetland sees UK time, not the server's). */
+export const fmtWhen = (iso: string) => new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" });
+export const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short" });
+
+/** The plain-English tallies for one import, e.g. ["3 new", "1 need attention"]. */
+export function countBits(c: Record<string, number> | null | undefined): string[] {
+  const k = c ?? {};
+  const attention = (k.error ?? 0) + (k.failed ?? 0);
+  return [k.create ? `${k.create} new` : null, k.update ? `${k.update} updated` : null, k.unchanged ? `${k.unchanged} unchanged` : null, k.skip ? `${k.skip} not imported` : null,
+    attention > 0 ? `${attention} need attention` : null, k.images_failed ? `${k.images_failed} with photo problems` : null].filter((x): x is string => !!x);
+}
+
 export const pounds = (pence: number | null | undefined) => (pence == null ? "—" : `£${(pence / 100).toFixed(2)}`);
 
 export const FIELD_NICE: Record<string, string> = {

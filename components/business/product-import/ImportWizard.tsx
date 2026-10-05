@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toCsv } from "@/lib/product-import/csv";
 import { LIMITS, REQUIRED_FIELDS, TEMPLATE_HEADERS, TEMPLATE_NOTES, TEMPLATE_ROWS, FIELD_LABELS, templateInstructions } from "@/lib/product-import/columns";
 import { ReviewStep } from "./ReviewStep";
 import { ColumnMapper } from "./ColumnMapper";
-import { ResultStep } from "./ResultStep";
-import { ACCENT, download, type BatchDetail, type HistoryEntry, type Inspection, type PlanResponse, type Step } from "./shared";
+import { ACCENT, STATUS_LABEL, countBits, download, fmtWhen, type BatchDetail, type HistoryEntry, type Inspection, type PlanResponse, type Step } from "./shared";
 
 class ApiError extends Error { code?: string; status: number; constructor(m: string, status: number, code?: string) { super(m); this.status = status; this.code = code; } }
 
@@ -15,11 +15,8 @@ const STEPS: { id: Step; label: string }[] = [
   { id: "upload", label: "Upload" }, { id: "columns", label: "Columns" }, { id: "review", label: "Review" }, { id: "importing", label: "Import" }, { id: "result", label: "Publish" },
 ];
 
-const STATUS_LABEL: Record<string, string> = {
-  queued: "Not started", applying: "Unfinished — carry on to finish it", complete: "Finished", complete_with_errors: "Finished with problems", undone: "Undone", cancelled: "Cancelled",
-};
-
-export function ImportWizard({ businessId, canPublish, history }: { businessId: string; canPublish: boolean; history: HistoryEntry[] }) {
+export function ImportWizard({ businessId, history }: { businessId: string; history: HistoryEntry[] }) {
+  const router = useRouter();
   const base = `/api/business/${businessId}/product-import`;
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
@@ -32,8 +29,7 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
   const [err, setErr] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState<{ phase: "apply" | "images"; done: number; total: number; failed: number; waiting?: boolean } | null>(null);
-  const [detail, setDetail] = useState<BatchDetail | null>(null);
-  const [recent, setRecent] = useState<HistoryEntry[]>(history);
+  const recent = history;
   const key = useRef<string>("");
   const alive = useRef(true);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -143,7 +139,7 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
         for (let k = 0; k < 20; k++) { const r = await api<{ done: boolean }>(`/batches/${batchId}/images`, { method: "POST" }); if (r.done) break; }
       }
       if (!alive.current) return;
-      await showResult(batchId);
+      showResult(batchId);
     } catch (e) {
       setErr(`${(e as Error).message} Your progress is saved — choose "Carry on" to continue where it stopped.`);
       setResumeId(batchId);
@@ -151,22 +147,18 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
   }
   const [resumeId, setResumeId] = useState<string | null>(null);
 
-  async function showResult(batchId: string) {
-    const d = await api<BatchDetail>(`/batches/${batchId}`);
-    setDetail(d); setResumeId(null); setStep("result"); setErr(null);
-    setRecent((r) => [{ id: d.batch.id, status: d.batch.status, filename: d.batch.filename, created_at: d.batch.created_at, counts: d.batch.counts, total_items: d.batch.total_items, undo_expires_at: d.batch.undo_expires_at }, ...r.filter((x) => x.id !== d.batch.id)]);
-  }
+  /** The result has an address of its own, so Back, reload and the history list all land on the same page. */
+  function showResult(batchId: string) { router.replace(`/business/${businessId}/manage/products/import/${batchId}`); }
 
   async function openBatch(h: HistoryEntry) {
     setBusy(true); setErr(null);
     try {
-      if (h.status === "applying" || h.status === "queued") { setResumeId(h.id); await drive(h.id); }
-      else await showResult(h.id);
+      setResumeId(h.id); await drive(h.id);
     } catch (e) { setErr((e as Error).message); }
     finally { setBusy(false); }
   }
 
-  function reset() { setStep("upload"); setFile(null); setInsp(null); setPlanRes(null); setDetail(null); setErr(null); setProgress(null); setResumeId(null); setAllowDup(false); }
+  function reset() { setStep("upload"); setFile(null); setInsp(null); setPlanRes(null); setErr(null); setProgress(null); setResumeId(null); setAllowDup(false); }
 
   const stepIndex = STEPS.findIndex((s) => s.id === step);
 
@@ -220,20 +212,24 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
 
           {recent.length > 0 && (
             <section className="rounded-card border border-line bg-white p-5 shadow-soft" aria-labelledby="recent-h">
-              <h2 id="recent-h" className="font-display text-lg font-bold text-navy">Import history</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 id="recent-h" className="font-display text-lg font-bold text-navy">Import history</h2>
+                <Link href={`/business/${businessId}/manage/products/import/history`} className="text-sm font-bold text-ink-soft underline underline-offset-2">All imports →</Link>
+              </div>
               <ul className="mt-3 divide-y divide-line">
-                {recent.slice(0, 10).map((h) => {
-                  const c = h.counts ?? {};
-                  const bits = [c.create ? `${c.create} new` : null, c.update ? `${c.update} updated` : null, c.unchanged ? `${c.unchanged} unchanged` : null, c.skip ? `${c.skip} not imported` : null,
-                    (c.error ?? 0) + (c.failed ?? 0) > 0 ? `${(c.error ?? 0) + (c.failed ?? 0)} need attention` : null, c.images_failed ? `${c.images_failed} with photo problems` : null].filter(Boolean);
+                {recent.slice(0, 5).map((h) => {
+                  const bits = countBits(h.counts);
+                  const unfinished = h.status === "applying" || h.status === "queued";
                   return (
                     <li key={h.id} className="flex flex-wrap items-center gap-2 py-3">
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink">{h.filename || "Import"}</p>
-                        <p className="text-xs text-ink-muted">{new Date(h.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} · {h.total_items} row{h.total_items === 1 ? "" : "s"} · <strong>{STATUS_LABEL[h.status] ?? h.status}</strong></p>
+                        <p className="text-xs text-ink-muted">{fmtWhen(h.created_at)} · {h.total_items} row{h.total_items === 1 ? "" : "s"} · <strong>{STATUS_LABEL[h.status] ?? h.status}</strong></p>
                         {bits.length > 0 && <p className="mt-0.5 text-xs text-ink-soft">{bits.join(" · ")}</p>}
                       </div>
-                      <button onClick={() => openBatch(h)} disabled={busy} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand disabled:opacity-50">{h.status === "applying" ? "Carry on" : "Open"}</button>
+                      {unfinished
+                        ? <button onClick={() => openBatch(h)} disabled={busy} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand disabled:opacity-50">Carry on</button>
+                        : <Link href={`/business/${businessId}/manage/products/import/${h.id}`} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand">View result →</Link>}
                     </li>
                   );
                 })}
@@ -315,13 +311,8 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
           </div>
           <p className="mt-2 text-sm text-ink-soft">{progress ? `${progress.done} of ${progress.total}` : "Starting"}{progress?.failed ? ` · ${progress.failed} could not be imported` : ""}</p>
           {progress?.waiting && <p className="mt-1 text-sm font-semibold text-amber-800">Waiting for photos from an earlier attempt to be released — this takes a minute or so. You don&rsquo;t need to do anything.</p>}
-          <p className="mt-3 text-xs text-ink-muted">You can leave this page — the import carries on from where it stopped when you come back (it&rsquo;s under “Recent imports”). Products are drafts; nothing is live.</p>
+          <p className="mt-3 text-xs text-ink-muted">You can leave this page — the import carries on from where it stopped when you come back (you&rsquo;ll find it under “Import history”). Products are drafts; nothing is live.</p>
         </section>
-      )}
-
-      {step === "result" && detail && (
-        <ResultStep businessId={businessId} detail={detail} canPublish={canPublish} onNewImport={reset}
-          onChanged={async () => { await showResult(detail.batch.id); }} />
       )}
 
       <p className="text-xs text-ink-muted">
