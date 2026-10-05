@@ -97,7 +97,7 @@ describe("nothing is live, nothing can be bought", () => {
     for (const s of ["Private preview · Nothing is live", "Your private OneShetland preview", "only people with this invitation can see it", "nothing on it is live",
       "hasn&apos;t joined OneShetland", "nothing will be published without your approval", "Nothing will be published until you claim the business and explicitly approve it",
       "Claiming your preview does NOT publish anything", "Like what you see?", "Claiming gives you access to review and manage your business. Nothing new is published until you choose to publish it.", "does not indicate participation or endorsement",
-      "Being prepared", "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
+      "Upload your existing catalogue and review everything before anything goes live", "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
       assert.ok(all.includes(s) || all.includes(s.replace("&apos;", "'")), `missing: ${s}`);
     }
     // calmer: the old four-card grid is gone

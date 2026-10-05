@@ -417,7 +417,7 @@ function More({ cfg }: { cfg: PreviewConfig }) {
 
 function Catalogue() {
   const options = [
-    { title: "Import products", body: "Upload an existing catalogue or CSV, check it, and bring it in as drafts.", chip: "Being prepared", tone: LIME, text: NAVY },
+    { title: "Import products", body: "Upload your existing catalogue and review everything before anything goes live.", chip: "Available", tone: "#d1fae5", text: "#065f46" },
     { title: "Add manually", body: "Add individual products yourself, with photos, one at a time.", chip: "Available", tone: "#d1fae5", text: "#065f46" },
     { title: "Connect your shop", body: "Shopify · WooCommerce · Square", chip: "Coming next", tone: "#ffe4de", text: "#9a3412" },
   ];
@@ -433,7 +433,7 @@ function Catalogue() {
         ))}
       </div>
       <p className="mt-5 max-w-2xl text-sm text-ink-soft">
-        Everything you bring in arrives as a draft that only you can see. You review it, and you decide what to publish. Connecting a shop is still being built — we&apos;ll only tell you it works once it does.
+        Everything you bring in arrives as a draft that only you can see. You review it, and you decide what to publish. Importing works from a CSV file — including the ordinary product exports from Shopify, WooCommerce and Square. Connecting a shop directly is still being built, and we&apos;ll only tell you it works once it does.
       </p>
     </Section>
   );
