@@ -372,11 +372,26 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
           </div>
         </div>
       ) : (
-        <button onClick={() => { setForm(EMPTY); setMsg(null); }}
-          className="w-full rounded-card border-2 border-dashed border-line bg-white/60 p-4 text-sm font-bold text-ink-soft transition hover:bg-white"
-          style={{ borderColor: `${SHOP}66` }}>
-          ＋ Add a product
-        </button>
+        <section aria-labelledby="add-products-h" className="rounded-card border border-line bg-white p-4 shadow-soft">
+          <h2 id="add-products-h" className="font-display text-lg font-bold text-navy">Add products</h2>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <button onClick={() => { setForm(EMPTY); setMsg(null); }}
+              className="rounded-card border-2 border-dashed bg-white/60 p-3 text-left transition hover:bg-white"
+              style={{ borderColor: `${SHOP}66` }}>
+              <span className="block text-sm font-bold text-ink">＋ Add manually</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">One at a time, with photos.</span>
+            </button>
+            <Link href={`/business/${businessId}/manage/products/import`}
+              className="rounded-card border-2 border-dashed bg-white/60 p-3 text-left transition hover:bg-white"
+              style={{ borderColor: `${SHOP}66` }}>
+              <span className="block text-sm font-bold text-ink">⤒ Import products</span>
+              <span className="mt-0.5 block text-xs text-ink-muted">Lots at once from a CSV file.</span>
+            </Link>
+          </div>
+          <p className="mt-3 text-xs text-ink-muted">
+            Connect an existing shop — Shopify · WooCommerce · Square <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 font-bold text-ink-soft">Coming next</span>
+          </p>
+        </section>
       )}
 
       {/* ── Product list ────────────────────────────────────────────────── */}

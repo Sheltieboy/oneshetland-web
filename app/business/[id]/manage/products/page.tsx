@@ -13,7 +13,7 @@ export const metadata = { title: "Products" };
 
 export default async function ProductsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { business } = await requireBusinessOwner(id);
+  const { business } = await requireBusinessOwner(id, { returnPath: `/business/${id}/manage/products` });
   // One acceptance per business covers every commercial screen. Directory
   // management is deliberately not gated — see lib/commercial-terms.server.
   const gate = await commercialTermsGate(business, "Products");
