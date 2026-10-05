@@ -441,3 +441,12 @@ describe("admin pipeline: small polish", () => {
     assert.equal(pipelineCells(row({ has_contact_email: true, has_email_draft: true })).email.label, "ready");
   });
 });
+
+
+describe("imported and stored campaigns are claim-closed by default", () => {
+  test("the import forces holding, and a stored preview that omits the setting is read as holding", () => {
+    const m = read("lib/launch-partners/campaigns.server.ts");
+    assert.match(m, /preview: \{ \.\.\.preview\.value, claim: "holding" \}/);
+    assert.match(m, /claim: parsed\.value\.claim === "live" \? "live" : "holding"/);
+  });
+});

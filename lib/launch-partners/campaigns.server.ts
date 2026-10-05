@@ -85,7 +85,8 @@ export async function readStoredPreview(slug: string, token: string): Promise<Pr
     const raw = await rpc<unknown>("launch_invite_preview_config", { p_slug: slug, p_token: token });
     if (!raw) return null;
     const parsed = parsePreviewConfig(raw, slug);
-    return parsed.ok ? parsed.value : null;
+    // A stored campaign is claim-CLOSED unless an admin deliberately opened it: an omitted setting never means "open".
+    return parsed.ok ? { ...parsed.value, claim: parsed.value.claim === "live" ? "live" : "holding" } : null;
   } catch { return null; }
 }
 
@@ -112,7 +113,8 @@ export async function importExistingPreviews(): Promise<ImportOutcome> {
     const preview = parsePreviewConfig(cfg, cfg.slug);
     const page = parsePageDraft(buildPageDraft(cfg));
     if (!preview.ok || !page.ok) { out.skipped.push({ slug: o.slug, reason: `invalid: ${preview.ok ? (page as { error: string }).error : preview.error}` }); continue; }
-    await createCampaign({ businessId: cfg.directoryBusinessId, slug: cfg.slug, positioning: POSITIONING_BY_SLUG[cfg.slug] ?? cfg.positioning ?? null, preview: preview.value, page: page.value });
+    // Imported campaigns always start with claiming closed, whatever the source config says.
+    await createCampaign({ businessId: cfg.directoryBusinessId, slug: cfg.slug, positioning: POSITIONING_BY_SLUG[cfg.slug] ?? cfg.positioning ?? null, preview: { ...preview.value, claim: "holding" }, page: page.value });
     out.created.push({ slug: cfg.slug, name: cfg.businessName });
   }
   return out;
