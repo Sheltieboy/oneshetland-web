@@ -389,7 +389,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
             </Link>
           </div>
           <p className="mt-3 text-xs text-ink-muted">
-            Connect an existing shop <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 font-bold text-ink-soft">Coming later</span>
+            Connect an existing shop — Shopify · WooCommerce · Square <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 font-bold text-ink-soft">Coming next</span>
           </p>
         </section>
       )}

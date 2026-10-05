@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { buildReport } from "@/lib/product-import/report";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { ACCENT, Badge, download, rowsLabel, type BatchDetail, type BatchRow } from "./shared";
+import { ACCENT, Badge, FIELD_NICE, download, rowsLabel, type BatchDetail, type BatchRow } from "./shared";
 
 type PublishResult = { id: string; title: string; ok: boolean; reason?: string };
 
@@ -16,6 +16,7 @@ export function ResultStep({ businessId, detail, canPublish, onChanged, onNewImp
   onNewImport: () => void;
 }) {
   const confirm = useConfirm();
+  const [now] = useState(() => Date.now());
   const { batch, items } = detail;
   const base = `/api/business/${businessId}/product-import`;
   const undone = batch.status === "undone";
@@ -31,10 +32,14 @@ export function ResultStep({ businessId, detail, canPublish, onChanged, onNewImp
   const applied = items.filter((i) => i.status === "applied");
   const failed = items.filter((i) => i.status === "failed");
   const created = applied.filter((i) => i.action === "create").length;
+  const notImported = items.filter((i) => i.action === "skip").length;
+  const unchangedN = items.filter((i) => i.action === "unchanged").length;
+  const kept = applied.filter((i) => (i.result?.locked_skipped?.length ?? 0) > 0);
+  const needAttention = items.filter((i) => i.action === "error" || i.status === "failed").length;
   const updated = applied.filter((i) => i.action === "update").length;
   const imgProblems = items.filter((i) => i.imageProblems.length > 0 || i.image_status === "failed" || i.image_status === "partial");
   const publishable = items.filter((i) => i.product && i.status === "applied");
-  const daysLeft = Math.max(0, Math.ceil((new Date(batch.undo_expires_at).getTime() - Date.now()) / 86_400_000));
+  const daysLeft = Math.max(0, Math.ceil((new Date(batch.undo_expires_at).getTime() - now) / 86_400_000));
   const canUndo = (batch.status === "complete" || batch.status === "complete_with_errors") && daysLeft > 0;
 
   const toggle = (id: string) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -90,16 +95,33 @@ export function ResultStep({ businessId, detail, canPublish, onChanged, onNewImp
           {undone ? "This import was undone" : batch.status === "complete_with_errors" ? "Import finished — some things need a look" : "Import finished"}
         </p>
         {!undone && (
-          <p className="mt-1.5 text-sm text-ink-soft">
-            {created} new product{created === 1 ? "" : "s"} added as <strong>drafts</strong>{updated ? `, ${updated} updated` : ""}
-            {failed.length ? `, ${failed.length} could not be imported` : ""}. <strong>Nothing is live yet.</strong>
-          </p>
+          <>
+            <ul className="mt-3 grid gap-2 text-sm sm:grid-cols-5" aria-label="What was imported">
+              {[[`${created}`, "new draft" + (created === 1 ? "" : "s"), "text-emerald-700"], [`${updated}`, "updated", "text-sky-700"], [`${unchangedN}`, "unchanged", "text-ink-soft"], ...(notImported ? [[`${notImported}`, "skipped", "text-amber-700"]] : []), [`${needAttention}`, "need attention", "text-rose-700"]].map(([n, l, c]) => (
+                <li key={l} className="rounded-xl bg-cream/60 px-3 py-2"><span className={`font-display text-2xl font-bold ${c}`}>{n}</span> <span className="text-ink-soft">{l}</span></li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm text-ink-soft"><strong>Nothing is live yet.</strong> Everything arrived as a draft that only you can see.</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href={`/business/${businessId}/manage/products`} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft" style={{ background: ACCENT }}>Review products</Link>
+              <a href="#publish-h" className="rounded-pill border border-line px-5 py-2.5 text-sm font-bold text-ink-soft hover:bg-sand">Publish selected ↓</a>
+            </div>
+          </>
         )}
         {hasProblems && !undone && (
           <button onClick={() => download("oneshetland-import-report.csv", buildReport(reportItems, { onlyProblems: true }))}
             className="mt-3 rounded-pill border border-line bg-white px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand">⤓ Download the problem rows (CSV)</button>
         )}
       </div>
+
+      {kept.length > 0 && !undone && (
+        <section className="rounded-card border border-amber-200 bg-amber-50 p-4" aria-label="Edits we kept">
+          <p className="font-bold text-amber-900">Your own edits were kept</p>
+          <ul className="mt-2 space-y-1 text-sm text-amber-900">
+            {kept.map((i) => <li key={i.id}><strong>{i.title}</strong> — {(i.result?.locked_skipped ?? []).map((f) => FIELD_NICE[f] ?? f).join(", ")} not overwritten, because you changed {(i.result?.locked_skipped?.length ?? 0) === 1 ? "it" : "them"} by hand.</li>)}
+          </ul>
+        </section>
+      )}
 
       {failed.length > 0 && !undone && (
         <section className="rounded-card border border-rose-200 bg-rose-50 p-4">
@@ -115,7 +137,7 @@ export function ResultStep({ businessId, detail, canPublish, onChanged, onNewImp
         <section className="rounded-card border border-amber-200 bg-amber-50 p-4">
           <p className="font-bold text-amber-900">Some photos could not be copied</p>
           <ul className="mt-2 space-y-1.5 text-sm text-amber-900">
-            {imgProblems.map((i) => <li key={i.id}><strong>{i.title}</strong> — {i.imageProblems.length ? i.imageProblems.join("; ") : "no photo was added"}.</li>)}
+            {imgProblems.map((i) => <li key={i.id}><strong>{i.title}</strong> — {i.imageProblems.length ? i.imageProblems.join("; ") : "no photo was added"}</li>)}
           </ul>
           <p className="mt-2 text-xs text-amber-800">Those products stay drafts until they have a photo. Add one by hand in Products, or fix the image address and import the file again.</p>
         </section>

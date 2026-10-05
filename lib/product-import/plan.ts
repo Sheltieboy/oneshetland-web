@@ -63,6 +63,8 @@ export interface ExistingProduct {
   stock_mode: string; stock: number | null; lead_time_days: number | null; collect_only: boolean; free_uk_post: boolean;
   photos: string[]; is_active: boolean; reserved: number; source_hash: string | null; source_locked_fields: string[];
   variants: ExistingVariant[];
+  /** Source addresses of photos an earlier import already copied for this product (so they are not fetched again). */
+  known_image_urls?: string[];
 }
 
 export interface PlanChange { field: string; from: unknown; to: unknown }
@@ -168,7 +170,16 @@ function draftGroup(g: CanonicalRow[]): Draft {
 
   /* Title */
   const titleM = merged.title;
-  if (!titleM) err(first.rowNumber, 'title', 'title_missing', `Row ${first.rowNumber}: title is required.`);
+  if (!titleM) {
+    const variantOnly = g.some(hasVariant);
+    if (variantOnly && !d.ref) {
+      err(first.rowNumber, 'ref', 'variant_no_parent', `Row ${first.rowNumber}: this looks like a variant (it has an option name or price) but there is no product ref, so we can't tell which product it belongs to. Give it the same ref as its product's first row.`);
+    } else if (variantOnly) {
+      err(first.rowNumber, 'title', 'variant_no_parent', `Row ${first.rowNumber}: rows with ref "${d.ref}" have variant details but no product row. The first row for a ref must carry the product's title and price.`);
+    } else {
+      err(first.rowNumber, 'title', 'title_missing', `Row ${first.rowNumber}: title is missing.`);
+    }
+  }
   else {
     d.titleRaw = titleM.v;
     const t = toPlainLine(titleM.v);
@@ -273,7 +284,7 @@ function draftGroup(g: CanonicalRow[]): Draft {
   if (stockM) {
     const s = parseInt0(stockM.v, 'Stock', LIMITS.stockMax);
     if (!s.ok) err(stockM.row, 'stock', 'stock_invalid', `Row ${stockM.row}: ${s.message}.`);
-    else if (d.variants.length) err(stockM.row, 'stock', 'stock_conflict', `Row ${stockM.row}: this product has variants, so stock goes on each variant (variant_stock), not on the product.`);
+    else if (d.variants.length) err(stockM.row, 'stock', 'stock_conflict', `Row ${stockM.row}: this product has variants, so stock goes on each variant (the variant stock column), not on the product.`);
     else if (mode && mode !== 'tracked') warn(stockM.row, 'stock', 'stock_ignored', `Row ${stockM.row}: stock is ignored for ${mode === 'one_off' ? 'one-off' : 'made-to-order'} products.`);
     else d.fields.stock = s.value;
   }
@@ -471,8 +482,13 @@ export function buildPlan(rows: CanonicalRow[], existing: ExistingProduct[], opt
     if (item.errors.length) { item.action = 'error'; item.willFetchImages = false; return item; }
 
     const photosLocked = locks.has('photos');
-    const imageWork = d.imageUrls.length > 0 && !photosLocked && (item.hash !== target.source_hash || target.photos.length === 0);
+    // Only photos we have not already copied for this product: a repeat import never downloads the same picture twice,
+    // and a product with no photo at all (a failed earlier attempt) gets another go at all of them.
+    const known = new Set(target.known_image_urls ?? []);
+    const fresh = target.photos.length === 0 ? d.imageUrls : d.imageUrls.filter((u) => !known.has(u));
+    const imageWork = fresh.length > 0 && !photosLocked && target.photos.length < LIMITS.maxImages;
     if (d.imageUrls.length && photosLocked) item.lockedSkipped.push('photos');
+    item.imageUrls = imageWork ? fresh : d.imageUrls;
     item.willFetchImages = imageWork;
     item.action = item.changes.length || item.variantChanges.length || imageWork ? 'update' : 'unchanged';
     item.publish = target.photos.length || d.imageUrls.length ? 'ready' : 'needs_photo';

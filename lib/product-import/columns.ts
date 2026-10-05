@@ -145,3 +145,25 @@ export const TEMPLATE_NOTES: { field: string; note: string }[] = [
   { field: 'image_1 … image_5', note: 'Public https:// web addresses of JPEG, PNG or WebP photos. We copy them into your shop; we never link to the original.' },
   { field: 'variant_name, variant_price, variant_stock, variant_sku', note: 'One row per variant. variant_price is the full price of that variant (we work out the difference from the product price).' },
 ];
+
+/** Plain-text "how to fill this in", downloaded beside the template. */
+export function templateInstructions(): string {
+  const lines = [
+    'OneShetland product import — how to fill in the template',
+    '',
+    'Open oneshetland-products-template.csv in Excel, Numbers or Google Sheets. The first row holds the column names: leave it exactly as it is.',
+    'The two example products under it (their titles start with "Example:") show a simple product and a product with sizes. Delete them, then add your own, one product per row.',
+    'When you are done, save or export as CSV (in Excel: File > Save As > "CSV UTF-8"), then upload it on the Import products page.',
+    '',
+    'Only title and price are needed. Everything else is optional.',
+    '',
+    ...TEMPLATE_NOTES.map((n) => `${n.field}: ${n.note}`),
+    '',
+    'Products with sizes or options: put the product on its first row with a ref (any short code you like, such as JUMPER-1).',
+    'Add one more row for each extra option, repeating the same ref and filling in variant_name, variant_price, variant_stock and variant_sku.',
+    'The first option can go on the product row itself.',
+    '',
+    'Nothing is saved until you have looked at the plan and pressed confirm, and everything arrives as a draft only you can see.',
+  ];
+  return lines.join('\r\n') + '\r\n';
+}

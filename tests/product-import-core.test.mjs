@@ -9,7 +9,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { parseCsvFile, parseCsvText, detectDelimiter, decodeCsvBytes, toCsv, csvCell, CsvError, MAX_ROWS } from "../lib/product-import/csv.ts";
-import { TEMPLATE_HEADERS, TEMPLATE_ROWS, suggestMapping, FIELDS } from "../lib/product-import/columns.ts";
+import { TEMPLATE_HEADERS, TEMPLATE_ROWS, suggestMapping, FIELDS, templateInstructions } from "../lib/product-import/columns.ts";
 import { toPlainText, normTitle } from "../lib/product-import/text.ts";
 import { parseMoney, parseImageUrl, parseCategory, parseStockMode, parseBool } from "../lib/product-import/normalise.ts";
 import { screenText } from "../lib/product-import/restricted.ts";
@@ -249,7 +249,7 @@ describe("plan: acceptance cases", () => {
     const text = mk({ ref: "A", title: "Hat", price: "25", image_1: IMG });
     const first = plan(text);
     const it = first.items[0];
-    const made = existing({ id: "p1", title: "Hat", external_ref: "A", price_pence: 2500, category: null, photos: ["https://x/p.jpg"], source_hash: it.hash });
+    const made = existing({ id: "p1", title: "Hat", external_ref: "A", price_pence: 2500, category: null, photos: ["https://x/p.jpg"], source_hash: it.hash, known_image_urls: [IMG] });
     const again = plan(text, [made]);
     assert.deepEqual(again.counts.create, 0);
     assert.equal(again.items[0].action, "unchanged");
@@ -339,7 +339,7 @@ describe("plan: acceptance cases", () => {
 
   test("10 · a missing title is an error; an over-long title and variant name are errors", () => {
     let pl = plan(mk({ ref: "A", price: "10" }));
-    assert.equal(pl.items[0].action, "error"); assert.match(pl.items[0].errors[0].message, /title is required/);
+    assert.equal(pl.items[0].action, "error"); assert.match(pl.items[0].errors[0].message, /title is missing/);
     pl = plan(mk({ ref: "A", title: "x".repeat(201), price: "10" }));
     assert.match(pl.items[0].errors[0].message, /limit is 200/);
     pl = plan(mk({ ref: "A", title: "A", price: "10", variant_name: "v".repeat(81) }));
@@ -448,5 +448,50 @@ describe("plan: acceptance cases", () => {
     const pl = buildPlan(canon, []);
     assert.equal(pl.items[0].fields.price_pence, 900);
     assert.equal(JSON.stringify(pl.items[0]).includes("secret"), false);
+  });
+
+  test("a variant row with no parent says so: no ref at all, or a ref with no product row", () => {
+    let pl = plan(mk({ variant_name: "Large", variant_price: "22" }));
+    assert.equal(pl.items[0].action, "error"); assert.equal(pl.items[0].errors[0].code, "variant_no_parent");
+    assert.match(pl.items[0].errors[0].message, /no product ref/);
+    pl = plan(mk({ ref: "TEE", variant_name: "Large", variant_price: "22" }));
+    assert.equal(pl.items[0].errors[0].code, "variant_no_parent"); assert.match(pl.items[0].errors[0].message, /no product row/);
+  });
+
+  test("the Shetland T-shirt: absolute variant prices become deltas against the £20 base; SKUs and stock ride along", () => {
+    const pl = plan(mk(
+      { ref: "TEE", title: "Shetland T-shirt", price: "20", variant_name: "Small · Navy", variant_price: "20", variant_stock: "5", variant_sku: "TEE-S-NVY", image_1: IMG },
+      { ref: "TEE", variant_name: "Medium · Navy", variant_price: "20", variant_stock: "6", variant_sku: "TEE-M-NVY" },
+      { ref: "TEE", variant_name: "Large · Navy", variant_price: "22", variant_stock: "2", variant_sku: "TEE-L-NVY" },
+    ));
+    const it = pl.items[0];
+    assert.equal(it.action, "create"); assert.equal(it.fields.price_pence, 2000);
+    assert.deepEqual(it.variants.map((v) => [v.name, v.price_delta_pence, v.stock, v.sku]), [["Small · Navy", 0, 5, "TEE-S-NVY"], ["Medium · Navy", 0, 6, "TEE-M-NVY"], ["Large · Navy", 200, 2, "TEE-L-NVY"]]);
+    assert.equal(toDbItem(it).payload.fields.stock, undefined, "no product-level stock alongside variant stock");
+  });
+
+  test("a renamed product with the same ref is an UPDATE of that product (and the new title is the change), not a new product", () => {
+    const pl = plan(mk({ ref: "HAT", title: "Fair Isle beanie", price: "25", image_1: IMG }), [existing({ photos: ["https://x/p.jpg"] })]);
+    assert.equal(pl.items[0].action, "update"); assert.equal(pl.items[0].matchedBy, "ref");
+    assert.deepEqual(pl.items[0].changes.map((c) => [c.field, c.from, c.to]).filter((c) => c[0] === "title"), [["title", "Fair Isle hat", "Fair Isle beanie"]]);
+  });
+
+  test("the instructions file travels with the template and names every column", () => {
+    const t = templateInstructions();
+    for (const w of ["title", "price", "ref", "variant_name", "image_1", "CSV UTF-8", "draft"]) assert.ok(t.includes(w), w);
+    assert.doesNotMatch(t, /external_ref|idempotent|normalis/i);
+    assert.ok(TEMPLATE_ROWS.every((r) => r.length === TEMPLATE_HEADERS.length), "every example row has one cell per column");
+  });
+
+  test("a repeat import never downloads a picture it already copied; only new addresses are fetched", () => {
+    const e = existing({ photos: ["https://x/p.jpg"], known_image_urls: [IMG] });
+    let pl = plan(mk({ ref: "HAT", title: "Fair Isle hat", price: "28", image_1: IMG }), [e]);
+    assert.equal(pl.items[0].action, "update"); assert.equal(pl.items[0].willFetchImages, false);
+    assert.deepEqual(toDbItem(pl.items[0]).payload.image_urls, []);
+    pl = plan(mk({ ref: "HAT", title: "Fair Isle hat", price: "25", image_1: IMG, category: "knitwear" }), [e]);
+    assert.equal(pl.items[0].action, "unchanged");
+    const csv = toCsv([HEAD.slice(0, 7).concat("image_2"), ["HAT", "", "Fair Isle hat", "25", "knitwear", "", IMG, "https://cdn.example.com/b.jpg"]]);
+    pl = buildPlan(load(csv).rows, [e]);
+    assert.equal(pl.items[0].willFetchImages, true); assert.deepEqual(toDbItem(pl.items[0]).payload.image_urls, ["https://cdn.example.com/b.jpg"]);
   });
 });

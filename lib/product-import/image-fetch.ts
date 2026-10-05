@@ -151,7 +151,12 @@ export const defaultDeps: Deps = {
     const req = https.request({
       protocol: 'https:', hostname: url.hostname, port: 443, path: `${url.pathname}${url.search}`, method: 'GET',
       servername: url.hostname,                                   // SNI and certificate checks use the NAME…
-      lookup: (_h, _o, cb) => { const fam = net.isIPv6(address) ? 6 : 4; (cb as unknown as (e: null, a: string, f: number) => void)(null, address, fam); },   // …the socket uses the CHECKED address
+      // …the socket uses the CHECKED address. Node calls lookup with { all: true } when it tries several addresses
+      // (autoSelectFamily) and expects an array back; older paths expect (address, family). Answer whichever it asks for.
+      lookup: ((_h: string, o: { all?: boolean } | undefined, cb: (...a: unknown[]) => void) => {
+        const family = net.isIPv6(address) ? 6 : 4;
+        if (o && o.all) cb(null, [{ address, family }]); else cb(null, address, family);
+      }) as unknown as https.RequestOptions['lookup'],
       headers: { Accept: 'image/jpeg,image/png,image/webp,*/*;q=0.1', 'User-Agent': 'OneShetlandImport/1.0 (+https://oneshetland.com)', 'Accept-Encoding': 'identity' },
       signal,
     }, (r) => {
@@ -189,7 +194,7 @@ export async function fetchImage(
       try { r = await deps.get(url, addrs[0], ctrl.signal); }
       catch (e) {
         if (ctrl.signal.aborted) throw new ImageFetchError('timeout', 'The image took too long to download.');
-        throw new ImageFetchError('network', `Could not download the image (${(e as Error).message || 'network error'}).`);
+        throw new ImageFetchError('network', `Could not download the image (${((e as Error).message || 'network error').replace(/\.+$/, '')}).`);
       }
 
       if (r.status >= 300 && r.status < 400) {

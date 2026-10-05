@@ -30,8 +30,9 @@ export function ReviewStep({ plan, allowDup, onAllowDup, busy, onConfirm, onBack
 
   const chips: { id: Filter; label: string; n: number }[] = [
     { id: "all", label: "All", n: c.found }, { id: "create", label: "New", n: c.create }, { id: "update", label: "Updates", n: c.update },
-    { id: "unchanged", label: "Unchanged", n: c.unchanged }, { id: "skip", label: "Not imported", n: c.skip },
-    { id: "error", label: "Needs attention", n: c.error }, { id: "warnings", label: "Warnings", n: c.warnings },
+    { id: "unchanged", label: "Unchanged", n: c.unchanged }, { id: "warnings", label: "Warnings", n: c.warnings },
+    { id: "error", label: "Errors", n: c.error },
+    ...(c.skip ? [{ id: "skip" as Filter, label: "Not imported", n: c.skip }] : []),
   ];
 
   return (
@@ -60,7 +61,8 @@ export function ReviewStep({ plan, allowDup, onAllowDup, busy, onConfirm, onBack
         </label>
       )}
 
-      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter products">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter products">
         {chips.map((ch) => (
           <button key={ch.id} role="tab" aria-selected={filter === ch.id} onClick={() => setFilter(ch.id)}
             className={"rounded-pill px-3 py-1 text-xs font-bold transition " + (filter === ch.id ? "text-white" : "border border-line bg-white text-ink-soft hover:bg-sand")}
@@ -68,6 +70,7 @@ export function ReviewStep({ plan, allowDup, onAllowDup, busy, onConfirm, onBack
             {ch.label} <span className="opacity-70">{ch.n}</span>
           </button>
         ))}
+        </div>
         {(c.error > 0 || c.skip > 0 || c.warnings > 0) && (
           <button onClick={() => download("oneshetland-import-problems.csv", buildReport(plan.items.map((i) => ({ rows: i.rows, title: i.title, ref: i.ref, sku: i.sku, action: i.action, errors: i.errors, warnings: i.warnings }))))}
             className="ml-auto rounded-pill border border-line bg-white px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand">
@@ -110,6 +113,7 @@ function PlanRow({ it }: { it: PlanItem }) {
       </p>
       {it.errors.map((e, i) => <p key={`e${i}`} className="mt-1.5 text-sm font-semibold text-rose-700">⚠ {e.message}</p>)}
       {it.warnings.map((w, i) => <p key={`w${i}`} className="mt-1.5 text-sm text-amber-800">• {w.message}</p>)}
+      {it.lockedSkipped.length > 0 && <p className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-sm text-amber-900">✎ Your own edits are kept: <strong>{it.lockedSkipped.map((f) => FIELD_NICE[f] ?? f).join(", ")}</strong> {it.lockedSkipped.length === 1 ? "was" : "were"} changed by hand in OneShetland, so this import won&rsquo;t overwrite {it.lockedSkipped.length === 1 ? "it" : "them"}.</p>}
       {hasDetail ? (
         <>
           <button onClick={() => setOpen((o) => !o)} className="mt-1.5 text-xs font-bold text-ink-soft underline underline-offset-2" aria-expanded={open}>{open ? "Hide details" : "Show details"}</button>

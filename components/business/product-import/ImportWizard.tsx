@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toCsv } from "@/lib/product-import/csv";
-import { FIELDS, FIELD_LABELS, LIMITS, REQUIRED_FIELDS, TEMPLATE_HEADERS, TEMPLATE_NOTES, TEMPLATE_ROWS, type Field } from "@/lib/product-import/columns";
+import { LIMITS, REQUIRED_FIELDS, TEMPLATE_HEADERS, TEMPLATE_NOTES, TEMPLATE_ROWS, FIELD_LABELS, templateInstructions } from "@/lib/product-import/columns";
 import { ReviewStep } from "./ReviewStep";
+import { ColumnMapper } from "./ColumnMapper";
 import { ResultStep } from "./ResultStep";
 import { ACCENT, download, type BatchDetail, type HistoryEntry, type Inspection, type PlanResponse, type Step } from "./shared";
 
@@ -15,7 +16,7 @@ const STEPS: { id: Step; label: string }[] = [
 ];
 
 const STATUS_LABEL: Record<string, string> = {
-  queued: "Not started", applying: "Unfinished", complete: "Finished", complete_with_errors: "Finished with problems", undone: "Undone", cancelled: "Cancelled",
+  queued: "Not started", applying: "Unfinished — carry on to finish it", complete: "Finished", complete_with_errors: "Finished with problems", undone: "Undone", cancelled: "Cancelled",
 };
 
 export function ImportWizard({ businessId, canPublish, history }: { businessId: string; canPublish: boolean; history: HistoryEntry[] }) {
@@ -30,7 +31,7 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
-  const [progress, setProgress] = useState<{ phase: "apply" | "images"; done: number; total: number; failed: number } | null>(null);
+  const [progress, setProgress] = useState<{ phase: "apply" | "images"; done: number; total: number; failed: number; waiting?: boolean } | null>(null);
   const [detail, setDetail] = useState<BatchDetail | null>(null);
   const [recent, setRecent] = useState<HistoryEntry[]>(history);
   const key = useRef<string>("");
@@ -132,6 +133,16 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
         }
       }
       if (!alive.current) return;
+      // A photo claimed by an interrupted run is handed back after a short wait. Don't call the import finished
+      // while the database still says it is not: wait, and ask again.
+      for (let wait = 0; wait < 12 && alive.current; wait++) {
+        d = await api<BatchDetail>(`/batches/${batchId}`);
+        if (d.batch.status !== "applying") break;
+        setProgress({ phase: "images", done: d.items.filter((i) => ["done", "partial", "failed", "none"].includes(i.image_status)).length, total: d.items.filter((i) => i.status === "applied").length, failed: 0, waiting: true });
+        await new Promise((r) => setTimeout(r, 10_000));
+        for (let k = 0; k < 20; k++) { const r = await api<{ done: boolean }>(`/batches/${batchId}/images`, { method: "POST" }); if (r.done) break; }
+      }
+      if (!alive.current) return;
       await showResult(batchId);
     } catch (e) {
       setErr(`${(e as Error).message} Your progress is saved — choose "Carry on" to continue where it stopped.`);
@@ -163,8 +174,8 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
     <div className="space-y-6">
       <ol className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold" aria-label="Progress">
         {STEPS.map((s, i) => (
-          <li key={s.id} aria-current={i === stepIndex ? "step" : undefined} className={i === stepIndex ? "text-navy" : i < stepIndex ? "text-ink-soft" : "text-ink-faint"}>
-            <span className={"mr-1 inline-grid h-5 w-5 place-items-center rounded-full text-[11px] " + (i <= stepIndex ? "text-white" : "bg-sand text-ink-muted")} style={i <= stepIndex ? { background: ACCENT } : undefined}>{i + 1}</span>{s.label}
+          <li key={s.id} aria-current={i === stepIndex ? "step" : undefined} className={i === stepIndex ? "text-navy" : i < stepIndex ? "text-ink-soft" : "text-ink-muted"}>
+            <span className={"mr-1 inline-grid h-5 w-5 place-items-center rounded-full text-[11px] " + (i <= stepIndex ? "text-white" : "bg-sand text-ink-soft")} style={i <= stepIndex ? { background: ACCENT } : undefined}>{i + 1}</span>{s.label}
           </li>
         ))}
       </ol>
@@ -192,7 +203,8 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <button onClick={() => download("oneshetland-products-template.csv", toCsv([TEMPLATE_HEADERS, ...TEMPLATE_ROWS]))} className="rounded-pill border border-line px-4 py-2 text-sm font-bold text-ink-soft hover:bg-sand">⤓ Download the template</button>
-              <span className="text-xs text-ink-muted">Two example products are included — delete them before uploading.</span>
+              <button onClick={() => download("oneshetland-products-instructions.txt", templateInstructions(), "text/plain;charset=utf-8")} className="rounded-pill border border-line px-4 py-2 text-sm font-bold text-ink-soft hover:bg-sand">⤓ How to fill it in</button>
+              <span className="basis-full text-xs text-ink-muted">Two example products are included — delete them before uploading.</span>
             </div>
             <details className="mt-4 text-sm text-ink-soft">
               <summary className="cursor-pointer font-bold">What goes in each column?</summary>
@@ -203,22 +215,28 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
 
           <section className="rounded-card border border-line bg-white p-5 shadow-soft">
             <p className="font-bold text-ink">Connect an existing shop</p>
-            <p className="mt-0.5 text-sm text-ink-muted">Keep your Shopify, WooCommerce or Square products in step automatically. <span className="rounded-pill bg-sand px-2 py-0.5 text-xs font-bold text-ink-soft">Coming later</span></p>
+            <p className="mt-0.5 text-sm text-ink-muted">Keep your Shopify, WooCommerce or Square products in step automatically. <span className="rounded-pill bg-sand px-2 py-0.5 text-xs font-bold text-ink-soft">Coming next</span></p>
           </section>
 
           {recent.length > 0 && (
             <section className="rounded-card border border-line bg-white p-5 shadow-soft" aria-labelledby="recent-h">
-              <h2 id="recent-h" className="font-display text-lg font-bold text-navy">Recent imports</h2>
+              <h2 id="recent-h" className="font-display text-lg font-bold text-navy">Import history</h2>
               <ul className="mt-3 divide-y divide-line">
-                {recent.slice(0, 6).map((h) => (
-                  <li key={h.id} className="flex flex-wrap items-center gap-2 py-2.5">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-ink">{h.filename || "Import"}</p>
-                      <p className="text-xs text-ink-muted">{new Date(h.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} · {STATUS_LABEL[h.status] ?? h.status} · {h.total_items} product{h.total_items === 1 ? "" : "s"}</p>
-                    </div>
-                    <button onClick={() => openBatch(h)} disabled={busy} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand disabled:opacity-50">{h.status === "applying" ? "Carry on" : "Open"}</button>
-                  </li>
-                ))}
+                {recent.slice(0, 10).map((h) => {
+                  const c = h.counts ?? {};
+                  const bits = [c.create ? `${c.create} new` : null, c.update ? `${c.update} updated` : null, c.unchanged ? `${c.unchanged} unchanged` : null, c.skip ? `${c.skip} not imported` : null,
+                    (c.error ?? 0) + (c.failed ?? 0) > 0 ? `${(c.error ?? 0) + (c.failed ?? 0)} need attention` : null, c.images_failed ? `${c.images_failed} with photo problems` : null].filter(Boolean);
+                  return (
+                    <li key={h.id} className="flex flex-wrap items-center gap-2 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-ink">{h.filename || "Import"}</p>
+                        <p className="text-xs text-ink-muted">{new Date(h.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} · {h.total_items} row{h.total_items === 1 ? "" : "s"} · <strong>{STATUS_LABEL[h.status] ?? h.status}</strong></p>
+                        {bits.length > 0 && <p className="mt-0.5 text-xs text-ink-soft">{bits.join(" · ")}</p>}
+                      </div>
+                      <button onClick={() => openBatch(h)} disabled={busy} className="rounded-pill border border-line px-3 py-1 text-xs font-bold text-ink-soft hover:bg-sand disabled:opacity-50">{h.status === "applying" ? "Carry on" : "Open"}</button>
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
@@ -239,22 +257,25 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
               </div>
               {preset !== "oneshetland" && <button onClick={() => setPreset("generic")} className="text-sm font-bold text-ink-soft underline underline-offset-2">That&rsquo;s not right — let me match the columns myself</button>}
             </div>
-          ) : (
+          ) : null}
+
+          {(preset === "generic" || preset === "oneshetland") && (
             <div className="mt-4">
-              <p className="text-sm text-ink-soft">Tell us which column holds what. Anything you leave as “Don&rsquo;t import” is ignored. We&rsquo;ve guessed where we could.</p>
-              <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                {FIELDS.map((f: Field) => (
-                  <li key={f} className="flex items-center justify-between gap-2 rounded-xl border border-line px-3 py-2">
-                    <label htmlFor={`map-${f}`} className="text-sm font-semibold text-ink">{FIELD_LABELS[f]}{REQUIRED_FIELDS.includes(f) && <span className="text-rose-600"> *</span>}</label>
-                    <select id={`map-${f}`} value={mapping[f] ?? ""} onChange={(e) => setMapping((m) => { const n = { ...m }; if (e.target.value === "") delete n[f]; else n[f] = Number(e.target.value); return n; })}
-                      className="max-w-[55%] rounded-lg border border-line bg-white px-2 py-1.5 text-sm">
-                      <option value="">Don&rsquo;t import</option>
-                      {insp.headers.map((h, i) => <option key={i} value={i}>{h || `(column ${i + 1})`}</option>)}
-                    </select>
-                  </li>
-                ))}
-              </ul>
-              {missing.length > 0 && <p className="mt-3 text-sm font-semibold text-rose-700">Choose the column for: {missing.join(", ")}.</p>}
+              {(() => {
+                const autoOk = REQUIRED_FIELDS.every((f) => insp.suggestedMapping[f] !== undefined);
+                const body = <ColumnMapper headers={insp.headers} sample={insp.sample} mapping={mapping} auto={insp.suggestedMapping} onChange={setMapping} />;
+                return preset === "oneshetland" && autoOk && missing.length === 0 ? (
+                  <>
+                    <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900">All your columns were matched automatically — you don&rsquo;t need to change anything.</p>
+                    <details className="mt-3"><summary className="cursor-pointer text-sm font-bold text-ink-soft">See or change how your columns were matched</summary><div className="mt-3">{body}</div></details>
+                  </>
+                ) : (
+                  <>
+                    <p className="mb-3 text-sm text-ink-soft">For each column in your file, choose what it is. Columns you leave as “Ignore” are not imported. We&rsquo;ve matched the ones we&rsquo;re sure about.</p>
+                    {body}
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -275,6 +296,7 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
             <button onClick={() => runPlan()} disabled={busy || (needsMapping && missing.length > 0)} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white shadow-soft disabled:opacity-50" style={{ background: ACCENT }}>
               {busy ? "Checking your file…" : "Check my products →"}
             </button>
+            {needsMapping && missing.length > 0 && <p className="basis-full text-right text-sm font-semibold text-rose-700" role="status">Match the required columns first: {missing.map((f) => FIELD_LABELS[f]).join(" and ")}.</p>}
           </div>
         </section>
       )}
@@ -292,6 +314,7 @@ export function ImportWizard({ businessId, canPublish, history }: { businessId: 
             <div className="h-full rounded-full transition-all" style={{ width: `${progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 5}%`, background: ACCENT }} />
           </div>
           <p className="mt-2 text-sm text-ink-soft">{progress ? `${progress.done} of ${progress.total}` : "Starting"}{progress?.failed ? ` · ${progress.failed} could not be imported` : ""}</p>
+          {progress?.waiting && <p className="mt-1 text-sm font-semibold text-amber-800">Waiting for photos from an earlier attempt to be released — this takes a minute or so. You don&rsquo;t need to do anything.</p>}
           <p className="mt-3 text-xs text-ink-muted">You can leave this page — the import carries on from where it stopped when you come back (it&rsquo;s under “Recent imports”). Products are drafts; nothing is live.</p>
         </section>
       )}

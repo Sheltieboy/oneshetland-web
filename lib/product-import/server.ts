@@ -61,7 +61,17 @@ export async function loadExistingProducts(sb: SupabaseClient, businessId: strin
       const arr = byProduct.get(v.product_id) ?? []; arr.push(v); byProduct.set(v.product_id, arr);
     }
   }
-  return list.map((p) => ({ ...p, photos: p.photos ?? [], source_locked_fields: p.source_locked_fields ?? [], variants: byProduct.get(p.id) ?? [] }));
+  // Photos earlier imports already copied, by the web address they came from.
+  const known = new Map<string, string[]>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: rows } = await sb.from('import_rows')
+      .select('product_id, payload, status, image_status')
+      .in('product_id', ids.slice(i, i + 200)).eq('status', 'applied').in('image_status', ['done', 'partial']);
+    for (const r of (rows ?? []) as { product_id: string; payload: { image_urls?: string[] } }[]) {
+      const arr = known.get(r.product_id) ?? []; arr.push(...(r.payload?.image_urls ?? [])); known.set(r.product_id, arr);
+    }
+  }
+  return list.map((p) => ({ ...p, photos: p.photos ?? [], source_locked_fields: p.source_locked_fields ?? [], variants: byProduct.get(p.id) ?? [], known_image_urls: known.get(p.id) ?? [] }));
 }
 
 /** A database error, in words a merchant can act on. */
