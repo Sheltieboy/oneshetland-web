@@ -14,14 +14,20 @@ import type { BookAvailabilityRule, BookSlotOverride } from "@/lib/book-data";
 
 const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => { try { return await p; } catch { return f; } };
 
-/** Businesses owned by the current user (for the switcher / "my businesses"). */
-export async function getMyManagedBusinesses(userId: string): Promise<Pick<ManagedBusiness, "id" | "name" | "slug" | "logo_url" | "subscription_tier">[]> {
+/**
+ * Businesses owned by the current user (for the switcher / "my businesses").
+ *
+ * Includes businesses that are not publicly listed: an owner manages their own business whether or not it is
+ * publicly active. This is an owner-only read under their own session — RLS lets an owner see their own inactive
+ * rows and nobody else's — and is not part of public discovery.
+ */
+export async function getMyManagedBusinesses(userId: string): Promise<(Pick<ManagedBusiness, "id" | "name" | "slug" | "logo_url" | "subscription_tier"> & { is_active: boolean })[]> {
   const sb = await createServerClient();
   return safe((async () => {
     const { data } = await sb.from("local_businesses")
-      .select("id, name, slug, logo_url, subscription_tier")
-      .eq("owner_id", userId).eq("is_active", true).order("name");
-    return (data ?? []) as Pick<ManagedBusiness, "id" | "name" | "slug" | "logo_url" | "subscription_tier">[];
+      .select("id, name, slug, logo_url, subscription_tier, is_active")
+      .eq("owner_id", userId).order("name");
+    return (data ?? []) as (Pick<ManagedBusiness, "id" | "name" | "slug" | "logo_url" | "subscription_tier"> & { is_active: boolean })[];
   })(), []);
 }
 

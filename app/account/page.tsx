@@ -14,7 +14,7 @@ export default async function AccountOverview() {
   // card and payouts were not set up regardless of the truth.
   const sb = await createClient();
   const payments = await getPaymentState(sb, account.id);
-  const businesses = await getMyBusinessesBasic(account.id);
+  const businesses = await getMyBusinessesBasic(account.id, { includeUnlisted: true });
 
   // Profile completeness
   const fields = [p?.display_name || p?.full_name, p?.bio, p?.location_area, p?.avatar_url];
@@ -77,7 +77,10 @@ export default async function AccountOverview() {
             {businesses.map((b) => (
               <Link key={b.id} href={`/business/${b.id}/manage`} className="flex items-center gap-3 rounded-card border border-line bg-paper px-4 py-3 shadow-soft transition hover:bg-sand">
                 <div className="h-9 w-9 overflow-hidden rounded-lg bg-sand">{b.logo_url && <img src={b.logo_url} alt="" className="h-full w-full object-cover" />}</div>
-                <span className="flex-1 font-semibold text-ink">{b.name}</span>
+                <span className="flex-1 font-semibold text-ink">
+                  {b.name}
+                  {!b.is_active && <span className="ml-2 rounded-pill bg-sand px-2.5 py-0.5 align-middle text-xs font-bold text-ink-soft">Not publicly listed</span>}
+                </span>
                 <span className="text-sm font-semibold text-ink-faint">Manage →</span>
               </Link>
             ))}

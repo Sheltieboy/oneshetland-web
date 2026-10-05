@@ -41,7 +41,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       {mine.length > 1 && (
         <div className="mt-4 -mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {mine.map((b) => (
-            <Link key={b.id} href={`/business/${b.id}/manage`} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " + (b.id === business.id ? "text-white" : "border border-line-strong text-ink-soft hover:bg-sand")} style={b.id === business.id ? { background: BIZ } : undefined}>{b.name}</Link>
+            <Link key={b.id} href={`/business/${b.id}/manage`} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " + (b.id === business.id ? "text-white" : "border border-line-strong text-ink-soft hover:bg-sand")} style={b.id === business.id ? { background: BIZ } : undefined}>{b.name}{!b.is_active && <span className="ml-1.5 text-xs font-bold opacity-70">· not listed</span>}</Link>
           ))}
         </div>
       )}
@@ -52,7 +52,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           : <span className="grid h-14 w-14 place-items-center rounded-xl text-2xl text-white" style={{ background: BIZ }}>{business.name[0]}</span>}
         <div>
           <h1 className="font-display text-3xl font-bold sm:text-4xl">{business.name}</h1>
-          <p className="mt-0.5 text-sm font-semibold" style={{ color: BIZ }}>{TIER_LABELS[business.subscription_tier]} plan{business.is_verified ? " · Verified ✓" : ""}</p>
+          <p className="mt-0.5 text-sm font-semibold" style={{ color: BIZ }}>{TIER_LABELS[business.subscription_tier]} plan{business.is_verified ? " · Verified ✓" : ""}{business.is_active === false ? " · Not publicly listed" : ""}</p>
         </div>
         <div className="ml-auto"><AvailabilityChip data={dashboard} base={base} /></div>
       </div>

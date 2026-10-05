@@ -34,10 +34,23 @@ export async function isBusinessOwner(userId: string): Promise<boolean> {
   } catch { return false; }
 }
 
-export async function getMyBusinessesBasic(userId: string): Promise<{ id: string; name: string; slug: string | null; logo_url: string | null }[]> {
+export type MyBusinessBasic = { id: string; name: string; slug: string | null; logo_url: string | null; is_active: boolean };
+
+/**
+ * The businesses the signed-in user owns.
+ *
+ * `includeUnlisted` is for the OWNER's own screens (Account → Your businesses): a business that is not publicly
+ * active — a fresh claim, a draft listing — is still theirs to manage, and hiding it sent owners to the wrong
+ * dashboard. It is an owner-only read under the user's own session (RLS shows an owner their own inactive rows and
+ * nobody else's), so it cannot be used to discover anyone else's private listing. Other callers keep the old
+ * behaviour (active only) unless they ask: posting jobs as a business is not offered for an unlisted one.
+ */
+export async function getMyBusinessesBasic(userId: string, opts: { includeUnlisted?: boolean } = {}): Promise<MyBusinessBasic[]> {
   try {
     const sb = await createServerClient();
-    const { data } = await sb.from("local_businesses").select("id, name, slug, logo_url").eq("owner_id", userId).eq("is_active", true).order("name");
-    return (data ?? []) as { id: string; name: string; slug: string | null; logo_url: string | null }[];
+    let q = sb.from("local_businesses").select("id, name, slug, logo_url, is_active").eq("owner_id", userId);
+    if (!opts.includeUnlisted) q = q.eq("is_active", true);
+    const { data } = await q.order("name");
+    return (data ?? []) as MyBusinessBasic[];
   } catch { return []; }
 }
