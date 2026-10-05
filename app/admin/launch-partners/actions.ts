@@ -7,8 +7,6 @@ import {
   createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
-import { configuredTransport, outreachFrom, outreachReplyTo } from "@/lib/launch-partners/send.server";
-import { GATE_MESSAGE, sendInvitationEmail } from "@/lib/launch-partners/send-core";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
 import { checkEmail, defaultEmailDraft } from "@/lib/launch-partners/email";
@@ -111,40 +109,33 @@ export async function resetEmailToDefaultAction(id: string): Promise<Result<{ su
 }
 
 /**
- * SEND the invitation email. Nothing here runs unless the administrator pressed "Send invitation email" in the
- * confirmation dialog, and the gates in send-core.ts ALL pass — contact, saved draft, ready campaign, a valid
- * non-expired invitation for this very business, the private link (shown once), and the recipient/subject confirmed.
- * The saved draft and the invitation's state are read from the DATABASE, never trusted from the browser.
- * Without POSTMARK_API_KEY and LAUNCH_OUTREACH_FROM there is no transport and nothing can be sent.
+ * SEND the invitation email — by asking the Supabase Edge Function `send-launch-invitation` to do it.
+ *
+ * The web app has NO mail transport and NO provider key: the function (in Supabase, with the key as a Supabase secret) is
+ * the only code that can reach the mail provider. It runs as the calling administrator, re-reads the saved draft,
+ * recipient and invitation from the database, re-checks every gate, reserves the send in the database so it cannot happen
+ * twice, sends, and records it as sent — and only then reports success. This action just carries three things to it:
+ * the campaign id, the private link's token (shown once, never stored), and what the administrator confirmed
+ * (recipient and subject). Nothing else — there is no field for a recipient, subject or body to send.
  */
 export async function sendInvitationEmailAction(id: string, invitePath: string, confirmation: { confirm: boolean; recipient: string; subject: string }): Promise<Result<{ messageId: string; recipient: string; recorded: boolean }>> {
   await requireAdmin();
   try {
-    const c = await getCampaign(id);
-    if (!c) return { ok: false, error: "Not found." };
     const m = /^\/launch\/([a-z0-9-]+)\?invite=([A-Za-z0-9_-]{40,128})$/.exec(invitePath);
-    const token = m && m[1] === c.slug ? m[2] : null;
-    const invs = (await listInvites()).filter((i) => i.slug === c.slug && !i.revoked_at);
-    const inv = invs[0];
-    let valid = false;
-    if (token) {
-      const sb = await createClient();
-      const { data } = await sb.rpc("launch_invite_resolve", { p_slug: c.slug, p_token: token });
-      valid = typeof data === "string" && data === c.business_id;
-    }
-    const origin = (process.env.NEXT_PUBLIC_SITE_URL || "https://oneshetland.com").replace(/\/$/, "");
-    const from = outreachFrom();
-    const out = await sendInvitationEmail({
-      campaign: { id: c.id, slug: c.slug, businessName: c.name, stage: c.stage, sentAt: c.sent_at, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body },
-      invitation: { status: inv?.status ?? "none", expiresAt: inv?.expires_at ?? null, tokenValidForThisBusiness: valid },
-      invitationUrl: token ? `${origin}/launch/${c.slug}?invite=${token}` : null,
-      confirmation,
-    }, { transport: configuredTransport(), from: from ?? "", replyTo: outreachReplyTo() ?? "", now: () => new Date() });
-    if (!out.ok) return { ok: false, error: out.message || GATE_MESSAGE.not_configured };
-    // Record it. A failure to record must be visible: the email has gone.
-    let recorded = true;
-    try { await markSent(id, `Emailed from Admin (provider message ${out.messageId})`); } catch { recorded = false; }
-    return { ok: true, messageId: out.messageId, recipient: out.recipient, recorded };
+    if (!m || !/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "The private link is only available right after you generate the invitation. Generate a new invitation to send it." };
+    const sb = await createClient();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return { ok: false, error: "Please sign in again." };
+    const { data, error } = await sb.functions.invoke("send-launch-invitation", {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: { campaign_id: id, invite_token: m[2], confirm: { confirm: confirmation.confirm === true, recipient: confirmation.recipient, subject: confirmation.subject } },
+    });
+    // A non-2xx answer (not signed in, not an admin, rate-limited, unexpected) says nothing about the email — and the
+    // function only reports success after the send is recorded — so it can never be mistaken for "sent".
+    if (error) return { ok: false, error: "The email could not be sent just now, and nothing was recorded as sent. Please try again in a moment." };
+    const r = data as { ok?: boolean; messageId?: string; recipient?: string; recorded?: boolean; message?: string } | null;
+    if (r?.ok === true && r.messageId && r.recipient) return { ok: true, messageId: r.messageId, recipient: r.recipient, recorded: r.recorded !== false };
+    return { ok: false, error: r?.message || "The email could not be sent, and nothing was recorded as sent." };
   } catch (e) { return fail(e); }
 }
 

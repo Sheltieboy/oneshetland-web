@@ -1,28 +1,28 @@
 /**
- * Sending the invitation email — the gates, and nothing else.
+ * The send gates, as the Admin screen shows them — ADVISORY ONLY.
  *
- * Pure and dependency-free: the mail transport is INJECTED. Tests pass a recording stub, so no test can reach a real
- * mailbox; the production transport (send.server.ts) exists only when it is explicitly configured, and without it
- * every send ends at "not configured" before any network call.
+ * Sending itself happens in the Supabase Edge Function `send-launch-invitation` (oneshetland-delivers), which re-reads
+ * the saved draft, the recipient and the invitation from the database and re-evaluates every gate itself, reserves the
+ * send in the database, and is the only code that holds the mail provider's key. This module exists so the Admin
+ * screen can tell Darren, before he presses Send, exactly what is still missing. Nothing here can send anything; the web
+ * app has no mail transport, no provider key, and no way to reach the provider.
+ *
+ * The gate logic is the same as the function's (golden vectors in tests/fixtures keep the two in lock-step).
  *
  * A send happens only if EVERY gate passes:
- *   • the caller is an administrator (checked by the action before this runs)
+ *   • the caller is an administrator (the function checks)
  *   • the contact email is present and well-formed
  *   • the SAVED draft is complete (subject, body, a real personalised opening — not the prompt)
  *   • the campaign is Ready to invite and has not already been sent
- *   • the invitation is valid, non-expired, and belongs to this very business (checked in the database)
+ *   • the invitation is valid, non-expired, and belongs to this very business
  *   • the private link is present (it is shown once and never stored)
  *   • the administrator explicitly confirmed, and the recipient and subject they confirmed are what is saved
- *   • a transport is configured
  */
-import { checkEmail, renderInvitationEmail } from "./email.ts";
+import { checkEmail } from "./email.ts";
 
 export type GateFailure =
   | "not_confirmed" | "already_sent" | "not_ready" | "contact_missing" | "contact_invalid" | "draft_incomplete"
-  | "invitation_invalid" | "invitation_expired" | "link_missing" | "recipient_changed" | "subject_changed" | "not_configured";
-
-export interface MailMessage { from: string; replyTo: string; to: string; subject: string; text: string; html: string; metadata: Record<string, string> }
-export interface MailTransport { send(m: MailMessage): Promise<{ id: string }> }
+  | "invitation_invalid" | "invitation_expired" | "link_missing" | "recipient_changed" | "subject_changed";
 
 export interface SendInput {
   campaign: { id: string; slug: string; businessName: string; stage: string; sentAt: string | null; contactEmail: string | null; subject: string | null; opening: string | null; body: string | null };
@@ -31,7 +31,6 @@ export interface SendInput {
   invitationUrl: string | null;
   confirmation: { confirm: boolean; recipient: string; subject: string } | null;
 }
-export interface SendDeps { transport: MailTransport | null; from: string; /** Bare address replies go to. */ replyTo: string; now: () => Date }
 
 export const GATE_MESSAGE: Record<GateFailure, string> = {
   not_confirmed: "Confirm the send first.",
@@ -45,13 +44,12 @@ export const GATE_MESSAGE: Record<GateFailure, string> = {
   link_missing: "The private link is only available right after you generate the invitation. Generate a new invitation to send it.",
   recipient_changed: "The recipient changed since you confirmed. Review and confirm again.",
   subject_changed: "The subject changed since you confirmed. Review and confirm again.",
-  not_configured: "Sending from OneShetland isn't configured yet, so nothing was sent.",
 };
 
 const emailShape = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 /** Every gate that is not satisfied. Empty means a send is allowed. */
-export function evaluateSendGates(i: SendInput, deps: Pick<SendDeps, "transport" | "now">): GateFailure[] {
+export function evaluateSendGates(i: SendInput, deps: { now: () => Date }): GateFailure[] {
   const f: GateFailure[] = [];
   const c = i.campaign;
   if (!i.confirmation?.confirm) f.push("not_confirmed");
@@ -68,22 +66,5 @@ export function evaluateSendGates(i: SendInput, deps: Pick<SendDeps, "transport"
     if (c.contactEmail && i.confirmation.recipient.trim().toLowerCase() !== c.contactEmail.trim().toLowerCase()) f.push("recipient_changed");
     if (c.subject && i.confirmation.subject !== c.subject) f.push("subject_changed");
   }
-  if (!deps.transport) f.push("not_configured");
   return f;
-}
-
-export type SendOutcome = { ok: true; messageId: string; recipient: string } | { ok: false; failures: GateFailure[]; message: string };
-
-export async function sendInvitationEmail(i: SendInput, deps: SendDeps): Promise<SendOutcome> {
-  const failures = evaluateSendGates(i, deps);
-  if (failures.length || !deps.transport) return { ok: false, failures, message: failures.map((x) => GATE_MESSAGE[x]).join(" ") };
-  const c = i.campaign;
-  const rendered = renderInvitationEmail({ subject: c.subject!, body: c.body!, opening: c.opening, businessName: c.businessName, invitationUrl: i.invitationUrl });
-  if (!rendered.hasInvitation) return { ok: false, failures: ["link_missing"], message: GATE_MESSAGE.link_missing };
-  const res = await deps.transport.send({
-    from: deps.from, replyTo: deps.replyTo, to: c.contactEmail!.trim(), subject: rendered.subject, text: rendered.text, html: rendered.html,
-    // Never the token or the link: metadata is stored by the mail provider.
-    metadata: { kind: "launch_partner_invitation", campaign: c.slug },
-  });
-  return { ok: true, messageId: res.id, recipient: c.contactEmail!.trim() };
 }

@@ -51,7 +51,7 @@ export function EmailSection({ row, slug, businessName, initial, sessionLink }: 
     campaign: { id: row.id, slug, businessName, stage: row.stage, sentAt: row.sent_at, contactEmail: saved.contactEmail, subject: saved.subject, opening: saved.opening, body: saved.body },
     invitation: { status: inv.status, expiresAt: inv.expires_at, tokenValidForThisBusiness: !!sessionLink && invLive },
     invitationUrl: sessionLink?.url ?? null, confirmation: { confirm: true, recipient: saved.contactEmail, subject: saved.subject },
-  }, { transport: { send: async () => ({ id: "" }) }, now: () => new Date() }).filter((g) => g !== "not_configured");
+  }, { now: () => new Date() });
   const canSend = blockers.length === 0 && !dirty && !busy;
 
   async function save() {
