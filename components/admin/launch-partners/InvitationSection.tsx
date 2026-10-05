@@ -27,9 +27,14 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
   const canGenerate = row.is_test || row.stage === "ready_to_invite" || row.stage === "sent";
 
   async function generate() {
-    if (usable && !(await confirm({ title: "Replace the current invitation?", body: "Generating a new one revokes the current link at once.", confirmLabel: "Generate new invitation", danger: true }))) return;
+    const sent = !!row.sent_at;
+    if ((usable || sent) && !(await confirm({
+      title: sent ? "Replace an invitation that was already emailed?" : "Replace the current invitation?",
+      body: sent ? "This invitation has already been emailed. Generating a new one revokes it, and the link they received will stop working." : "Generating a new one revokes the current link at once, so only one invitation is ever valid.",
+      confirmLabel: sent ? "Revoke and replace" : "Generate new invitation", danger: true,
+    }))) return;
     setBusy(true); setErr(null); setLink(null);
-    const r = await issueInvitationAction(row.id, days);
+    const r = await issueInvitationAction(row.id, days, { replaceSent: !!row.sent_at });
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
     const url = `${window.location.origin}${r.path}`;

@@ -7,7 +7,7 @@ import {
   createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
-import { configuredTransport, outreachFrom } from "@/lib/launch-partners/send.server";
+import { configuredTransport, outreachFrom, outreachReplyTo } from "@/lib/launch-partners/send.server";
 import { GATE_MESSAGE, sendInvitationEmail } from "@/lib/launch-partners/send-core";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
@@ -139,7 +139,7 @@ export async function sendInvitationEmailAction(id: string, invitePath: string, 
       invitation: { status: inv?.status ?? "none", expiresAt: inv?.expires_at ?? null, tokenValidForThisBusiness: valid },
       invitationUrl: token ? `${origin}/launch/${c.slug}?invite=${token}` : null,
       confirmation,
-    }, { transport: configuredTransport(), from: from ?? "", now: () => new Date() });
+    }, { transport: configuredTransport(), from: from ?? "", replyTo: outreachReplyTo() ?? "", now: () => new Date() });
     if (!out.ok) return { ok: false, error: out.message || GATE_MESSAGE.not_configured };
     // Record it. A failure to record must be visible: the email has gone.
     let recorded = true;
@@ -163,11 +163,14 @@ export async function markSentAction(id: string, note?: string): Promise<Result>
  * Create the private invitation link. It is returned to the administrator ONCE (the database keeps only a hash) and
  * is never stored, logged or emailed. Real campaigns must be "ready to invite" first; a test fixture may be issued any time.
  */
-export async function issueInvitationAction(id: string, days: number): Promise<Result<{ path: string; expiresAt: string }>> {
+export async function issueInvitationAction(id: string, days: number, opts: { replaceSent?: boolean } = {}): Promise<Result<{ path: string; expiresAt: string }>> {
   await requireAdmin();
   try {
     const c = await getCampaign(id);
     if (!c) return { ok: false, error: "Not found." };
+    // A new invitation revokes the previous one. If that one has already been EMAILED, replacing it breaks the link the
+    // recipient holds — so that must be an explicit, separate decision, never a side effect of pressing Generate.
+    if (c.sent_at && !opts.replaceSent) return { ok: false, error: "This invitation has already been emailed. Replacing it makes the link they received stop working — confirm that you really want to replace it." };
     if (!c.is_test && c.stage !== "ready_to_invite" && c.stage !== "sent") return { ok: false, error: "Mark the campaign Ready to invite before generating its private invitation." };
     const d = Math.min(120, Math.max(1, Math.floor(days || 30)));
     const sb = await createClient();

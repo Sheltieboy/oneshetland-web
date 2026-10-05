@@ -31,7 +31,7 @@ export interface SendInput {
   invitationUrl: string | null;
   confirmation: { confirm: boolean; recipient: string; subject: string } | null;
 }
-export interface SendDeps { transport: MailTransport | null; from: string; now: () => Date }
+export interface SendDeps { transport: MailTransport | null; from: string; /** Bare address replies go to. */ replyTo: string; now: () => Date }
 
 export const GATE_MESSAGE: Record<GateFailure, string> = {
   not_confirmed: "Confirm the send first.",
@@ -81,7 +81,7 @@ export async function sendInvitationEmail(i: SendInput, deps: SendDeps): Promise
   const rendered = renderInvitationEmail({ subject: c.subject!, body: c.body!, opening: c.opening, businessName: c.businessName, invitationUrl: i.invitationUrl });
   if (!rendered.hasInvitation) return { ok: false, failures: ["link_missing"], message: GATE_MESSAGE.link_missing };
   const res = await deps.transport.send({
-    from: deps.from, replyTo: deps.from, to: c.contactEmail!.trim(), subject: rendered.subject, text: rendered.text, html: rendered.html,
+    from: deps.from, replyTo: deps.replyTo, to: c.contactEmail!.trim(), subject: rendered.subject, text: rendered.text, html: rendered.html,
     // Never the token or the link: metadata is stored by the mail provider.
     metadata: { kind: "launch_partner_invitation", campaign: c.slug },
   });

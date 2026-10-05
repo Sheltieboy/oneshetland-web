@@ -14,6 +14,21 @@ export function outreachFrom(env: Record<string, string | undefined> = process.e
   return f && /<[^@\s>]+@[^@\s>]+>|^[^@\s]+@[^@\s]+$/.test(f) ? f : null;
 }
 
+/** The bare address inside a "Name <address>" sender (or the address itself). */
+export function addressOf(from: string | null | undefined): string | null {
+  const m = from ? /<([^@\s>]+@[^@\s>]+)>/.exec(from) ?? /^([^@\s]+@[^@\s]+)$/.exec(from.trim()) : null;
+  return m ? m[1] : null;
+}
+
+/**
+ * Where a recipient's reply goes: LAUNCH_OUTREACH_REPLY_TO if set, otherwise the bare address of the sender — so a reply
+ * to "Darren Fullerton · OneShetland <hello@oneshetland.com>" goes to hello@oneshetland.com.
+ */
+export function outreachReplyTo(env: Record<string, string | undefined> = process.env): string | null {
+  const explicit = addressOf(env.LAUNCH_OUTREACH_REPLY_TO);
+  return explicit ?? addressOf(outreachFrom(env));
+}
+
 export function configuredTransport(env: Record<string, string | undefined> = process.env): MailTransport | null {
   const key = env.POSTMARK_API_KEY?.trim();
   if (!key || !outreachFrom(env)) return null;

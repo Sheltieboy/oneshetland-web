@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
 import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, sendInvitationEmail, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
-import { configuredTransport, outreachFrom } from "../lib/launch-partners/send.server.ts";
+import { configuredTransport, outreachFrom, outreachReplyTo, addressOf } from "../lib/launch-partners/send.server.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
 import { buildPageDraft } from "../lib/launch-partners/draft.ts";
 import { planSections, availability, heroActions, chooseHeroVisual, enforceLive, MAX_HERO_ACTIONS } from "../lib/business-page/sections.ts";
@@ -229,7 +229,7 @@ describe("sending is gated — and tests can never reach a mailbox", () => {
     invitation: { status: "open", expiresAt: future, tokenValidForThisBusiness: true }, invitationUrl: URL64,
     confirmation: { confirm: true, recipient: "hello@example.test", subject: draft.subject },
   });
-  const rec = () => { const sent = []; return { sent, transport: { send: async (m) => { sent.push(m); return { id: "msg-1" }; } }, from: "Darren <darren@example.test>", now: () => new Date() }; };
+  const rec = () => { const sent = []; return { sent, transport: { send: async (m) => { sent.push(m); return { id: "msg-1" }; } }, from: "Darren <darren@example.test>", replyTo: "darren@example.test", now: () => new Date() }; };
 
   test("with every gate satisfied exactly one message is handed to the (stub) transport, containing the link and nothing tracked", async () => {
     const d = rec(); const out = await sendInvitationEmail(ok(), d);
@@ -256,7 +256,7 @@ describe("sending is gated — and tests can never reach a mailbox", () => {
       assert.equal(configuredTransport({}), null); assert.equal(configuredTransport({ POSTMARK_API_KEY: "k" }), null, "a key alone is not enough"); assert.equal(configuredTransport({ LAUNCH_OUTREACH_FROM: "Darren <d@example.test>" }), null);
       assert.equal(outreachFrom({ LAUNCH_OUTREACH_FROM: "not an address" }), null);
       assert.notEqual(configuredTransport({ POSTMARK_API_KEY: "k", LAUNCH_OUTREACH_FROM: "Darren <d@example.test>" }), null);
-      const out = await sendInvitationEmail(ok(), { transport: null, from: "", now: () => new Date() });
+      const out = await sendInvitationEmail(ok(), { transport: null, from: "", replyTo: "", now: () => new Date() });
       assert.equal(out.ok, false); assert.deepEqual(out.failures, ["not_configured"]); assert.match(out.message, /isn't configured/);
     } finally { globalThis.fetch = realFetch; }
     assert.equal(calls, 0);
@@ -283,7 +283,7 @@ describe("sending is gated — and tests can never reach a mailbox", () => {
   });
   test("no test and no code path in this repo sends to a real address", () => {
     const here = read("tests/launch-partners.test.mjs");
-    assert.doesNotMatch(here.replace(/hello@example\.test|someone-else@example\.test|a@b\.co|d@example\.test|darren@example\.test|nope/g, ""), /@(gmail|outlook|yahoo|hotmail|oneshetland\.com)/i);
+    assert.doesNotMatch(here.replace(/hello@oneshetland\.com|hello@example\.test|someone-else@example\.test|me@example\.test|a@b\.co|d@example\.test|darren@example\.test|nope/g, ""), /@(gmail|outlook|yahoo|hotmail|oneshetland\.com)/i);
   });
 });
 
@@ -647,5 +647,32 @@ describe("private outreach content never reaches public output", () => {
   test("the outreach copy appears in no public page source, no sitemap and no API route", () => {
     for (const f of walkSrc("app/api")) assert.doesNotMatch(readFileSync(f, "utf8"), /launch-partners\/email|outreach|INVITATION_CTA/, f);
     assert.doesNotMatch(read("app/sitemap.ts"), /launch|outreach/);
+  });
+});
+
+
+describe("sender, reply-to and replacing invitations", () => {
+  test("Reply-To is the bare sender address (or an explicit override), and From keeps the display name", () => {
+    const FROM = "Darren Fullerton · OneShetland <hello@oneshetland.com>";
+    assert.equal(outreachFrom({ LAUNCH_OUTREACH_FROM: FROM }), FROM);
+    assert.equal(addressOf(FROM), "hello@oneshetland.com"); assert.equal(addressOf("hello@oneshetland.com"), "hello@oneshetland.com"); assert.equal(addressOf("nope"), null);
+    assert.equal(outreachReplyTo({ LAUNCH_OUTREACH_FROM: FROM }), "hello@oneshetland.com");
+    assert.equal(outreachReplyTo({ LAUNCH_OUTREACH_FROM: FROM, LAUNCH_OUTREACH_REPLY_TO: "Darren <darren@example.test>" }), "darren@example.test");
+    assert.equal(outreachReplyTo({}), null);
+  });
+  test("the message carries From and Reply-To separately, and the transport sends no tracking", async () => {
+    const d = defaultEmailDraft({ businessName: "ZZ TEST", opening: "A line." });
+    const sent = []; const deps = { transport: { send: async (m) => { sent.push(m); return { id: "m" }; } }, from: "Darren Fullerton · OneShetland <hello@oneshetland.com>", replyTo: "hello@oneshetland.com", now: () => new Date() };
+    const out = await sendInvitationEmail({ campaign: { id: "c", slug: "zz-test", businessName: "ZZ TEST", stage: "ready_to_invite", sentAt: null, contactEmail: "me@example.test", subject: d.subject, opening: d.opening, body: d.body },
+      invitation: { status: "open", expiresAt: new Date(Date.now() + 864e5).toISOString(), tokenValidForThisBusiness: true }, invitationUrl: URL64.replace("love-from-shetland", "zz-test"), confirmation: { confirm: true, recipient: "me@example.test", subject: d.subject } }, deps);
+    assert.equal(out.ok, true); assert.equal(sent[0].from, deps.from); assert.equal(sent[0].replyTo, "hello@oneshetland.com");
+    assert.match(read("lib/launch-partners/send.server.ts"), /TrackOpens: false[^]*TrackLinks: "None"/);
+  });
+  test("one live invitation per preview is guaranteed by the database; replacing an EMAILED invitation needs its own explicit confirmation", () => {
+    const a = read("app/admin/launch-partners/actions.ts");
+    assert.match(a, /if \(c\.sent_at && !opts\.replaceSent\)/);
+    const ui = read("components/admin/launch-partners/InvitationSection.tsx");
+    assert.match(ui, /Replace an invitation that was already emailed\?/); assert.match(ui, /replaceSent: !!row\.sent_at/);
+    // (the one-live-invitation guarantee itself is proved in the database suites: launch-partner-claims, partial unique index launch_invites_live_slug_uq)
   });
 });
