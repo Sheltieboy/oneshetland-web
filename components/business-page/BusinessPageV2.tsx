@@ -60,6 +60,7 @@ const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2)
 
 function Hero({ model, actions, slots }: { model: BusinessPageModel; actions: HeroAction[]; slots: BusinessPageSlots }) {
   const { identity: id, hero } = model;
+  if (hero.visual === "compact") return <CompactHero model={model} actions={actions} slots={slots} />;
   const open = isOpenAt(model.hours.hours, nowDate(), model.hours.until);
   return (
     <section className="relative isolate overflow-hidden text-white" style={{ background: `linear-gradient(140deg, ${id.accent} 0%, ${NAVY} 80%)` }}>
@@ -87,6 +88,57 @@ function Hero({ model, actions, slots }: { model: BusinessPageModel; actions: He
           )}
         </div>
         <div className="relative order-first mx-auto w-full max-w-md lg:order-last lg:max-w-none"><HeroVisual model={model} /></div>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The LIVE hero for a business with no genuine image strong enough to carry one. Height is set by the content: a small
+ * label, the name, the genuine description if there is one, and the genuine actions. No picture panel, no card, no
+ * decoration standing in for photography. A small logo/shopfront tile appears beside the name only when the business
+ * really has one.
+ */
+function CompactHero({ model, actions, slots }: { model: BusinessPageModel; actions: HeroAction[]; slots: BusinessPageSlots }) {
+  const { identity: id, hero } = model;
+  const open = isOpenAt(model.hours.hours, nowDate(), model.hours.until);
+  const label = [id.categoryLabel, id.locality].filter(Boolean).join(" · ");
+  // A small supporting tile only for a real logo. A photograph filed as a logo (a JPEG shopfront, say) is too small and
+  // too weak to carry a tile, and is left out rather than cropped to fit.
+  const logoTile = id.logo && !/\.jpe?g(\?|$)/i.test(id.logo) ? id.logo : null;
+  // A lede, not the whole description: the About section below carries the rest, so the page does not say it twice.
+  const lede = hero.tagline ? (/^[^.!?]{20,160}[.!?]/.exec(hero.tagline)?.[0] ?? hero.tagline) : null;
+  return (
+    <section className="border-b border-line" style={{ background: `linear-gradient(180deg, ${id.accent}14, transparent 75%)` }}>
+      <div className="mx-auto max-w-6xl px-5 pb-10 pt-10 sm:pb-14 sm:pt-14">
+        <div className="flex items-start gap-4 sm:gap-6">
+          {logoTile && (
+            <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-line bg-white shadow-soft sm:h-20 sm:w-20">
+              <Img eager src={logoTile} alt="" className="h-full w-full object-contain p-1.5" />
+            </span>
+          )}
+          <div className="min-w-0 max-w-3xl">
+            {label && <p className="eyebrow" style={{ color: id.accent }}>{label}</p>}
+            <h1 className="mt-2 break-words font-display text-4xl font-bold leading-[1.02] text-ink sm:text-6xl">{hero.headline}</h1>
+            {lede && <p className="mt-4 max-w-2xl text-base leading-relaxed text-ink-soft sm:text-lg">{lede}</p>}
+            {(id.verified || open !== null) && (
+              <p className="mt-3 flex flex-wrap items-center gap-2 text-xs font-bold">
+                {id.verified && <span className="rounded-full bg-sand px-2.5 py-1 text-ink-soft">✓ Verified</span>}
+                {open !== null && <span className={"rounded-full px-2.5 py-1 " + (open ? "bg-emerald-100 text-emerald-800" : "bg-sand text-ink-soft")}>{open ? "Open now" : "Closed now"}</span>}
+              </p>
+            )}
+            {(actions.length > 0 || slots.follow) && (
+              <nav aria-label="Primary actions" className="mt-6 flex flex-wrap items-center gap-2.5">
+                {actions.map((a, i) => (
+                  <a key={a.id} href={a.href} {...(a.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                    className={"rounded-full px-6 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-black/20 " + (i === 0 ? "text-white shadow-soft hover:brightness-110" : "border border-line-strong text-ink-soft hover:bg-sand")}
+                    style={i === 0 ? { background: id.accent } : undefined}>{a.label}{a.external && a.id === "directions" ? " →" : ""}</a>
+                ))}
+                {slots.follow?.({ businessId: id.id, accent: id.accent })}
+              </nav>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -171,14 +223,18 @@ function Story({ model, accent }: { model: BusinessPageModel; accent: string }) 
   const st = model.story;
   const body = st?.body ?? (model.about ? [model.about] : []);
   const title = st?.title ?? `About ${model.identity.name}`;
+  const live = model.mode === "live";
   return (
     <Section id="story" eyebrow={st?.eyebrow ?? "About"} title={title}>
-      <div className="grid gap-6 rounded-[2rem] bg-white p-6 shadow-xl sm:p-10 lg:grid-cols-[1.2fr_.8fr]">
+      {/* Live: just the words, in one plain card. The decorative side panel belongs to the prepared draft. */}
+      <div className={"rounded-[2rem] bg-white p-6 shadow-xl sm:p-10 " + (live ? "max-w-3xl" : "grid gap-6 lg:grid-cols-[1.2fr_.8fr]")}>
         <div className="space-y-4 text-lg leading-relaxed text-ink-soft">{body.map((t, i) => <p key={i}>{t}</p>)}</div>
-        <div className="flex flex-col justify-end rounded-3xl p-6 text-white" style={{ background: `linear-gradient(150deg, ${accent}, #1e1b4b)` }}>
-          <p className="font-display text-2xl font-bold leading-snug">{model.identity.name}</p>
-          <p className="mt-1 text-sm text-white/80">{[model.identity.categoryLabel, model.identity.locality].filter(Boolean).join(" · ")}</p>
-        </div>
+        {!live && (
+          <div className="flex flex-col justify-end rounded-3xl p-6 text-white" style={{ background: `linear-gradient(150deg, ${accent}, #1e1b4b)` }}>
+            <p className="font-display text-2xl font-bold leading-snug">{model.identity.name}</p>
+            <p className="mt-1 text-sm text-white/80">{[model.identity.categoryLabel, model.identity.locality].filter(Boolean).join(" · ")}</p>
+          </div>
+        )}
       </div>
       {st?.source && <p className="mt-4 text-xs text-ink-muted">Based on <a href={st.source} target="_blank" rel="noopener noreferrer" className="font-semibold underline underline-offset-2">the business&rsquo;s own website</a>.</p>}
     </Section>
@@ -336,14 +392,17 @@ function Hours({ model, accent }: { model: BusinessPageModel; accent: string }) 
 
 function Location({ model, accent }: { model: BusinessPageModel; accent: string }) {
   const l = model.location;
+  const live = model.mode === "live";
+  const hasMap = l.lat != null && l.lng != null;
   return (
     <Section id="location" eyebrow="Find us" tone="sand" title="Where to find us">
-      <div className="grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
+      <div className={"grid gap-6 " + (live && !hasMap ? "max-w-xl" : "lg:grid-cols-[.8fr_1.2fr]")}>
         <div className="rounded-3xl bg-white p-6 shadow-soft">
           {l.address && <p className="font-display text-xl font-bold">{l.address}</p>}
           {l.mapHref && <a href={l.mapHref} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: accent }}>Directions →</a>}
         </div>
-        <LocationPanel lat={l.lat} lng={l.lng} name={model.identity.name} accent={accent} address={l.address} mapHref={l.mapHref} />
+        {/* Live: a real map when Google serves one, otherwise nothing — never a decorative stand-in. */}
+        {(hasMap || !live) && <LocationPanel lat={l.lat} lng={l.lng} name={model.identity.name} accent={accent} address={l.address} mapHref={l.mapHref} decorativeFallback={!live} />}
       </div>
     </Section>
   );

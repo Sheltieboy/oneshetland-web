@@ -8,7 +8,7 @@
  * LIVE MODE: `enforceLive` is the last line of defence. Whatever produced the model, a live model is stripped of
  * every example, suggestion and prepared-only block before it can be rendered.
  */
-import type { BusinessPageModel, Emphasis, HeroVisualKind, SectionId } from "./types.ts";
+import type { BusinessPageModel, Emphasis, HeroVisual, HeroVisualKind, PageMode, SectionId } from "./types.ts";
 
 /** Does the business have anything to show for each section? */
 export function availability(m: BusinessPageModel): Record<SectionId, boolean> {
@@ -93,10 +93,17 @@ export function heroActions(m: BusinessPageModel): HeroAction[] {
 /* ── hero visual ──────────────────────────────────────────────────────── */
 
 /**
- * What fills the hero. An explicit choice from Admin is honoured when the content exists; otherwise a photograph is
- * preferred, then a mosaic of product pictures, then the deliberate branded card — never an empty rectangle.
+ * What fills the hero.
+ *
+ * PREPARED: an explicit choice from Admin is honoured when the content exists; otherwise a photograph is preferred,
+ * then a mosaic of product pictures, then the branded card.
+ *
+ * LIVE (truthful): a genuine photograph carries a photographic hero; else three or more REAL product pictures make a
+ * mosaic; otherwise the hero is COMPACT — a content-driven editorial header. A live page never gets the branded
+ * card or any decorative panel standing in for a picture.
  */
-export function chooseHeroVisual(want: HeroVisualKind | undefined, hasImage: boolean, collageCount: number): HeroVisualKind {
+export function chooseHeroVisual(want: HeroVisualKind | undefined, hasImage: boolean, collageCount: number, mode: PageMode = "prepared"): HeroVisual {
+  if (mode === "live") return hasImage ? "photo" : collageCount >= 3 ? "mosaic" : "compact";
   if (want === "brand") return "brand";
   if (want === "mosaic" && collageCount >= 3) return "mosaic";
   if (want === "photo" && hasImage) return "photo";
@@ -117,6 +124,7 @@ export function enforceLive(m: BusinessPageModel): BusinessPageModel {
   return {
     ...m,
     layout: undefined,
+    hero: { ...m.hero, visual: m.hero.visual === "brand" ? "compact" : m.hero.visual, collage: m.hero.collage.slice(0, 3) },
     story: null, // a prepared story is not published content; the Directory description (about) is
     shop: items.length ? { ...m.shop!, items, example: false } : null,
     book: m.book && !m.book.example ? m.book : null,
