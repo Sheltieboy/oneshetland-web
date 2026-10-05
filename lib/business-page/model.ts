@@ -70,7 +70,7 @@ export function buildBusinessPageModel(i: BuildInput): BusinessPageModel {
       headline: d?.hero.headline?.trim() || name,
       tagline: d?.hero.tagline?.trim() || (description ? tagline(description) : null),
       image: heroImage,
-      visual: chooseHeroVisual(d?.hero.treatment, !!heroImage, collage.length, i.mode),
+      visual: chooseHeroVisual(d?.hero.treatment, !!heroImage, collage.length),
       collage,
     },
     story: d?.story ? { eyebrow: d.story.eyebrow ?? "Our story", title: d.story.title, body: d.story.body, source: d.story.source } : null,

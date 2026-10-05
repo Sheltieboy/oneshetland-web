@@ -24,13 +24,6 @@ export type HeroVisualKind = "photo" | "mosaic" | "brand";
 export const HERO_VISUALS: readonly HeroVisualKind[] = ["photo", "mosaic", "brand"];
 
 /**
- * What the page actually renders in the hero. `compact` exists ONLY for live mode: a content-driven editorial header
- * (no picture panel, no card) used when the business has no genuine image strong enough to carry a hero. It is never
- * a prepared-draft choice, so it is not in HERO_VISUALS.
- */
-export type HeroVisual = HeroVisualKind | "compact";
-
-/**
  * The two render modes of ONE component set.
  *   prepared — the private owner/admin preview. May show clearly-marked examples and suggestions.
  *   live     — the customer-facing page. Renders ONLY genuine published content; every example, idea and
@@ -100,7 +93,7 @@ export interface BusinessPageModel {
   };
   hero: {
     headline: string; tagline: string | null; image: PreviewPhoto | null;
-    visual: HeroVisual;
+    visual: HeroVisualKind;
     /** Up to three product pictures for the mosaic / overlapping thumbnails. Real products in live mode. */
     collage: { src: string; alt: string; price?: number }[];
   };

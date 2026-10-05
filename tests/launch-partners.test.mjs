@@ -288,7 +288,7 @@ describe("prepared vs live: the customer-facing page shows only genuine content"
   });
   test("live uses the Directory facts only: description as About, genuine cover or the branded fallback", () => {
     const m = build("live");
-    assert.equal(m.about, "A family jewellery business in Weisdale."); assert.equal(m.hero.visual, "compact"); assert.equal(m.hero.image, null);
+    assert.equal(m.about, "A family jewellery business in Weisdale."); assert.equal(m.hero.visual, "brand"); assert.equal(m.hero.image, null);
     assert.deepEqual(planSections(m), ["story", "location", "contact"]);
     assert.equal(build("live", { business: biz({ cover_url: "https://x/cover.jpg" }) }).hero.visual, "photo");
   });
@@ -363,36 +363,6 @@ describe("hero: actions come from real capabilities; the visual always has somet
     assert.equal(chooseHeroVisual("photo", false, 0), "brand", "an explicit photo with no photograph falls back");
     assert.equal(chooseHeroVisual("brand", true, 3), "brand");
   });
-  test("LIVE hero: a genuine photograph, else real product pictures, else a compact editorial header — never the branded card", () => {
-    assert.equal(chooseHeroVisual(undefined, true, 0, "live"), "photo");
-    assert.equal(chooseHeroVisual(undefined, false, 3, "live"), "mosaic");
-    assert.equal(chooseHeroVisual(undefined, false, 2, "live"), "compact");
-    assert.equal(chooseHeroVisual(undefined, false, 0, "live"), "compact");
-    assert.equal(chooseHeroVisual("brand", false, 0, "live"), "compact", "even an explicit brand choice cannot reach a live page");
-    for (const img of [true, false]) for (const n of [0, 1, 2, 3]) assert.notEqual(chooseHeroVisual("brand", img, n, "live"), "brand");
-    assert.equal(chooseHeroVisual(undefined, false, 0, "prepared"), "brand", "prepared heroes are unchanged");
-  });
-  test("live mode adds no decorative panels: no About side card, no location stand-in", () => {
-    const page = read("components/business-page/BusinessPageV2.tsx");
-    const story = page.slice(page.indexOf("function Story("), page.indexOf("function Shop("));
-    assert.match(story, /\{!live && \(\s*<div className="flex flex-col justify-end rounded-3xl/);
-    const loc = page.slice(page.indexOf("function Location("), page.indexOf("function Contact("));
-    assert.match(loc, /decorativeFallback=\{!live\}/); assert.match(loc, /\(hasMap \|\| !live\)/);
-  });
-  test("a live model carrying the branded card is converted to the compact hero", () => {
-    const base = buildBusinessPageModel({ mode: "prepared", business: null, fallback: { id: "b", name: "The Dowry" }, categoryLabels: {}, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig("the-dowry")) });
-    assert.equal(base.hero.visual, "brand");
-    assert.equal(enforceLive({ ...base, mode: "live" }).hero.visual, "compact");
-    assert.equal(enforceLive(base).hero.visual, "brand", "prepared untouched");
-  });
-  test("the compact hero is content-driven: no picture panel, no gradient card, no monogram", () => {
-    const page = read("components/business-page/BusinessPageV2.tsx");
-    const compact = page.slice(page.indexOf("function CompactHero"), page.indexOf("function HeroVisual"));
-    assert.ok(compact.length > 500);
-    assert.doesNotMatch(compact, /aspect-|initials\(|(?<![\w:-])ring-4|shadow-2xl|rounded-\[2rem\]|min-h-|blur-3xl|linear-gradient\((?!180deg)/, "no faux panel, card or glow; only a faint vertical tonal wash");
-    assert.match(page, /hero\.visual === "compact"\) return <CompactHero/);
-    assert.match(compact, /logoTile &&/); assert.match(compact, /!\/\\\.jpe\?g/, "a photograph filed as a logo is left out, not cropped to fit");
-  });
   test("Love From Shetland leads with its products, Shetland Jewellery with its photograph — different heroes from different content", () => {
     const mk = (slug) => buildBusinessPageModel({ mode: "prepared", business: null, fallback: { id: "b", name: slug }, categoryLabels: {}, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig(slug)) });
     assert.equal(mk("love-from-shetland").hero.visual, "mosaic"); assert.equal(mk("shetland-jewellery").hero.visual, "photo"); assert.equal(mk("the-dowry").hero.visual, "brand");
@@ -405,7 +375,6 @@ describe("the map fails gracefully", () => {
     assert.match(m, /window\.gm_authFailure = /); assert.match(m, /setTimeout\(/); assert.match(m, /fallback/);
     const panel = read("components/business-page/LocationPanel.tsx");
     assert.match(panel, /fallback=\{card\}/); assert.match(panel, /Open in Maps/);
-    assert.match(panel, /if \(!decorativeFallback\) return <BusinessLocationMap/, "live: the map alone, no frame left behind");
   });
 });
 
