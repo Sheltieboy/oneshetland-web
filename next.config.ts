@@ -42,7 +42,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       // Supabase storage serves signed media; Maps serves tiles.
-      "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://static.wixstatic.com",
       "media-src 'self' blob: https://*.supabase.co",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com",
       // Stripe's checkout/3DS frames, and the Turnstile challenge widget — the
@@ -64,6 +64,15 @@ const nextConfig: NextConfig = {
         // The app records Spik audio and uses location for the memories map, so
         // those stay available to this origin; everything else is switched off.
         { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self), payment=(self), usb=(), magnetometer=(), accelerometer=()" },
+      ],
+    }, {
+      // Private Launch Partner Previews: never indexed, never cached, and the invitation in the address never leaves
+      // the browser in a Referer header.
+      source: "/launch/:path*",
+      headers: [
+        { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "Cache-Control", value: "private, no-store, max-age=0" },
       ],
     }];
   },

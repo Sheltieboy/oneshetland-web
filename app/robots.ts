@@ -21,6 +21,7 @@ export default function robots(): MetadataRoute.Robots {
         "/reset-password",
         "/notifications",
         "/g/", // one-time gift claim links
+        "/launch/", // private launch-partner previews — invitation only
         "/proposal", // unlisted partnership proposal — private, not for search
         "/proposal.html",
         "/merk-points", // unlisted concept note — private, not for search

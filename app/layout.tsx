@@ -10,6 +10,7 @@ import { ChargeApprovalListener } from "@/components/wallet/ChargeApprovalListen
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -103,8 +104,8 @@ export default async function RootLayout({
             },
           ]}
         />
-        <AnalyticsProvider />
-        <ConsentBanner />
+        <HideOnPrivateRoutes><AnalyticsProvider /></HideOnPrivateRoutes>
+        <HideOnPrivateRoutes><ConsentBanner /></HideOnPrivateRoutes>
         {/* The welcome mat (components/site/PrelaunchNotice.tsx) used to mount
             here. Because this is the ROOT layout it greeted every first-time
             visitor on every route — including someone who had deliberately
@@ -116,9 +117,9 @@ export default async function RootLayout({
             moves with it — it never gated any of them, it only covered them. */}
         <ChargeApprovalListener>
           <ConfirmProvider>
-            <SiteHeader user={user} fetchStatus={fetchStatus} />
+            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
-            <SiteFooter />
+            <HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes>
           </ConfirmProvider>
         </ChargeApprovalListener>
       </body>
