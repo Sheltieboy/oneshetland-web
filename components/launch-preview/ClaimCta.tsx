@@ -9,7 +9,7 @@ import { useState } from "react";
 export function ClaimCta({ businessName }: { businessName: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div>
+    <div className="flex flex-col items-center">
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -17,8 +17,9 @@ export function ClaimCta({ businessName }: { businessName: string }) {
         aria-controls="ready-when-you-are"
         className="rounded-full bg-[#c8f169] px-7 py-4 text-base font-bold text-[#032f4c] shadow-lg transition hover:brightness-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
       >
-        Claim my private preview →
+        Claim {businessName} →
       </button>
+      <p className="mt-3 text-sm font-semibold text-white/85">Still private. Nothing goes live until you approve it.</p>
       {open && (
         <div id="ready-when-you-are" role="status" className="mt-6 max-w-xl rounded-3xl border border-white/25 bg-white/10 p-6 text-left backdrop-blur-sm">
           <p className="font-display text-2xl font-bold text-white">Ready when you are.</p>

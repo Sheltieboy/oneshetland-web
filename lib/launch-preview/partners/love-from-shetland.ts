@@ -28,8 +28,9 @@ export const loveFromShetland: PreviewConfig = {
       "A small family-run company in the Shetland Islands. Handmade soaps and bath products using natural ingredients, including their own goats' milk — palm oil free, with no parabens or SLS.",
     tags: ["Goats' milk soap", 'Palm oil free', 'Handmade in Shetland', 'Gifts', 'Skincare'],
     image: {
-      // The photo already on their OneShetland listing (public/business-logos/shetland-with-love.jpeg), with the
-      // letterbox bars baked into that file cropped off.
+      // The shopfront photograph from lovefromshetland.com's own public gallery (the full-size original behind the
+      // polaroid-style graphic on their site), cropped to the photograph itself — about 3× the resolution of the
+      // copy on their OneShetland listing.
       src: '/launch/love-from-shetland/shopfront.jpg',
       alt: 'The Love From Shetland shop window on Commercial Street, with a goat resting on the pavement outside',
     },
@@ -37,18 +38,18 @@ export const loveFromShetland: PreviewConfig = {
 
   products: [
     {
+      id: 'gift-box',
+      title: 'Body Butter & Soap Gift Box',
+      price: 21.95,
+      image: fit('5fbe5e_e794354a105e45f288ae79be1bf414a8~mv2.jpg', 'jpg', 1200),
+      blurb: 'A coordinated body butter and soap set, handmade in Shetland.',
+    },
+    {
       id: 'soaps',
       title: 'Fragranced Goatmilk Soaps 45g',
       price: 3.95,
       image: fit('5fbe5e_0d1b6389dd2a439fbccc3e2079ebe261~mv2.jpeg', 'jpg'),
       blurb: "Goats' milk soap bars in a variety of scents, for any skin type.",
-    },
-    {
-      id: 'gift-box',
-      title: 'Body Butter & Soap Gift Box',
-      price: 21.95,
-      image: fit('5fbe5e_e794354a105e45f288ae79be1bf414a8~mv2.jpg', 'jpg'),
-      blurb: 'A coordinated body butter and soap set, handmade in Shetland.',
     },
     {
       id: 'freya',

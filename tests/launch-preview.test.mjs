@@ -134,12 +134,29 @@ describe("nothing is live, nothing can be bought", () => {
   test("every product card says it is a preview and is not for sale", () => {
     assert.match(page, /Preview · not for sale/); assert.match(page, /Preview products — not live/);
   });
-  test("the required reassurances are on the page", () => {
-    for (const s of ["Your private OneShetland preview", "Nothing on this page is live or visible to the public", "Only people with this private invitation can see it",
-      "We&apos;ve used publicly available information simply to show what is possible", "Nothing will be published until you claim the business and explicitly approve it",
-      "Claiming your preview does NOT publish anything", "Claim my private preview →", "Like what you see?", "Ready when you are", "does not indicate participation or endorsement",
-      "Being prepared", "Coming next"]) {
-      assert.ok(page.includes(s) || cta.includes(s) || cta.includes(s.replace("&apos;", "'")), `missing: ${s}`);
+  test("the core reassurances are on the page, once and calmly", () => {
+    const all = page + cta;
+    for (const s of ["Private preview · Nothing is live", "Your private OneShetland preview", "only people with this invitation can see it", "nothing on it is live",
+      "hasn&apos;t joined OneShetland", "nothing will be published without your approval", "Nothing will be published until you claim the business and explicitly approve it",
+      "Claiming your preview does NOT publish anything", "Like what you see?", "Ready when you are", "does not indicate participation or endorsement",
+      "Being prepared", "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
+      assert.ok(all.includes(s) || all.includes(s.replace("&apos;", "'")), `missing: ${s}`);
     }
+    // calmer: the old four-card grid is gone
+    assert.doesNotMatch(page, /has not joined OneShetland\.\W*<\/p>\s*<p className="mt-1 text-sm/);
+    const hero = page.slice(page.indexOf("function Hero"), page.indexOf("/* ── private notice"));
+    assert.doesNotMatch(hero, /Nothing is (live|published)/, "the hero no longer repeats the status");
+  });
+  test("the CTA reads 'Claim {business} →' with the private line beneath, and still sends nothing", () => {
+    assert.match(cta, /Claim \{businessName\} →/);
+    assert.match(cta, /Still private\. Nothing goes live until you approve it\./);
+    assert.doesNotMatch(cta, /Claim my private preview/);
+    assert.doesNotMatch(cta, /fetch\(|XMLHttpRequest|sendBeacon|<form|supabase|mailto:|localStorage|cookie/i);
+  });
+  test("every illustration frame is labelled and no frame names another business", () => {
+    assert.ok((page.match(/Illustration · not live/g) ?? []).length >= 1);
+    const across = page.slice(page.indexOf("function Across"), page.indexOf("/* ── 6."));
+    assert.doesNotMatch(across, /Sumburgh|Hay's|Dowry|Peerie|Café|Cafe/i);
+    for (const f of ["Home", "Local", "Shop", "Search"]) assert.match(across, new RegExp(`<Frame label="${f}">`));
   });
 });

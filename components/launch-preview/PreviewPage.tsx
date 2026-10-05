@@ -76,9 +76,9 @@ function PrivateBar({ name }: { name: string }) {
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-2.5">
         <p className="flex min-w-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] sm:text-xs">
           <Lock className="h-4 w-4 shrink-0" />
-          <span className="truncate">Private preview · {name}</span>
+          <span className="truncate">Private preview · Nothing is live</span>
         </p>
-        <span className="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: CORAL }}><span className="sm:hidden">Not live</span><span className="hidden sm:inline">Nothing is live</span></span>
+        <span className="hidden shrink-0 text-xs font-semibold text-white/70 sm:inline">{name}</span>
       </div>
     </div>
   );
@@ -100,7 +100,6 @@ function Hero({ cfg }: { cfg: PreviewConfig }) {
           <p className="mt-5 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">{cfg.hero.support}</p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <a href="#how-it-could-look" className="rounded-full px-6 py-3.5 text-sm font-bold shadow-lg transition hover:brightness-105 focus:outline-none focus-visible:ring-4 focus-visible:ring-white/60" style={{ background: LIME, color: NAVY }}>See how it could look ↓</a>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 px-3.5 py-2 text-xs font-bold text-white/90"><Lock className="h-3.5 w-3.5" /> Nothing is published</span>
           </div>
         </div>
         <div className="relative mx-auto w-full max-w-sm lg:max-w-none">
@@ -109,6 +108,10 @@ function Hero({ cfg }: { cfg: PreviewConfig }) {
             <Img eager src={cfg.products[0].image} alt="" className="aspect-square w-full rounded-xl object-cover" />
             <p className="px-1.5 pb-1 pt-1.5 text-[11px] font-bold text-[#032f4c]">{cfg.products[0].title}</p>
           </div>
+          <div className="absolute -right-2 bottom-10 w-32 rotate-[4deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-xl sm:-right-6 sm:w-40">
+            <Img eager src={cfg.products[1].image} alt="" className="aspect-square w-full rounded-xl object-cover" />
+            <p className="px-1.5 pb-1 pt-1.5 text-[11px] font-bold text-[#032f4c]">{gbp(cfg.products[1].price)}</p>
+          </div>
           <div className="absolute -right-2 top-4 rotate-[5deg] sm:-right-5"><PreviewTag>Example preview</PreviewTag></div>
         </div>
       </div>
@@ -116,35 +119,21 @@ function Hero({ cfg }: { cfg: PreviewConfig }) {
   );
 }
 
-/* ── private notice (not small print) ─────────────────────────────────── */
+/* ── private notice: one calm statement ──────────────────────────────── */
 
 function PrivateNotice({ cfg }: { cfg: PreviewConfig }) {
-  const facts = [
-    ["This is a private preview.", "Only people with this invitation can see it."],
-    ["Nothing is live.", "No product, offer or reward exists on OneShetland."],
-    [`${cfg.businessName} has not joined OneShetland.`, "This page does not mean otherwise."],
-    ["Nothing is published without your approval.", "You choose, and you press Go live."],
-  ];
   return (
     <section className="relative bg-white" aria-labelledby="private-h">
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:py-14">
-        <div className="rounded-[2rem] border-2 p-6 sm:p-9" style={{ borderColor: NAVY }}>
-          <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: NAVY }}><Lock className="h-5 w-5" /></span>
-            <h2 id="private-h" className="font-display text-2xl font-bold sm:text-4xl">Your private OneShetland preview</h2>
-          </div>
-          <p className="mt-4 max-w-3xl text-lg font-semibold leading-snug text-ink sm:text-xl">
-            We&apos;ve put together an example of how {cfg.businessName} could look on OneShetland. Nothing on this page is live or visible to the public. Only people with this private invitation can see it.
+      <div className="mx-auto grid max-w-6xl gap-6 px-5 py-12 sm:py-16 lg:grid-cols-[.8fr_1.2fr] lg:gap-14">
+        <div>
+          <span className="grid h-11 w-11 place-items-center rounded-full text-white" style={{ background: NAVY }}><Lock className="h-5 w-5" /></span>
+          <h2 id="private-h" className="mt-4 font-display text-3xl font-bold leading-[1.05] sm:text-5xl">Your private OneShetland preview</h2>
+        </div>
+        <div className="border-l-2 pl-6 lg:pl-10" style={{ borderColor: CORAL }}>
+          <p className="font-display text-xl font-medium leading-snug text-ink sm:text-2xl">
+            We&apos;ve put together an example of how {cfg.businessName} could look on OneShetland. This page is private — only people with this invitation can see it — and nothing on it is live. {cfg.businessName} hasn&apos;t joined OneShetland, and nothing will be published without your approval.
           </p>
-          <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {facts.map(([a, b]) => (
-              <li key={a} className="rounded-2xl bg-[#fbf8f2] p-4">
-                <p className="font-display text-lg font-bold leading-tight" style={{ color: NAVY }}>{a}</p>
-                <p className="mt-1 text-sm text-ink-soft">{b}</p>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-5 max-w-3xl text-sm text-ink-soft">
+          <p className="mt-4 text-sm text-ink-soft">
             We&apos;ve used publicly available information simply to show what is possible. Nothing will be published until you claim the business and explicitly approve it.
           </p>
         </div>
@@ -227,76 +216,153 @@ function Products({ cfg }: { cfg: PreviewConfig }) {
 }
 
 /* ── 5. across OneShetland ────────────────────────────────────────────── */
+/* Built from the same classes, proportions and structure as the approved Home V2 / Local V2 / Shop components
+   (components/preview/v2). Neighbouring cards are faded "ghosts" that stand in for other Shetland businesses —
+   deliberately without names, photographs or content. */
 
-function Frame({ label, title, children }: { label: string; title: string; children: ReactNode }) {
+const VIOLET = "#7c3aed";
+
+function Frame({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <figure className="flex flex-col overflow-hidden rounded-[1.75rem] border border-line bg-white shadow-soft">
+    <figure className="flex min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-line bg-white shadow-soft">
       <figcaption className="flex items-center justify-between gap-2 border-b border-line bg-[#fbf8f2] px-4 py-2.5">
         <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">{label}</span>
         <PreviewTag>Illustration · not live</PreviewTag>
       </figcaption>
-      <div className="flex-1 p-4 sm:p-5">
-        <p className="mb-3 font-display text-xl font-bold">{title}</p>
-        {children}
-      </div>
+      <div className="flex-1 overflow-hidden p-4 sm:p-6" style={{ background: "#fbf8f2" }}>{children}</div>
     </figure>
   );
 }
 
-const Skeleton = ({ className = "" }: { className?: string }) => <span aria-hidden="true" className={`block rounded-2xl bg-[#efe8da] ${className}`} />;
+/** The section heading the real pages use: eyebrow + display title. */
+const Head = ({ eyebrow, title, color }: { eyebrow: string; title: string; color: string }) => (
+  <div className="mb-4">
+    <p className="eyebrow" style={{ color }}>{eyebrow}</p>
+    <h3 className="mt-1 font-display text-2xl font-bold leading-[1.05] text-ink sm:text-3xl">{title}</h3>
+  </div>
+);
+
+/** A neighbouring card, faded: it has the shape of a real card and none of its content. */
+function Ghost({ className = "", logo = true }: { className?: string; logo?: boolean }) {
+  return (
+    <div aria-hidden="true" className={`relative overflow-hidden rounded-3xl opacity-70 ${className}`} style={{ background: "linear-gradient(150deg,#e9e1f5,#f1e9dc)" }}>
+      {logo && <span className="absolute left-4 top-4 h-11 w-11 rounded-xl bg-white/75" />}
+      <span className="absolute bottom-9 left-4 h-2 w-14 rounded-full bg-[#14222c]/10" />
+      <span className="absolute bottom-4 left-4 h-3.5 w-24 rounded-full bg-[#14222c]/12" />
+    </div>
+  );
+}
+
+/** Business tile exactly as in Home V2 / Local V2 ("Open for business"). */
+function BizTile({ cfg, facts, className = "" }: { cfg: PreviewConfig; facts: DirectoryFacts; className?: string }) {
+  return (
+    <div className={`flex min-h-[150px] flex-col justify-between rounded-3xl p-4 text-white shadow-soft ring-4 ring-[#ff6b57]/70 ${className}`} style={{ background: `linear-gradient(150deg, ${VIOLET}, ${VIOLET}b0 65%, #1e1b4b)` }}>
+      <span className="grid h-12 w-12 place-items-center overflow-hidden rounded-xl bg-white shadow">
+        <Img src={cfg.business.image.src} alt="" className="h-full w-full object-cover" />
+      </span>
+      <span>
+        <span className="block text-[10px] font-bold uppercase tracking-widest text-white/75">Shop</span>
+        <span className="mt-0.5 block line-clamp-2 font-display text-lg font-bold leading-tight">{facts.name}</span>
+      </span>
+    </div>
+  );
+}
+
+/** Shop product card exactly as in the Shop pillar (4:5 photo, price pill, display-type title, business line). */
+function ShopCard({ p, business, className = "" }: { p: PreviewProduct; business: string; className?: string }) {
+  return (
+    <div className={`relative block rounded-2xl ${className}`}>
+      <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-sand shadow-soft">
+        <Img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/45 to-transparent" />
+        <span className="absolute bottom-3 left-3 rounded-full bg-white px-3 py-1 text-sm font-black text-ink shadow">{gbp(p.price)}</span>
+      </div>
+      <p className="mt-2.5 line-clamp-2 font-display text-[1.05rem] font-bold leading-snug text-ink">{p.title}</p>
+      <p className="mt-0.5 line-clamp-1 text-xs font-medium text-ink-muted">{business}</p>
+    </div>
+  );
+}
 
 function Across({ cfg, facts }: { cfg: PreviewConfig; facts: DirectoryFacts }) {
   const p = cfg.products;
+  const fade = { WebkitMaskImage: "linear-gradient(90deg,#000 72%,transparent)", maskImage: "linear-gradient(90deg,#000 72%,transparent)" } as React.CSSProperties;
   return (
     <Section eyebrow="Seen across OneShetland" title={<>Where people would <span style={{ color: CORAL }}>find you.</span></>}>
       <p className="-mt-3 mb-8 max-w-2xl text-ink-soft">
-        Not a promise about reach — a look at the places {cfg.businessName} could appear. The neighbouring cards are blank on purpose: they stand in for other Shetland businesses.
+        A look at the places {cfg.businessName} could appear, drawn from the real OneShetland pages. The faded cards stand in for other Shetland businesses.
       </p>
       <div className="grid gap-5 lg:grid-cols-2">
-        <Frame label="Home" title="Discover local">
-          <div className="-mx-1 flex gap-3 overflow-hidden px-1">
-            <Skeleton className="h-36 w-28 shrink-0" />
-            <div className="relative h-36 w-40 shrink-0 overflow-hidden rounded-2xl text-white shadow-lg ring-2" style={{ boxShadow: `0 0 0 2px ${CORAL}` }}>
-              <Shopfront cfg={cfg} className="absolute inset-0" />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#1e1b4b]/90 via-transparent to-transparent" />
-              <p className="absolute bottom-2 left-3 right-3 text-sm font-bold leading-tight">{facts.name}<span className="block text-[11px] font-semibold text-white/80">{cfg.business.categoryLabel.split(" · ")[0]} · Lerwick</span></p>
-            </div>
-            <Skeleton className="h-36 w-28 shrink-0" />
+        <Frame label="Home">
+          <Head eyebrow="Discover something local" title="Who's open for business" color={VIOLET} />
+          <div className="grid grid-cols-3 gap-3" style={fade}>
+            <Ghost className="min-h-[150px]" />
+            <BizTile cfg={cfg} facts={facts} />
+            <Ghost className="min-h-[150px]" />
+            <Ghost className="min-h-[150px]" />
+            <Ghost className="min-h-[150px]" />
+            <Ghost className="min-h-[150px]" />
           </div>
         </Frame>
-        <Frame label="Local" title="Featured locally">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex min-h-[150px] flex-col justify-between rounded-3xl p-4 text-white shadow-soft" style={{ background: "linear-gradient(150deg,#7c3aed,#7c3aedb0 65%,#1e1b4b)" }}>
-              <span className="w-fit rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold">Shop</span>
-              <div><p className="font-display text-lg font-bold leading-tight">{facts.name}</p><p className="text-xs text-white/80">{cfg.business.locality}</p></div>
-            </div>
-            <Skeleton className="min-h-[150px]" />
-          </div>
-        </Frame>
-        <Frame label="Shop" title="In the Shop">
-          <div className="grid grid-cols-3 gap-2.5">
-            {[p[0], p[1]].map((x) => (
-              <div key={x.id} className="overflow-hidden rounded-2xl border border-line">
-                <Img src={x.image} alt={x.title} className="aspect-square w-full object-cover" />
-                <p className="truncate px-2 pt-1.5 text-[11px] font-bold">{x.title}</p>
-                <p className="px-2 pb-2 text-[11px] text-ink-soft">{gbp(x.price)} · {facts.name}</p>
+
+        <Frame label="Local">
+          <Head eyebrow="What's good locally" title="Handpicked from across the isles" color={VIOLET} />
+          <div className="grid grid-cols-5 gap-3">
+            <div className="relative isolate col-span-3 flex min-h-[290px] overflow-hidden rounded-3xl shadow-lift">
+              <Img src={cfg.business.image.src} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+              <div className="absolute inset-0 -z-10 bg-gradient-to-t from-[#4c1d95]/95 via-[#4c1d95]/40 to-transparent" />
+              <div className="mt-auto p-4 text-white sm:p-5">
+                <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">Shop</span>
+                <p className="mt-2 font-display text-2xl font-bold leading-[1.02] sm:text-3xl">{facts.name}</p>
+                <p className="mt-1.5 line-clamp-2 text-sm text-white/90">{cfg.business.categoryLabel.split(" · ")[1]} from {cfg.business.locality.split(",")[0]}.</p>
+                <span className="mt-3 inline-block rounded-full bg-white px-4 py-1.5 text-xs font-bold text-ink">Visit →</span>
               </div>
-            ))}
-            <Skeleton className="aspect-[3/4]" />
+            </div>
+            <div className="col-span-2 flex flex-col gap-3">
+              <ShopCard p={p[0]} business={facts.name} />
+              <Ghost className="min-h-[110px] flex-1" />
+            </div>
           </div>
         </Frame>
-        <Frame label="Search" title={`Someone searches for “${cfg.searchTerm}”`}>
-          <div className="flex items-center gap-2 rounded-full border border-line bg-[#fbf8f2] px-4 py-2.5 text-sm text-ink-soft">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
-            {cfg.searchTerm}
+
+        <Frame label="Shop">
+          <Head eyebrow="Shop local" title="Shop from Shetland" color={VIOLET} />
+          <div className="grid grid-cols-3 gap-3" style={fade}>
+            <ShopCard p={p[1]} business={facts.name} />
+            <ShopCard p={p[2]} business={facts.name} />
+            <div aria-hidden="true"><Ghost className="aspect-[4/5]" logo={false} /></div>
           </div>
-          <ul className="mt-3 space-y-2.5">
-            <li className="flex items-center gap-3 rounded-2xl p-2 ring-2" style={{ boxShadow: `0 0 0 2px ${CORAL}` }}>
-              <Shopfront cfg={cfg} className="h-14 w-14 shrink-0 rounded-xl" />
-              <div className="min-w-0"><p className="truncate text-sm font-bold">{facts.name}</p><p className="truncate text-xs text-ink-soft">{cfg.business.categoryLabel} · {cfg.business.locality}</p></div>
-            </li>
-            <li><Skeleton className="h-14" /></li>
-          </ul>
+        </Frame>
+
+        <Frame label="Search">
+          <div className="flex overflow-hidden rounded-full bg-white shadow-lift">
+            <span className="flex min-w-0 flex-1 items-center gap-2 px-5 py-3 text-sm text-ink">
+              <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+              <span className="truncate">{cfg.searchTerm}</span>
+            </span>
+            <span className="grid place-items-center px-5 text-sm font-bold text-violet-800">Search</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            <div className="rounded-3xl bg-white p-3.5 shadow-soft ring-4 ring-[#ff6b57]/70">
+              <div className="flex items-center gap-3">
+                <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white shadow"><Img src={cfg.business.image.src} alt="" className="h-full w-full object-cover" /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: VIOLET }}>Shop · {cfg.business.locality.split(",")[0]}</p>
+                  <p className="truncate font-display text-lg font-bold leading-tight">{facts.name}</p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-2">
+                {[p[0], p[1], p[2]].map((x) => (
+                  <span key={x.id} className="relative block h-16 flex-1 overflow-hidden rounded-xl bg-sand">
+                    <Img src={x.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    <span className="absolute bottom-1 left-1 rounded-full bg-white px-1.5 py-0.5 text-[10px] font-black text-ink">{gbp(x.price)}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div aria-hidden="true" style={{ WebkitMaskImage: "linear-gradient(180deg,#000 40%,transparent)", maskImage: "linear-gradient(180deg,#000 40%,transparent)" }}>
+              <Ghost className="h-20" />
+            </div>
+          </div>
         </Frame>
       </div>
     </Section>
@@ -427,7 +493,7 @@ function Closing({ cfg }: { cfg: PreviewConfig }) {
       <div className="pointer-events-none absolute -left-20 top-0 -z-10 h-80 w-80 rounded-full opacity-25 blur-3xl" style={{ background: CORAL }} />
       <div className="mx-auto max-w-4xl px-5 py-16 text-center sm:py-24">
         <h2 className="font-display text-4xl font-bold sm:text-6xl">Like what you see?</h2>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">There&apos;s no rush and no obligation. Nothing is published, and nothing will be unless you say so.</p>
+        <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">There&apos;s no rush and no obligation.</p>
         <div className="mt-8 flex justify-center"><ClaimCta businessName={cfg.businessName} /></div>
       </div>
     </section>
