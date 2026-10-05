@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 import type { PreviewConfig, PreviewProduct, PreviewPossibility } from "@/lib/launch-preview/types";
+import { CATALOGUE_FOOTNOTE, CATALOGUE_OPTIONS } from "@/lib/launch-preview/catalogue";
+import { CAT_COLOR, CORAL, LIME, NAVY, TEAL, gbp, shorten } from "@/lib/business-page/tokens";
+import { Img, MediaCard, ProductTile, ReserveCard, Section } from "@/components/design-v2/primitives";
 import type { DirectoryFacts } from "@/lib/launch-preview/directory";
 import Link from "next/link";
 import { ClaimEntry } from "./ClaimEntry";
@@ -15,27 +18,10 @@ export type Viewer = { kind: "visitor" } | { kind: ClaimState; businessId: strin
  * Palette: navy / coral / teal / lime on the warm editorial surface, Fraunces display type.
  */
 
-const NAVY = "#032f4c";
-const CORAL = "#ff6b57";
-const TEAL = "#12b3d6";
-const LIME = "#c8f169";
-
-const gbp = (n: number) => `£${n.toFixed(2)}`;
-
 /** Tile colour per real OneShetland category (CAT_COLOR in Local V2). */
-const CAT_COLOR = { food_drink: "#c2410c", retail: "#7c3aed", services: "#0e7490" } as const;
 const catColor = (cfg: PreviewConfig) => CAT_COLOR[cfg.business.category ?? "retail"];
 const pillarLabel = (cfg: PreviewConfig) => cfg.business.pillarLabel ?? "Shop";
 const logoOf = (cfg: PreviewConfig) => cfg.business.logo ?? cfg.business.image.src;
-
-/** Trim to whole sentences within `max` characters (the Directory text can be long). */
-function shorten(text: string, max: number): string {
-  const t = text.replace(/\s+/g, " ").replace(/\s+([,.])/g, "$1").trim();
-  if (t.length <= max) return t;
-  const cut = t.slice(0, max);
-  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "));
-  return end > 120 ? cut.slice(0, end + 1) : `${cut.replace(/\s+\S*$/, "")}…`;
-}
 
 /* ── small pieces ─────────────────────────────────────────────────────── */
 
@@ -45,11 +31,6 @@ function Lock({ className = "h-4 w-4" }: { className?: string }) {
       <rect x="4" y="10.5" width="16" height="10" rx="2.5" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
     </svg>
   );
-}
-
-function Img({ src, alt, className = "", style, eager = false }: { src: string; alt: string; className?: string; style?: React.CSSProperties; eager?: boolean }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" className={className} style={style} />;
 }
 
 /** The business's own photo, filling its frame. */
@@ -64,19 +45,6 @@ function Shopfront({ cfg, className = "", eager = false }: { cfg: PreviewConfig;
 const PreviewTag = ({ children = "Preview", dark = false }: { children?: ReactNode; dark?: boolean }) => (
   <span className={"inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider " + (dark ? "bg-white/20 text-white" : "bg-[#032f4c]/90 text-white")}>{children}</span>
 );
-
-function Section({ id, eyebrow, title, children, tone = "cream", className = "" }: { id?: string; eyebrow?: string; title?: ReactNode; children: ReactNode; tone?: "cream" | "sand" | "white" | "navy"; className?: string }) {
-  const bg = { cream: "bg-transparent", sand: "bg-[#f3ece0]", white: "bg-white", navy: "text-white" }[tone];
-  return (
-    <section id={id} className={`relative ${bg} ${className}`} style={tone === "navy" ? { background: `linear-gradient(135deg, ${NAVY}, #0a4a70 62%, #12667a)` } : undefined}>
-      <div className="mx-auto max-w-6xl px-5 py-14 sm:py-20">
-        {eyebrow && <p className="eyebrow" style={{ color: tone === "navy" ? LIME : "#0e9ab8" }}>{eyebrow}</p>}
-        {title && <h2 className="mt-2 max-w-3xl font-display text-3xl font-bold leading-[1.05] sm:text-5xl">{title}</h2>}
-        <div className={title || eyebrow ? "mt-8 sm:mt-10" : ""}>{children}</div>
-      </div>
-    </section>
-  );
-}
 
 /* ── 1. private header ────────────────────────────────────────────────── */
 
@@ -215,20 +183,9 @@ function Profile({ cfg, facts }: { cfg: PreviewConfig; facts: DirectoryFacts }) 
 
 function ProductCard({ p, big = false }: { p: PreviewProduct; big?: boolean }) {
   return (
-    <article className={"group relative flex flex-col overflow-hidden rounded-3xl bg-white shadow-soft " + (big ? "sm:col-span-2 lg:row-span-2" : "")}>
-      <div className={"relative overflow-hidden bg-[#f3ece0] " + (big ? "aspect-[4/3] lg:aspect-auto lg:min-h-0 lg:flex-1" : "aspect-square")}>
-        <Img src={p.image} alt={p.title} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
-        <div className="absolute left-3 top-3"><PreviewTag>Preview</PreviewTag></div>
-      </div>
-      <div className="p-4 sm:p-5">
-        <h3 className={"font-display font-bold leading-tight " + (big ? "text-2xl sm:text-3xl" : "text-lg")}>{p.title}</h3>
-        <p className="mt-1 text-sm text-ink-soft">{p.blurb}</p>
-        <div className="mt-3 flex items-center justify-between gap-2">
-          <p className="font-display text-xl font-bold" style={{ color: NAVY }}>{gbp(p.price)}</p>
-          <span className="rounded-full border border-dashed border-line-strong px-3 py-1 text-xs font-bold text-ink-muted">Preview · not for sale</span>
-        </div>
-      </div>
-    </article>
+    <ProductTile big={big} title={p.title} price={p.price} image={p.image} blurb={p.blurb}
+      tag={<PreviewTag>Preview</PreviewTag>}
+      footer={<span className="rounded-full border border-dashed border-line-strong px-3 py-1 text-xs font-bold text-ink-muted">Preview · not for sale</span>} />
   );
 }
 
@@ -285,18 +242,7 @@ function Experience({ cfg }: { cfg: PreviewConfig }) {
         <Lock className="h-4 w-4" /> Preview experience — not bookable on OneShetland
       </div>
       <div className="grid items-center gap-8 lg:grid-cols-[1.1fr_.9fr]">
-        <div className="relative block overflow-hidden rounded-2xl shadow-lift">
-          <div className="relative aspect-[16/11]">
-            <Img src={x.image.src} alt={x.image.alt} className="absolute inset-0 h-full w-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-            <span className="absolute left-3 top-3"><PreviewTag>Preview</PreviewTag></span>
-            {x.price && <span className="absolute right-3 top-3 rounded-full bg-white px-3 py-1 text-sm font-black text-ink shadow">{x.price}</span>}
-            <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-              <p className="font-display text-2xl font-bold leading-tight sm:text-3xl">{x.title}</p>
-              <p className="mt-1 text-sm font-medium text-white/85">{cfg.businessName}{x.meta ? ` · ${x.meta}` : ""}</p>
-            </div>
-          </div>
-        </div>
+        <MediaCard image={x.image} title={x.title} subtitle={`${cfg.businessName}${x.meta ? ` · ${x.meta}` : ""}`} price={x.price} tag={<PreviewTag>Preview</PreviewTag>} />
         <div>
           <p className="text-lg leading-relaxed text-ink-soft">{x.blurb}</p>
           <p className="mt-4 rounded-2xl border-2 border-dashed border-line-strong p-4 text-sm text-ink-soft">
@@ -317,21 +263,8 @@ function Booking({ cfg }: { cfg: PreviewConfig }) {
   return (
     <Section eyebrow="Book local" tone="sand" title={<>Another way in — <span style={{ color: CORAL }}>alongside the one you already have.</span></>}>
       <div className="grid items-center gap-8 lg:grid-cols-[.8fr_1.2fr]">
-        <div className="flex max-w-sm flex-col overflow-hidden rounded-2xl border border-line bg-white shadow-soft">
-          <div className="relative flex items-end justify-between px-4 pb-3 pt-9 text-white" style={{ background: `linear-gradient(135deg, #059669, #064e3b)` }}>
-            <span className="absolute left-3 top-3"><PreviewTag dark>Preview</PreviewTag></span>
-            <span className="font-display text-3xl font-black leading-none">Reserve</span>
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-bold backdrop-blur-sm">Table</span>
-          </div>
-          <div className="p-4">
-            <p className="font-display text-lg font-bold leading-snug text-ink">{b.cta}</p>
-            <p className="mt-0.5 text-xs font-medium text-ink-muted">{cfg.businessName}</p>
-            <div className="mt-3 flex items-center justify-between">
-              <span className="rounded-full border border-dashed border-line-strong px-3 py-1 text-xs font-bold text-ink-muted">Illustration · not live</span>
-              <span className="rounded-full bg-[#059669] px-3.5 py-1.5 text-xs font-bold text-white">Book</span>
-            </div>
-          </div>
-        </div>
+        <ReserveCard heading="Reserve" kind="Table" cta={b.cta} businessName={cfg.businessName} tag={<PreviewTag dark>Preview</PreviewTag>} buttonLabel="Book"
+          status={<span className="rounded-full border border-dashed border-line-strong px-3 py-1 text-xs font-bold text-ink-muted">Illustration · not live</span>} />
         <div>
           <p className="text-lg leading-relaxed text-ink-soft">{b.line}</p>
           <p className="mt-4 rounded-2xl border-2 border-dashed border-line-strong p-4 text-sm text-ink-soft">
@@ -573,11 +506,8 @@ function More({ cfg }: { cfg: PreviewConfig }) {
 
 function Catalogue({ cfg }: { cfg: PreviewConfig }) {
   if (cfg.catalogue === false || (cfg.catalogue === undefined && cfg.products.length === 0)) return null;
-  const options = [
-    { title: "Import products", body: "Upload an existing catalogue or CSV, check it, and bring it in as drafts.", chip: "Being prepared", tone: LIME, text: NAVY },
-    { title: "Add manually", body: "Add individual products yourself, with photos, one at a time.", chip: "Available", tone: "#d1fae5", text: "#065f46" },
-    { title: "Connect your shop", body: "Shopify · WooCommerce · Square", chip: "Coming next", tone: "#ffe4de", text: "#9a3412" },
-  ];
+  const TONES = { available: { tone: "#d1fae5", text: "#065f46" }, coming_next: { tone: "#ffe4de", text: "#9a3412" } } as const;
+  const options = CATALOGUE_OPTIONS.map((o) => ({ ...o, ...TONES[o.status] }));
   return (
     <Section eyebrow="Easy catalogue setup" title={<>Already selling online? <span style={{ color: CORAL }}>You won&apos;t rebuild it from scratch.</span></>}>
       <div className="grid gap-4 md:grid-cols-3">
@@ -590,7 +520,7 @@ function Catalogue({ cfg }: { cfg: PreviewConfig }) {
         ))}
       </div>
       <p className="mt-5 max-w-2xl text-sm text-ink-soft">
-        Everything you bring in arrives as a draft that only you can see. You review it, and you decide what to publish. Connecting a shop is still being built — we&apos;ll only tell you it works once it does.
+        {CATALOGUE_FOOTNOTE}
       </p>
     </Section>
   );

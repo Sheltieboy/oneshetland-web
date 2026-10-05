@@ -19,7 +19,7 @@ if (!secret) {
 }
 if (!secret || secret.length < 24) { console.error("Set LAUNCH_PREVIEW_REVIEW_SECRET (24+ chars) in .env.local first."); process.exit(1); }
 
-const slugs = ["shetland-jewellery", "the-dowry", "peerie-shop", "da-craft-shed", "shetland-soap-company"];
+const slugs = ["love-from-shetland", "shetland-jewellery", "the-dowry", "peerie-shop", "da-craft-shed", "shetland-soap-company"];
 for (const slug of slugs) {
   const token = createHmac("sha256", secret).update(`launch-review:${slug}`).digest("hex");
   console.log(`${slug.padEnd(24)} ${base}/launch/${slug}?invite=${token}`);

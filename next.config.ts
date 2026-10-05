@@ -74,6 +74,20 @@ const nextConfig: NextConfig = {
         { key: "Referrer-Policy", value: "no-referrer" },
         { key: "Cache-Control", value: "private, no-store, max-age=0" },
       ],
+    }, {
+      // Private Business Page drafts (admin review, and the approved owner's own review): never indexed or cached.
+      source: "/admin-preview/:path*",
+      headers: [
+        { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+        { key: "Referrer-Policy", value: "no-referrer" },
+        { key: "Cache-Control", value: "private, no-store, max-age=0" },
+      ],
+    }, {
+      source: "/business/:id/manage/page-draft",
+      headers: [
+        { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, nosnippet" },
+        { key: "Cache-Control", value: "private, no-store, max-age=0" },
+      ],
     }];
   },
 

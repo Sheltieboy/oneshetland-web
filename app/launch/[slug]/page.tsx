@@ -4,6 +4,7 @@ import { getAccount } from "@/lib/auth";
 import { openPrivatePreview, claimView } from "@/lib/launch-preview/invite.server";
 import { readDirectoryFacts } from "@/lib/launch-preview/directory";
 import { PreviewPage, type Viewer } from "@/components/launch-preview/PreviewPage";
+import { recordPreviewView } from "@/lib/launch-partners/campaigns.server";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,11 @@ export default async function LaunchPreview({ params }: { params: Promise<{ slug
   const account = open.review ? null : await getAccount();
   const view = account ? await claimView(slug, open.token) : null;
   const viewer: Viewer = !account ? { kind: "visitor" } : view ? { kind: view.state, businessId: view.business_id } : { kind: "visitor" };
+
+  // A valid private preview was opened: note it (first/last time, count) so Admin can see that the invitation was
+  // actually looked at. Not for the person preparing it (an admin, or a local review token), and it implies nothing
+  // about claiming or consent. The token goes to the database and nowhere else.
+  if (!open.review && account?.profile?.role !== "admin") await recordPreviewView(slug, open.token);
 
   const facts = await readDirectoryFacts(open.cfg);
   return <PreviewPage cfg={open.cfg} facts={facts} viewer={viewer} />;

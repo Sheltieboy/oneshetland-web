@@ -166,11 +166,11 @@ describe("nothing is live, nothing can be bought", () => {
     assert.match(page, /Preview · not for sale/); assert.match(page, /Preview products — not live/);
   });
   test("the core reassurances are on the page, once and calmly", () => {
-    const all = page + cta;
+    const all = page + cta + read("lib/launch-preview/catalogue.ts");
     for (const s of ["Private preview · Nothing is live", "Your private OneShetland preview", "only people with this invitation can see it", "nothing on it is live",
       "hasn&apos;t joined OneShetland", "nothing will be published without your approval", "Nothing will be published until you claim the business and explicitly approve it",
       "Claiming your preview does NOT publish anything", "Like what you see?", "Claiming gives you access to review and manage your business. Nothing new is published until you choose to publish it.", "does not indicate participation or endorsement",
-      "Being prepared", "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
+      "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
       assert.ok(all.includes(s) || all.includes(s.replace("&apos;", "'")), `missing: ${s}`);
     }
     // calmer: the old four-card grid is gone

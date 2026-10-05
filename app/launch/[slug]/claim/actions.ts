@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { getPreviewConfig } from "@/lib/launch-preview/registry";
+import { openPrivatePreview } from "@/lib/launch-preview/invite.server";
 import { inviteCookieName, isSlug, isToken, type ClaimState } from "@/lib/launch-preview/invite";
 
 export type ClaimResult = { ok: true; state: ClaimState } | { ok: false; error: string };
@@ -15,9 +15,14 @@ const clean = (v: FormDataEntryValue | null, max: number) => (typeof v === "stri
  * never sends or sees the token. This does not make anyone an owner and does not publish or create anything.
  */
 export async function submitLaunchClaim(slug: string, _prev: ClaimResult | null, form: FormData): Promise<ClaimResult> {
-  if (!isSlug(slug) || !getPreviewConfig(slug)) return { ok: false, error: "This invitation is no longer valid." };
+  if (!isSlug(slug)) return { ok: false, error: "This invitation is no longer valid." };
   const token = (await cookies()).get(inviteCookieName(slug))?.value;
   if (!isToken(token)) return { ok: false, error: "This invitation is no longer valid. Please open the link you were sent again." };
+  // The preview (from the campaign Admin manages, or the code fallback) must exist for THIS invitation, and its claim
+  // button must be open. The page already refuses when claiming is closed; the action refuses too, so a closed
+  // preview cannot be claimed by sending the request directly.
+  const open = await openPrivatePreview(slug);
+  if (!open || open.review || open.cfg.claim === "holding") return { ok: false, error: "This invitation is no longer valid." };
   if (form.get("confirm") !== "on") return { ok: false, error: "Please confirm that you own or are authorised to manage this business." };
 
   const sb = await createClient();

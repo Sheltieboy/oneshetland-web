@@ -15,6 +15,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   ] },
   { group: "Community", items: [
     { href: "/admin/events", label: "Event approvals", badgeKey: "pendingEvents" },
+    { href: "/admin/launch-partners", label: "Launch partners" },
     { href: "/admin/claims", label: "Business claims", badgeKey: "pendingClaims" },
     { href: "/admin/reports", label: "Reports", badgeKey: "openReports" },
     { href: "/admin/vessel-photos", label: "Vessel photos", badgeKey: "pendingVesselPhotos" },

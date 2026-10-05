@@ -16,6 +16,7 @@ const QUEUES = [
 ] as const;
 
 const TOOLS = [
+  { href: "/admin/launch-partners", label: "Launch partners", desc: "Prepare previews and business pages, invite businesses, follow each to going live" },
   { href: "/admin/launch-readiness", label: "Launch readiness", desc: "What's done, what's left and what still blocks launch" },
   { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
   { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, disputes" },
