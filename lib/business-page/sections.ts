@@ -46,9 +46,14 @@ const MIDDLE: Record<Emphasis, SectionId[]> = {
 };
 const CLOSING: SectionId[] = ["hours", "location", "contact"];
 
-/** The sections to render after the hero, in order. */
-export function planSections(m: BusinessPageModel): SectionId[] {
-  const has = availability(m);
+/**
+ * The sections to render after the hero, in order.
+ * `hints` (review only): commerce sections the business has no real content for yet but WILL have, so the order can
+ * show where real content slots in. They are marked as empty slots by the caller and never carry content.
+ */
+export function planSections(m: BusinessPageModel, hints: readonly SectionId[] = []): SectionId[] {
+  const has = { ...availability(m) };
+  for (const h of hints) has[h] = true;
   const middleOrder = m.layout?.length
     ? [...m.layout.filter((s) => MIDDLE.story_then_shop.includes(s)), ...MIDDLE[inferEmphasis(m)]]
     : MIDDLE[inferEmphasis(m)];
@@ -108,20 +113,19 @@ export function chooseHeroVisual(want: HeroVisualKind | undefined, hasImage: boo
 /* ── live mode ────────────────────────────────────────────────────────── */
 
 /**
- * The guarantee behind the customer-facing page: remove EVERYTHING that is an example, a suggestion or a prepared
- * possibility. Idempotent; a no-op for a prepared model.
+ * The guarantee behind the customer-facing page: remove every piece of COMMERCE that is an example, a suggestion or a
+ * hypothetical. PROFILE content (hero, story, labels, place, information blocks, order) is kept — it is what the owner
+ * approves. Idempotent; a no-op for a prepared model.
  */
 export function enforceLive(m: BusinessPageModel): BusinessPageModel {
   if (m.mode !== "live") return m;
   const items = (m.shop?.items ?? []).filter((i) => !i.example);
   return {
     ...m,
-    layout: undefined,
-    story: null, // a prepared story is not published content; the Directory description (about) is
     shop: items.length ? { ...m.shop!, items, example: false } : null,
     book: m.book && !m.book.example ? m.book : null,
     experience: null,
     rewards: m.rewards && !m.rewards.example ? m.rewards : null,
-    useful: [],
+    hero: { ...m.hero, collage: m.hero.collage.filter((c) => !c.example) },
   };
 }

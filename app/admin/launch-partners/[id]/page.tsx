@@ -56,6 +56,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <div className="flex flex-wrap gap-2">
           <a href={`/admin-preview/launch-partners/${c.id}/launch`} target="_blank" rel="noopener noreferrer" className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-sand">Preview launch page →</a>
           <a href={`/admin-preview/launch-partners/${c.id}/business-page`} target="_blank" rel="noopener noreferrer" className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-sand">Preview business page →</a>
+          <a href={`/admin-preview/launch-partners/${c.id}/business-page?view=future-live`} target="_blank" rel="noopener noreferrer" className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-sand">Future live preview →</a>
         </div>
       </div>
       <nav aria-label="Sections" className="mb-6 flex flex-wrap gap-2">

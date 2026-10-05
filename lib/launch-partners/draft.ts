@@ -58,6 +58,8 @@ export function buildPageDraft(cfg: PreviewConfig): PageDraft {
       locality: cfg.business.locality,
       image: { ...cfg.business.image },
       ...(HERO_BY_SLUG[cfg.slug] ? { treatment: HERO_BY_SLUG[cfg.slug] } : cfg.hero.treatment === "ambient" ? { treatment: "brand" as const } : {}),
+      // Pictures for a mosaic hero, kept apart from the example products they came from: imagery can be promoted, products cannot.
+      ...(HERO_BY_SLUG[cfg.slug] === "mosaic" && cfg.products.length >= 3 ? { gallery: cfg.products.slice(0, 3).map((p) => ({ src: p.image, alt: p.title })) } : {}),
     },
     // The researched story if there is one; otherwise the researched description, so the page always has an About.
     story: cfg.story

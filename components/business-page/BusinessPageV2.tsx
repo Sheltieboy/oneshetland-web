@@ -4,7 +4,7 @@ import { LocationPanel } from "./LocationPanel";
 import type { BusinessPageSlots } from "./slots";
 import { Img, MediaCard, ProductTile, ReserveCard, Section } from "@/components/design-v2/primitives";
 import { DAYS, formatDay, hoursExpired, isOpenAt } from "@/lib/opening-hours";
-import { enforceLive, heroActions, planSections, type HeroAction } from "@/lib/business-page/sections";
+import { availability, enforceLive, heroActions, planSections, type HeroAction } from "@/lib/business-page/sections";
 import { PREPARED_COPY } from "@/lib/business-page/prepared-copy";
 import { CORAL, LIME, NAVY, gbp } from "@/lib/business-page/tokens";
 import type { BusinessPageModel, ModelItem, SectionId } from "@/lib/business-page/types";
@@ -23,18 +23,45 @@ const nowDate = () => new Date();
  *              published content appears, and a section with nothing genuine is omitted.
  * It is NOT wired to the public route in this version. Real interactive actions plug in through `slots`.
  */
-export function BusinessPageV2({ model: given, slots = {}, draftNote }: { model: BusinessPageModel; slots?: BusinessPageSlots; draftNote?: string }) {
+export function BusinessPageV2({ model: given, slots = {}, draftNote, review = false, slotHints = [] }: {
+  model: BusinessPageModel; slots?: BusinessPageSlots; draftNote?: string;
+  /** A PRIVATE review of the live mode (Admin / owner, before go-live): shows the "future live preview" bar and marks where real content will slot in. */
+  review?: boolean;
+  /** Commerce sections the business will have once real content exists. Review only; rendered as empty slot notes. */
+  slotHints?: SectionId[];
+}) {
   const model = enforceLive(given);
-  const order = planSections(model);
-  const actions = heroActions(model);
   const prepared = model.mode === "prepared";
+  const showBar = prepared || review;
+  const hints = review && !prepared ? slotHints : [];
+  const order = planSections(model, hints);
+  const actions = heroActions(model);
+  const empty = availability(model);
   return (
     <div className="bg-[#fbf8f2] text-ink">
-      {prepared && <DraftBar note={draftNote} />}
-      {prepared && <p className="border-b border-line bg-[#f3ece0] px-5 py-3 text-center text-sm text-ink-soft">{PREPARED_COPY.intro}</p>}
+      {showBar && <DraftBar note={draftNote ?? (prepared ? PREPARED_COPY.bar : PREPARED_COPY.futureLiveBar)} />}
+      {showBar && <p className="border-b border-line bg-[#f3ece0] px-5 py-3 text-center text-sm text-ink-soft">{prepared ? PREPARED_COPY.intro : PREPARED_COPY.futureLiveIntro}</p>}
       <Hero model={model} actions={actions} slots={slots} />
-      {order.map((id) => <SectionFor key={id} id={id} model={model} accent={model.identity.accent} slots={slots} />)}
+      {order.map((id) => (hints.includes(id) && !empty[id]
+        ? <SlotNote key={`slot-${id}`} id={id as "shop" | "book" | "experience" | "rewards"} />
+        : <SectionFor key={id} id={id} model={model} accent={model.identity.accent} slots={slots} />))}
     </div>
+  );
+}
+
+/** Review only: where genuine content will appear. Not content, not shown to customers. */
+function SlotNote({ id }: { id: "shop" | "book" | "experience" | "rewards" }) {
+  const label = { shop: "Shop", book: "Book", experience: "Experiences", rewards: "Rewards" }[id];
+  return (
+    <section id={`${id}-slot`} data-review-note="true" className="relative">
+      <div className="mx-auto max-w-6xl px-5 py-8">
+        {/* Stacked on a phone, one row from sm up. */}
+        <div className="rounded-3xl border-2 border-dashed border-line-strong bg-white/60 px-5 py-5 sm:flex sm:items-center sm:gap-4 sm:px-6">
+          <span className="mb-2 inline-block max-w-full rounded-full bg-[#032f4c]/90 px-2.5 py-1 text-[10px] font-bold uppercase leading-tight tracking-wider text-white sm:mb-0 sm:shrink-0">{PREPARED_COPY.slotTag}</span>
+          <p className="min-w-0 text-sm text-ink-soft sm:flex-1"><strong className="text-ink">{label}</strong> — {PREPARED_COPY.slot[id]}</p>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -100,7 +127,7 @@ function HeroVisual({ model }: { model: BusinessPageModel }) {
     return (
       <>
         <div className={frame}><Img eager src={hero.image.src} alt={hero.image.alt} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: hero.image.position }} /></div>
-        {a && hero.collage.length >= 2 && (
+        {a && hero.collage.length >= 2 && a.price != null && (
           <div className="absolute -bottom-4 -left-2 hidden w-36 rotate-[-4deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-xl sm:block lg:-left-8 lg:w-44">
             <Img eager src={a.src} alt="" className="aspect-square w-full rounded-xl object-cover" />
             <p className="px-1.5 pb-1 pt-1.5 text-[11px] font-bold text-[#032f4c]">{a.alt}</p>

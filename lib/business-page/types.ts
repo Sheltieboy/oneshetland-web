@@ -24,10 +24,12 @@ export type HeroVisualKind = "photo" | "mosaic" | "brand";
 export const HERO_VISUALS: readonly HeroVisualKind[] = ["photo", "mosaic", "brand"];
 
 /**
- * The two render modes of ONE component set.
- *   prepared — the private owner/admin preview. May show clearly-marked examples and suggestions.
- *   live     — the customer-facing page. Renders ONLY genuine published content; every example, idea and
- *              hypothetical is removed before it reaches the page (see model.ts and enforceLive in sections.ts).
+ * The two render modes of ONE component set — the same visual design in both.
+ *   prepared — the private owner/admin preview: the whole prepared draft, with clearly-marked examples.
+ *   live     — what a customer will eventually see: the PROFILE layer of the prepared/approved page (hero, story,
+ *              labels, place, contact presentation, section order) with REAL OneShetland commerce only. Every example,
+ *              suggestion and hypothetical is removed (see profile.ts, model.ts and enforceLive in sections.ts).
+ * (Before owner approval the live mode is shown only in Admin, labelled "Future live preview · not public".)
  */
 export type PageMode = "prepared" | "live";
 
@@ -57,8 +59,13 @@ export interface PageDraft {
     /** Where, as the business describes it ("Weisdale, Shetland"). Prepared mode only; live uses the Directory address. */
     locality?: string;
     image: PreviewPhoto;
-    /** What fills the hero: the photograph, a mosaic of product pictures, or the branded card. Default: decided from what exists. */
+    /** What fills the hero: the photograph, a mosaic of pictures, or the branded card. Default: decided from what exists. */
     treatment?: HeroVisualKind;
+    /**
+     * Up to three PICTURES for the mosaic (no prices, no titles shown). This is profile imagery — it can be promoted —
+     * and is deliberately separate from the example products it may have been taken from.
+     */
+    gallery?: PreviewPhoto[];
   };
   story?: { eyebrow?: string; title: string; body: string[]; source?: string };
   /** EXAMPLE items shown only while the business has no real products. Never for sale; replaced by the real catalogue. */
@@ -95,7 +102,7 @@ export interface BusinessPageModel {
     headline: string; tagline: string | null; image: PreviewPhoto | null;
     visual: HeroVisualKind;
     /** Up to three product pictures for the mosaic / overlapping thumbnails. Real products in live mode. */
-    collage: { src: string; alt: string; price?: number }[];
+    collage: { src: string; alt: string; price?: number; example?: boolean }[];
   };
   story: { eyebrow: string; title: string; body: string[]; source?: string } | null;
   about: string | null;

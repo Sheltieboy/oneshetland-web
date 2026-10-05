@@ -5,11 +5,13 @@
  * example is used only where the business has nothing real for that section, and is always marked `example: true`
  * so the page can label it. Nothing here is written anywhere.
  *
- * LIVE MODE uses NO draft at all: the draft is discarded before anything is built, so a live model contains only
- * genuine Directory / catalogue data. (enforceLive then strips again, as defence in depth.)
+ * LIVE MODE uses only the PROFILE layer of the draft (profile.ts): hero, story, labels, place, information blocks,
+ * order. All commerce in the draft is discarded before anything is built, so a live model's shop, booking, experience
+ * and rewards come ONLY from real OneShetland data. (enforceLive then strips again, as defence in depth.)
  */
 import type { BusinessPageModel, Emphasis, ModelItem, PageDraft, PageMode } from "./types.ts";
 import { chooseHeroVisual, enforceLive } from "./sections.ts";
+import { extractProfile, profileAsDraft } from "./profile.ts";
 import { accentOf, catColorFor, shorten, tagline } from "./tokens.ts";
 
 type Hours = Partial<Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", string>>;
@@ -43,7 +45,7 @@ const localityOf = (address: string | null, fallback?: string | null): string | 
 
 export function buildBusinessPageModel(i: BuildInput): BusinessPageModel {
   const b = i.business;
-  const d = i.mode === "live" ? null : i.draft;
+  const d = i.mode === "live" && i.draft ? profileAsDraft(extractProfile(i.draft)) : i.draft;
   const catKey = b?.category ?? i.fallback.category ?? null;
   const name = b?.name ?? i.fallback.name;
   const description = b?.description ?? i.fallback.description ?? null;
@@ -54,7 +56,12 @@ export function buildBusinessPageModel(i: BuildInput): BusinessPageModel {
 
   const realBook = i.business?.accepts_bookings && i.services.length > 0;
   const heroImage = d?.hero.image ?? (b?.cover_url ? { src: b.cover_url, alt: `${name}` } : null);
-  const collage = items.filter((p) => !!p.image).slice(0, 3).map((p) => ({ src: p.image as string, alt: p.title, price: p.pricePounds }));
+  // Prepared: product pictures, examples included (as before). Live: real products' pictures, else the draft's
+  // price-less gallery — profile imagery, which carries no commerce claim.
+  const realWithImage = realItems.filter((p) => !!p.image).slice(0, 3).map((p) => ({ src: p.image as string, alt: p.title, price: p.pricePounds }));
+  const collage = i.mode === "live"
+    ? (realWithImage.length ? realWithImage : (d?.hero.gallery ?? []).slice(0, 3).map((g) => ({ src: g.src, alt: g.alt })))
+    : items.filter((p) => !!p.image).slice(0, 3).map((p) => ({ src: p.image as string, alt: p.title, price: p.pricePounds, example: p.example }));
   const emphasis: Emphasis | undefined = d?.emphasis;
 
   const model: BusinessPageModel = {

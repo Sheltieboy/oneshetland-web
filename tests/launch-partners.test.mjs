@@ -269,73 +269,111 @@ describe("guarantees: admin-only, private drafts, nothing automatic", () => {
 });
 
 
-describe("prepared vs live: the customer-facing page shows only genuine content", () => {
-  const biz = (o = {}) => ({ id: "b", name: "Shetland Jewellery", category: "retail", description: "A family jewellery business in Weisdale.", address: "Weisdale, Shetland", lat: 60.2, lng: -1.3, logo_url: null, cover_url: null, brand_color: null, phone: "01595 830000", website: "https://example.co.uk", email: null, opening_hours: null, opening_hours_until: null, is_verified: false, is_claimed: false, accepts_bookings: false, ...o });
-  const build = (mode, over = {}, slug = "shetland-jewellery") => buildBusinessPageModel({ mode, business: biz(), fallback: { id: "b", name: "Shetland Jewellery" }, categoryLabels: { retail: "Retail" }, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig(slug)), ...over });
+describe("prepared → approved → live: profile moves forward, commerce never does", () => {
+  const biz = (o = {}) => ({ id: "b", name: "Love From Shetland", category: "retail", description: "A small family-run company.", address: "Lerwick, Shetland", lat: 60.15, lng: -1.14, logo_url: null, cover_url: null, brand_color: null, phone: null, website: null, email: null, opening_hours: null, opening_hours_until: null, is_verified: false, is_claimed: false, accepts_bookings: false, ...o });
+  const build = (mode, slug, over = {}) => buildBusinessPageModel({ mode, business: biz({ name: slug }), fallback: { id: "b", name: slug }, categoryLabels: { retail: "Retail" }, products: [], offers: [], passes: [], services: [], loyalty: null, events: [], draft: buildPageDraft(getPreviewConfig(slug)), ...over });
+  const PROFILE_FIRST = ["love-from-shetland", "shetland-jewellery", "the-dowry", "peerie-shop", "da-craft-shed", "shetland-soap-company"];
 
-  test("a fully populated draft contributes NOTHING to a live model", () => {
-    for (const slug of previewSlugs()) {
-      const m = build("live", {}, slug);
-      assert.equal(m.mode, "live");
-      assert.equal(m.shop, null, `${slug}: no example products`);
-      assert.equal(m.book, null, `${slug}: no example booking`);
-      assert.equal(m.experience, null, `${slug}: no example experience`);
-      assert.equal(m.rewards, null, `${slug}: no suggested rewards`);
-      assert.deepEqual(m.useful, []); assert.equal(m.story, null);
-      assert.equal(m.hero.collage.length, 0);
-      assert.deepEqual(planSections(m).filter((x) => ["shop", "book", "experience", "rewards", "useful"].includes(x)), [], slug);
+  test("extractProfile keeps exactly the profile and drops every commerce key and the notes", async () => {
+    const { extractProfile, nonProfileKeys, COMMERCE_KEYS, PROFILE_TOP_KEYS, PROFILE_HERO_KEYS } = await import("../lib/business-page/profile.ts");
+    for (const slug of PROFILE_FIRST) {
+      const draft = buildPageDraft(getPreviewConfig(slug));
+      const full = { ...draft, products: draft.products ?? [{ id: "x", title: "T", price: 1, image: "/a.jpg", blurb: "b" }], experience: draft.experience ?? { title: "t", blurb: "b", image: { src: "/a.jpg", alt: "" }, source: "https://x" }, booking: draft.booking ?? { cta: "c", line: "l" }, rewards: draft.rewards ?? { title: "r", body: "b" }, notes: "internal", productsTitle: "Shop" };
+      const p = extractProfile(full);
+      assert.deepEqual(nonProfileKeys(p), [], `${slug}: nothing outside the profile`);
+      for (const k of COMMERCE_KEYS) assert.ok(!(k in p), `${slug}: ${k} must not be promoted`);
+      for (const k of Object.keys(p)) assert.ok(k === "version" || PROFILE_TOP_KEYS.includes(k));
+      for (const k of Object.keys(p.hero)) assert.ok(PROFILE_HERO_KEYS.includes(k));
+      assert.ok(p.hero.image && p.hero.tagline, "the hero identity is promoted");
+    }
+    assert.deepEqual(nonProfileKeys({ hero: { tagline: "x", price: 1 }, products: [], story: {} }).sort(), ["hero.price", "products"]);
+  });
+  test("a LIVE model keeps the whole profile — hero, label, place, story, order — and carries no example commerce", () => {
+    for (const slug of PROFILE_FIRST) {
+      const prep = build("prepared", slug), live = build("live", slug);
+      assert.equal(live.hero.headline, prep.hero.headline, slug); assert.equal(live.hero.tagline, prep.hero.tagline);
+      assert.equal(live.identity.categoryLabel, prep.identity.categoryLabel); assert.equal(live.identity.locality, prep.identity.locality);
+      assert.deepEqual(live.hero.image, prep.hero.image); assert.equal(live.hero.visual, prep.hero.visual, `${slug}: same hero treatment as the prepared page`);
+      assert.deepEqual(live.story, prep.story); assert.equal(live.emphasis, prep.emphasis);
+      assert.equal(live.shop, null, `${slug}: no example products`); assert.equal(live.book, null); assert.equal(live.experience, null); assert.equal(live.rewards, null);
     }
   });
-  test("live uses the Directory facts only: description as About, genuine cover or the branded fallback", () => {
-    const m = build("live");
-    assert.equal(m.about, "A family jewellery business in Weisdale."); assert.equal(m.hero.visual, "brand"); assert.equal(m.hero.image, null);
-    assert.deepEqual(planSections(m), ["story", "location", "contact"]);
-    assert.equal(build("live", { business: biz({ cover_url: "https://x/cover.jpg" }) }).hero.visual, "photo");
+  test("the profile is not thrown away in favour of sparse Directory fields", () => {
+    const live = build("live", "shetland-jewellery", { business: biz({ name: "Shetland Jewellery", description: null, address: "Shetland" }) });
+    assert.match(live.hero.tagline, /family jewellery business in Weisdale/);
+    assert.equal(live.identity.categoryLabel, "Hand-made jewellery"); assert.equal(live.identity.locality, "Weisdale, Shetland");
+    assert.equal(live.hero.visual, "photo"); assert.ok(live.story && live.story.body.join(" ").includes("Weisdale"));
   });
-  test("live shows real products, real services, real loyalty and real passes — and none of them is marked as an example", () => {
-    const m = build("live", {
-      business: biz({ accepts_bookings: true }),
-      products: [{ id: "p1", title: "Ring", price_pence: 4500, photos: ["https://x/r.jpg"] }, { id: "p2", title: "Pendant", price_pence: 9000, photos: ["https://x/p.jpg"] }, { id: "p3", title: "Brooch", price_pence: 6500, photos: ["https://x/b.jpg"] }],
-      services: [{ id: "s1", name: "Workshop tour", description: null, duration_minutes: 60, price_pence: 500 }],
-      loyalty: { type: "stamps", stamps_required: 8, stamp_reward: "a free repair", points_per_pound: null, points_for_pound: null },
-      passes: [{ id: "u1", name: "Tour pass", description: null, price_pence: 1500, image_url: null }],
+  test("Love From Shetland's mosaic hero survives, as price-less pictures — the example products' prices and titles do not", () => {
+    const live = build("live", "love-from-shetland"), prep = build("prepared", "love-from-shetland");
+    assert.equal(live.hero.visual, "mosaic"); assert.equal(live.hero.collage.length, 3);
+    assert.ok(live.hero.collage.every((c) => c.price === undefined && c.example === undefined), "gallery pictures carry no commerce claim");
+    assert.ok(prep.hero.collage.every((c) => c.price !== undefined && c.example === true), "prepared keeps its priced example tiles (unchanged)");
+  });
+  test("Shetland Jewellery's photograph hero has no product thumbnails in live (they carried example names and prices)", () => {
+    assert.equal(build("live", "shetland-jewellery").hero.collage.length, 0);
+    assert.ok(build("prepared", "shetland-jewellery").hero.collage.length >= 2);
+  });
+  test("real commerce slots in automatically, and only real commerce", () => {
+    const m = build("live", "love-from-shetland", {
+      products: [{ id: "p1", title: "Real soap", price_pence: 395, photos: ["https://x/s.jpg"] }, { id: "p2", title: "Real balm", price_pence: 800, photos: ["https://x/b.jpg"] }, { id: "p3", title: "Real kit", price_pence: 2195, photos: ["https://x/k.jpg"] }],
+      loyalty: { type: "stamps", stamps_required: 8, stamp_reward: "a free soap", points_per_pound: null, points_for_pound: null },
     });
-    assert.ok(m.shop.items.every((i) => i.example === false)); assert.equal(m.shop.example, false);
-    assert.equal(m.book.example, false); assert.equal(m.rewards.example, false); assert.equal(m.passes.length, 1);
-    assert.equal(m.hero.visual, "mosaic", "no photograph but three real product pictures → mosaic");
-    assert.deepEqual(planSections(m), ["shop", "story", "experience", "book", "rewards", "location", "contact"]);
+    assert.deepEqual(m.shop.items.map((i) => i.id), ["p1", "p2", "p3"]); assert.ok(m.shop.items.every((i) => i.example === false)); assert.equal(m.shop.title, "Shop");
+    assert.equal(m.rewards.example, false); assert.match(m.rewards.body, /free soap/);
+    assert.ok(m.hero.collage.every((c) => c.price !== undefined) && m.hero.collage[0].alt === "Real soap", "the mosaic now shows the real products, with real prices");
+    const order = planSections(m); assert.ok(order.includes("shop") && order.includes("rewards"));
   });
-  test("enforceLive is a last line of defence: a live model that somehow carries examples is cleaned", () => {
-    const dirty = { ...build("prepared"), mode: "live" };
-    assert.ok(dirty.shop.example && dirty.experience && dirty.rewards.example && dirty.story, "precondition: the prepared model has examples");
+  test("example experiences and suggested rewards never go live; a pass counts only if it is a real pass", () => {
+    const m = build("live", "shetland-jewellery");
+    assert.equal(m.experience, null); assert.deepEqual(m.passes, []);
+    assert.equal(planSections(m).includes("experience"), false);
+    const real = build("live", "shetland-jewellery", { passes: [{ id: "u1", name: "Workshop tour", description: null, price_pence: 500, image_url: null }] });
+    assert.equal(planSections(real).includes("experience"), true); assert.equal(real.experience, null, "still no example experience alongside it");
+  });
+  test("enforceLive removes example commerce but keeps the profile", () => {
+    const dirty = { ...build("prepared", "love-from-shetland"), mode: "live" };
+    assert.ok(dirty.shop.example && dirty.rewards.example && dirty.story);
     const m = enforceLive(dirty);
-    assert.equal(m.shop, null); assert.equal(m.experience, null); assert.equal(m.rewards, null); assert.equal(m.book, null); assert.equal(m.story, null); assert.deepEqual(m.useful, []);
-    const mixed = enforceLive({ ...dirty, shop: { title: "Shop", example: false, items: [{ id: "1", title: "Real", pricePounds: 5, image: null, example: false }, { id: "2", title: "Fake", pricePounds: 5, image: null, example: true }] } });
-    assert.deepEqual(mixed.shop.items.map((i) => i.id), ["1"]);
-    assert.equal(enforceLive(build("prepared")).shop.example, true, "prepared mode is untouched");
+    assert.equal(m.shop, null); assert.equal(m.rewards, null); assert.equal(m.experience, null); assert.equal(m.book, null);
+    assert.ok(m.story && m.hero.image && m.hero.tagline, "profile untouched");
+    assert.deepEqual(m.hero.collage, [], "priced example tiles removed");
+    assert.equal(enforceLive(build("prepared", "love-from-shetland")).shop.example, true, "prepared is untouched");
   });
-  test("prepared mode keeps its examples, and every one is flagged so the page can mark it", () => {
-    const m = build("prepared");
-    assert.ok(m.shop.items.every((i) => i.example)); assert.equal(m.experience.example, true); assert.equal(m.rewards.example, true);
-    assert.equal(m.hero.visual, "photo");
+  test("review slot hints show where real commerce will appear, without carrying any content", async () => {
+    const { slotHintsFromDraft } = await import("../lib/business-page/profile.ts");
+    const hints = slotHintsFromDraft(buildPageDraft(getPreviewConfig("shetland-jewellery")));
+    assert.deepEqual(hints.sort(), ["experience", "rewards", "shop"]);
+    const m = build("live", "shetland-jewellery");
+    assert.deepEqual(planSections(m), ["story", "location"].filter((x) => planSections(m).includes(x)));
+    const withSlots = planSections(m, hints);
+    assert.ok(withSlots.indexOf("story") < withSlots.indexOf("shop") && withSlots.indexOf("shop") < withSlots.indexOf("experience"), "slots sit in the same hierarchy as the prepared page");
+    assert.equal(m.shop, null, "hints add no content");
   });
   test("the words that mark something as an example live in ONE module and in no live-capable file", () => {
     assert.equal(PREPARED_COPY.intro, "This is a private preview of how your real OneShetland page could look. Example sections disappear unless you choose to set them up.");
     assert.equal(PREPARED_COPY.bar, "Private draft · Not public"); assert.equal(PREPARED_COPY.tag, "Example · not live");
+    assert.equal(PREPARED_COPY.futureLiveBar, "Future live preview · Not public");
     const forbidden = /Example|Idea\b|Not set up|Replaced by|\bcould\b|[Rr]epresentative|Suggestion|not for sale/;
-    const files = ["lib/business-page/model.ts", "lib/business-page/sections.ts", "lib/business-page/tokens.ts", "lib/business-page/load.server.ts", "components/business-page/BusinessPageV2.tsx", "components/business-page/LocationPanel.tsx", "components/business-page/slots.ts", "components/design-v2/primitives.tsx"];
+    const files = ["lib/business-page/model.ts", "lib/business-page/sections.ts", "lib/business-page/profile.ts", "lib/business-page/tokens.ts", "lib/business-page/load.server.ts", "components/business-page/LocationPanel.tsx", "components/business-page/slots.ts", "components/design-v2/primitives.tsx"];
     for (const f of files) assert.doesNotMatch(read(f), forbidden, `${f} spells out prepared-only wording`);
+    assert.doesNotMatch(read("components/business-page/BusinessPageV2.tsx"), forbidden, "the page itself spells out no prepared-only wording (it imports it)");
   });
-  test("prepared-only wording is reached only through PREPARED_COPY, and the page strips examples before rendering", () => {
+  test("the page strips example commerce before rendering, shows its furniture only for prepared or a private review, and marks slots as review notes", () => {
     const page = read("components/business-page/BusinessPageV2.tsx");
     assert.match(page, /const model = enforceLive\(given\)/);
-    assert.match(page, /\{prepared && <DraftBar/); assert.match(page, /\{prepared && <p [^>]*>\{PREPARED_COPY\.intro\}/);
-    for (const k of ["notForSale", "tag", "bookingNote", "experienceNote", "rewardsTag"]) assert.match(page, new RegExp(`PREPARED_COPY\\.${k}`));
+    assert.match(page, /const showBar = prepared \|\| review/); assert.match(page, /data-review-note="true"/);
+    for (const k of ["notForSale", "tag", "bookingNote", "experienceNote", "rewardsTag", "futureLiveBar", "futureLiveIntro", "slotTag"]) assert.match(page, new RegExp(`PREPARED_COPY\\.${k}`));
   });
   test("slots are never offered an example item", () => {
     const page = read("components/business-page/BusinessPageV2.tsx");
     assert.match(page, /p\.example \? <span[^]*?: slots\.productAction\?\.\(p\)/);
     assert.match(page, /\{!r\.example && slots\.rewardsProgress/);
+  });
+  test("there is no 'live from today's sparse Directory record' view any more", () => {
+    const route = read("app/admin-preview/launch-partners/[id]/business-page/page.tsx");
+    assert.doesNotMatch(route, /mode === "live"|mode=live|Live-mode simulation/);
+    assert.match(route, /view === "future-live"/); assert.match(route, /Future live preview/);
   });
 });
 

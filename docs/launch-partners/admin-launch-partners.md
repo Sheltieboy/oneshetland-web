@@ -26,8 +26,46 @@ Adaptive rules (`planSections`): a section appears only if the business has cont
 
 Not yet in V2 (deliberately): the interactive widgets of the current listing (follow, claim an offer, slot picker, wallet top-up). V2 links to the existing flows (`/product/{id}`, `/directory/{id}?book=…`). The public `/directory/{id}` route is untouched.
 
-## "Go live" — designed, not built
-Claiming never publishes; granting Premium never publishes; importing never publishes. The eventual owner action will be one explicit, reversible, owner-session call (a new function, e.g. `owner_go_live_page`), requiring: they own the business via an approved launch claim, terms accepted, a live plan/grant, and a per-item selection. It would (a) record `page_config.approved_at` and set `live_at`, (b) apply only the selected profile fields through the existing guarded owner paths, (c) switch a new `local_businesses.page_version` ('v1' default → 'v2') that the public route reads, and (d) publish only explicitly selected products through the existing publish route. `setup_ready_at` / `live_at` are reserved for that step. An un-publish mirrors it.
+## Three states, and the promotion path (designed; the last step is not built)
+
+1. **Current public listing** — today's `/directory/{id}`. Untouched by everything here.
+2. **Prepared business page** — Darren's rich private Business Page V2 (`page_config`). May contain example commerce. Private to Admin and, after an approved launch-partner claim, to that owner.
+3. **Approved future live page** — after the owner claims, reviews and edits their profile, imports/adds real commerce, and explicitly presses Go live, the **approved profile** becomes the basis of the real Business Page V2. It is *not* rebuilt from the sparse Directory record.
+
+```
+prepared draft ──(Darren)──▶ 'prepared' version
+      │
+      ▼  owner reviews / edits                       ── 'owner_edit' versions (each points at what it came from)
+      │
+      ▼  owner approves                              ── 'approved' version  (+ approved_at / approved_by on the campaign)
+      │
+      ▼  owner presses Go live   [NOT BUILT]         ── 'published' version (+ published_version_id, live_at)
+public V2 page = approved PROFILE  +  REAL commerce
+```
+
+### Profile vs commerce
+| Moves forward (profile) | Never moves forward automatically (commerce) |
+|---|---|
+| hero headline, tagline, label, place, picture, treatment, gallery pictures | example products (and their prices/titles) |
+| business story, "useful information" blocks | example experience, booking illustration |
+| which strength leads (emphasis) and section order | suggested rewards/offers |
+| contact / location presentation (via the Directory fields the owner confirms) | internal notes |
+
+Real products, services, offers, passes and reward programmes appear on a live page only because they genuinely exist in OneShetland — import or "Add manually" populates the Shop automatically; a draft can never create one. Enforced in three places that must agree: `lib/business-page/profile.ts` (+ `enforceLive`), the database whitelist (`_launch_partner_profile_extract` and the table CHECK), and tests on both.
+
+### Audit trail — `launch_partner_page_versions` (migration `20261107000000_launch_partner_profile_versions.sql`, mobile/DB repo)
+Append-only (UPDATE/DELETE/TRUNCATE refused). Each row: campaign, business, `kind` (`prepared` | `owner_edit` | `approved` | `published`), the **profile** only, `parent_id` (what it derived from), actor and role, time.
+* *What Darren prepared* → `prepared` rows (`admin_launch_partner_record_prepared`).
+* *What the owner changed* → `owner_edit` rows with their parent (`launch_partner_owner_save_profile`; commerce keys refused by name).
+* *What the owner approved and when* → `approved` rows + `approved_at/approved_by` (`launch_partner_owner_approve`; approving publishes nothing).
+* *What was eventually published* → `published` row + `published_version_id` — **reserved; nothing writes it yet**.
+Readers: `launch_partner_profile_versions` (history, no bodies), `launch_partner_version_profile`, `launch_partner_approved_profile` — admin or the approved owner only.
+
+### Go live (contract only)
+`launch_partner_owner_go_live(p_business_id, p_version_id)`: the single explicit, reversible owner action. Preconditions: approved launch claim, terms accepted, a live plan/grant, and an approved version. Effects: insert a `published` version, set `published_version_id` and `live_at`, and flip a new `local_businesses.page_version` ('v1' → 'v2') that the public route reads; real commerce is published only through the existing owner-session publish route, item by item. An un-publish mirrors it. Needs the public-page switch, which does not exist yet.
+
+### Admin review
+`/admin-preview/launch-partners/{id}/business-page` (Prepared) and `…?view=future-live` (**Future live preview · Not public**): the same design with the profile layer only and real commerce inserted; empty commerce sections show a dashed *review note* saying where real content will appear (never part of what customers see). The owner's own page (`/business/{id}/manage/page-draft`) has the same two views. There is deliberately no "live from today's sparse Directory fields" view.
 
 ## View tracking
 A valid private preview opening sets `first_viewed_at`, and `last_viewed_at`/`view_count` at most once per 30 minutes. Not recorded for admins or local review tokens; the token goes only to the database; a view implies nothing about claiming or consent. Caveat: an email security scanner that opens links can register as a view.
