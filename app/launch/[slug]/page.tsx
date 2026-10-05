@@ -30,7 +30,7 @@ export default async function LaunchPreview({ params }: { params: Promise<{ slug
   const open = await openPrivatePreview(slug);
   if (!open) notFound();
 
-  const account = await getAccount();
+  const account = open.review ? null : await getAccount();
   const view = account ? await claimView(slug, open.token) : null;
   const viewer: Viewer = !account ? { kind: "visitor" } : view ? { kind: view.state, businessId: view.business_id } : { kind: "visitor" };
 

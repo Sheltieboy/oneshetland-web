@@ -76,4 +76,6 @@ export const loveFromShetland: PreviewConfig = {
 
   searchTerm: 'soap',
   sourceSite: { label: 'lovefromshetland.com', url: 'https://www.lovefromshetland.com' },
+  // Rendered as the page footer's source list only when non-empty; Love From Shetland's approved page does not show one.
+  sources: [],
 };

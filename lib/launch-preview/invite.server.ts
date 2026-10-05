@@ -3,8 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getPreviewConfig } from "./registry";
 import { inviteCookieName, isSlug, isToken, type InviteView } from "./invite";
 import type { PreviewConfig } from "./types";
+import { isReviewToken } from "./review";
 
-export interface PrivatePreview { cfg: PreviewConfig; token: string; businessId: string }
+export interface PrivatePreview { cfg: PreviewConfig; token: string; businessId: string; /** True only for a local development REVIEW token (see review.ts). Never true in production. */ review?: boolean }
 
 /**
  * The one door into a private preview. Returns the preview ONLY if the invitation cookie holds a token the database
@@ -16,6 +17,8 @@ export async function openPrivatePreview(slug: string): Promise<PrivatePreview |
   const cfg = getPreviewConfig(slug);
   const token = (await cookies()).get(inviteCookieName(slug))?.value;
   if (!cfg || !isToken(token) || !cfg.directoryBusinessId) return null;
+  // Local review of a preview you are preparing (development mode + a local secret only; see review.ts).
+  if (isReviewToken(slug, token)) return { cfg, token, businessId: cfg.directoryBusinessId, review: true };
   const sb = await createClient();
   const { data, error } = await sb.rpc("launch_invite_resolve", { p_slug: slug, p_token: token });
   if (error || typeof data !== "string" || data !== cfg.directoryBusinessId) return null;
