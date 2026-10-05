@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
-import { defaultEmailDraft, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
+import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, sendInvitationEmail, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
 import { configuredTransport, outreachFrom } from "../lib/launch-partners/send.server.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
@@ -84,17 +84,56 @@ const TOKEN64 = "7f3a9c1e5b2d4f60a8c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f
 const URL64 = `https://oneshetland.com/launch/love-from-shetland?invite=${TOKEN64}`;
 
 describe("the standard outreach email", () => {
-  test("a new campaign's draft is the approved template, with the business name substituted", () => {
+  test("a new campaign's draft is the approved PRE-LAUNCH template, with the business name substituted", () => {
     const d = defaultEmailDraft({ businessName: "Love From Shetland", opening: LFS_OPENING });
-    assert.equal(d.subject, "I made a private OneShetland preview for Love From Shetland");
+    assert.equal(ACTIVE_EMAIL_TEMPLATE, "prelaunch");
+    assert.equal(d.subject, "I’ve made a private OneShetland preview for Love From Shetland");
     assert.equal(d.opening, LFS_OPENING);
-    for (const line of ["Hello,", "I’ve made a private OneShetland preview for Love From Shetland.", "I’ve put together an example of how Love From Shetland could look on OneShetland, using only information already publicly available.",
+    for (const line of ["Hello,", "I’m Darren, and I’m getting ready to launch OneShetland — a new locally built platform designed to bring more of Shetland into one place.",
+      "It will help locals and visitors discover Shetland businesses, events, things to do, products, bookings, offers and community activity through one website and app.",
+      "Before launch, I’m inviting a small number of Shetland businesses to become launch partners, and Love From Shetland is one of the businesses I’d really like to include.",
+      "Rather than just emailing you a description of OneShetland, I’ve made a private preview specifically for Love From Shetland, using information that is already publicly available, so you can actually see how it could work for you.",
       "A few important things before you look:", "• It’s completely private — only someone with your invitation link can see it.", "• Nothing is live or published.", "• You don’t need to join or claim anything just to have a look.",
-      "• If you do want to take part, launch partners get complimentary Premium access, and I’ll help you get set up.", "• You stay in control — nothing goes live until you review it and approve it yourself.",
-      "If you like it, you can claim the business from the preview and take it from there. And if it’s not for you, absolutely no problem.", "Darren\nDarren Fullerton\nOneShetland"]) assert.ok(d.body.includes(line), line);
+      "• If you do want to take part, launch partners get complimentary Premium access, and I’ll personally help you get set up.", "• You stay in control — nothing goes live until you review it and approve it yourself.",
+      "If you like what you see, you can claim the business from there and take it at your own pace. And if it’s not for you, absolutely no problem.", "Darren\nDarren Fullerton\nOneShetland"]) assert.ok(d.body.includes(line), line);
     assert.ok(d.body.includes(TOKEN_OPENING) && d.body.includes(TOKEN_CTA), "the opening and the call to action stay as tokens");
     assert.ok(!d.body.includes("{{BUSINESS_NAME}}"), "no unfilled business-name token");
+    assert.equal(d.body.split("Love From Shetland").length - 1, 2, "the business name is substituted wherever the template uses it");
     assert.equal(d.body.split(TOKEN_CTA).length, 2, "exactly one call to action");
+  });
+  test("the template says OneShetland has NOT launched, and never implies it is established, populated or live", () => {
+    for (const name of ["Love From Shetland", "The Dowry"]) {
+      const d = defaultEmailDraft({ businessName: name, opening: LFS_OPENING });
+      const all = `${d.subject}\n${d.body}`;
+      assert.match(all, /getting ready to launch/); assert.match(all, /Before launch/); assert.match(all, /a new locally built platform/); assert.match(all, /It will help/);
+      const claims = /OneShetland (is|has) (now |already )?(live|launched|established|open|busy)|already (live|launched|using|participating|on OneShetland|signed up|joined)|(businesses|partners|locals|visitors) (already|are already|have already|are using|are now)|join(ed)? (the )?(many|hundreds|thousands|other)|trusted by|over \d+|\b\d+\+? (businesses|partners|users)|now live|is live now|launched in|since launch/i;
+      assert.doesNotMatch(all, claims, "no wording that implies it has launched or is already used");
+    }
+  });
+  test("only the Love From Shetland opening is researched; every other business gets the prompt", () => {
+    assert.ok(isOpeningPrompt(defaultEmailDraft({ businessName: "The Dowry" }).opening));
+  });
+  test("template modes: pre-launch is active, a post-launch template is reserved but deliberately not written yet", () => {
+    assert.throws(() => defaultEmailDraft({ businessName: "X", mode: "live" }), /no outreach email template for "live" yet/i);
+    assert.equal(defaultEmailDraft({ businessName: "X", mode: "prelaunch" }).body, defaultEmailDraft({ businessName: "X" }).body, "default = the active mode");
+    assert.match(read("lib/launch-partners/email.ts"), /export const ACTIVE_EMAIL_TEMPLATE: EmailTemplateMode = "prelaunch"/);
+  });
+  test("an untouched earlier default is recognised as safely upgradable; anything edited is preserved", () => {
+    const name = "Love From Shetland";
+    const cur = defaultEmailDraft({ businessName: name, opening: LFS_OPENING });
+    assert.equal(classifyDraft({ subject: cur.subject, body: cur.body }, name), "current");
+    // the previous approved default (exactly as it was stored in production)
+    const legacySubject = `I made a private OneShetland preview for ${name}`;
+    const legacyBody = ["Hello,", "", `I’ve made a private OneShetland preview for ${name}.`, "", TOKEN_OPENING, "", `I’ve put together an example of how ${name} could look on OneShetland, using only information already publicly available.`, "",
+      "A few important things before you look:", "", "• It’s completely private — only someone with your invitation link can see it.", "• Nothing is live or published.", "• You don’t need to join or claim anything just to have a look.",
+      "• If you do want to take part, launch partners get complimentary Premium access, and I’ll help you get set up.", "• You stay in control — nothing goes live until you review it and approve it yourself.", "", TOKEN_CTA, "",
+      "If you like it, you can claim the business from the preview and take it from there. And if it’s not for you, absolutely no problem.", "", "Darren", "Darren Fullerton", "OneShetland"].join("\n");
+    assert.equal(classifyDraft({ subject: legacySubject, body: legacyBody }, name), "upgradable");
+    assert.equal(classifyDraft({ subject: legacySubject + "!", body: legacyBody }, name), "edited", "a one-character subject edit is a human edit");
+    assert.equal(classifyDraft({ subject: legacySubject, body: legacyBody.replace("absolutely no problem", "no worries at all") }, name), "edited");
+    assert.equal(classifyDraft({ subject: cur.subject, body: cur.body + "\nPS" }, name), "edited");
+    assert.equal(classifyDraft({ subject: null, body: null }, name), "empty");
+    assert.equal(classifyDraft({ subject: legacySubject, body: legacyBody }, "The Dowry"), "edited", "a draft for another business is not an untouched copy");
   });
   test("the opening is never invented: without a researched line the draft carries a clear prompt for Darren", () => {
     const d = defaultEmailDraft({ businessName: "The Dowry" });
@@ -594,5 +633,19 @@ describe("imported and stored campaigns are claim-closed by default", () => {
     const m = read("lib/launch-partners/campaigns.server.ts");
     assert.match(m, /preview: \{ \.\.\.preview\.value, claim: "holding" \}/);
     assert.match(m, /claim: parsed\.value\.claim === "live" \? "live" : "holding"/);
+  });
+});
+
+
+describe("private outreach content never reaches public output", () => {
+  test("the template and renderer are imported only by the admin launch-partner code (and the send path)", () => {
+    const users = ["app", "components", "lib"].flatMap((d) => walkSrc(d)).filter((f) => /launch-partners\/email["']|from "\.\/email"|from "\.\.\/launch-partners\/email"/.test(readFileSync(f, "utf8")) && !f.includes("lib/launch-partners/email.ts"))
+      .map((f) => f.split("/").slice(-3).join("/")).sort();
+    for (const u of users) assert.match(u, /launch-partners|admin\/launch-partners|send/, `unexpected importer of the outreach email: ${u}`);
+    for (const f of walkSrc("app").concat(walkSrc("components")).filter((f) => !/admin|launch-partners|launch\//.test(f))) assert.doesNotMatch(readFileSync(f, "utf8"), /getting ready to launch|launch partners get complimentary|INVITATION_CTA|defaultEmailDraft/, `${f} must not carry outreach content`);
+  });
+  test("the outreach copy appears in no public page source, no sitemap and no API route", () => {
+    for (const f of walkSrc("app/api")) assert.doesNotMatch(readFileSync(f, "utf8"), /launch-partners\/email|outreach|INVITATION_CTA/, f);
+    assert.doesNotMatch(read("app/sitemap.ts"), /launch|outreach/);
   });
 });

@@ -33,42 +33,111 @@ export const OPENING_PROMPT_START = "[Your short personal opening";
 export const openingPrompt = (name: string): string => `${OPENING_PROMPT_START} — why you chose ${name}, in your own words. Replace this line before sending.]`;
 export const isOpeningPrompt = (s: string | null | undefined): boolean => !!s && s.includes(OPENING_PROMPT_START);
 
-const TEMPLATE_BODY = [
-  "Hello,",
-  "",
-  "I’ve made a private OneShetland preview for {{BUSINESS_NAME}}.",
-  "",
-  TOKEN_OPENING,
-  "",
-  "I’ve put together an example of how {{BUSINESS_NAME}} could look on OneShetland, using only information already publicly available.",
-  "",
-  "A few important things before you look:",
-  "",
-  "• It’s completely private — only someone with your invitation link can see it.",
-  "• Nothing is live or published.",
-  "• You don’t need to join or claim anything just to have a look.",
-  "• If you do want to take part, launch partners get complimentary Premium access, and I’ll help you get set up.",
-  "• You stay in control — nothing goes live until you review it and approve it yourself.",
-  "",
-  TOKEN_CTA,
-  "",
-  "If you like it, you can claim the business from the preview and take it from there. And if it’s not for you, absolutely no problem.",
-  "",
-  "Darren",
-  "Darren Fullerton",
-  "OneShetland",
-].join("\n");
+/* ── templates ─────────────────────────────────────────────────────────── */
+
+/**
+ * Outreach templates, keyed by the STATE OF ONESHETLAND, not by campaign. Which one new drafts use is a single constant.
+ *
+ *   prelaunch  — OneShetland has NOT launched yet (the introduction says so). Active today.
+ *   live       — reserved for after launch. Deliberately has no copy yet: switching is one constant plus one template,
+ *                and unedited drafts can then be refreshed (see classifyDraft / upgradeDraft) without touching edits.
+ *
+ * `legacy` templates are earlier defaults, kept only so a stored draft that is still exactly one of them can be
+ * recognised as UNEDITED and upgraded safely. A draft that matches none of the known templates was edited by a human
+ * and is never overwritten.
+ */
+export type EmailTemplateMode = "prelaunch" | "live";
+export const ACTIVE_EMAIL_TEMPLATE: EmailTemplateMode = "prelaunch";
+
+interface EmailTemplate { id: string; subject: (name: string) => string; body: string }
+
+const PRELAUNCH: EmailTemplate = {
+  id: "prelaunch",
+  subject: (n) => `I’ve made a private OneShetland preview for ${n}`,
+  body: [
+    "Hello,",
+    "",
+    "I’m Darren, and I’m getting ready to launch OneShetland — a new locally built platform designed to bring more of Shetland into one place.",
+    "",
+    "It will help locals and visitors discover Shetland businesses, events, things to do, products, bookings, offers and community activity through one website and app.",
+    "",
+    "Before launch, I’m inviting a small number of Shetland businesses to become launch partners, and {{BUSINESS_NAME}} is one of the businesses I’d really like to include.",
+    "",
+    TOKEN_OPENING,
+    "",
+    "Rather than just emailing you a description of OneShetland, I’ve made a private preview specifically for {{BUSINESS_NAME}}, using information that is already publicly available, so you can actually see how it could work for you.",
+    "",
+    "A few important things before you look:",
+    "",
+    "• It’s completely private — only someone with your invitation link can see it.",
+    "• Nothing is live or published.",
+    "• You don’t need to join or claim anything just to have a look.",
+    "• If you do want to take part, launch partners get complimentary Premium access, and I’ll personally help you get set up.",
+    "• You stay in control — nothing goes live until you review it and approve it yourself.",
+    "",
+    TOKEN_CTA,
+    "",
+    "If you like what you see, you can claim the business from there and take it at your own pace. And if it’s not for you, absolutely no problem.",
+    "",
+    "Darren",
+    "Darren Fullerton",
+    "OneShetland",
+  ].join("\n"),
+};
+
+/** The first approved default (before the pre-launch introduction). Kept ONLY to recognise untouched drafts. */
+const LEGACY_V1: EmailTemplate = {
+  id: "legacy-v1",
+  subject: (n) => `I made a private OneShetland preview for ${n}`,
+  body: [
+    "Hello,", "", "I’ve made a private OneShetland preview for {{BUSINESS_NAME}}.", "", TOKEN_OPENING, "",
+    "I’ve put together an example of how {{BUSINESS_NAME}} could look on OneShetland, using only information already publicly available.", "",
+    "A few important things before you look:", "",
+    "• It’s completely private — only someone with your invitation link can see it.",
+    "• Nothing is live or published.",
+    "• You don’t need to join or claim anything just to have a look.",
+    "• If you do want to take part, launch partners get complimentary Premium access, and I’ll help you get set up.",
+    "• You stay in control — nothing goes live until you review it and approve it yourself.", "",
+    TOKEN_CTA, "",
+    "If you like it, you can claim the business from the preview and take it from there. And if it’s not for you, absolutely no problem.", "",
+    "Darren", "Darren Fullerton", "OneShetland",
+  ].join("\n"),
+};
+
+/** Registered by mode. `live` is intentionally absent until post-launch copy is written. */
+const TEMPLATES: Partial<Record<EmailTemplateMode, EmailTemplate>> = { prelaunch: PRELAUNCH };
+/** Every template a stored draft could still be an untouched copy of. */
+const KNOWN: EmailTemplate[] = [PRELAUNCH, LEGACY_V1];
 
 const fill = (s: string, name: string) => s.split(TOKEN_BUSINESS).join(name);
 
 /**
  * The default draft for a campaign: business name substituted, the campaign's own researched opening where one exists
- * (otherwise a clear prompt — never an invented claim), the call-to-action token, and Darren's sign-off.
+ * (otherwise a clear prompt — never an invented claim), the call-to-action token, and Darren's sign-off. Uses the
+ * ACTIVE template unless a mode is given.
  */
-export function defaultEmailDraft(i: { businessName: string; opening?: string | null }): EmailDraft {
+export function defaultEmailDraft(i: { businessName: string; opening?: string | null; mode?: EmailTemplateMode }): EmailDraft {
   const name = i.businessName.trim();
+  const t = TEMPLATES[i.mode ?? ACTIVE_EMAIL_TEMPLATE];
+  if (!t) throw new Error(`There is no outreach email template for "${i.mode ?? ACTIVE_EMAIL_TEMPLATE}" yet.`);
   const opening = i.opening?.trim() || openingPrompt(name);
-  return { subject: `I made a private OneShetland preview for ${name}`, opening, body: fill(TEMPLATE_BODY, name) };
+  return { subject: t.subject(name), opening, body: fill(t.body, name) };
+}
+
+export type DraftClass = "current" | "upgradable" | "edited" | "empty";
+
+/**
+ * Is a stored draft an UNTOUCHED copy of a template? Compares subject and message (the opening is its own field and is
+ * always preserved). "current" = the active template; "upgradable" = an earlier default, byte-for-byte, so safe to
+ * replace; "edited" = anything else, which is a human's work and must be left alone.
+ */
+export function classifyDraft(stored: { subject: string | null; body: string | null }, businessName: string): DraftClass {
+  if (!stored.subject?.trim() && !stored.body?.trim()) return "empty";
+  const name = businessName.trim();
+  const active = TEMPLATES[ACTIVE_EMAIL_TEMPLATE];
+  const same = (t: EmailTemplate) => stored.subject === t.subject(name) && stored.body === fill(t.body, name);
+  if (active && same(active)) return "current";
+  return KNOWN.some(same) ? "upgradable" : "edited";
 }
 
 /* ── rendering ─────────────────────────────────────────────────────────── */
