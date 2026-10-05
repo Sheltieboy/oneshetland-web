@@ -5,55 +5,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { randomBytes } from "node:crypto";
 import { join } from "node:path";
 import nextConfig from "../next.config.ts";
-import { hashToken, parseInviteTable, verifyInvite } from "../lib/launch-preview/invite.ts";
 import { getPreviewConfig, previewSlugs } from "../lib/launch-preview/registry.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const token = () => randomBytes(32).toString("base64url");
-const table = (slug, entries) => parseInviteTable(JSON.stringify({ [slug]: entries }));
-
-describe("invitations", () => {
-  test("a valid token opens its own preview; a wrong, missing, short or non-string one does not", () => {
-    const t = token();
-    const tb = table("love-from-shetland", [hashToken(t)]);
-    assert.equal(verifyInvite(tb, "love-from-shetland", t), true);
-    for (const bad of [token(), undefined, null, "", "short", t.slice(0, -1), `${t}x`, t.toUpperCase(), [t], { t }, 123, ` ${t}`]) {
-      assert.equal(verifyInvite(tb, "love-from-shetland", bad), false, String(bad));
-    }
-  });
-  test("a token is independent per business: it opens nothing else", () => {
-    const a = token(), b = token();
-    const tb = parseInviteTable(JSON.stringify({ "love-from-shetland": [hashToken(a)], "the-dowry": [hashToken(b)] }));
-    assert.equal(verifyInvite(tb, "the-dowry", a), false);
-    assert.equal(verifyInvite(tb, "love-from-shetland", b), false);
-    assert.equal(verifyInvite(tb, "the-dowry", b), true);
-    assert.equal(verifyInvite(tb, "unknown-slug", a), false);
-  });
-  test("revocation: removing the hash closes the link; a second hash can be live alongside the first", () => {
-    const old = token(), fresh = token();
-    assert.equal(verifyInvite(table("s", [hashToken(old), hashToken(fresh)]), "s", old), true);
-    assert.equal(verifyInvite(table("s", [hashToken(fresh)]), "s", old), false);
-    assert.equal(verifyInvite(table("s", []), "s", fresh), false);
-  });
-  test("expiry: valid until the end of the stated day, then closed", () => {
-    const t = token();
-    const tb = table("s", [`${hashToken(t)}@2026-12-31`]);
-    assert.equal(verifyInvite(tb, "s", t, new Date("2026-12-31T23:00:00Z")), true);
-    assert.equal(verifyInvite(tb, "s", t, new Date("2027-01-01T00:00:01Z")), false);
-    assert.equal(verifyInvite(table("s", [`${hashToken(t)}@not-a-date`]), "s", t), false);
-  });
-  test("fails CLOSED: no variable, junk, wrong shapes, or non-hash entries never open anything", () => {
-    const t = token();
-    for (const raw of [undefined, "", "not json", "[]", "null", '{"s":"abc"}', '{"s":[1,2]}', '{"s":["short"]}', `{"s":["${t}"]}`]) {
-      assert.equal(verifyInvite(parseInviteTable(raw), "s", t), false, String(raw));
-    }
-    // the stored value is a hash: presenting the hash itself must not work as a token
-    assert.equal(verifyInvite(table("s", [hashToken(t)]), "s", hashToken(t)), false);
-  });
-});
 
 describe("configuration", () => {
   test("each registered preview is self-consistent and carries nothing purchasable", () => {
@@ -101,13 +57,15 @@ describe("privacy", () => {
     assert.match(read("app/robots.ts"), /"\/launch\/"/);
     assert.doesNotMatch(read("app/sitemap.ts"), /launch/i);
   });
-  test("the page is noindex in its own metadata, dynamic, and validates the invitation before reading any data", () => {
+  test("the page is noindex in its own metadata, dynamic, and asks the DATABASE about the invitation before reading any data", () => {
     const page = read("app/launch/[slug]/page.tsx");
     assert.match(page, /index: false/); assert.match(page, /follow: false/); assert.match(page, /dynamic = "force-dynamic"/);
     const gate = page.indexOf("notFound()");
     assert.ok(gate > 0 && gate < page.indexOf("await readDirectoryFacts"), "the notFound gate must come before any data read");
-    assert.match(page, /!cfg \|\| !allowed/, "an unknown slug and a bad token take the same branch");
-    assert.doesNotMatch(page, /invite[^\n]*(props|JSON\.stringify)/i);
+    assert.match(page, /openPrivatePreview\(slug\)/); assert.match(page, /if \(!open\) notFound\(\)/);
+    assert.doesNotMatch(page, /searchParams/, "the page never reads the token from the address");
+    const door = read("lib/launch-preview/invite.server.ts");
+    assert.match(door, /launch_invite_resolve/); assert.match(door, /data !== cfg\.directoryBusinessId/, "the invitation must be for THIS preview's business");
   });
   test("public navigation, cookie banner and analytics are not rendered under /launch/", () => {
     const layout = read("app/layout.tsx");
@@ -126,7 +84,7 @@ describe("privacy", () => {
 
 describe("nothing is live, nothing can be bought", () => {
   const page = read("components/launch-preview/PreviewPage.tsx");
-  const cta = read("components/launch-preview/ClaimCta.tsx");
+  const cta = read("components/launch-preview/ClaimEntry.tsx");
   test("the page has no form, no outbound action and no purchase control", () => {
     assert.doesNotMatch(page, /<form|action=|onSubmit|fetch\(|sign-in|sign-up|\/checkout|\/basket|Add to basket|Buy now/i);
     assert.doesNotMatch(cta, /fetch\(|XMLHttpRequest|sendBeacon|action=|<form|supabase|mailto:/i, "the claim button sends nothing");
@@ -138,7 +96,7 @@ describe("nothing is live, nothing can be bought", () => {
     const all = page + cta;
     for (const s of ["Private preview · Nothing is live", "Your private OneShetland preview", "only people with this invitation can see it", "nothing on it is live",
       "hasn&apos;t joined OneShetland", "nothing will be published without your approval", "Nothing will be published until you claim the business and explicitly approve it",
-      "Claiming your preview does NOT publish anything", "Like what you see?", "Ready when you are", "does not indicate participation or endorsement",
+      "Claiming your preview does NOT publish anything", "Like what you see?", "Claiming gives you access to review and manage your business. Nothing new is published until you choose to publish it.", "does not indicate participation or endorsement",
       "Being prepared", "Coming next", "Available", "Illustration · not live", "Preview products — not live"]) {
       assert.ok(all.includes(s) || all.includes(s.replace("&apos;", "'")), `missing: ${s}`);
     }
@@ -151,7 +109,8 @@ describe("nothing is live, nothing can be bought", () => {
     assert.match(cta, /Claim \{businessName\} →/);
     assert.match(cta, /Still private\. Nothing goes live until you approve it\./);
     assert.doesNotMatch(cta, /Claim my private preview/);
-    assert.doesNotMatch(cta, /fetch\(|XMLHttpRequest|sendBeacon|<form|supabase|mailto:|localStorage|cookie/i);
+    assert.doesNotMatch(cta, /fetch\(|XMLHttpRequest|sendBeacon|<form|supabase|mailto:|localStorage|cookie|invite|token/i, "the entry component makes no request and holds no secret");
+    assert.match(cta, /Continue →/); assert.match(cta, /href=\{`\/launch\/\$\{slug\}\/claim`\}/);
   });
   test("every illustration frame is labelled and no frame names another business", () => {
     assert.ok((page.match(/Illustration · not live/g) ?? []).length >= 1);

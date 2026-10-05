@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 import type { PreviewConfig, PreviewProduct } from "@/lib/launch-preview/types";
 import type { DirectoryFacts } from "@/lib/launch-preview/directory";
-import { ClaimCta } from "./ClaimCta";
+import Link from "next/link";
+import { ClaimEntry } from "./ClaimEntry";
+import type { ClaimState } from "@/lib/launch-preview/invite";
+
+export type Viewer = { kind: "visitor" } | { kind: ClaimState; businessId: string };
 
 /**
  * The Launch Partner Preview page. Every business-specific word and picture comes from PreviewConfig (and the
@@ -70,13 +74,13 @@ function Section({ id, eyebrow, title, children, tone = "cream", className = "" 
 
 /* ── 1. private header ────────────────────────────────────────────────── */
 
-function PrivateBar({ name }: { name: string }) {
+function PrivateBar({ name, owner }: { name: string; owner: boolean }) {
   return (
     <div className="sticky top-0 z-40 border-b border-white/10 text-white" style={{ background: NAVY }} role="note" aria-label="This is a private preview. Nothing is live.">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-5 py-2.5">
         <p className="flex min-w-0 items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] sm:text-xs">
           <Lock className="h-4 w-4 shrink-0" />
-          <span className="truncate">Private preview · Nothing is live</span>
+          <span className="truncate">{owner ? "Claimed · Still private setup" : "Private preview · Nothing is live"}</span>
         </p>
         <span className="hidden shrink-0 text-xs font-semibold text-white/70 sm:inline">{name}</span>
       </div>
@@ -121,7 +125,7 @@ function Hero({ cfg }: { cfg: PreviewConfig }) {
 
 /* ── private notice: one calm statement ──────────────────────────────── */
 
-function PrivateNotice({ cfg }: { cfg: PreviewConfig }) {
+function PrivateNotice({ cfg, owner }: { cfg: PreviewConfig; owner: boolean }) {
   return (
     <section className="relative bg-white" aria-labelledby="private-h">
       <div className="mx-auto grid max-w-6xl gap-6 px-5 py-12 sm:py-16 lg:grid-cols-[.8fr_1.2fr] lg:gap-14">
@@ -130,12 +134,20 @@ function PrivateNotice({ cfg }: { cfg: PreviewConfig }) {
           <h2 id="private-h" className="mt-4 font-display text-3xl font-bold leading-[1.05] sm:text-5xl">Your private OneShetland preview</h2>
         </div>
         <div className="border-l-2 pl-6 lg:pl-10" style={{ borderColor: CORAL }}>
+          {owner ? (
+            <p className="font-display text-xl font-medium leading-snug text-ink sm:text-2xl">
+              Welcome — you now manage {cfg.businessName}. Your existing Directory listing is exactly as it was. This page, the example products and the setup you do from here are private, and nothing new goes live until you choose to publish it.
+            </p>
+          ) : (
           <p className="font-display text-xl font-medium leading-snug text-ink sm:text-2xl">
             We&apos;ve put together an example of how {cfg.businessName} could look on OneShetland. This page is private — only people with this invitation can see it — and nothing on it is live. {cfg.businessName} hasn&apos;t joined OneShetland, and nothing will be published without your approval.
           </p>
-          <p className="mt-4 text-sm text-ink-soft">
-            We&apos;ve used publicly available information simply to show what is possible. Nothing will be published until you claim the business and explicitly approve it.
-          </p>
+          )}
+          {!owner && (
+            <p className="mt-4 text-sm text-ink-soft">
+              We&apos;ve used publicly available information simply to show what is possible. Nothing will be published until you claim the business and explicitly approve it.
+            </p>
+          )}
         </div>
       </div>
     </section>
@@ -487,14 +499,43 @@ function Steps() {
 
 /* ── 10. closing CTA + trust note ─────────────────────────────────────── */
 
-function Closing({ cfg }: { cfg: PreviewConfig }) {
+function Closing({ cfg, viewer }: { cfg: PreviewConfig; viewer: Viewer }) {
+  const kind = viewer.kind;
+  const signedIn = kind !== "visitor";
+  const businessId = viewer.kind === "visitor" ? null : viewer.businessId;
+  const pill = "inline-block rounded-full px-7 py-4 text-base font-bold shadow-lg transition hover:brightness-105";
   return (
     <section className="relative isolate overflow-hidden text-white" style={{ background: `linear-gradient(140deg, ${NAVY}, #0a4a70 60%, #0e6f86)` }}>
       <div className="pointer-events-none absolute -left-20 top-0 -z-10 h-80 w-80 rounded-full opacity-25 blur-3xl" style={{ background: CORAL }} />
       <div className="mx-auto max-w-4xl px-5 py-16 text-center sm:py-24">
-        <h2 className="font-display text-4xl font-bold sm:text-6xl">Like what you see?</h2>
-        <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">There&apos;s no rush and no obligation.</p>
-        <div className="mt-8 flex justify-center"><ClaimCta businessName={cfg.businessName} /></div>
+        {kind === "owner" ? (
+          <>
+            <p className="eyebrow" style={{ color: LIME }}>Claimed · Still private setup</p>
+            <h2 className="mt-2 font-display text-4xl font-bold sm:text-6xl">Over to you.</h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">Manage {cfg.businessName}, add your real products and choose what you publish. Nothing from this preview goes live on its own.</p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href={`/business/${businessId}/manage`} className={pill} style={{ background: LIME, color: NAVY }}>Manage {cfg.businessName} →</Link>
+              <Link href={`/business/${businessId}/manage/products`} className={pill + " border border-white/40 text-white"}>Go to Products</Link>
+            </div>
+          </>
+        ) : kind === "pending" ? (
+          <>
+            <h2 className="font-display text-4xl font-bold sm:text-6xl">Your claim has been sent</h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">We&apos;ll confirm the claim before giving you management access. Nothing from your private preview has been published.</p>
+            <div className="mt-8"><Link href={`/launch/${cfg.slug}/claim`} className={pill} style={{ background: LIME, color: NAVY }}>View your claim →</Link></div>
+          </>
+        ) : kind === "claimed_by_other" || kind === "invite_used" ? (
+          <>
+            <h2 className="font-display text-4xl font-bold sm:text-5xl">{kind === "claimed_by_other" ? "This business has already been claimed" : "This invitation has already been used"}</h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">If that doesn&apos;t look right, please reply to the message Darren sent you and he&apos;ll look into it.</p>
+          </>
+        ) : (
+          <>
+            <h2 className="font-display text-4xl font-bold sm:text-6xl">Like what you see?</h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">There&apos;s no rush and no obligation.</p>
+            <div className="mt-8 flex justify-center"><ClaimEntry slug={cfg.slug} businessName={cfg.businessName} signedIn={signedIn} /></div>
+          </>
+        )}
       </div>
     </section>
   );
@@ -515,12 +556,13 @@ function Trust({ name }: { name: string }) {
 
 /* ── page ─────────────────────────────────────────────────────────────── */
 
-export function PreviewPage({ cfg, facts }: { cfg: PreviewConfig; facts: DirectoryFacts }) {
+export function PreviewPage({ cfg, facts, viewer }: { cfg: PreviewConfig; facts: DirectoryFacts; viewer: Viewer }) {
+  const owner = viewer.kind === "owner";
   return (
     <div className="overflow-x-clip">
-      <PrivateBar name={cfg.businessName} />
+      <PrivateBar name={cfg.businessName} owner={owner} />
       <Hero cfg={cfg} />
-      <PrivateNotice cfg={cfg} />
+      <PrivateNotice cfg={cfg} owner={owner} />
       <Profile cfg={cfg} facts={facts} />
       <Products cfg={cfg} />
       <Across cfg={cfg} facts={facts} />
@@ -528,7 +570,7 @@ export function PreviewPage({ cfg, facts }: { cfg: PreviewConfig; facts: Directo
       <Catalogue />
       <PartnerOffer cfg={cfg} />
       <Steps />
-      <Closing cfg={cfg} />
+      <Closing cfg={cfg} viewer={viewer} />
       <Trust name={cfg.businessName} />
     </div>
   );

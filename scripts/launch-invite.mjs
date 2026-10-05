@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 /**
- * Issue a Launch Partner Preview invitation.
+ * Launch Partner invitations are issued by the DATABASE (so only a hash is ever stored) — from the admin screen
+ * (Admin → Business claims → "Launch invitations"), or from SQL:
  *
- *   node scripts/launch-invite.mjs <slug> [expiry YYYY-MM-DD]
+ *   select public.admin_issue_launch_invite('love-from-shetland', '<business id>', now() + interval '30 days');
  *
- * Prints, once, the private link token and the hash entry to add to LAUNCH_PREVIEW_INVITES. The token is NOT stored
- * anywhere by this script; keep it only in the message you send. To revoke, delete the hash entry and redeploy.
+ * It returns the token ONCE. The link is  https://oneshetland.com/launch/<slug>?invite=<token>
+ * Revoke:   select public.admin_revoke_launch_invite('love-from-shetland', 'reason');
+ *
+ * This script only prints those reminders; it generates and stores nothing.
  */
-import { randomBytes, createHash } from "node:crypto";
-
-const [slug, expiry] = process.argv.slice(2);
-if (!slug) { console.error("usage: node scripts/launch-invite.mjs <slug> [YYYY-MM-DD]"); process.exit(1); }
-if (expiry && !/^\d{4}-\d{2}-\d{2}$/.test(expiry)) { console.error("expiry must be YYYY-MM-DD"); process.exit(1); }
-const token = randomBytes(32).toString("base64url");
-const hash = createHash("sha256").update(token, "utf8").digest("hex");
-console.log(JSON.stringify({ slug, token, entry: expiry ? `${hash}@${expiry}` : hash }));
+console.log(`Issue:  select public.admin_issue_launch_invite('<slug>', '<business id>', now() + interval '30 days');
+Revoke: select public.admin_revoke_launch_invite('<slug>', '<reason>');
+List:   select * from public.admin_list_launch_invites();
+Or use Admin → Business claims → Launch invitations.`);

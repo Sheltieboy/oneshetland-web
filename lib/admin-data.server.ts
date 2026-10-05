@@ -137,7 +137,7 @@ export async function getBusinessClaims(status: "pending" | "approved" | "all" =
   return safe((async () => {
     const sb = await createServerClient();
     let q = sb.from("business_claims")
-      .select("id, business_id, user_id, status, contact_name, contact_email, contact_phone, role, evidence, created_at, business:local_businesses(id, name, slug, category)")
+      .select("id, business_id, user_id, status, contact_name, contact_email, contact_phone, role, evidence, source, source_ref, created_at, business:local_businesses(id, name, slug, category)")
       .order("created_at", { ascending: false }).limit(200);
     if (status !== "all") q = q.eq("status", status);
     const { data } = await q;

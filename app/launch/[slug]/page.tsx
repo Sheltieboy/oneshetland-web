@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPreviewConfig } from "@/lib/launch-preview/registry";
-import { inviteTableFromEnv, verifyInvite } from "@/lib/launch-preview/invite";
+import { getAccount } from "@/lib/auth";
+import { openPrivatePreview, claimView } from "@/lib/launch-preview/invite.server";
 import { readDirectoryFacts } from "@/lib/launch-preview/directory";
-import { PreviewPage } from "@/components/launch-preview/PreviewPage";
+import { PreviewPage, type Viewer } from "@/components/launch-preview/PreviewPage";
 
 export const dynamic = "force-dynamic";
 
@@ -15,22 +15,25 @@ export const metadata: Metadata = {
 };
 
 /**
- * /launch/{slug}?invite={token} — a private Launch Partner Preview.
+ * /launch/{slug} — a private Launch Partner Preview.
  *
- * No valid invitation = no content: a wrong token, a missing token, an expired or revoked one, and an unknown slug all
- * produce the same ordinary 404, so nothing reveals that a preview exists. The token is checked on the server against
- * stored hashes (lib/launch-preview/invite.ts); it is never put in the page.
+ * The invitation arrives as ?invite=<token>; proxy.ts moves it into an HttpOnly cookie and redirects here, so this
+ * page never sees it in the address. openPrivatePreview asks the database whether that token is valid for this slug
+ * and this business. No valid invitation = no content: no cookie, a wrong, revoked or expired token and an unknown
+ * slug all produce the same ordinary 404.
+ *
+ * The preview itself is the same for everyone who holds the invitation. What changes is the CTA, according to where
+ * THEY stand: not signed in, ready to claim, claim sent, owner, or the listing/invitation is already taken.
  */
-export default async function LaunchPreview({ params, searchParams }: {
-  params: Promise<{ slug: string }>;
-  searchParams: Promise<{ invite?: string | string[] }>;
-}) {
-  const [{ slug }, sp] = await Promise.all([params, searchParams]);
-  const token = Array.isArray(sp.invite) ? sp.invite[0] : sp.invite;
-  const cfg = getPreviewConfig(slug);
-  const allowed = verifyInvite(inviteTableFromEnv(), slug, token);
-  if (!cfg || !allowed) notFound();
+export default async function LaunchPreview({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const open = await openPrivatePreview(slug);
+  if (!open) notFound();
 
-  const facts = await readDirectoryFacts(cfg);
-  return <PreviewPage cfg={cfg} facts={facts} />;
+  const account = await getAccount();
+  const view = account ? await claimView(slug, open.token) : null;
+  const viewer: Viewer = !account ? { kind: "visitor" } : view ? { kind: view.state, businessId: view.business_id } : { kind: "visitor" };
+
+  const facts = await readDirectoryFacts(open.cfg);
+  return <PreviewPage cfg={open.cfg} facts={facts} viewer={viewer} />;
 }

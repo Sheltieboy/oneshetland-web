@@ -32,14 +32,14 @@ const input = "w-full rounded-lg border border-line-strong bg-white px-3 py-2 te
  * Every rule (tiers, expiry window, reason, "not a business that pays", audit) lives in the database; this only
  * collects the inputs, identifies the business, asks before acting, and reports what the database said.
  */
-export function LaunchPartnerAccess({ grants, initial }: { grants: GrantListRow[]; /** A business picked from the claims list, looked up on the server. */ initial?: LaunchLookupRow | null }) {
+export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: GrantListRow[]; /** A business picked from the claims list, looked up on the server. */ initial?: LaunchLookupRow | null; /** Pre-selects the tier for a launch-partner claim. The grant itself is still an explicit, audited action. */ initialTier?: "pro" | "premium" }) {
   const router = useRouter();
   const confirm = useConfirm();
   const notify = useNotify();
   const [query, setQuery] = useState(initial?.business_id ?? "");
   const [results, setResults] = useState<LaunchLookupRow[] | null>(initial ? [initial] : null);
   const [selected, setSelected] = useState<LaunchLookupRow | null>(initial ?? null);
-  const [tier, setTier] = useState<"pro" | "premium">("pro");
+  const [tier, setTier] = useState<"pro" | "premium">(initialTier ?? "pro");
   const [date, setDate] = useState("");
   const [reason, setReason] = useState("");
   const [revokeReason, setRevokeReason] = useState("");

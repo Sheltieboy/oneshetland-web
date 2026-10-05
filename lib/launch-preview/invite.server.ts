@@ -1,0 +1,31 @@
+import { cookies } from "next/headers";
+import { createClient } from "@/lib/supabase/server";
+import { getPreviewConfig } from "./registry";
+import { inviteCookieName, isSlug, isToken, type InviteView } from "./invite";
+import type { PreviewConfig } from "./types";
+
+export interface PrivatePreview { cfg: PreviewConfig; token: string; businessId: string }
+
+/**
+ * The one door into a private preview. Returns the preview ONLY if the invitation cookie holds a token the database
+ * accepts for this slug AND for the business this preview is configured for. Every failure — no cookie, wrong,
+ * revoked, expired, unknown slug, mismatch — is the same null, which the page turns into an ordinary 404.
+ */
+export async function openPrivatePreview(slug: string): Promise<PrivatePreview | null> {
+  if (!isSlug(slug)) return null;
+  const cfg = getPreviewConfig(slug);
+  const token = (await cookies()).get(inviteCookieName(slug))?.value;
+  if (!cfg || !isToken(token) || !cfg.directoryBusinessId) return null;
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("launch_invite_resolve", { p_slug: slug, p_token: token });
+  if (error || typeof data !== "string" || data !== cfg.directoryBusinessId) return null;
+  return { cfg, token, businessId: data };
+}
+
+/** Where the signed-in caller stands with this invitation. Null if it is not valid. */
+export async function claimView(slug: string, token: string): Promise<InviteView | null> {
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("launch_invite_claim_state", { p_slug: slug, p_token: token });
+  if (error || !data || typeof data !== "object") return null;
+  return data as InviteView;
+}

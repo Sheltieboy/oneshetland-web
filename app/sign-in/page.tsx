@@ -180,7 +180,7 @@ function SignInInner() {
 
         <p className="mt-6 border-t border-line pt-5 text-center text-sm text-ink-soft">
           New to OneShetland?{" "}
-          <Link href="/sign-up" className="font-semibold text-teal-dark hover:underline">
+          <Link href={params.get("next") ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"} className="font-semibold text-teal-dark hover:underline">
             Create an account
           </Link>
         </p>

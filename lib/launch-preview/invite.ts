@@ -1,60 +1,51 @@
 /**
- * invite.ts — private access for a Launch Partner Preview.
+ * invite.ts — the shape of a Launch Partner invitation, as far as the WEB cares.
  *
- * An invitation is a high-entropy random token in the link (?invite=…). The server never stores the token: it stores
- * the SHA-256 of it, in the LAUNCH_PREVIEW_INVITES environment variable, keyed by preview slug:
+ * Whether a token is valid is decided in the DATABASE (launch_invite_resolve): only a SHA-256 of the token is stored,
+ * it belongs to exactly one business, and it can be revoked, expire, and be tied to the first account that claims
+ * through it. This module only knows what a well-formed token and slug look like, and where the web keeps the token.
  *
- *   LAUNCH_PREVIEW_INVITES='{"love-from-shetland":["<sha256 hex>", "<sha256 hex>@2026-12-31"]}'
- *
- *   · the token is not in source control, in the database, or in any log — only its hash is, and only in deployment config
- *   · each slug has its OWN list, so one business's invitation opens nothing else
- *   · REVOKE by deleting the hash and redeploying; an entry can also carry an @YYYY-MM-DD expiry
- *   · several hashes per slug are allowed, so a new link can be issued before the old one is revoked
- *
- * Comparison is constant-time and always runs, so neither a wrong token nor an unknown slug is distinguishable from the
- * other by response or timing.
+ * WHERE THE TOKEN LIVES. The link a business is sent carries ?invite=<token>. The first request (proxy.ts) moves it
+ * into an HttpOnly cookie scoped to that one preview and redirects to the clean address, so the token is not left
+ * in the address bar, history, a Referer header, analytics, or the `next=` parameter of the sign-in page. Everything
+ * after — sign-in, sign-up, the claim form — reads the cookie on the server. The browser's JavaScript never sees it.
  */
-import { createHash, timingSafeEqual } from 'node:crypto';
 
-export type InviteTable = Record<string, string[]>;
+/** 64 hex characters from the database today; the format allows base64url so older or longer tokens also work. */
+export const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
+export const SLUG_RE = /^[a-z0-9][a-z0-9-]{2,60}$/;
 
-/** 32 random bytes as base64url is 43 characters; anything much shorter is not one of ours. */
-const TOKEN_RE = /^[A-Za-z0-9_-]{40,128}$/;
-const HASH_RE = /^[0-9a-f]{64}$/;
+export const isToken = (v: unknown): v is string => typeof v === "string" && TOKEN_RE.test(v);
+export const isSlug = (v: unknown): v is string => typeof v === "string" && SLUG_RE.test(v);
 
-export const hashToken = (token: string): string => createHash('sha256').update(token, 'utf8').digest('hex');
+export const inviteCookieName = (slug: string) => `lp_invite_${slug.replace(/-/g, "_")}`;
+export const invitePath = (slug: string) => `/launch/${slug}`;
+/** Long enough to come back to the preview for a couple of weeks; short enough not to linger on a shared computer. */
+export const INVITE_COOKIE_MAX_AGE = 60 * 60 * 24 * 14;
 
-export function parseInviteTable(raw: string | undefined | null): InviteTable {
-  if (!raw) return {};
-  try {
-    const v = JSON.parse(raw) as unknown;
-    if (!v || typeof v !== 'object' || Array.isArray(v)) return {};
-    const out: InviteTable = {};
-    for (const [slug, list] of Object.entries(v as Record<string, unknown>)) {
-      if (Array.isArray(list)) out[slug] = list.filter((x): x is string => typeof x === 'string');
-    }
-    return out;
-  } catch {
-    return {};          // a malformed variable means "no invitations", never "open"
-  }
+export type ClaimState = "open" | "pending" | "rejected" | "owner" | "claimed_by_other" | "invite_used";
+export interface InviteView { state: ClaimState; business_id: string; business_name: string }
+
+export interface InviteHandoff {
+  /** Where to redirect: the same path with the query string removed. */
+  location: string;
+  /** The cookie to set, or null when the slug or token is malformed (the query is still shed). */
+  cookie: { name: string; value: string; path: string; maxAge: number; httpOnly: true; sameSite: "lax" } | null;
 }
 
-/** Does `token` open the preview for `slug`? Fails closed on anything unexpected. */
-export function verifyInvite(table: InviteTable, slug: string, token: unknown, now: Date = new Date()): boolean {
-  const candidate = typeof token === 'string' && TOKEN_RE.test(token) ? token : '';
-  const digest = Buffer.from(hashToken(candidate || 'no-token'), 'hex');
-  let ok = false;
-  for (const entry of table[slug] ?? []) {
-    const [hash, expires] = entry.split('@');
-    if (!HASH_RE.test(hash ?? '')) continue;
-    if (expires) {
-      const end = new Date(`${expires}T23:59:59Z`);
-      if (Number.isNaN(end.getTime()) || end < now) continue;
-    }
-    // Compare every entry in full; do not stop at the first match.
-    if (timingSafeEqual(digest, Buffer.from(hash, 'hex')) && candidate) ok = true;
-  }
-  return ok;
+/**
+ * proxy.ts calls this for every request. For /launch/{slug}?invite=… it says "set this cookie and redirect to the
+ * clean address"; for anything else it returns null and the request carries on untouched.
+ */
+export function inviteHandoff(pathname: string, search: URLSearchParams): InviteHandoff | null {
+  const m = /^\/launch\/([^/]+)\/?$/.exec(pathname);
+  if (!m || !search.has("invite")) return null;
+  const slug = m[1];
+  const token = search.get("invite");
+  return {
+    location: pathname,
+    cookie: isSlug(slug) && isToken(token)
+      ? { name: inviteCookieName(slug), value: token, path: invitePath(slug), maxAge: INVITE_COOKIE_MAX_AGE, httpOnly: true, sameSite: "lax" }
+      : null,
+  };
 }
-
-export const inviteTableFromEnv = (): InviteTable => parseInviteTable(process.env.LAUNCH_PREVIEW_INVITES);
