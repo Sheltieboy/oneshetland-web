@@ -12,6 +12,7 @@ import type { PageDraft } from "../business-page/types";
 import { launchPreviewOptions } from "../launch-preview/registry";
 import { getPreviewConfig } from "../launch-preview/registry";
 import { buildPageDraft, POSITIONING_BY_SLUG } from "./draft";
+import { defaultEmailDraft } from "./email";
 import { parsePageDraft, parsePreviewConfig } from "./validate";
 
 export interface CandidateRow {
@@ -30,6 +31,7 @@ export interface CampaignDetail extends PipelineRow {
   contact_email: string | null;
   email_subject: string | null;
   email_body: string | null;
+  email_opening: string | null;
   notes: string | null;
   events: CampaignEvent[];
 }
@@ -66,6 +68,18 @@ export const createCampaign = (a: { businessId: string; slug: string; positionin
     p_business_id: a.businessId, p_slug: a.slug, p_positioning: a.positioning ?? null,
     p_preview: a.preview ?? {}, p_page: a.page ?? {}, p_is_test: a.isTest ?? false,
   });
+
+/**
+ * Create a campaign AND its standard outreach email draft (subject, personalised opening, body with the call-to-action
+ * token). This is the ONLY time a draft is generated automatically; after this it changes only when the administrator
+ * edits it or explicitly resets it to the default.
+ */
+export async function createCampaignWithDraft(a: Parameters<typeof createCampaign>[0] & { businessName: string; opening?: string | null }): Promise<string> {
+  const id = await createCampaign(a);
+  const d = defaultEmailDraft({ businessName: a.businessName, opening: a.opening });
+  await updateCampaign(id, { email_subject: d.subject, email_opening: d.opening, email_body: d.body });
+  return id;
+}
 
 export const updateCampaign = (id: string, patch: Record<string, unknown>) => rpc<unknown>("admin_launch_partner_update", { p_id: id, p_patch: patch });
 export const setStage = (id: string, stage: string, note?: string) => rpc<void>("admin_launch_partner_set_stage", { p_id: id, p_stage: stage, p_note: note ?? null });
@@ -114,7 +128,7 @@ export async function importExistingPreviews(): Promise<ImportOutcome> {
     const page = parsePageDraft(buildPageDraft(cfg));
     if (!preview.ok || !page.ok) { out.skipped.push({ slug: o.slug, reason: `invalid: ${preview.ok ? (page as { error: string }).error : preview.error}` }); continue; }
     // Imported campaigns always start with claiming closed, whatever the source config says.
-    await createCampaign({ businessId: cfg.directoryBusinessId, slug: cfg.slug, positioning: POSITIONING_BY_SLUG[cfg.slug] ?? cfg.positioning ?? null, preview: { ...preview.value, claim: "holding" }, page: page.value });
+    await createCampaignWithDraft({ businessName: cfg.businessName, opening: cfg.outreachOpening ?? null, businessId: cfg.directoryBusinessId, slug: cfg.slug, positioning: POSITIONING_BY_SLUG[cfg.slug] ?? cfg.positioning ?? null, preview: { ...preview.value, claim: "holding" }, page: page.value });
     out.created.push({ slug: cfg.slug, name: cfg.businessName });
   }
   return out;

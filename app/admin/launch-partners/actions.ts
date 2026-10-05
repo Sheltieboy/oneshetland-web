@@ -4,12 +4,14 @@ import { requireAdmin } from "@/lib/admin-data.server";
 import { publicClient } from "@/lib/supabase/public";
 import { createClient } from "@/lib/supabase/server";
 import {
-  createCampaign, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
+  createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
+import { configuredTransport, outreachFrom } from "@/lib/launch-partners/send.server";
+import { GATE_MESSAGE, sendInvitationEmail } from "@/lib/launch-partners/send-core";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
-import { checkEmail } from "@/lib/launch-partners/email";
+import { checkEmail, defaultEmailDraft } from "@/lib/launch-partners/email";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 
 /**
@@ -38,7 +40,7 @@ export async function prepareCampaignAction(input: { businessId: string; positio
     const page = parsePageDraft(buildPageSkeleton(rec));
     if (!preview.ok) return { ok: false, error: preview.error };
     if (!page.ok) return { ok: false, error: page.error };
-    const id = await createCampaign({ businessId: rec.id, slug, positioning: input.positioning?.trim() || null, preview: preview.value, page: page.value, isTest: /^zz\b/i.test(rec.name.trim()) });
+    const id = await createCampaignWithDraft({ businessName: rec.name, opening: null, businessId: rec.id, slug, positioning: input.positioning?.trim() || null, preview: preview.value, page: page.value, isTest: /^zz\b/i.test(rec.name.trim()) });
     return { ok: true, id };
   } catch (e) { return fail(e); }
 }
@@ -75,17 +77,74 @@ export async function savePageDraftAction(id: string, draft: unknown): Promise<R
   try { await updateCampaign(id, { page_config: parsed.value }); return { ok: true }; } catch (e) { return fail(e); }
 }
 
-export async function saveEmailAction(id: string, f: { contactName: string; contactEmail: string; subject: string; body: string; notes?: string }): Promise<Result<{ problems: string[] }>> {
+export async function saveEmailAction(id: string, f: { contactName: string; contactEmail: string; subject: string; opening: string; body: string; notes?: string }): Promise<Result<{ problems: string[] }>> {
   await requireAdmin();
   // Drafts may be saved half-written; only a real invitation link is refused outright.
-  if (/[?&]invite=[A-Za-z0-9_-]{20,}/.test(f.body) || /\b[0-9a-f]{64}\b/.test(f.body)) return { ok: false, error: "That draft contains what looks like a real invitation link. Use the placeholder; paste the real link only when you send." };
-  const check = checkEmail({ subject: f.subject, body: f.body, contactEmail: f.contactEmail });
+  const secret = /[?&]invite=[A-Za-z0-9_-]{20,}/;
+  if (secret.test(f.body) || secret.test(f.opening) || /\b[0-9a-f]{64}\b/.test(`${f.body} ${f.opening}`)) return { ok: false, error: "That draft contains what looks like a real invitation link. Leave the call-to-action token; the link is inserted when you generate the invitation." };
+  const check = checkEmail({ subject: f.subject, body: f.body, opening: f.opening, contactEmail: f.contactEmail });
   try {
     await updateCampaign(id, {
       contact_name: f.contactName.trim() || null, contact_email: f.contactEmail.trim() || null,
-      email_subject: f.subject.trim() || null, email_body: f.body.trim() || null, ...(f.notes !== undefined ? { notes: f.notes.trim() || null } : {}),
+      email_subject: f.subject.trim() || null, email_opening: f.opening.trim() || null, email_body: f.body.trim() || null, ...(f.notes !== undefined ? { notes: f.notes.trim() || null } : {}),
     });
     return { ok: true, problems: check.problems };
+  } catch (e) { return fail(e); }
+}
+
+/**
+ * Replace the saved draft (subject, personalised opening, body) with the standard template for this business. This is
+ * the ONLY way, after creation, that the draft is regenerated — it is never done automatically — and the editor asks
+ * for confirmation first. The opening comes from the campaign's researched config where one exists, otherwise a prompt.
+ */
+export async function resetEmailToDefaultAction(id: string): Promise<Result<{ subject: string; opening: string; body: string }>> {
+  await requireAdmin();
+  try {
+    const c = await getCampaign(id);
+    if (!c) return { ok: false, error: "Not found." };
+    if (c.sent_at) return { ok: false, error: "This email has been recorded as sent; its draft is no longer changed." };
+    const researched = (c.preview_config as { outreachOpening?: unknown })?.outreachOpening;
+    const d = defaultEmailDraft({ businessName: c.name, opening: typeof researched === "string" ? researched : null });
+    await updateCampaign(id, { email_subject: d.subject, email_opening: d.opening, email_body: d.body });
+    return { ok: true, ...d };
+  } catch (e) { return fail(e); }
+}
+
+/**
+ * SEND the invitation email. Nothing here runs unless the administrator pressed "Send invitation email" in the
+ * confirmation dialog, and the gates in send-core.ts ALL pass — contact, saved draft, ready campaign, a valid
+ * non-expired invitation for this very business, the private link (shown once), and the recipient/subject confirmed.
+ * The saved draft and the invitation's state are read from the DATABASE, never trusted from the browser.
+ * Without POSTMARK_API_KEY and LAUNCH_OUTREACH_FROM there is no transport and nothing can be sent.
+ */
+export async function sendInvitationEmailAction(id: string, invitePath: string, confirmation: { confirm: boolean; recipient: string; subject: string }): Promise<Result<{ messageId: string; recipient: string; recorded: boolean }>> {
+  await requireAdmin();
+  try {
+    const c = await getCampaign(id);
+    if (!c) return { ok: false, error: "Not found." };
+    const m = /^\/launch\/([a-z0-9-]+)\?invite=([A-Za-z0-9_-]{40,128})$/.exec(invitePath);
+    const token = m && m[1] === c.slug ? m[2] : null;
+    const invs = (await listInvites()).filter((i) => i.slug === c.slug && !i.revoked_at);
+    const inv = invs[0];
+    let valid = false;
+    if (token) {
+      const sb = await createClient();
+      const { data } = await sb.rpc("launch_invite_resolve", { p_slug: c.slug, p_token: token });
+      valid = typeof data === "string" && data === c.business_id;
+    }
+    const origin = (process.env.NEXT_PUBLIC_SITE_URL || "https://oneshetland.com").replace(/\/$/, "");
+    const from = outreachFrom();
+    const out = await sendInvitationEmail({
+      campaign: { id: c.id, slug: c.slug, businessName: c.name, stage: c.stage, sentAt: c.sent_at, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body },
+      invitation: { status: inv?.status ?? "none", expiresAt: inv?.expires_at ?? null, tokenValidForThisBusiness: valid },
+      invitationUrl: token ? `${origin}/launch/${c.slug}?invite=${token}` : null,
+      confirmation,
+    }, { transport: configuredTransport(), from: from ?? "", now: () => new Date() });
+    if (!out.ok) return { ok: false, error: out.message || GATE_MESSAGE.not_configured };
+    // Record it. A failure to record must be visible: the email has gone.
+    let recorded = true;
+    try { await markSent(id, `Emailed from Admin (provider message ${out.messageId})`); } catch { recorded = false; }
+    return { ok: true, messageId: out.messageId, recipient: out.recipient, recorded };
   } catch (e) { return fail(e); }
 }
 

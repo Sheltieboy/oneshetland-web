@@ -41,6 +41,7 @@ export function parsePreviewConfig(raw: unknown, expectSlug?: string): Parsed<Pr
   if (!str(c.slug, 61) || !/^[a-z0-9][a-z0-9-]{2,60}$/.test(c.slug)) return fail("Invalid preview name.");
   if (expectSlug && c.slug !== expectSlug) return fail("The preview belongs to a different name.");
   if (!str(c.businessName, 160) || !c.businessName.trim()) return fail("The business name is missing.");
+  if (c.outreachOpening !== undefined && !str(c.outreachOpening, 600)) return fail("The outreach opening is too long.");
   if (!isObj(c.hero) || !str(c.hero.support, 1200)) return fail("The introduction is missing.");
   if (c.hero.headline !== undefined && !(Array.isArray(c.hero.headline) && c.hero.headline.length === 3 && c.hero.headline.every((x: unknown) => str(x, 120)))) return fail("The headline must be three short lines.");
   const b = c.business;

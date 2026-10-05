@@ -1,61 +1,149 @@
 "use client";
 
-import { useState } from "react";
-import { saveEmailAction } from "@/app/admin/launch-partners/actions";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { StatusPill } from "@/components/admin/AdminUI";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { resetEmailToDefaultAction, saveEmailAction, sendInvitationEmailAction } from "@/app/admin/launch-partners/actions";
 import { Field, SaveBar, Section, inputCls } from "./fields";
-import { checkEmail, composeInvitationEmail, renderPreview } from "@/lib/launch-partners/email";
+import { EMAIL_STATUS_LABEL, checkEmail, emailStatus, isOpeningPrompt, renderInvitationEmail, type EmailStatus } from "@/lib/launch-partners/email";
+import { GATE_MESSAGE, evaluateSendGates } from "@/lib/launch-partners/send-core";
+import type { PipelineRow } from "@/lib/launch-partners/status";
+
+const TONE: Record<EmailStatus, "gray" | "amber" | "blue" | "green"> = { contact_missing: "amber", draft_needed: "amber", draft_ready: "blue", invitation_needed: "blue", ready_to_send: "green", sent: "green" };
+const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) : "—");
 
 /**
- * The personal invitation email — prepared and stored, NEVER sent from here. There is deliberately no Send control
- * that does anything: copy it and send it yourself, pasting the private link where the placeholder is.
+ * The outreach email: contact, subject, personalised opening, message — then the email exactly as the recipient will
+ * receive it, its readiness, and (behind explicit confirmation) the send. The draft is generated when the campaign is
+ * created or when you choose "Reset to default template"; it is never regenerated behind your back.
  */
-export function EmailSection({ id, businessName, positioning, initial }: {
-  id: string; businessName: string; positioning: string | null;
-  initial: { contactName: string | null; contactEmail: string | null; subject: string | null; body: string | null };
+export function EmailSection({ row, slug, businessName, initial, sessionLink }: {
+  row: PipelineRow; slug: string; businessName: string;
+  initial: { contactName: string | null; contactEmail: string | null; subject: string | null; opening: string | null; body: string | null };
+  /** Present only right after the invitation was generated in this page session. The database never keeps it. */
+  sessionLink: { url: string; expiresAt: string } | null;
 }) {
-  const [contactName, setContactName] = useState(initial.contactName ?? "");
-  const [contactEmail, setContactEmail] = useState(initial.contactEmail ?? "");
-  const [subject, setSubject] = useState(initial.subject ?? "");
-  const [body, setBody] = useState(initial.body ?? "");
-  const [copied, setCopied] = useState(false);
-  const check = checkEmail({ subject, body, contactEmail });
-  const prev = renderPreview({ subject, body });
+  const router = useRouter();
+  const confirm = useConfirm();
+  const [f, setF] = useState({ contactName: initial.contactName ?? "", contactEmail: initial.contactEmail ?? "", subject: initial.subject ?? "", opening: initial.opening ?? "", body: initial.body ?? "" });
+  const [saved, setSaved] = useState(f);
+  const [view, setView] = useState<"html" | "text">("html");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const dirty = JSON.stringify(f) !== JSON.stringify(saved);
+  const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
 
-  function fill() { const e = composeInvitationEmail({ businessName, contactName, positioning }); setSubject(e.subject); setBody(e.body); }
+  const inv = row.invite;
+  const invLive = ["open", "claim pending", "claimed"].includes(inv.status);
+  const status = emailStatus({ sentAt: row.sent_at, contactEmail: saved.contactEmail, subject: saved.subject, body: saved.body, opening: saved.opening, stage: row.stage, invitation: { status: inv.status, expiresAt: inv.expires_at } });
+  const check = checkEmail({ subject: f.subject, body: f.body, opening: f.opening, contactEmail: f.contactEmail });
+
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
+  const rendered = useMemo(() => renderInvitationEmail({
+    subject: f.subject, body: f.body, opening: f.opening, businessName,
+    invitationUrl: sessionLink?.url ?? null,
+    maskedUrl: !sessionLink && invLive ? `${origin}/launch/${slug}?invite=[the real link is shown once, when you generate the invitation]` : null,
+  }), [f.subject, f.body, f.opening, businessName, sessionLink, invLive, origin, slug]);
+
+  // What stands between this draft and a send, from the SAVED values (the server re-checks everything itself).
+  const blockers = evaluateSendGates({
+    campaign: { id: row.id, slug, businessName, stage: row.stage, sentAt: row.sent_at, contactEmail: saved.contactEmail, subject: saved.subject, opening: saved.opening, body: saved.body },
+    invitation: { status: inv.status, expiresAt: inv.expires_at, tokenValidForThisBusiness: !!sessionLink && invLive },
+    invitationUrl: sessionLink?.url ?? null, confirmation: { confirm: true, recipient: saved.contactEmail, subject: saved.subject },
+  }, { transport: { send: async () => ({ id: "" }) }, now: () => new Date() }).filter((g) => g !== "not_configured");
+  const canSend = blockers.length === 0 && !dirty && !busy;
+
   async function save() {
-    const r = await saveEmailAction(id, { contactName, contactEmail, subject, body });
-    return r.ok ? null : r.error;
+    const r = await saveEmailAction(row.id, f);
+    if (r.ok) { setSaved(f); router.refresh(); return null; }
+    return r.error;
   }
-  async function copy() { await navigator.clipboard?.writeText(`Subject: ${prev.subject}\n\n${prev.body}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }
+
+  async function reset() {
+    if (!(await confirm({ title: "Reset to the default template?", body: <>This <strong>replaces</strong> the current subject, personalised opening and message with the standard template for {businessName}. Any edits you have made to them will be lost. Your contact details are kept.</>, confirmLabel: "Replace my draft", danger: true }))) return;
+    setBusy(true); setMsg(null);
+    const r = await resetEmailToDefaultAction(row.id);
+    setBusy(false);
+    if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
+    const next = { ...f, subject: r.subject, opening: r.opening, body: r.body };
+    setF(next); setSaved(next); setMsg({ ok: true, text: "Reset to the default template." }); router.refresh();
+  }
+
+  async function send() {
+    if (!sessionLink) return;
+    const ok = await confirm({
+      title: "Send the invitation email?",
+      body: (
+        <dl className="space-y-2 text-sm">
+          <div><dt className="font-bold text-ink">Business</dt><dd>{businessName}</dd></div>
+          <div><dt className="font-bold text-ink">Recipient</dt><dd className="break-all">{saved.contactEmail}</dd></div>
+          <div><dt className="font-bold text-ink">Subject</dt><dd>{saved.subject}</dd></div>
+          <div><dt className="font-bold text-ink">Invitation expires</dt><dd>{when(sessionLink.expiresAt)}</dd></div>
+          <p className="pt-1 text-ink-muted">This sends a real email containing the private link. It cannot be unsent.</p>
+        </dl>
+      ),
+      confirmLabel: "Send invitation email", danger: true,
+    });
+    if (!ok) return;
+    setBusy(true); setMsg(null);
+    const path = sessionLink.url.slice(sessionLink.url.indexOf("/launch/"));
+    const r = await sendInvitationEmailAction(row.id, path, { confirm: true, recipient: saved.contactEmail, subject: saved.subject });
+    setBusy(false);
+    if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
+    setMsg({ ok: true, text: r.recorded ? `Sent to ${r.recipient}.` : `Sent to ${r.recipient}, but recording it failed — mark it sent by hand.` }); router.refresh();
+  }
 
   return (
-    <Section id="email" title="Email" sub="A personal note from you. Prepared here; you send it yourself.">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Contact name"><input className={inputCls} value={contactName} onChange={(e) => setContactName(e.target.value)} /></Field>
-        <Field label="Contact email" hint="from their public site, or entered by you — visible to admins only"><input type="email" className={inputCls} value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} /></Field>
-      </div>
+    <Section id="email" title="Email" sub="A personal note from you. Prepared here from the standard template; sent only when you choose to.">
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={fill} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-sand">{body ? "Start again from the template" : "Write it from the template"}</button>
+        <StatusPill label={EMAIL_STATUS_LABEL[status]} tone={TONE[status]} />
+        {row.sent_at && <span className="text-sm text-ink-muted">Sent {when(row.sent_at)}</span>}
+        {dirty && <span className="text-sm font-semibold text-amber-700">Unsaved changes</span>}
       </div>
-      <Field label="Subject"><input className={inputCls} value={subject} onChange={(e) => setSubject(e.target.value)} /></Field>
-      <Field label="Message" hint="keep the placeholder where the private link goes"><textarea className={inputCls + " font-mono"} rows={14} value={body} onChange={(e) => setBody(e.target.value)} /></Field>
-      <SaveBar onSave={save} label="Save email" />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Contact name"><input className={inputCls} value={f.contactName} onChange={(e) => set({ contactName: e.target.value })} /></Field>
+        <Field label="Contact email" hint="from their public site, or entered by you — visible to admins only"><input type="email" className={inputCls} value={f.contactEmail} onChange={(e) => set({ contactEmail: e.target.value })} /></Field>
+      </div>
+      <Field label="Subject"><input className={inputCls} value={f.subject} onChange={(e) => set({ subject: e.target.value })} /></Field>
+      <Field label="Personalised opening" hint="one or two lines, in your own words — why you chose them">
+        <textarea className={inputCls} rows={2} value={f.opening} onChange={(e) => set({ opening: e.target.value })} />
+      </Field>
+      {isOpeningPrompt(f.opening) && <p className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900">This line is a prompt, not a message. Replace it with your own sentence — sending is blocked until you do.</p>}
+      <Field label="Message" hint="the standard template; keep {{PERSONALISED_OPENING}} and {{INVITATION_CTA}} where they should appear">
+        <textarea className={inputCls + " font-mono"} rows={16} value={f.body} onChange={(e) => set({ body: e.target.value })} />
+      </Field>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <SaveBar onSave={save} label="Save email" />
+        <button type="button" onClick={reset} disabled={busy || !!row.sent_at} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand disabled:opacity-40">Reset to default template</button>
+      </div>
+      {msg && <p role="status" className={"text-sm font-semibold " + (msg.ok ? "text-emerald-700" : "text-rose-700")}>{msg.text}</p>}
+      {check.problems.length > 0 && <ul className="list-disc pl-5 text-sm text-amber-800">{check.problems.map((p) => <li key={p}>{p}</li>)}</ul>}
 
       <div className="rounded-xl border border-line bg-cream/60 p-4" aria-label="Email preview">
-        <p className="eyebrow text-ink-muted">Preview</p>
-        {body ? (
-          <>
-            <p className="mt-2 text-sm"><span className="font-bold text-ink">To:</span> {contactEmail || "—"}</p>
-            <p className="mt-1 text-sm"><span className="font-bold text-ink">Subject:</span> {prev.subject}</p>
-            <pre className="mt-3 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink-soft">{prev.body}</pre>
-          </>
-        ) : <p className="mt-2 text-sm text-ink-muted">Nothing written yet.</p>}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="eyebrow text-ink-muted">Preview email</p>
+          <div className="flex gap-1.5" role="tablist" aria-label="Preview format">
+            {(["html", "text"] as const).map((k) => <button key={k} role="tab" aria-selected={view === k} onClick={() => setView(k)} className={"rounded-pill px-3 py-1 text-xs font-bold " + (view === k ? "bg-ink text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{k === "html" ? "Email" : "Plain text"}</button>)}
+          </div>
+        </div>
+        <p className="mt-2 text-sm"><span className="font-bold text-ink">To:</span> {f.contactEmail || "—"}</p>
+        <p className="mt-1 text-sm"><span className="font-bold text-ink">Subject:</span> {rendered.subject || "—"}</p>
+        {view === "html"
+          ? <iframe title="The email as the recipient will receive it" sandbox="" srcDoc={rendered.html} className="mt-3 h-[560px] w-full rounded-xl border border-line bg-white" />
+          : <pre className="mt-3 max-h-[560px] overflow-auto whitespace-pre-wrap rounded-xl border border-line bg-white p-4 font-sans text-sm leading-relaxed text-ink-soft">{rendered.text}</pre>}
+        {!sessionLink && !invLive && <p className="mt-3 text-sm text-ink-muted"><strong className="text-ink">Invitation not generated yet.</strong> The button and link are inserted when you generate the invitation, and shown here.</p>}
+        {!sessionLink && invLive && <p className="mt-3 text-sm text-ink-muted">An invitation exists, but its link is shown only once, when generated. To send, generate a fresh invitation in this session.</p>}
       </div>
-      {check.problems.length > 0 && body && <ul className="list-disc pl-5 text-sm text-amber-800">{check.problems.map((p) => <li key={p}>{p}</li>)}</ul>}
-      <div className="flex flex-wrap items-center gap-3">
-        <button type="button" disabled aria-disabled="true" title="Sending from OneShetland is not switched on" className="cursor-not-allowed rounded-pill bg-sand px-5 py-2 text-sm font-semibold text-ink-faint">Send — not enabled</button>
-        <button type="button" onClick={copy} disabled={!body} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand disabled:opacity-40">{copied ? "Copied" : "Copy message"}</button>
-        <p className="text-xs text-ink-muted">Sending is off in this version. Nothing here emails anyone.</p>
+
+      <div className="space-y-2 rounded-xl border border-line p-4">
+        <button type="button" onClick={send} disabled={!canSend} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:cursor-not-allowed disabled:bg-sand disabled:text-ink-faint">{busy ? "Working…" : "Send invitation email"}</button>
+        {row.sent_at ? <p className="text-sm text-ink-muted">Already recorded as sent.</p> : dirty ? <p className="text-sm text-amber-800">Save your changes first — only the saved draft can be sent.</p>
+          : blockers.length > 0 ? <ul className="list-disc pl-5 text-sm text-ink-muted">{[...new Set(blockers)].map((g) => <li key={g}>{GATE_MESSAGE[g]}</li>)}</ul>
+          : <p className="text-sm text-ink-muted">Everything is in place. You will be asked to confirm the recipient, subject and expiry before anything is sent.</p>}
+        <p className="text-xs text-ink-muted">Sending never happens automatically. It needs a contact, a saved draft, a valid invitation, and your explicit confirmation.</p>
       </div>
     </Section>
   );

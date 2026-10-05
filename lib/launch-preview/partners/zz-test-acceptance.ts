@@ -13,6 +13,7 @@ import { loveFromShetland } from './love-from-shetland.ts';
 export const zzTestAcceptance: PreviewConfig = {
   ...loveFromShetland,
   slug: 'zz-test-acceptance',
+  outreachOpening: undefined, // a test fixture never inherits a real business's outreach line
   businessName: 'ZZ TEST Launch Partner',
   directoryBusinessId: '7c685526-da90-48dc-baab-a962e1ac6956',
   hero: { support: "This is an ACCEPTANCE TEST of the launch-partner claim flow. It uses a test listing that is not public; the pictures are borrowed so the page looks complete." },

@@ -10,8 +10,7 @@ import { Section } from "@/components/admin/launch-partners/fields";
 import { PositioningField } from "@/components/admin/launch-partners/PositioningField";
 import { PreviewEditor } from "@/components/admin/launch-partners/PreviewEditor";
 import { PageDraftEditor } from "@/components/admin/launch-partners/PageDraftEditor";
-import { InvitationSection } from "@/components/admin/launch-partners/InvitationSection";
-import { EmailSection } from "@/components/admin/launch-partners/EmailSection";
+import { OutreachPanels } from "@/components/admin/launch-partners/OutreachPanels";
 import { StatusSection } from "@/components/admin/launch-partners/StatusSection";
 
 export const dynamic = "force-dynamic";
@@ -77,8 +76,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
         {preview ? <PreviewEditor id={c.id} initial={preview} /> : <Section id="preview" title="Preview"><p role="alert" className="text-sm font-semibold text-rose-700">The stored preview is not valid: {pv.ok ? "" : pv.error}</p></Section>}
         {page && preview ? <PageDraftEditor id={c.id} initial={page} preview={preview} previewHref={`/admin-preview/launch-partners/${c.id}/business-page`} /> : <Section id="page" title="Business page"><p className="text-sm text-ink-muted">{pg.ok ? "Prepare the launch preview first." : `The stored page draft is not valid: ${pg.error}`}</p></Section>}
-        <InvitationSection row={c} claimMode={claimMode} />
-        <EmailSection id={c.id} businessName={c.name} positioning={c.positioning} initial={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, body: c.email_body }} />
+        <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
         <StatusSection row={c} events={c.events ?? []} />
       </div>
     </>

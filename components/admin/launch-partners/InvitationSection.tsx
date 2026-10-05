@@ -15,7 +15,7 @@ const TONE = { none: "gray", open: "blue", "claim pending": "amber", claimed: "g
  * The private invitation. Generating it creates a link and NOTHING else — no email is sent. The link is shown once
  * (the database keeps only a hash) and is never saved in the draft. Claiming stays closed on the preview until you open it.
  */
-export function InvitationSection({ row, claimMode }: { row: PipelineRow; claimMode: "live" | "holding" }) {
+export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow; claimMode: "live" | "holding"; /** The private link and its expiry, in memory only, right after generation (null when cleared). */ onLink?: (l: { url: string; expiresAt: string } | null) => void }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [days, setDays] = useState(30);
@@ -32,12 +32,13 @@ export function InvitationSection({ row, claimMode }: { row: PipelineRow; claimM
     const r = await issueInvitationAction(row.id, days);
     setBusy(false);
     if (!r.ok) { setErr(r.error); return; }
-    setLink(`${window.location.origin}${r.path}`); router.refresh();
+    const url = `${window.location.origin}${r.path}`;
+    setLink(url); onLink?.({ url, expiresAt: r.expiresAt }); router.refresh();
   }
   async function revoke() {
     if (!(await confirm({ title: "Revoke this invitation?", body: "The link stops working immediately. A claim already sent is not affected.", confirmLabel: "Revoke", danger: true }))) return;
     setBusy(true); const r = await revokeInvitationAction(row.id); setBusy(false);
-    if (!r.ok) setErr(r.error); else { setLink(null); router.refresh(); }
+    if (!r.ok) setErr(r.error); else { setLink(null); onLink?.(null); router.refresh(); }
   }
   async function toggleClaim() {
     setBusy(true); setErr(null);

@@ -15,6 +15,7 @@ export const loveFromShetland: PreviewConfig = {
   slug: 'love-from-shetland',
   businessName: 'Love From Shetland',
   directoryBusinessId: 'fdda4cbe-1e28-4f4d-89d8-aed8317be513',
+  outreachOpening: 'You make something genuinely Shetland, and I think more locals and visitors should be able to find what you do easily.',
 
   hero: {
     support:

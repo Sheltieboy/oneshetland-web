@@ -7,7 +7,9 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
-import { composeInvitationEmail, checkEmail, renderPreview, LINK_PLACEHOLDER } from "../lib/launch-partners/email.ts";
+import { defaultEmailDraft, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
+import { evaluateSendGates, sendInvitationEmail, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
+import { configuredTransport, outreachFrom } from "../lib/launch-partners/send.server.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
 import { buildPageDraft } from "../lib/launch-partners/draft.ts";
 import { planSections, availability, heroActions, chooseHeroVisual, enforceLive, MAX_HERO_ACTIONS } from "../lib/business-page/sections.ts";
@@ -17,6 +19,7 @@ import { getPreviewConfig, previewSlugs } from "../lib/launch-preview/registry.t
 import { CATALOGUE_OPTIONS } from "../lib/launch-preview/catalogue.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const walkSrc = (d) => { const root = new URL("../", import.meta.url).pathname; const out = []; const go = (p) => { for (const f of readdirSync(p)) { const q = join(p, f); statSync(q).isDirectory() ? go(q) : /\.(ts|tsx)$/.test(q) && out.push(q); } }; go(join(root, d)); return out; };
 
 const row = (o = {}) => ({
   id: "c1", business_id: "b1", slug: "demo-shop", stage: "candidate", is_test: false, positioning: null, name: "Demo", category: "retail", locality: "Lerwick",
@@ -76,29 +79,172 @@ describe("pipeline status is derived from real facts", () => {
   });
 });
 
-describe("the invitation email is prepared, never sent", () => {
-  const e = composeInvitationEmail({ businessName: "Shetland Jewellery", contactName: "Alex Smith" });
-  test("it is a personal note with one link placeholder and the promised reassurances", () => {
-    assert.equal(e.subject, "I've made a private OneShetland preview for Shetland Jewellery");
-    assert.ok(e.body.startsWith("Hi Alex,"));
-    assert.equal(e.body.split(LINK_PLACEHOLDER).length, 2, "exactly one call to action");
-    for (const s of ["private", "Nothing is live", "complimentary Premium", "claim your business if you want to", "Nothing goes live until you review it and approve it yourself"]) assert.ok(e.body.includes(s), s);
+const LFS_OPENING = "You make something genuinely Shetland, and I think more locals and visitors should be able to find what you do easily.";
+const TOKEN64 = "7f3a9c1e5b2d4f60a8c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1";
+const URL64 = `https://oneshetland.com/launch/love-from-shetland?invite=${TOKEN64}`;
+
+describe("the standard outreach email", () => {
+  test("a new campaign's draft is the approved template, with the business name substituted", () => {
+    const d = defaultEmailDraft({ businessName: "Love From Shetland", opening: LFS_OPENING });
+    assert.equal(d.subject, "I made a private OneShetland preview for Love From Shetland");
+    assert.equal(d.opening, LFS_OPENING);
+    for (const line of ["Hello,", "I’ve made a private OneShetland preview for Love From Shetland.", "I’ve put together an example of how Love From Shetland could look on OneShetland, using only information already publicly available.",
+      "A few important things before you look:", "• It’s completely private — only someone with your invitation link can see it.", "• Nothing is live or published.", "• You don’t need to join or claim anything just to have a look.",
+      "• If you do want to take part, launch partners get complimentary Premium access, and I’ll help you get set up.", "• You stay in control — nothing goes live until you review it and approve it yourself.",
+      "If you like it, you can claim the business from the preview and take it from there. And if it’s not for you, absolutely no problem.", "Darren\nDarren Fullerton\nOneShetland"]) assert.ok(d.body.includes(line), line);
+    assert.ok(d.body.includes(TOKEN_OPENING) && d.body.includes(TOKEN_CTA), "the opening and the call to action stay as tokens");
+    assert.ok(!d.body.includes("{{BUSINESS_NAME}}"), "no unfilled business-name token");
+    assert.equal(d.body.split(TOKEN_CTA).length, 2, "exactly one call to action");
   });
-  test("the preview shows how the link will appear, and never a real token", () => {
-    const p = renderPreview(e);
-    assert.ok(!p.body.includes(LINK_PLACEHOLDER)); assert.match(p.body, /created when you're ready to send/);
+  test("the opening is never invented: without a researched line the draft carries a clear prompt for Darren", () => {
+    const d = defaultEmailDraft({ businessName: "The Dowry" });
+    assert.ok(isOpeningPrompt(d.opening)); assert.equal(d.opening, openingPrompt("The Dowry")); assert.match(d.opening, /Replace this line before sending/);
+    assert.equal(defaultEmailDraft({ businessName: "X", opening: "   " }).opening, openingPrompt("X"));
+    assert.doesNotMatch(read("lib/launch-partners/email.ts"), /genuinely Shetland/, "no marketing line is baked into the generator");
   });
-  test("a draft with a real invitation link or hash is refused", () => {
-    const bad = { ...e, body: e.body.replace(LINK_PLACEHOLDER, "https://www.oneshetland.com/launch/x?invite=" + "a".repeat(64)), contactEmail: "a@b.co" };
-    assert.equal(checkEmail(bad).ok, false); assert.match(checkEmail(bad).problems.join(" "), /real invitation link/);
-    assert.equal(checkEmail({ ...e, contactEmail: "a@b.co" }).ok, true);
-    assert.equal(checkEmail({ ...e, contactEmail: "nope" }).ok, false);
+  test("only the Love From Shetland config carries a researched opening, and it is the approved sentence", () => {
+    assert.equal(getPreviewConfig("love-from-shetland").outreachOpening, LFS_OPENING);
+    for (const slug of previewSlugs().filter((x) => x !== "love-from-shetland")) assert.equal(getPreviewConfig(slug).outreachOpening, undefined, slug);
   });
-  test("no code path in the web app can send the email", () => {
-    for (const f of ["lib/launch-partners/email.ts", "lib/launch-partners/campaigns.server.ts", "components/admin/LaunchPartnerEditor.tsx"]) {
-      let t; try { t = read(f); } catch { continue; }
-      assert.doesNotMatch(t, /sendEmail|send-email|resend|nodemailer|sendgrid|smtp|fetch\(.*\/api\/.*send|invoke\(['"]send/i, f);
-    }
+  test("every campaign creation path generates the draft through the same function — nothing is hand-coded per business", () => {
+    const m = read("lib/launch-partners/campaigns.server.ts"), a = read("app/admin/launch-partners/actions.ts");
+    assert.match(m, /export async function createCampaignWithDraft/); assert.match(m, /defaultEmailDraft\(\{ businessName: a\.businessName, opening: a\.opening \}\)/);
+    assert.match(m, /createCampaignWithDraft\(\{ businessName: cfg\.businessName, opening: cfg\.outreachOpening \?\? null/);
+    assert.match(a, /createCampaignWithDraft\(\{ businessName: rec\.name, opening: null/);
+    assert.doesNotMatch(m + a, /Love From Shetland/, "no campaign-specific email text in the generators");
+    assert.equal((m.match(/updateCampaign\([^)]*email_/g) ?? []).length, 1, "the draft is written in one place only");
+  });
+  test("edits are preserved: a draft is regenerated only on creation or an explicit reset", () => {
+    const a = read("app/admin/launch-partners/actions.ts");
+    const writers = [...a.matchAll(/defaultEmailDraft\(/g)].length;
+    assert.equal(writers, 1, "defaultEmailDraft is called from the reset action only (creation goes through createCampaignWithDraft)");
+    const reset = a.slice(a.indexOf("export async function resetEmailToDefaultAction"), a.indexOf("export async function sendInvitationEmailAction"));
+    assert.match(reset, /defaultEmailDraft/); assert.match(reset, /await requireAdmin\(\)/);
+    for (const other of ["savePreviewAction", "savePageDraftAction", "savePositioningAction", "setStageAction"]) assert.doesNotMatch(a.slice(a.indexOf(`export async function ${other}`), a.indexOf(`export async function ${other}`) + 900).split("export async function")[1] ?? "", /email_(subject|body|opening)/, `${other} must not touch the email`);
+    const ui = read("components/admin/launch-partners/EmailSection.tsx");
+    assert.match(ui, /Reset to default template/); assert.match(ui, /This <strong>replaces<\/strong> the current subject, personalised opening and message/); assert.match(ui, /danger: true/);
+  });
+});
+
+describe("the email as rendered", () => {
+  const d = defaultEmailDraft({ businessName: "Love From Shetland", opening: LFS_OPENING });
+  test("before an invitation exists there is no link anywhere and the preview says so", () => {
+    const r = renderInvitationEmail({ ...d, businessName: "Love From Shetland" });
+    assert.equal(r.hasInvitation, false);
+    for (const out of [r.html, r.text]) { assert.doesNotMatch(out, /invite=/); assert.doesNotMatch(out, /https?:\/\/oneshetland\.com\/launch/); assert.ok(out.includes(NO_INVITATION_TITLE)); }
+    assert.match(r.html, /inserted here when you generate the invitation/); assert.doesNotMatch(r.html, /<a /, "no link element at all");
+    assert.ok(r.html.includes(LFS_OPENING) && r.text.includes(LFS_OPENING), "the opening is substituted");
+  });
+  test("with an invitation the HTML has the primary button, linked, and the copy-and-paste fallback beneath it", () => {
+    const r = renderInvitationEmail({ ...d, businessName: "Love From Shetland", invitationUrl: URL64 });
+    assert.equal(r.hasInvitation, true);
+    assert.ok(r.html.includes(`href="${URL64}"`) && r.html.includes(CTA_LABEL), "button text and href");
+    const iBtn = r.html.indexOf(CTA_LABEL), iFall = r.html.indexOf(CTA_FALLBACK_LINE), iUrl = r.html.indexOf(URL64, iFall);
+    assert.ok(iBtn > 0 && iFall > iBtn && iUrl > iFall, "fallback line, then the full URL, directly beneath the button");
+    assert.equal(r.html.split(URL64).length - 1, 2, "the URL appears exactly twice: the link and the fallback text");
+    assert.match(r.html, /<ul /); assert.equal((r.html.match(/<li /g) ?? []).length, 5);
+  });
+  test("the plain-text email uses 'View your private preview: {link}'", () => {
+    const r = renderInvitationEmail({ ...d, businessName: "Love From Shetland", invitationUrl: URL64 });
+    assert.ok(r.text.includes(`View your private preview: ${URL64}`)); assert.equal(r.text.split(URL64).length, 2, "once, in plain text");
+    assert.ok(!r.text.includes("{{") && !r.html.includes("{{"), "no unresolved token");
+  });
+  test("recipient-controlled and admin-typed text is escaped in the HTML, and only http(s) can become a link", () => {
+    const r = renderInvitationEmail({ subject: "<b>x</b>", body: "Hi <script>alert(1)</script>\n\n" + TOKEN_CTA, opening: "a & b", invitationUrl: "javascript:alert(1)" });
+    assert.doesNotMatch(r.html, /<script|javascript:/); assert.equal(r.hasInvitation, false);
+    assert.match(r.html, /&lt;script&gt;/); assert.match(r.html, /<title>&lt;b&gt;x&lt;\/b&gt;<\/title>/);
+    assert.equal(renderInvitationEmail({ subject: "s", body: TOKEN_CTA, invitationUrl: 'https://x.example/a"onmouseover="y' }).hasInvitation, false);
+  });
+  test("an old draft that used {{INVITATION_LINK}} still renders the same call to action", () => {
+    const r = renderInvitationEmail({ subject: "s", body: "Hi\n\n" + LINK_PLACEHOLDER, invitationUrl: URL64 });
+    assert.ok(r.html.includes(CTA_LABEL) && r.text.includes(`View your private preview: ${URL64}`));
+  });
+  test("the token never appears in a rendered draft unless a real link was supplied, and a draft containing one is refused", () => {
+    const noLink = renderInvitationEmail({ ...d, businessName: "x", maskedUrl: "https://oneshetland.com/launch/x?invite=[the real link is shown once]" });
+    assert.doesNotMatch(noLink.html + noLink.text, /invite=[0-9a-f]{20,}/);
+    assert.equal(checkEmail({ ...d, contactEmail: "a@b.co" }).ok, true);
+    assert.equal(checkEmail({ ...d, body: d.body.replace(TOKEN_CTA, URL64), contactEmail: "a@b.co" }).ok, false);
+    assert.equal(checkEmail({ ...d, opening: URL64, contactEmail: "a@b.co" }).ok, false);
+    assert.equal(checkEmail({ ...d, opening: openingPrompt("X"), contactEmail: "a@b.co" }).ok, false, "the prompt must be replaced");
+  });
+});
+
+describe("email status", () => {
+  const base = { sentAt: null, contactEmail: "a@b.co", subject: "s", body: `x ${TOKEN_CTA}`, opening: "my line", stage: "preparing", invitation: { status: "none", expiresAt: null } };
+  test("Contact missing → Draft needed → Draft ready → Invitation needed → Ready to send → Sent", () => {
+    assert.equal(emailStatus({ ...base, contactEmail: null }), "contact_missing");
+    assert.equal(emailStatus({ ...base, opening: openingPrompt("X") }), "draft_needed");
+    assert.equal(emailStatus(base), "draft_ready");
+    assert.equal(emailStatus({ ...base, stage: "ready_to_invite" }), "invitation_needed");
+    assert.equal(emailStatus({ ...base, stage: "ready_to_invite", invitation: { status: "open", expiresAt: "2999-01-01" } }), "ready_to_send");
+    assert.equal(emailStatus({ ...base, stage: "ready_to_invite", invitation: { status: "open", expiresAt: "2000-01-01" } }), "invitation_needed", "an expired invitation is not ready");
+    assert.equal(emailStatus({ ...base, sentAt: "2026-10-06" }), "sent");
+  });
+});
+
+describe("sending is gated — and tests can never reach a mailbox", () => {
+  const draft = defaultEmailDraft({ businessName: "Love From Shetland", opening: LFS_OPENING });
+  const future = new Date(Date.now() + 7 * 864e5).toISOString();
+  const ok = () => ({
+    campaign: { id: "c1", slug: "love-from-shetland", businessName: "Love From Shetland", stage: "ready_to_invite", sentAt: null, contactEmail: "hello@example.test", subject: draft.subject, opening: draft.opening, body: draft.body },
+    invitation: { status: "open", expiresAt: future, tokenValidForThisBusiness: true }, invitationUrl: URL64,
+    confirmation: { confirm: true, recipient: "hello@example.test", subject: draft.subject },
+  });
+  const rec = () => { const sent = []; return { sent, transport: { send: async (m) => { sent.push(m); return { id: "msg-1" }; } }, from: "Darren <darren@example.test>", now: () => new Date() }; };
+
+  test("with every gate satisfied exactly one message is handed to the (stub) transport, containing the link and nothing tracked", async () => {
+    const d = rec(); const out = await sendInvitationEmail(ok(), d);
+    assert.equal(out.ok, true); assert.equal(d.sent.length, 1);
+    const m = d.sent[0]; assert.equal(m.to, "hello@example.test"); assert.equal(m.subject, draft.subject);
+    assert.ok(m.html.includes(CTA_LABEL) && m.html.includes(URL64) && m.text.includes(`View your private preview: ${URL64}`));
+    assert.deepEqual(Object.keys(m.metadata).sort(), ["campaign", "kind"]); assert.ok(!JSON.stringify(m.metadata).includes(TOKEN64), "the provider's metadata never holds the token");
+  });
+  test("each missing requirement blocks the send and nothing reaches the transport", async () => {
+    const cases = [
+      ["not_confirmed", (i) => { i.confirmation = { ...i.confirmation, confirm: false }; }], ["not_confirmed", (i) => { i.confirmation = null; }],
+      ["contact_missing", (i) => { i.campaign.contactEmail = null; }], ["contact_invalid", (i) => { i.campaign.contactEmail = "nope"; i.confirmation.recipient = "nope"; }],
+      ["draft_incomplete", (i) => { i.campaign.subject = ""; i.confirmation.subject = ""; }], ["draft_incomplete", (i) => { i.campaign.opening = openingPrompt("X"); }], ["draft_incomplete", (i) => { i.campaign.body = "no call to action"; }],
+      ["not_ready", (i) => { i.campaign.stage = "preparing"; }], ["already_sent", (i) => { i.campaign.sentAt = "2026-10-06"; }],
+      ["invitation_invalid", (i) => { i.invitation.status = "none"; }], ["invitation_invalid", (i) => { i.invitation.status = "revoked"; }], ["invitation_invalid", (i) => { i.invitation.tokenValidForThisBusiness = false; }],
+      ["invitation_expired", (i) => { i.invitation.expiresAt = "2000-01-01T00:00:00Z"; }], ["link_missing", (i) => { i.invitationUrl = null; }],
+      ["recipient_changed", (i) => { i.confirmation.recipient = "someone-else@example.test"; }], ["subject_changed", (i) => { i.confirmation.subject = "an older subject"; }],
+    ];
+    for (const [gate, mutate] of cases) { const i = ok(); mutate(i); const d = rec(); const out = await sendInvitationEmail(i, d); assert.equal(out.ok, false, gate); assert.ok(out.failures.includes(gate), `${gate}: ${out.failures}`); assert.equal(d.sent.length, 0, `${gate}: nothing was sent`); }
+  });
+  test("no transport configured means no send, whatever else is true — and no network is touched", async () => {
+    const realFetch = globalThis.fetch; let calls = 0; globalThis.fetch = () => { calls++; throw new Error("network must not be used"); };
+    try {
+      assert.equal(configuredTransport({}), null); assert.equal(configuredTransport({ POSTMARK_API_KEY: "k" }), null, "a key alone is not enough"); assert.equal(configuredTransport({ LAUNCH_OUTREACH_FROM: "Darren <d@example.test>" }), null);
+      assert.equal(outreachFrom({ LAUNCH_OUTREACH_FROM: "not an address" }), null);
+      assert.notEqual(configuredTransport({ POSTMARK_API_KEY: "k", LAUNCH_OUTREACH_FROM: "Darren <d@example.test>" }), null);
+      const out = await sendInvitationEmail(ok(), { transport: null, from: "", now: () => new Date() });
+      assert.equal(out.ok, false); assert.deepEqual(out.failures, ["not_configured"]); assert.match(out.message, /isn't configured/);
+    } finally { globalThis.fetch = realFetch; }
+    assert.equal(calls, 0);
+  });
+  test("every failure has a plain-English explanation", () => { for (const g of Object.keys(GATE_MESSAGE)) assert.ok(GATE_MESSAGE[g].length > 10, g); });
+  test("the real transport sends a personal note: no open tracking, no link tracking, no footer wrapper", () => {
+    const t = read("lib/launch-partners/send.server.ts");
+    assert.match(t, /TrackOpens: false/); assert.match(t, /TrackLinks: "None"/); assert.doesNotMatch(t, /email_templates|buildFooter|sendEmail\(/);
+  });
+  test("the send action is the only caller, begins with requireAdmin, re-reads the draft and invitation from the database, and records the send", () => {
+    const a = read("app/admin/launch-partners/actions.ts");
+    const fn = a.slice(a.indexOf("export async function sendInvitationEmailAction"));
+    assert.match(fn, /await requireAdmin\(\)/); assert.match(fn, /getCampaign\(id\)/); assert.match(fn, /launch_invite_resolve/); assert.match(fn, /listInvites\(\)/); assert.match(fn, /markSent\(/);
+    const callers = ["app", "components", "lib"].flatMap((d) => walkSrc(d)).filter((f) => /sendInvitationEmail\(/.test(readFileSync(f, "utf8")) && !f.endsWith("send-core.ts"));
+    assert.deepEqual(callers.map((f) => f.split("/").slice(-2).join("/")), ["launch-partners/actions.ts"]);
+    const ui = read("components/admin/launch-partners/EmailSection.tsx");
+    assert.match(ui, /title: "Send the invitation email\?"/); for (const w of ["Business", "Recipient", "Subject", "Invitation expires"]) assert.ok(ui.includes(w), w);
+  });
+  test("the invitation token is confined: it is built into a URL in exactly the places that must hold it", () => {
+    const holders = ["app", "components", "lib"].flatMap((d) => walkSrc(d)).filter((f) => /invite=\$\{/.test(readFileSync(f, "utf8"))).map((f) => f.split("/").slice(-2).join("/")).sort();
+    assert.deepEqual(holders, ["admin/LaunchInvites.tsx", "launch-partners/actions.ts"].sort(), "only the two places that build the real link from a token");
+    for (const f of ["components/admin/launch-partners/Pipeline.tsx", "app/admin/launch-partners/[id]/page.tsx", "app/admin/launch-partners/page.tsx"]) assert.doesNotMatch(read(f), /invite=\$|issueInvitation|token/i, `${f} must not touch the token`);
+    assert.doesNotMatch(read("lib/launch-partners/campaigns.server.ts"), /invite=\$/, "the data layer never builds a link (it only passes a visitor's token to the view-tracking function)");
+  });
+  test("no test and no code path in this repo sends to a real address", () => {
+    const here = read("tests/launch-partners.test.mjs");
+    assert.doesNotMatch(here.replace(/hello@example\.test|someone-else@example\.test|a@b\.co|d@example\.test|darren@example\.test|nope/g, ""), /@(gmail|outlook|yahoo|hotmail|oneshetland\.com)/i);
   });
 });
 

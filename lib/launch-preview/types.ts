@@ -59,6 +59,11 @@ export interface PreviewConfig {
   claim?: 'live' | 'holding';
   /** One line naming the pitch ("Products + experiences"). Shown on the internal review index only. */
   positioning?: string;
+  /**
+   * The short personal line that opens the outreach email, WHERE ONE HAS BEEN WRITTEN FOR THIS BUSINESS. Never generated
+   * from data; absent means the email draft carries a clear prompt for Darren to write one. Private: not shown on the preview.
+   */
+  outreachOpening?: string;
 
   hero: {
     /** Short line under the main headline, written for this business. */
