@@ -80,8 +80,11 @@ describe("The next action, from the real state", () => {
   test("claim approved → 'Grant Launch Partner'; granted → waiting for them; ready → waiting for Go live", () => {
     const claimed = base({ stage: "sent", sent_at: "x", invite: { ...open, status: "claimed" }, claim: { status: "approved", created_at: "x" }, has_owner: true, is_claimed: true });
     const g = wf(claimed, "live"); assert.equal(g.current.id, "grant"); assert.deepEqual(g.current.target, { kind: "section", id: "grant" }, "the grant is done ON this page, not on another screen");
-    const granted = wf({ ...claimed, grant: { tier: "premium", expires_at: FUTURE } }, "live"); assert.equal(granted.current.id, "go_live"); assert.ok(isWaitingStep(granted)); assert.equal(granted.headline, "Waiting for them to set up");
-    const rdy = wf({ ...claimed, grant: { tier: "premium", expires_at: FUTURE }, setup_ready_at: "x" }, "live"); assert.equal(rdy.current.id, "live"); assert.equal(rdy.headline, "Waiting for them to go live");
+    const gr = { ...claimed, grant: { tier: "premium", expires_at: FUTURE } };
+    const granted = wf(gr, "live"); assert.equal(granted.current.id, "owner_review"); assert.ok(isWaitingStep(granted)); assert.equal(granted.headline, "Waiting for owner review");
+    const editing = deriveWorkflow({ row: gr, claimMode: "live", email: GOOD, owner: { edited: true, approved: false, published: false } }); assert.equal(editing.headline, "Owner is editing — waiting for approval");
+    const approvedByOwner = deriveWorkflow({ row: gr, claimMode: "live", email: GOOD, owner: { edited: true, approved: true, published: false } }); assert.equal(approvedByOwner.current.id, "go_live"); assert.equal(approvedByOwner.headline, "Owner approved — go-live not switched on"); assert.equal(approvedByOwner.steps.find((x) => x.id === "owner_review").state, "complete");
+    const rdy = wf({ ...gr, setup_ready_at: "x" }, "live"); assert.equal(rdy.current.id, "owner_review", "setup_ready_at alone is not the owner's approval");
   });
   test("8 · Already live → everything complete, no current step, headline 'Live'", () => {
     const w = wf(base({ stage: "sent", sent_at: "x", invite: { ...open, status: "claimed" }, claim: { status: "approved", created_at: "x" }, has_owner: true, is_claimed: true, grant: { tier: "premium", expires_at: FUTURE }, setup_ready_at: "x", live_at: "y" }), "live");
@@ -138,7 +141,7 @@ describe("It reads existing state and creates none", () => {
     assert.deepEqual([...rail.matchAll(/useState(?:<[^>]*>)?\(([^)]*)\)/g)].map((m) => m[1]), ["false", "null"], "only busy + error: no copy of the campaign's state");
     assert.doesNotMatch(rail, /localStorage|sessionStorage/);
     const page = read("app/admin/launch-partners/[id]/page.tsx");
-    assert.match(page, /deriveWorkflow\(\{ row: c, claimMode, email: \{ subject: c\.email_subject, body: c\.email_body, opening: c\.email_opening, contactEmail: c\.contact_email \}, lastGrant: grant\.last \}\)/);
+    assert.match(page, /deriveWorkflow\(\{ row: c, claimMode, email: \{ subject: c\.email_subject, body: c\.email_body, opening: c\.email_opening, contactEmail: c\.contact_email \}, lastGrant: grant\.last, owner: \{ edited: \(c\.versions \?\? \[\]\)\.some\(\(v\) => v\.kind === "owner_edit"\), approved: !!c\.approved_at, published: !!c\.published_version_id \} \}\)/);
     assert.match(page, /const claimMode = preview\?\.claim === "live" \? "live" : "holding"/, "the same claim mode the page already computes");
   });
   test("the rail performs exactly two actions, through the page's own server actions; it cannot generate, send, revoke or grant", () => {

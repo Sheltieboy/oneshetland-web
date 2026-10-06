@@ -8,6 +8,8 @@ import { beFound } from "@/lib/be-found";
 import { businessOutcomes } from "@/lib/business-outcomes";
 import { OutcomeRow, UtilityRow } from "@/components/business/OutcomeRow";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
+import { LaunchSetupCard } from "@/components/business/LaunchSetupCard";
+import { getOwnerLaunchSetup } from "@/lib/launch-partners/owner-setup.server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Manage business" };
@@ -17,6 +19,9 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const { id } = await params;
   const { business, account } = await requireBusinessOwner(id);
   const dashboard = await getDashboardData(business.id);
+  // Launch-partner onboarding is READ from the real campaign, claim, grant and version records (owner-only; null for anyone else).
+  const launch = (await getOwnerLaunchSetup(business.id)).launch;
+  const launchPrompt = launch.state === "review" || launch.state === "edited";
   const mine = await getMyManagedBusinesses(account.id);
   const base = `/business/${business.id}/manage`;
   // Be Found is derived from the business record on every load — nothing about
@@ -57,8 +62,10 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         <div className="ml-auto"><AvailabilityChip data={dashboard} base={base} /></div>
       </div>
 
+      {launch.showCard && <div className="mb-8"><LaunchSetupCard launch={launch} href={`${base}/launch-setup`} /></div>}
+
       {/* The dashboard proper: what needs you, how the week went, the code. */}
-      <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} /></div>
+      <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>
 
       {/* ── Your business ──────────────────────────────────────────────
            Five outcomes in a fixed order. Not eighteen tiles, and not sorted

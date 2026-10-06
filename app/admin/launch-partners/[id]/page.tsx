@@ -43,7 +43,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const approved = isClaimed(c);
   const grant = approved ? await grantContext(c.business_id) : { lookup: null, last: null };
   const showGrant = approved || !!grant.last;
-  const workflow = deriveWorkflow({ row: c, claimMode, email: { subject: c.email_subject, body: c.email_body, opening: c.email_opening, contactEmail: c.contact_email }, lastGrant: grant.last });
+  const workflow = deriveWorkflow({ row: c, claimMode, email: { subject: c.email_subject, body: c.email_body, opening: c.email_opening, contactEmail: c.contact_email }, lastGrant: grant.last, owner: { edited: (c.versions ?? []).some((v) => v.kind === "owner_edit"), approved: !!c.approved_at, published: !!c.published_version_id } });
 
   const facts: [string, string][] = [
     ["Category", c.category ?? "—"], ["Location", c.locality ?? "—"],

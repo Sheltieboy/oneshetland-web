@@ -103,8 +103,8 @@ export function nextAction(r: PipelineRow, status: PipelineStatus = derivePipeli
     case "viewed": return "Wait for a claim — or follow up personally";
     case "claim_submitted": return "Review and decide on the claim";
     case "claimed": return r.grant ? "Wait for them to start adding products" : "Grant launch-partner Premium";
-    case "setting_up": return r.grant ? "Let them add their catalogue and review the page" : "Grant launch-partner Premium";
-    case "ready_to_go_live": return "Waiting for them to press Go live";
+    case "setting_up": return r.grant ? "Wait for the owner to review and approve their setup" : "Grant launch-partner Premium";
+    case "ready_to_go_live": return "The owner approved their setup — going live is not switched on yet";
     case "live": return "Nothing — they're live";
     case "archived": return "Archived";
   }

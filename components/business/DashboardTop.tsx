@@ -28,8 +28,10 @@ const ago = (iso: string) => {
 
 const BIZ = "#7c3aed";
 
-export function DashboardTop({ data, base, next, listingDone }: {
+export function DashboardTop({ data, base, next, listingDone, launchOnboarding = false }: {
   data: DashboardData; base: string; next?: NextAction | null; listingDone?: boolean;
+  /** A launch-partner setup task is shown above (the launch card). It outranks the generic "Nothing needs you" line and the ordinary Next suggestion, so neither contradicts it. */
+  launchOnboarding?: boolean;
 }) {
   const { needs, week, code } = data;
 
@@ -113,7 +115,7 @@ export function DashboardTop({ data, base, next, listingDone }: {
           Hiding every panel left a page that looked broken — which is exactly
           how this read on a business with no activity yet. One calm line beats
           both a blank space and a row of zero-badges. */}
-      {nothingWaiting && (
+      {nothingWaiting && !launchOnboarding && (
         <section className="rounded-xl border border-line bg-paper p-4 shadow-soft">
           <p className="font-semibold text-ink">Nothing needs you right now</p>
           <p className="mt-0.5 text-sm text-ink-muted">
@@ -141,7 +143,7 @@ export function DashboardTop({ data, base, next, listingDone }: {
            whether there is a next at all (lib/business-next-action.ts), which
            is what keeps "4 orders waiting" from appearing twice on one page
            in two different voices. */}
-      {next && (
+      {next && !launchOnboarding && (
         <Link href={next.href} className="block rounded-xl border border-line bg-paper p-4 shadow-soft transition hover:bg-sand/40">
           <p className="eyebrow text-ink-muted">Next</p>
           <p className="mt-1 font-display font-bold text-ink">{next.title}</p>

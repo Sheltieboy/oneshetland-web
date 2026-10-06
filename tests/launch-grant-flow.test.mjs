@@ -48,7 +48,7 @@ describe("The workflow, from the real claim and grant records", () => {
   });
   test("5 · once the grant exists the step is complete — read from the grant record — and the next step takes over", () => {
     const w = wf(claimed({ grant: { tier: "premium", expires_at: FUTURE } }), { status: "active", expires_at: FUTURE });
-    assert.equal(w.steps.find((s) => s.id === "grant").state, "complete"); assert.equal(w.current.id, "go_live"); assert.equal(w.headline, "Waiting for them to set up");
+    assert.equal(w.steps.find((s) => s.id === "grant").state, "complete"); assert.equal(w.current.id, "owner_review"); assert.equal(w.headline, "Waiting for owner review");
     assert.equal(w.status, "setting_up", "the headline status is recomputed by the page's own derivePipelineStatus");
   });
   test("6 · an existing active grant: already complete, even before anything is asked", () => {

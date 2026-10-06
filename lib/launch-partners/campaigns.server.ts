@@ -40,6 +40,9 @@ export interface CampaignDetail extends PipelineRow {
   email_opening: string | null;
   notes: string | null;
   events: CampaignEvent[];
+  /** The owner's side, from the campaign's own records: when they approved, the approved version, any published version, and the version trail. */
+  approved_at?: string | null; approved_version_id?: string | null; published_version_id?: string | null;
+  versions?: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published"; created_at: string; actor_role: string | null }[];
 }
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
