@@ -15,12 +15,17 @@ import { getPreviewConfig } from "../launch-preview/registry";
 import { buildPageDraft, POSITIONING_BY_SLUG } from "./draft";
 import { defaultEmailDraft } from "./email";
 import { parsePageDraft, parsePreviewConfig } from "./validate";
+import { preparationRoute, type PreparationRoute } from "./eligibility";
+import { normaliseSourceUrl } from "./source-url";
+import type { DirectoryRecord } from "./draft";
 
 export interface CandidateRow {
   business_id: string; name: string; category: string | null; address?: string | null; locality: string | null;
   is_active: boolean; /** Can an ANONYMOUS visitor see it? (active AND not hidden from public discovery) */ publicly_visible: boolean; is_claimed: boolean; has_owner?: boolean; owner_name: string | null; tier: string | null; plan_live: boolean;
   product_count: number; service_count: number; offer_count: number; pass_count: number;
   has_campaign: boolean; campaign_id: string | null; campaign_slug: string | null; campaign_stage: string | null;
+  /** How a draft would be built for it, from what OneShetland already holds (see eligibility.preparationRoute). */
+  route: PreparationRoute; /** The website OneShetland already has for it, as a host ("example.co.uk"), or null. */ source_host: string | null;
 }
 
 export interface CampaignEvent { id: string; kind: string; detail: Record<string, unknown>; actor_label: string | null; created_at: string }
@@ -68,14 +73,30 @@ export const getCampaign = async (id: string): Promise<CampaignDetail | null> =>
  * public key, i.e. exactly what a visitor gets (so a hidden test fixture is reported as hidden, not as listed).
  */
 export async function searchCandidates(q: string): Promise<CandidateRow[]> {
-  const rows = (await rpc<Omit<CandidateRow, "publicly_visible">[] | null>("admin_launch_partner_candidates", { p_query: q })) ?? [];
+  const rows = (await rpc<Omit<CandidateRow, "publicly_visible" | "route" | "source_host">[] | null>("admin_launch_partner_candidates", { p_query: q })) ?? [];
   if (!rows.length) return [];
   let visible = new Set<string>();
   try {
     const { data } = await publicClient().from("local_businesses_public").select("id").in("id", rows.map((r) => r.business_id));
     visible = new Set((data ?? []).map((r) => r.id as string));
   } catch { /* if the public check cannot be made, nothing is claimed to be public */ }
-  return rows.map((r) => ({ ...r, publicly_visible: r.is_active && visible.has(r.business_id) }));
+  // What OneShetland already holds for each business — read with the administrator's own session, whether or not it is publicly listed.
+  const records = new Map<string, DirectoryRecord>();
+  try { for (const r of await directoryRecords(rows.map((x) => x.business_id))) records.set(r.id, r); } catch { /* unknown → treated as having no source */ }
+  return rows.map((r) => {
+    const rec = records.get(r.business_id);
+    const site = normaliseSourceUrl(rec?.website);
+    const route = preparationRoute(
+      { description_length: (rec?.description ?? "").trim().length, commerce_count: (r.product_count ?? 0) + (r.service_count ?? 0) + (r.offer_count ?? 0) + (r.pass_count ?? 0), website: rec?.website ?? null },
+      site.ok,
+    );
+    return { ...r, publicly_visible: r.is_active && visible.has(r.business_id), route, source_host: site.ok ? site.host : null };
+  });
+}
+
+/** What OneShetland holds for these businesses (≤25), readable by an administrator even when a listing is not public. Read-only. */
+export async function directoryRecords(ids: string[]): Promise<DirectoryRecord[]> {
+  return (await rpc<DirectoryRecord[] | null>("admin_launch_partner_directory_records", { p_ids: ids })) ?? [];
 }
 
 /** The single candidate for a business id, with the same facts the search shows. */
@@ -159,3 +180,13 @@ export interface InviteSummaryRow {
   revoked_at: string | null; revoked_reason: string | null; status: string; claimant_name: string | null; claimant_email: string | null; claim_status: string | null;
 }
 export const listInvites = async (): Promise<InviteSummaryRow[]> => (await rpc<InviteSummaryRow[] | null>("admin_list_launch_invites")) ?? [];
+
+/* ── enrichment provenance (admin-only; append-only) ─────────────────────────────────────────────────────────── */
+
+export interface EnrichmentRun {
+  id: string; campaign_id: string; run_no: number; status: "applied" | "failed"; mode: "first" | "regenerate" | "retry"; source_url: string | null;
+  overwrote_edits: boolean; model: string | null; pages: { url: string; status: string; detail?: string; chars?: number }[]; images: { id?: string; url: string; mime?: string; bytes?: number }[];
+  proposal: Record<string, unknown>; dropped: { item: string; why: string }[]; flags: string[]; applied_hash: string | null; error_code: string | null; error_detail: string | null; created_at: string;
+}
+export const enrichmentRuns = async (campaignId: string): Promise<EnrichmentRun[]> => (await rpc<EnrichmentRun[] | null>("admin_launch_partner_enrichment_list", { p_campaign_id: campaignId })) ?? [];
+export const recordEnrichmentRun = (campaignId: string, run: Record<string, unknown>) => rpc<{ id: string; run_no: number }>("admin_launch_partner_enrichment_record", { p_campaign_id: campaignId, p_run: run });

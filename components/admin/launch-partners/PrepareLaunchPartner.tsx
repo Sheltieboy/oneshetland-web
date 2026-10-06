@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
-import { prepareCampaignAction, searchCandidatesAction } from "@/app/admin/launch-partners/actions";
+import { enrichCampaignAction, prepareCampaignAction, searchCandidatesAction } from "@/app/admin/launch-partners/actions";
+import { runGuarded } from "@/lib/launch-partners/invitation-replace";
+import { normaliseSourceUrl } from "@/lib/launch-partners/source-url";
 import type { CandidateRow } from "@/lib/launch-partners/campaigns.server";
-import { eligibilityOf } from "@/lib/launch-partners/eligibility";
+import { eligibilityOf, REASSURANCE, ROUTE_LABEL, ROUTE_TONE, routeNote } from "@/lib/launch-partners/eligibility";
 
 const POSITIONINGS = ["Products + experiences", "Bookings + local discovery", "Shop + local + rewards", "Products + Shetland makers", "Products + local story"];
 
@@ -18,6 +20,9 @@ export function PrepareLaunchPartner({ onClose }: { onClose: () => void }) {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [positioning, setPositioning] = useState("");
+  const [sources, setSources] = useState<Record<string, string>>({});
+  /** Where a preparation got to, so a failure never loses the draft that was already created. */
+  const [progress, setProgress] = useState<{ businessId: string; step: string; campaignId?: string; failed?: string; sourceUrl?: string } | null>(null);
 
   useEffect(() => {
     if (q.trim().length < 3) return;
@@ -31,11 +36,26 @@ export function PrepareLaunchPartner({ onClose }: { onClose: () => void }) {
   }, [q]);
 
   async function prepare(c: CandidateRow) {
-    setBusy(c.business_id); setErr(null);
-    const r = await prepareCampaignAction({ businessId: c.business_id, positioning });
+    setBusy(c.business_id); setErr(null); setProgress(null);
+    const supplied = (sources[c.business_id] ?? "").trim();
+    if (c.route === "needs_source") { const u = normaliseSourceUrl(supplied); if (!u.ok) { setBusy(null); setErr(u.error); return; } }
+    setProgress({ businessId: c.business_id, step: "Creating the private draft…" });
+    const g = await runGuarded(() => prepareCampaignAction({ businessId: c.business_id, positioning, sourceUrl: supplied || undefined }));
+    if (!g.ok) { setBusy(null); setProgress(null); setErr(g.error); return; }
+    const r = g.value;
+    if (!r.ok) { setBusy(null); setProgress(null); setErr(r.error); return; }
+    if (!r.enrich) { setBusy(null); router.push(`/admin/launch-partners/${r.id}`); return; }
+    await enrich(c.business_id, r.id, r.host ?? "the website", supplied || undefined);
+  }
+
+  /** The second step: Peerie Bot reads the website. The campaign already exists, so a failure here loses nothing and can be retried. */
+  async function enrich(businessId: string, campaignId: string, host: string, sourceUrl?: string) {
+    setBusy(businessId); setErr(null);
+    setProgress({ businessId, campaignId, sourceUrl, step: `Peerie Bot is reading ${host} and building the draft — this can take up to half a minute…` });
+    const g = await runGuarded(() => enrichCampaignAction(campaignId, { sourceUrl }), 85_000);
     setBusy(null);
-    if (!r.ok) { setErr(r.error); return; }
-    router.push(`/admin/launch-partners/${r.id}`);
+    if (g.ok && g.value.ok) { setProgress(null); router.push(`/admin/launch-partners/${campaignId}`); return; }
+    setProgress({ businessId, campaignId, sourceUrl, step: "", failed: g.ok ? (g.value as { error: string }).error : g.error });
   }
 
   return (
@@ -77,11 +97,36 @@ export function PrepareLaunchPartner({ onClose }: { onClose: () => void }) {
                     {c.product_count} product{c.product_count === 1 ? "" : "s"}, {c.service_count} service{c.service_count === 1 ? "" : "s"}, {c.offer_count} offer{c.offer_count === 1 ? "" : "s"}, {c.pass_count} pass{c.pass_count === 1 ? "" : "es"}
                   </p>
                   {el.state === "hidden_from_public" && <p className="mt-1 text-xs text-ink-muted">Visitors can’t see this listing (it’s a test fixture). You can still prepare a private preview from it.</p>}
-                  {!el.canPrepare && <p className="mt-1 text-xs font-semibold text-rose-700">{el.reason}</p>}
+                  {el.state === "unlisted" && <p className="mt-1 text-xs text-ink-muted">Not publicly listed — that’s fine. The preview is built privately and the listing isn’t touched.</p>}
+                  {!c.has_campaign && (
+                    <div className="mt-2 rounded-lg bg-cream/70 px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-2"><StatusPill label={ROUTE_LABEL[c.route]} tone={ROUTE_TONE[c.route]} /></div>
+                      <p className="mt-1 text-sm text-ink-soft">{routeNote(c.route, c.source_host)}</p>
+                      {c.route === "needs_source" && (
+                        <label className="mt-2 block text-sm font-semibold text-ink-soft">Business website
+                          <input value={sources[c.business_id] ?? ""} onChange={(e) => setSources({ ...sources, [c.business_id]: e.target.value })} placeholder="e.g. avrilthomsonsmith.co.uk" inputMode="url" autoComplete="off" className="mt-1 block w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm" />
+                        </label>
+                      )}
+                      <p className="mt-1 text-xs font-semibold text-emerald-800">{REASSURANCE}</p>
+                    </div>
+                  )}
+                  {progress?.businessId === c.business_id && progress.step && <p role="status" className="mt-2 text-sm font-semibold text-ink-soft">⏳ {progress.step}</p>}
+                  {progress?.businessId === c.business_id && progress.failed && (
+                    <div role="alert" className="mt-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2">
+                      <p className="text-sm font-semibold text-rose-800">The private draft was created, but Peerie Bot couldn’t finish building it: {progress.failed}</p>
+                      <p className="mt-1 text-xs text-rose-800">Nothing on the live listing changed. You can retry, or open the draft and add the content by hand.</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button onClick={() => enrich(c.business_id, progress.campaignId!, c.source_host ?? "the website", progress.sourceUrl)} disabled={busy !== null} className="rounded-pill bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Retry</button>
+                        <Link href={`/admin/launch-partners/${progress.campaignId}`} className="rounded-pill border border-line-strong bg-white px-4 py-1.5 text-sm font-semibold text-ink-soft hover:bg-sand">Open the draft →</Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 {c.has_campaign
                   ? <Link href={`/admin/launch-partners/${c.campaign_id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">Open →</Link>
-                  : <button onClick={() => prepare(c)} disabled={busy !== null || !el.canPrepare} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50">{busy === c.business_id ? "Preparing…" : "Prepare launch preview"}</button>}
+                  : progress?.businessId === c.business_id && progress.campaignId
+                    ? null
+                    : <button onClick={() => prepare(c)} disabled={busy !== null || (c.route === "needs_source" && !normaliseSourceUrl(sources[c.business_id]).ok)} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-50">{busy === c.business_id ? "Preparing…" : "Prepare launch preview"}</button>}
               </div>
             </li>
           ); })}

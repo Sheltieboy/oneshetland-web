@@ -12,12 +12,14 @@ import { PreviewEditor } from "@/components/admin/launch-partners/PreviewEditor"
 import { PageDraftEditor } from "@/components/admin/launch-partners/PageDraftEditor";
 import { OutreachPanels } from "@/components/admin/launch-partners/OutreachPanels";
 import { StatusSection } from "@/components/admin/launch-partners/StatusSection";
+import { EnrichmentSection } from "@/components/admin/launch-partners/EnrichmentSection";
+import { enrichmentView } from "@/lib/launch-partners/enrich.server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch partner" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["status", "Status"]];
+const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["peerie", "Peerie Bot draft"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["status", "Status"]];
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +33,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const preview = (pv.ok ? pv.value : null) as PreviewConfig | null;
   const page = (pg.ok ? pg.value : null) as PageDraft | null;
   const claimMode = preview?.claim === "live" ? "live" : "holding";
+  const enrich = await enrichmentView(c);
 
   const facts: [string, string][] = [
     ["Category", c.category ?? "—"], ["Location", c.locality ?? "—"],
@@ -73,6 +76,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <Section id="positioning" title="Positioning" sub="One line naming the pitch. Internal; never shown publicly.">
           <PositioningField id={c.id} initial={c.positioning ?? ""} />
         </Section>
+
+        <EnrichmentSection id={c.id} businessName={c.name} defaultUrl={enrich.defaultUrl} runs={enrich.runs} editedSince={enrich.editedSince} hasContent={enrich.hasContent} sent={!!c.sent_at} />
 
         {preview ? <PreviewEditor id={c.id} initial={preview} /> : <Section id="preview" title="Preview"><p role="alert" className="text-sm font-semibold text-rose-700">The stored preview is not valid: {pv.ok ? "" : pv.error}</p></Section>}
         {page && preview ? <PageDraftEditor id={c.id} initial={page} preview={preview} previewHref={`/admin-preview/launch-partners/${c.id}/business-page`} /> : <Section id="page" title="Business page"><p className="text-sm text-ink-muted">{pg.ok ? "Prepare the launch preview first." : `The stored page draft is not valid: ${pg.error}`}</p></Section>}

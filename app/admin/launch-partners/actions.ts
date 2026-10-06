@@ -3,12 +3,14 @@
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  candidateFor, createCampaignWithDraft, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
+  candidateFor, createCampaignWithDraft, directoryRecords, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
 import { prepareEligibility } from "@/lib/launch-partners/eligibility";
+import { enrichCampaign, type EnrichResult } from "@/lib/launch-partners/enrich.server";
+import { normaliseSourceUrl } from "@/lib/launch-partners/source-url";
 import { checkEmail, defaultEmailDraft } from "@/lib/launch-partners/email";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 
@@ -25,29 +27,51 @@ export async function searchCandidatesAction(q: string): Promise<Result<{ rows: 
   try { return { ok: true, rows: await searchCandidates(q) }; } catch (e) { return fail(e); }
 }
 
-/** "Prepare preview": a campaign for an existing Directory business, drafted from what the Directory already holds. */
-export async function prepareCampaignAction(input: { businessId: string; positioning?: string }): Promise<Result<{ id: string }>> {
+/**
+ * "Prepare preview": a PRIVATE campaign for an existing Directory business, whatever its listing state (unclaimed, Free, not
+ * publicly listed, sparse — those are the businesses a preview is most useful for). The skeleton comes from what the
+ * Directory already holds. When that is thin, the screen then asks enrichCampaignAction to build the rest from the
+ * business's own website; this action itself makes no outside request and calls no model. It reads the Directory and
+ * writes only the campaign.
+ */
+export async function prepareCampaignAction(input: { businessId: string; positioning?: string; sourceUrl?: string }): Promise<Result<{ id: string; enrich: boolean; host: string | null }>> {
   await requireAdmin();
   try {
-    // Eligibility is decided by the SAME function the search card uses (lib/launch-partners/eligibility.ts), from the same facts.
     const cand = await candidateFor(input.businessId);
     if (!cand) return { ok: false, error: "That business was not found." };
-    const elig = prepareEligibility(cand);
-    if (!elig.ok) return { ok: false, error: elig.reason };
-    // The record to draft from is read with the ADMINISTRATOR's own session: admins see the live Directory record even when
-    // it is hidden from public discovery (a test fixture). Nothing here is shown publicly, and nothing is written to it.
-    const sb = await createClient();
-    const { data } = await sb.from("local_businesses_public")
-      .select("id, name, category, description, address, locality, logo_url, cover_url, website, tags").eq("id", input.businessId).maybeSingle();
-    if (!data) return { ok: false, error: "That business's Directory record could not be read just now. Please try again." };
-    const rec = data as DirectoryRecord;
+    prepareEligibility(cand); // always ok — the listing state never blocks a private draft (kept as the single place that says so)
+    // Read with the administrator's own session through a read-only admin function: it works whether or not the listing is public.
+    const rec = (await directoryRecords([input.businessId]))[0] as DirectoryRecord | undefined;
+    if (!rec) return { ok: false, error: "That business's Directory record could not be read just now. Please try again." };
+
+    const supplied = input.sourceUrl?.trim() ? normaliseSourceUrl(input.sourceUrl) : null;
+    if (supplied && !supplied.ok) return { ok: false, error: supplied.error };
+    if (cand.route === "needs_source" && !supplied) return { ok: false, error: "We don't have enough public information to build this automatically. Add the business's website and try again." };
+    const useSource = cand.route !== "existing_content" ? (supplied?.ok ? supplied : normaliseSourceUrl(rec.website)) : null;
+
     const slug = slugFromName(rec.name);
-    const preview = parsePreviewConfig(buildPreviewSkeleton(rec, slug), slug);
+    // The website a draft is built from is recorded on the PRIVATE preview only; the Directory record is never written.
+    const forSkeleton: DirectoryRecord = { ...rec, website: rec.website || (useSource?.ok ? useSource.url : null) };
+    const preview = parsePreviewConfig(buildPreviewSkeleton(forSkeleton, slug), slug);
     const page = parsePageDraft(buildPageSkeleton(rec));
     if (!preview.ok) return { ok: false, error: preview.error };
     if (!page.ok) return { ok: false, error: page.error };
     const id = await createCampaignWithDraft({ businessName: rec.name, opening: null, businessId: rec.id, slug, positioning: input.positioning?.trim() || null, preview: preview.value, page: page.value, isTest: /^zz\b/i.test(rec.name.trim()) });
-    return { ok: true, id };
+    return { ok: true, id, enrich: !!useSource?.ok, host: useSource?.ok ? useSource.host : null };
+  } catch (e) { return fail(e); }
+}
+
+/**
+ * Peerie Bot builds (or rebuilds) the campaign's PRIVATE draft from the business's own website. Administrators only.
+ * It can change only this campaign's private preview and page drafts (and positioning if empty). A draft that has been
+ * edited or already holds content is replaced only when `overwrite` is true — the server demands it, whatever the screen did.
+ */
+export async function enrichCampaignAction(id: string, opts: { sourceUrl?: string; overwrite?: boolean } = {}): Promise<Result<{ result: Extract<EnrichResult, { ok: true }> }> & { code?: string }> {
+  await requireAdmin();
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: false, error: "Not found." };
+  try {
+    const r = await enrichCampaign(id, { sourceUrl: opts.sourceUrl, overwrite: opts.overwrite === true });
+    return r.ok ? { ok: true, result: r } : { ok: false, error: r.error, code: r.code };
   } catch (e) { return fail(e); }
 }
 

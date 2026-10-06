@@ -52,7 +52,9 @@ export type AiRoute =
   | "parse-event"
   | "parse-job"
   | "parse-shift"
-  | "plan-day";
+  | "plan-day"
+  /** Admin-only launch-partner draft enrichment (a server action, not an /api/ai route — see lib/launch-partners/enrich.server.ts). */
+  | "enrich-launch-partner";
 
 export type GuardOptions = {
   route: AiRoute;
@@ -111,6 +113,34 @@ function longestString(value: unknown, depth = 0): number {
   return 0;
 }
 
+/**
+ * Claim one billable AI request for the CALLING user, from their own session (the database derives who from auth.uid()).
+ * Returns null when allowed, or the refusal to send. FAIL CLOSED: a broken cost control is not permission to spend without one.
+ * Shared by guardAi (the /api/ai routes) and by server actions that spend the key (launch-partner enrichment).
+ */
+export async function claimAiQuota(supabase: SupabaseClient, route: AiRoute): Promise<Response | null> {
+  let claim: { allowed: boolean; reason: string; retry_after_secs: number } | null = null;
+  try {
+    const { data, error } = await supabase
+      .rpc("claim_ai_request", { p_route: route })
+      .maybeSingle<{ allowed: boolean; reason: string; retry_after_secs: number }>();
+    if (error) throw error;
+    claim = data;
+  } catch (err) {
+    console.error(`[ai-guard:${route}] quota check failed:`, err);
+    return json({ error: "Peerie Bot is unavailable right now — try again shortly." }, 503);
+  }
+  if (!claim || !claim.allowed) {
+    const retry = Math.max(1, claim?.retry_after_secs ?? 60);
+    return json(
+      { error: "You've used Peerie Bot a lot in a short time. Give it a few minutes and try again." },
+      429,
+      { "Retry-After": String(retry) },
+    );
+  }
+  return null;
+}
+
 export async function guardAi(request: Request, opts: GuardOptions): Promise<GuardResult> {
   // ── 1. Size, before anything is parsed or authenticated ─────────────────
   //
@@ -152,35 +182,8 @@ export async function guardAi(request: Request, opts: GuardOptions): Promise<Gua
   }
 
   // ── 4. Quota ────────────────────────────────────────────────────────────
-  //
-  // Called with the caller's own session, so the database attributes it from
-  // auth.uid(). Nothing here says who the user is.
-  let claim: {
-    allowed: boolean; reason: string; retry_after_secs: number;
-  } | null = null;
-  try {
-    const { data, error } = await caller.supabase
-      .rpc("claim_ai_request", { p_route: opts.route })
-      .maybeSingle<{ allowed: boolean; reason: string; retry_after_secs: number }>();
-    if (error) throw error;
-    claim = data;
-  } catch (err) {
-    // FAIL CLOSED. A broken cost control is not permission to spend without
-    // one. This is deliberately the opposite of "limiter unavailable — carry on".
-    console.error(`[ai-guard:${opts.route}] quota check failed:`, err);
-    return { ok: false, response: json({ error: "Peerie Bot is unavailable right now — try again shortly." }, 503) };
-  }
-  if (!claim || !claim.allowed) {
-    const retry = Math.max(1, claim?.retry_after_secs ?? 60);
-    return {
-      ok: false,
-      response: json(
-        { error: "You've used Peerie Bot a lot in a short time. Give it a few minutes and try again." },
-        429,
-        { "Retry-After": String(retry) },
-      ),
-    };
-  }
+  const refused = await claimAiQuota(caller.supabase, opts.route);
+  if (refused) return { ok: false, response: refused };
 
   return { ok: true, user: caller.user, supabase: caller.supabase, body };
 }

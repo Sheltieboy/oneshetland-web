@@ -328,16 +328,16 @@ describe("Directory eligibility: the card and the Prepare action cannot contradi
     for (const f of ALL) assert.equal(eligibilityOf(f).label === "Publicly listed", f.is_active && f.publicly_visible, JSON.stringify(f));
     assert.equal(listingState({ is_active: false, publicly_visible: true }), "unlisted", "an inactive record is never reported as listed");
   });
-  test("preparing is blocked exactly when the card says 'Not publicly listed' (inactive) — never for a listed or hidden-fixture business", () => {
-    for (const f of ALL) { const e = eligibilityOf(f); assert.equal(e.canPrepare, f.is_active, JSON.stringify(f)); assert.equal(!e.canPrepare, e.state === "unlisted"); assert.equal(!e.canPrepare, e.reason !== null); }
-    assert.match(prepareEligibility({ is_active: false, publicly_visible: false }).reason, /isn't active in the OneShetland Directory/);
+  test("preparing is NEVER blocked by the listing state: unclaimed, Free, inactive and hidden businesses are exactly who a private preview is for", () => {
+    for (const f of ALL) { const e = eligibilityOf(f); assert.equal(e.canPrepare, true, JSON.stringify(f)); assert.equal(e.reason, null); assert.equal(prepareEligibility(f).ok, true); }
+    assert.equal(eligibilityOf({ is_active: false, publicly_visible: false }).label, "Not publicly listed", "the card still says plainly that it is not publicly listed");
   });
-  test("the old contradictory message is gone, and the card and the action share ONE eligibility function", () => {
+  test("the old contradictory and the old blocking messages are gone; the card and the action share ONE eligibility function", () => {
     const a = read("app/admin/launch-partners/actions.ts"), card = read("components/admin/launch-partners/PrepareLaunchPartner.tsx");
-    assert.doesNotMatch(a + card, /isn't in the public Directory/);
+    assert.doesNotMatch(a + card, /isn't in the public Directory|isn't active in the OneShetland Directory/);
     assert.match(a, /prepareEligibility\(cand\)/); assert.match(card, /eligibilityOf\(c\)/);
     assert.match(card, /<StatusPill label=\{el\.label\} tone=\{el\.tone\} \/>/); assert.doesNotMatch(card, /"Publicly listed"/, "the card never hard-codes the label from a raw flag");
-    assert.match(card, /disabled=\{busy !== null \|\| !el\.canPrepare\}/);
+    assert.doesNotMatch(card, /!el\.canPrepare/, "nothing on the card is disabled by the listing state");
   });
   test("both read the same facts: the action re-queries the SAME candidate lookup the search uses (public visibility asked of the anonymous view)", () => {
     const m = read("lib/launch-partners/campaigns.server.ts"), a = read("app/admin/launch-partners/actions.ts");
@@ -345,10 +345,10 @@ describe("Directory eligibility: the card and the Prepare action cannot contradi
     assert.match(m, /publicly_visible: r\.is_active && visible\.has\(r\.business_id\)/);
     assert.match(a, /candidateFor\(input\.businessId\)/);
   });
-  test("the record to draft from is read with the administrator's own session (so a hidden fixture can be prepared), never the anonymous client", () => {
+  test("the record to draft from is read through the read-only ADMIN function (it works for an inactive listing too), never the anonymous client, and never written", () => {
     const a = read("app/admin/launch-partners/actions.ts");
-    const fn = a.slice(a.indexOf("export async function prepareCampaignAction"), a.indexOf("export async function importExistingAction"));
-    assert.match(fn, /const sb = await createClient\(\)/); assert.match(fn, /sb\.from\("local_businesses_public"\)/); assert.doesNotMatch(fn, /publicClient/);
+    const fn = a.slice(a.indexOf("export async function prepareCampaignAction"), a.indexOf("export async function enrichCampaignAction"));
+    assert.match(fn, /directoryRecords\(\[input\.businessId\]\)/); assert.doesNotMatch(fn, /publicClient|local_businesses/);
     assert.doesNotMatch(fn, /\.(insert|update|upsert|delete)\(/, "reading only: the Directory record is never written");
   });
   test("if the public check cannot be made, nothing is claimed to be public", () => {
