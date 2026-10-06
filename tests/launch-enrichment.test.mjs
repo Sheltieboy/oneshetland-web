@@ -13,7 +13,7 @@ import { extractPage, chooseLinks, absoluteHttps } from "../lib/launch-partners/
 import { verifyProposal, applyProposal, buildCorpus, priceAppears, quoteSupported, supportRatio, unsupportedRisky, hasDraftContent, canonical, norm, MIN_SOURCE_CHARS, PROPOSAL_SCHEMA, SYSTEM_PROMPT, buildUserPrompt } from "../lib/launch-partners/enrich-core.ts";
 import { runEnrichment, QuotaError } from "../lib/launch-partners/enrich-run.ts";
 import { fixtureDeps, FIXTURE_HOST } from "../lib/launch-partners/enrich-fixture.ts";
-import { preparationRoute, prepareEligibility, listingState, REASSURANCE, RICH_DESCRIPTION_CHARS } from "../lib/launch-partners/eligibility.ts";
+import { preparationRoute, prepareEligibility, listingState, REASSURANCE, MEANINGFUL_DESCRIPTION_CHARS, hasSubstantiveContent, ROUTE_LABEL, routeNote } from "../lib/launch-partners/eligibility.ts";
 import { buildPreviewSkeleton, buildPageSkeleton } from "../lib/launch-partners/draft.ts";
 import { parsePreviewConfig, parsePageDraft } from "../lib/launch-partners/validate.ts";
 
@@ -40,19 +40,63 @@ function deps(over = {}) {
 }
 const INPUT = { businessName: "Fixture Studio", startUrl: START, directory: { description: null, category: "retail", locality: "Walls" } };
 
-/* ── 1–3 · which route a business takes ───────────────────────────────────── */
+/* ── which route a business takes ────────────────────────────────────────── */
+const BIO = "Shetland artist, born in 1975 on the most northerly island in Scotland, draws inspiration from the local landscape. Having grown up in Lerwick, they loved playing in the lanes as a child and now enjoy drawing them. Their latest collections include paintings of abandoned yoals, old croft houses, wildlife and wildflowers.";
+const facts = (o = {}) => ({ description_length: 0, has_cover_image: false, commerce_count: 0, website: null, ...o });
+const route = (o, websiteOk = !!o.website) => preparationRoute(facts(o), websiteOk);
 describe("Preparation route: existing content, enrichment, or ask for a source", () => {
-  test("1 · a RICH listing (real commerce, or a real description) uses its own content — no enrichment route", () => {
-    assert.equal(preparationRoute({ description_length: 0, commerce_count: 1, website: "https://x.co.uk" }, true), "existing_content");
-    assert.equal(preparationRoute({ description_length: RICH_DESCRIPTION_CHARS, commerce_count: 0, website: null }, false), "existing_content");
-    assert.equal(preparationRoute({ description_length: RICH_DESCRIPTION_CHARS - 1, commerce_count: 0, website: "https://x.co.uk" }, true), "enrich");
+  test("the rule: real commerce, OR a meaningful description AND a cover picture — nothing weaker", () => {
+    assert.equal(MEANINGFUL_DESCRIPTION_CHARS, 200);
+    for (const f of [{ commerce_count: 1 }, { commerce_count: 4, description_length: 5 }, { description_length: 200, has_cover_image: true }, { description_length: 5000, has_cover_image: true, commerce_count: 0 }]) assert.equal(hasSubstantiveContent(facts(f)), true, JSON.stringify(f));
+    for (const f of [{}, { description_length: 5000 }, { has_cover_image: true }, { description_length: 199, has_cover_image: true }, { website: "https://x.co.uk" }]) assert.equal(hasSubstantiveContent(facts(f)), false, JSON.stringify(f));
   });
-  test("2 · a SPARSE listing with a usable website takes the enrichment route", () => {
-    assert.equal(preparationRoute({ description_length: 10, commerce_count: 0, website: "avril.co.uk" }, true), "enrich");
+  test("1 · a business with substantial OneShetland content → 'OneShetland content available'", () => {
+    assert.equal(route({ description_length: BIO.length + 200, has_cover_image: true, website: "https://x.co.uk" }), "existing_content");
+    assert.equal(ROUTE_LABEL.existing_content, "OneShetland content available");
+    assert.match(routeNote("existing_content", null), /built mostly from existing OneShetland content/); assert.match(routeNote("existing_content", null), /Peerie Bot is not used/);
   });
-  test("3 · a sparse listing with no (or an unusable) website needs a source — it is not guessed at", () => {
-    assert.equal(preparationRoute({ description_length: 10, commerce_count: 0, website: null }, false), "needs_source");
-    assert.equal(preparationRoute({ description_length: 10, commerce_count: 0, website: "ftp://nope" }, false), "needs_source");
+  test("2 · basic Directory metadata + a usable website → the Peerie Bot enrichment path", () => {
+    assert.equal(route({ description_length: 40, website: "https://avril.co.uk" }), "enrich");
+    assert.equal(ROUTE_LABEL.enrich, "Sparse listing — Peerie Bot can build a private draft");
+    assert.match(routeNote("enrich", "avril.co.uk"), /Peerie Bot will use public business information from avril\.co\.uk to build a private draft/);
+  });
+  test("3 · basic Directory metadata and NO usable website → a source is required, nothing is guessed", () => {
+    assert.equal(route({ description_length: 40 }), "needs_source");
+    assert.equal(route({ description_length: 40, website: "ftp://nope" }, false), "needs_source");
+    assert.equal(ROUTE_LABEL.needs_source, "Not enough source information"); assert.match(routeNote("needs_source", null), /We don't have enough public information to build this automatically/);
+  });
+  test("4 · products/services but a weak description: real commerce is real content — built from OneShetland, and not 'sparse'", () => {
+    assert.equal(route({ commerce_count: 2, description_length: 12 }), "existing_content");
+    assert.equal(route({ commerce_count: 1, description_length: 0, website: "https://x.co.uk" }), "existing_content");
+  });
+  test("5 · a good description but NO picture, or a picture but a thin description, is still sparse (the explicit rule needs both)", () => {
+    assert.equal(route({ description_length: 1067 }), "needs_source", "a long bio alone, no website");
+    assert.equal(route({ description_length: 1067, website: "https://x.co.uk" }), "enrich", "a long bio alone, with a website");
+    assert.equal(route({ has_cover_image: true, description_length: 60 }), "needs_source");
+    assert.equal(route({ has_cover_image: true, description_length: 199, website: "https://x.co.uk" }), "enrich");
+  });
+  test("6 · visibility, claim, owner and plan are not inputs: the classifier reads content facts only", () => {
+    const cases = [{ is_active: true, publicly_visible: true, is_claimed: true, has_owner: true, tier: "premium" }, { is_active: false, publicly_visible: false, is_claimed: false, has_owner: false, tier: "free" }];
+    for (const extra of cases) for (const base of [facts({ description_length: 40, website: "https://x.co.uk" }), facts({ commerce_count: 1 }), facts({ description_length: 300, has_cover_image: true })]) {
+      assert.equal(preparationRoute({ ...base, ...extra }, !!base.website), preparationRoute(base, !!base.website), JSON.stringify(extra));
+    }
+    const src = read("lib/launch-partners/eligibility.ts"); const fn = src.slice(src.indexOf("export function hasSubstantiveContent"), src.indexOf("export const REASSURANCE"));
+    assert.doesNotMatch(fn, /is_active|publicly_visible|is_claimed|has_owner|tier|plan/, "no listing, ownership or plan fact in the rule");
+    const srv = read("lib/launch-partners/campaigns.server.ts"); const call = srv.slice(srv.indexOf("const route = preparationRoute("), srv.indexOf("return { ...r, publicly_visible"));
+    assert.doesNotMatch(call, /is_active|is_claimed|has_owner|tier|plan_live/);
+  });
+  test("7 · the real production shapes: the inactive 'Art' record (long bio, logo only, no website) and the active 'Thomson-Smith' record (same bio, has a website)", () => {
+    // Avril Thomson Smith Art: 1067-char biography, a logo but NO cover photograph, no website, no tags, nothing for sale.
+    assert.equal(route({ description_length: 1067, has_cover_image: false, commerce_count: 0, website: null }), "needs_source");
+    // Avril Thomson-Smith: the same biography, no pictures at all, a website.
+    assert.equal(route({ description_length: 1067, has_cover_image: false, commerce_count: 0, website: "https://www.avrilthomsonsmith.com/" }), "enrich");
+    // Nothing is special-cased by name:
+    for (const f of ["lib/launch-partners/eligibility.ts", "lib/launch-partners/campaigns.server.ts", "app/admin/launch-partners/actions.ts"]) assert.doesNotMatch(read(f), /avril/i, f);
+  });
+  test("the server computes the route from the Directory record's description, cover picture, commerce counts and website only", () => {
+    const srv = read("lib/launch-partners/campaigns.server.ts");
+    assert.match(srv, /description_length: \(rec\?\.description \?\? ""\)\.trim\(\)\.length, has_cover_image: !!rec\?\.cover_url\?\.trim\(\)/);
+    assert.match(srv, /commerce_count: \(r\.product_count \?\? 0\) \+ \(r\.service_count \?\? 0\) \+ \(r\.offer_count \?\? 0\) \+ \(r\.pass_count \?\? 0\)/);
   });
   test("an unclaimed, Free, inactive business is never blocked from a private draft", () => {
     for (const f of [{ is_active: false, publicly_visible: false }, { is_active: true, publicly_visible: false }, { is_active: true, publicly_visible: true }]) {

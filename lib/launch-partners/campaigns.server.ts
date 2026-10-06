@@ -87,7 +87,7 @@ export async function searchCandidates(q: string): Promise<CandidateRow[]> {
     const rec = records.get(r.business_id);
     const site = normaliseSourceUrl(rec?.website);
     const route = preparationRoute(
-      { description_length: (rec?.description ?? "").trim().length, commerce_count: (r.product_count ?? 0) + (r.service_count ?? 0) + (r.offer_count ?? 0) + (r.pass_count ?? 0), website: rec?.website ?? null },
+      { description_length: (rec?.description ?? "").trim().length, has_cover_image: !!rec?.cover_url?.trim(), commerce_count: (r.product_count ?? 0) + (r.service_count ?? 0) + (r.offer_count ?? 0) + (r.pass_count ?? 0), website: rec?.website ?? null },
       site.ok,
     );
     return { ...r, publicly_visible: r.is_active && visible.has(r.business_id), route, source_host: site.ok ? site.host : null };

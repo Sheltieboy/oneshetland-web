@@ -43,32 +43,56 @@ export function prepareEligibility(f: ListingFacts): PrepareEligibility {
 /* ── how a draft is built ─────────────────────────────────────────────────── */
 
 /**
- *   existing_content  OneShetland already holds enough (products/services/offers/passes, or a real description): build from it.
- *   enrich            a sparse listing WITH a website: Peerie Bot reads the website and builds a private draft.
- *   needs_source      a sparse listing with no website: we don't have enough to build automatically; ask for a source.
+ * CONTENT richness — a different question from listing state, ownership or plan, and kept apart from them on purpose:
+ * the inputs below are the ONLY facts the classifier reads (active / publicly visible / claimed / owner / tier are not here).
+ *
+ * "OneShetland content available" means OneShetland already holds enough to build a genuinely useful private preview
+ * WITHOUT reading the business's website. Exactly one of these must be true:
+ *
+ *   1. REAL COMMERCE — at least one product, service, offer or pass. These are real OneShetland records the page is built around.
+ *   2. A REAL PROFILE — a meaningful description (200+ characters of text) AND a usable hero picture (a cover photograph).
+ *
+ * Anything else is SPARSE. In particular none of these is enough on its own: a category, a location, a logo, tags, a website
+ * address, or a long description with no picture (a biography alone gives a page with nothing to look at).
+ *
+ *   existing_content  the rule above holds: the draft is built mostly from what OneShetland already holds. No AI runs.
+ *   enrich            sparse, WITH a usable website: Peerie Bot reads the website and builds a private draft.
+ *   needs_source      sparse, with no usable website: ask for one — nothing is guessed.
  */
 export type PreparationRoute = "existing_content" | "enrich" | "needs_source";
-export interface PreparationFacts { description_length: number; commerce_count: number; website: string | null }
+export interface PreparationFacts {
+  /** Characters of the Directory description, trimmed (0 when none). */
+  description_length: number;
+  /** A cover photograph exists. A logo does not count: it is a mark, not a picture to lead a page with. */
+  has_cover_image: boolean;
+  /** products + services + offers + passes that really exist for the business. */
+  commerce_count: number;
+  website: string | null;
+}
 
-/** A listing is "rich" when it has real commerce or a description of real length (120+ characters). */
-export const RICH_DESCRIPTION_CHARS = 120;
+/** A description is "meaningful" at this many characters — roughly two real sentences, not an imported blurb. */
+export const MEANINGFUL_DESCRIPTION_CHARS = 200;
+
+export function hasSubstantiveContent(f: Pick<PreparationFacts, "description_length" | "has_cover_image" | "commerce_count">): boolean {
+  return f.commerce_count > 0 || (f.description_length >= MEANINGFUL_DESCRIPTION_CHARS && f.has_cover_image);
+}
 
 export function preparationRoute(f: PreparationFacts, websiteOk: boolean): PreparationRoute {
-  if (f.commerce_count > 0 || f.description_length >= RICH_DESCRIPTION_CHARS) return "existing_content";
+  if (hasSubstantiveContent(f)) return "existing_content";
   return f.website && websiteOk ? "enrich" : "needs_source";
 }
 
 export const REASSURANCE = "Nothing on the live business listing will change.";
 export const ROUTE_LABEL: Record<PreparationRoute, string> = {
   existing_content: "OneShetland content available",
-  enrich: "Sparse listing — Peerie Bot can build a draft",
+  enrich: "Sparse listing — Peerie Bot can build a private draft",
   needs_source: "Not enough source information",
 };
 export const ROUTE_TONE: Record<PreparationRoute, "green" | "blue" | "amber"> = { existing_content: "green", enrich: "blue", needs_source: "amber" };
 export const routeNote = (r: PreparationRoute, host: string | null): string =>
-  r === "existing_content" ? "The draft is built mostly from what OneShetland already holds."
-  : r === "enrich" ? `Peerie Bot will read ${host ?? "the website"} and build a private draft you can review and edit.`
-  : "We don't have enough public information to build this automatically. Add the business's website below and Peerie Bot will build the draft from it.";
+  r === "existing_content" ? "The draft is built mostly from existing OneShetland content. Peerie Bot is not used."
+  : r === "enrich" ? `Peerie Bot will use public business information from ${host ?? "the website"} to build a private draft you can review and edit.`
+  : "We don't have enough public information to build this automatically. Add the business's website below and Peerie Bot will use it to build a private draft.";
 
 /** One call for everything a screen needs. */
 export function eligibilityOf(f: ListingFacts) {
