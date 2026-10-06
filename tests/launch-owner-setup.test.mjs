@@ -104,7 +104,7 @@ describe("Safety: nothing is published or imported, and the owner is the only ac
   test("6 · the only database writes are the three audited owner functions (save a private version; approve a version; go live with the approved one)", () => {
     const code = ownerFiles.map(strip).join("\n");
     const rpcs = [...code.matchAll(/\.rpc\(\s*["'`]([a-z_]+)["'`]/g)].map((m) => m[1]);
-    assert.deepEqual([...new Set(rpcs)].sort(), ["launch_partner_owner_approve", "launch_partner_owner_go_live", "launch_partner_owner_save_profile", "launch_partner_page_draft", "launch_partner_profile_versions", "launch_partner_version_profile"]);
+    assert.deepEqual([...new Set(rpcs)].sort(), ["launch_partner_owner_approve", "launch_partner_owner_go_live", "launch_partner_owner_save_profile", "launch_partner_page_draft", "launch_partner_profile_versions", "launch_partner_publication_hold", "launch_partner_version_profile"]);   // publication_hold is a READ (no reason, nothing written)
     const a = strip("app/business/[id]/manage/launch-setup/actions.ts");
     assert.match(a, /^"use server"|\n"use server"/m); assert.equal((a.match(/launch_partner_owner_save_profile/g) ?? []).length, 2); assert.equal((a.match(/launch_partner_owner_approve/g) ?? []).length, 2, "approve: once for the owner's approval, once when publishing a later edit"); assert.equal((a.match(/launch_partner_owner_go_live/g) ?? []).length, 2);
   });

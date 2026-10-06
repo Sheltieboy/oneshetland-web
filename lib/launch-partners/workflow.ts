@@ -9,6 +9,10 @@
  *   prepare → review preview → review business page → mark ready → generate invitation → open claiming → review email →
  *   send → wait for response → approve claim → grant Launch Partner → ready to go live → live
  *
+ * LIVE means a published version is public NOW. live_at is history (the first go-live) and stays set after an administrator takes the page
+ * offline; the offline state is read from the real records too (offline_at, is_published), never typed in. Offline is an ATTENTION state on
+ * the Live step — the campaign did complete once, and the rail says so rather than pretending it never did.
+ *
  * "Review preview" and "Review business page" are jump-only: the database does not record that a person reviewed them
  * (and this file must not invent that fact), so they never block and are never "current"; marking the partner ready is
  * the decision that follows them.
@@ -16,7 +20,7 @@
  * Pure: no database, no framework.
  */
 import { checkEmail } from "./email.ts";
-import { derivePipelineStatus, inviteUsable, isClaimed, STATUS_LABEL, STATUS_TONE, type PipelineRow, type PipelineStatus } from "./status.ts";
+import { derivePipelineStatus, inviteUsable, isClaimed, isPublishedNow, isTakenOffline, STATUS_LABEL, STATUS_TONE, type PipelineRow, type PipelineStatus } from "./status.ts";
 
 export type StepId =
   | "prepare" | "review_preview" | "review_page" | "mark_ready" | "generate_invite" | "open_claiming" | "review_email"
@@ -90,7 +94,11 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   const claimPending = claim?.status === "pending";
   const claimApproved = isClaimed(row);
   const claimOther = !!claim && !claimPending && claim.status !== "approved";
-  const afterClaim = !!claim || claimApproved || !!row.live_at;     // a response has arrived (merely opening the preview is not one)
+  const everLive = !!row.live_at;                                    // it has gone live at least once (history)
+  const published = isPublishedNow(row);                             // …and a published page is public right now
+  const offline = isTakenOffline(row);                               // an administrator took it offline and the hold is still in force
+  const wasLive = everLive && !published;                            // offline, or offline with the hold lifted (the owner may go live again)
+  const afterClaim = !!claim || claimApproved || everLive;           // a response has arrived (merely opening the preview is not one)
   // A grant that is giving access now (the row's own active grant), or one that has become a paid subscription, completes the step.
   const grantDone = !!row.grant || lastGrant?.status === "replaced_by_subscription";
   const grantEnded = !grantDone && claimApproved && (lastGrant?.status === "expired" || lastGrant?.status === "revoked");
@@ -113,9 +121,9 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
     S({ id: "wait", label: "Wait for response", state: done(afterClaim), available: sent, target: section("status") }),
     S({ id: "approve_claim", label: "Approve claim", state: done(claimApproved), available: !!claim, target: { kind: "href", href: CLAIMS_PENDING }, cta: "Review claim" }),
     S({ id: "grant", label: "Grant Launch Partner", state: done(grantDone), available: claimApproved, target: section("grant"), cta: "Grant access" }),
-    S({ id: "owner_review", label: "Owner review", state: done(owner.approved || owner.published || !!row.live_at), available: claimApproved && grantDone, target: section("status") }),
-    S({ id: "go_live", label: "Ready to go live", state: done(!!row.setup_ready_at || !!row.live_at), available: claimApproved && grantDone && owner.approved, target: section("status") }),
-    S({ id: "live", label: "Live", state: done(!!row.live_at), available: !!row.setup_ready_at || !!row.live_at, target: section("status") }),
+    S({ id: "owner_review", label: "Owner review", state: done(owner.approved || owner.published || everLive), available: claimApproved && grantDone, target: section("status") }),
+    S({ id: "go_live", label: "Ready to go live", state: done(published || (!!row.setup_ready_at && !wasLive)), available: claimApproved && grantDone && owner.approved, target: section("status") }),
+    S({ id: "live", label: "Live", state: done(published), available: !!row.setup_ready_at || everLive, target: section("status"), cta: "Open Status" }),
   ];
   const by = (id: StepId) => steps.find((s) => s.id === id)!;
   const mark = (id: StepId, state: StepState, note?: string) => { const s = by(id); s.state = state; if (note) s.note = note; };
@@ -126,10 +134,11 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   if (inviteGone) mark("generate_invite", "attention", `The invitation ${row.invite.status === "expired" ? "has expired" : "was revoked"} — generate a fresh one.`);
   if (sent && usable && claimMode === "holding" && !afterClaim) mark("open_claiming", "attention", "Claiming is closed, so the recipient cannot claim yet.");
   if (claimOther) mark("approve_claim", "attention", `The claim is ${claim!.status}.`);
+  if (offline) mark("live", "attention", "An administrator took this page offline. The owner cannot go live again until you allow it — open Status.");
   if (grantEnded) mark("grant", "attention", `Their launch-partner access has ${lastGrant!.status === "expired" ? "expired" : "been removed"} — grant it again if they should still have it.`);
 
   // ── current: attention first; otherwise the first thing still to do, in Darren's order ──
-  let current: WorkflowStep | null = (["approve_claim", "grant", "generate_invite", "open_claiming"] as const).map(by).find((x) => x.state === "attention") ?? null;
+  let current: WorkflowStep | null = (["approve_claim", "grant", "generate_invite", "open_claiming", "live"] as const).map(by).find((x) => x.state === "attention") ?? null;
   if (!current) {
     const gating: StepId[] = ["prepare", "mark_ready", "generate_invite", "open_claiming", "review_email", "send", "wait", "approve_claim", "grant", "owner_review", "go_live", "live"];
     for (const id of gating) {
@@ -140,7 +149,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
       if (id === "grant" && !claimApproved) continue;
       if (id === "owner_review" && !(claimApproved && grantDone)) continue;
       if (id === "go_live" && !(claimApproved && grantDone && owner.approved)) continue;
-      if (id === "live" && !row.setup_ready_at) continue;
+      if (id === "live" && (!row.setup_ready_at || wasLive)) continue;      // a page that was live and is offline is handled above (attention) or is waiting on the owner (go_live)
       current = x; break;
     }
   }
@@ -159,14 +168,15 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
       case "approve_claim": current.note = "A claim is waiting for your decision."; break;
       case "grant": if (current.state !== "attention") current.note = "Claim approved. Choose Pro or Premium and an end date — right on this page."; break;
       case "owner_review": current.note = owner.edited ? "The owner has started editing their page and hasn't approved it yet." : "Waiting for the owner to review the setup you prepared."; break;
-      case "go_live": current.note = "The owner has approved their setup. Nothing is public until they choose to go live."; break;
-      case "live": current.note = "Ready. Waiting for them to press Go live."; break;
+      case "go_live": current.note = wasLive ? "This page was taken offline and the hold has been lifted. Nothing is public until the owner goes live again." : "The owner has approved their setup. Nothing is public until they choose to go live."; break;
+      case "live": if (current.state !== "attention") current.note = "Ready. Waiting for them to press Go live."; break;
     }
   }
 
   // The "wait" step has nothing to click: it is a state, not a task.
-  const headline = current === null ? (row.live_at ? "Live" : "Nothing to do")
-    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? "Owner approved — waiting for them to go live" : "Waiting for them to go live")
+  const headline = current === null ? (published ? "Live" : "Nothing to do")
+    : offline && current.id === "live" ? "Page taken offline"
+    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? (wasLive ? "Taken offline earlier — waiting for the owner to go live again" : "Owner approved — waiting for them to go live") : "Waiting for them to go live")
     : current.state === "attention" ? `Needs attention: ${current.label}`
     : `Next: ${current.label}`;
   return { status, statusLabel: STATUS_LABEL[status], statusTone: STATUS_TONE[status], steps, current, headline };

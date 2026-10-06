@@ -2,8 +2,9 @@
 
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
 import {
-  candidateFor, createCampaignWithDraft, directoryRecords, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, updateCampaign,
+  allowRepublish, candidateFor, createCampaignWithDraft, directoryRecords, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, takeOffline, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
@@ -230,6 +231,41 @@ export async function setClaimModeAction(id: string, mode: "live" | "holding"): 
     if (!parsed.ok) return { ok: false, error: parsed.error };
     await updateCampaign(id, { preview_config: parsed.value });
     return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+/** What changes on the public site and in both dashboards when a page goes offline or may go live again. Nothing is cached on the public page; this is belt and braces. */
+async function revalidateTakedown(id: string) {
+  const c = await getCampaign(id).catch(() => null);
+  if (c?.business_id) { revalidatePath(`/directory/${c.business_id}`); revalidatePath(`/business/${c.business_id}/manage`); revalidatePath(`/business/${c.business_id}/manage/launch-setup`); }
+  revalidatePath("/directory"); revalidatePath(`/admin/launch-partners/${id}`); revalidatePath("/admin/launch-partners");
+}
+
+/**
+ * TAKE A LIVE PAGE OFFLINE. Administrators only (requireAdmin here, and the database function checks again). It needs a reason and an explicit
+ * confirmation (the screen asks; the server demands `confirm: true` as well). It UNPUBLISHES: the business, owner, claim, Launch Partner
+ * access, saved versions and everything the owner approved are untouched; nothing is deleted; NO EMAIL is sent. The public page falls
+ * back to the ordinary listing, and the owner cannot go live again until an administrator allows it.
+ */
+export async function takeOfflineAction(id: string, reason: string, confirmation: { confirm: boolean }): Promise<Result<{ alreadyOffline: boolean }>> {
+  await requireAdmin();
+  try {
+    if (confirmation?.confirm !== true) return { ok: false, error: "Please confirm that you want to take this page offline." };
+    const why = (reason ?? "").trim();
+    if (why.length < 3) return { ok: false, error: "Give a reason for taking the page offline." };
+    const r = await takeOffline(id, why);
+    await revalidateTakedown(id);
+    return { ok: true, alreadyOffline: r?.already_offline === true };
+  } catch (e) { return fail(e); }
+}
+
+/** Let the OWNER go live again. Publishes nothing: the owner still goes live through the normal confirmed step, which writes a new publication. */
+export async function allowRepublishAction(id: string): Promise<Result<{ alreadyAllowed: boolean }>> {
+  await requireAdmin();
+  try {
+    const r = await allowRepublish(id);
+    await revalidateTakedown(id);
+    return { ok: true, alreadyAllowed: r?.already_allowed === true };
   } catch (e) { return fail(e); }
 }
 

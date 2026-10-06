@@ -18,6 +18,9 @@ type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 const refused = "Only the owner of this launch-partner business can do that.";
 const clean = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong.");
 
+/** Shown while an administrator's takedown is in force. It never says why: the reason is for administrators. */
+const OFFLINE = "Your page is currently offline. Please contact OneShetland.";
+
 async function context(businessId: string) {
   await requireBusinessOwner(businessId, { returnPath: `/business/${businessId}/manage/launch-setup` });
   const ctx = await getOwnerLaunchSetup(businessId);
@@ -28,6 +31,7 @@ export async function saveLaunchSetupAction(businessId: string, edit: OwnerEdit)
   try {
     const ctx = await context(businessId);
     if (!ctx.campaignId || !ctx.draft || !ctx.prepared) return { ok: false, error: refused };
+    if (ctx.launch.state === "offline") return { ok: false, error: OFFLINE };
     if (!["review", "edited", "live"].includes(ctx.launch.state)) return { ok: false, error: ctx.launch.state === "approved" ? "You’ve already approved this setup. Go live, or ask us if you need to change it." : "Your launch setup isn’t open for editing." };
     const built = buildOwnerProfile(ctx.prepared, edit);
     if (!built.ok) return built;
@@ -52,6 +56,7 @@ export async function approveLaunchSetupAction(businessId: string): Promise<Resu
   try {
     const ctx = await context(businessId);
     if (!ctx.campaignId || !ctx.draft) return { ok: false, error: refused };
+    if (ctx.launch.state === "offline") return { ok: false, error: OFFLINE };
     if (ctx.launch.state === "approved") return { ok: false, error: "You’ve already approved this setup." };
     if (!["review", "edited"].includes(ctx.launch.state)) return { ok: false, error: "Your launch setup isn’t open for approval." };
     const sb = await createClient();
@@ -72,7 +77,7 @@ export async function approveLaunchSetupAction(businessId: string): Promise<Resu
 
 /** Map a database refusal to something an owner can act on. The gates raise plain sentences (55000); anything else is generic. */
 function liveError(e: { code?: string; message: string }): string {
-  if (e.code === "55000" || /^Only the setup you approved|^Your (business|Launch)/.test(e.message)) return e.message;
+  if (e.code === "55000" || /^Only the setup you approved|^Your (business|Launch|page)/.test(e.message)) return e.message;
   if (e.code === "42501") return refused;
   return "Your page couldn’t go live just now. Nothing was changed — try again.";
 }
@@ -86,6 +91,7 @@ export async function goLiveAction(businessId: string): Promise<Result<{ already
   try {
     const ctx = await context(businessId);
     if (!ctx.campaignId) return { ok: false, error: refused };
+    if (ctx.launch.state === "offline") return { ok: false, error: OFFLINE };
     if (!ctx.launch.approvedVersionId || !(ctx.launch.state === "approved" || (ctx.launch.state === "live" && ctx.launch.approvalWaiting))) return { ok: false, error: "Approve your setup first." };
     const sb = await createClient();
     const { data, error } = await sb.rpc("launch_partner_owner_go_live", { p_business_id: businessId, p_version_id: ctx.launch.approvedVersionId });

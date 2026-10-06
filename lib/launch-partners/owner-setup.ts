@@ -17,7 +17,8 @@ export type OwnerLaunchState =
   | "review"      // access is active; the prepared setup is waiting for the owner to review it
   | "edited"      // the owner has edited their page and has not approved it yet
   | "approved"    // the owner approved their setup — nothing is public yet
-  | "live";       // a published version exists (the future go-live step) — nothing left to do
+  | "live"        // the page is public — nothing left to do
+  | "offline";    // an administrator took the page offline and has not yet allowed it to go live again
 
 export interface OwnerLaunchInput {
   /** The campaign exists AND this signed-in user is its approved owner (launch_partner_page_draft returned it). */
@@ -25,7 +26,12 @@ export interface OwnerLaunchInput {
   /** The business's launch-grant rows as the owner may read them. */
   grants: { expires_at: string; revoked_at?: string | null; superseded_at?: string | null }[];
   /** launch_partner_profile_versions, newest first. */
-  versions: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published"; created_at: string; parent_id?: string | null; is_approved_current?: boolean }[];
+  versions: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published" | "unpublished"; created_at: string; parent_id?: string | null; is_approved_current?: boolean }[];
+  /**
+   * The takedown hold (launch_partner_publication_hold). true/undefined/null all mean "in force": when the page was taken offline and the hold
+   * cannot be read, the screen stays on the safe side (offline) — the database refuses a go-live while it is held anyway.
+   */
+  held?: boolean | null;
   now?: Date;
 }
 
@@ -44,6 +50,8 @@ export interface OwnerLaunch {
   unpublishedChanges: boolean;
   /** Live, and the newest approval has not been published yet (a one-click "publish"). */
   approvalWaiting: boolean;
+  /** The page was taken offline by an administrator earlier and may now go live again (the hold was lifted). */
+  wasOffline: boolean;
 }
 
 const activeGrant = (g: OwnerLaunchInput["grants"], now: Date) => g.some((x) => !x.revoked_at && !x.superseded_at && new Date(x.expires_at) > now);
@@ -51,19 +59,25 @@ const activeGrant = (g: OwnerLaunchInput["grants"], now: Date) => g.some((x) => 
 export function deriveOwnerLaunch(i: OwnerLaunchInput): OwnerLaunch {
   const now = i.now ?? new Date();
   const grantActive = activeGrant(i.grants, now);
-  const published = i.versions.some((v) => v.kind === "published");
+  // Versions are newest first: the newest of "published" / "unpublished" says whether the page is public NOW. A published row that an
+  // administrator later unpublished is history, not a live page.
+  const lastPub = i.versions.find((v) => v.kind === "published" || v.kind === "unpublished") ?? null;
+  const published = lastPub?.kind === "published";
+  const takenOffline = lastPub?.kind === "unpublished";
+  const held = takenOffline && i.held !== false;
   const approved = i.versions.some((v) => v.kind === "approved" && v.is_approved_current !== false);
   const edited = i.versions.some((v) => v.kind === "owner_edit");
   let state: OwnerLaunchState;
   if (!i.hasCampaign) state = "none";
   else if (published) state = "live";
+  else if (held) state = "offline";
   else if (!grantActive) state = i.grants.length > 0 ? "ended" : "none";   // no grant yet: the ordinary dashboard until access is given
   else if (approved) state = "approved";
   else if (edited) state = "edited";
   else state = "review";
 
   const approvedCurrent = i.versions.find((v) => v.kind === "approved" && v.is_approved_current !== false) ?? null;
-  const pubIdx = i.versions.findIndex((v) => v.kind === "published");
+  const pubIdx = published ? i.versions.findIndex((v) => v.kind === "published") : -1;
   const livePub = pubIdx >= 0 ? i.versions[pubIdx] : null;
   // versions are newest first: anything with a lower index than the published row is newer than it
   const unpublishedChanges = state === "live" && i.versions.some((v, ix) => ix < pubIdx && (v.kind === "owner_edit" || v.kind === "approved"));
@@ -73,11 +87,16 @@ export function deriveOwnerLaunch(i: OwnerLaunchInput): OwnerLaunch {
     { label: "Business claimed", state: "done" },
     { label: "Launch Partner access active", state: "done" },
     { label: "Review your prepared page", state: state === "review" ? "current" : "done" },
-    { label: "Confirm your content", state: state === "approved" || state === "live" ? "done" : state === "edited" ? "current" : "todo" },
+    { label: "Confirm your content", state: state === "approved" || state === "live" || state === "offline" ? "done" : state === "edited" ? "current" : "todo" },
     { label: state === "live" ? "Live on OneShetland" : "Ready to go live", state: state === "live" ? "done" : state === "approved" ? "current" : "todo" },
   ];
   const copy: Record<OwnerLaunchState, { title: string; body: string; cta: string }> = {
     none: { title: "", body: "", cta: "" }, ended: { title: "", body: "", cta: "" },
+    offline: {
+      title: "Your page is currently offline",
+      body: "Your OneShetland listing is unchanged, and your setup and everything you’ve saved are safe. If you weren’t expecting this, please contact OneShetland.",
+      cta: "View my setup",
+    },
     live: {
       title: "You’re live on OneShetland ✓",
       body: unpublishedChanges ? "Your approved page is public. You have changes that aren’t public yet — review and publish them when you’re ready." : "Your approved page is public. You can keep improving it any time, and add products, services and offers whenever you like.",
@@ -93,13 +112,19 @@ export function deriveOwnerLaunch(i: OwnerLaunchInput): OwnerLaunch {
       body: "Your changes are saved privately. When you’re happy with your page, approve it. Nothing is public yet.",
       cta: "Continue my launch setup",
     },
-    approved: {
-      title: "Your setup is approved",
-      body: "Everything is ready. Going live will make your approved OneShetland business page public. Products, services and offers are optional — they appear only if you add them.",
-      cta: "Go live on OneShetland",
-    },
+    approved: takenOffline && !held
+      ? {
+        title: "Your page is offline — you can go live again",
+        body: "Your approved setup is saved. Going live will make your approved OneShetland business page public again. Products, services and offers are optional — they appear only if you add them.",
+        cta: "Go live on OneShetland",
+      }
+      : {
+        title: "Your setup is approved",
+        body: "Everything is ready. Going live will make your approved OneShetland business page public. Products, services and offers are optional — they appear only if you add them.",
+        cta: "Go live on OneShetland",
+      },
   };
-  return { state, showCard: state === "review" || state === "edited" || state === "approved" || state === "live", grantActive, steps, ...copy[state], approvedVersionId: approvedCurrent?.id ?? null, unpublishedChanges, approvalWaiting };
+  return { state, showCard: state === "review" || state === "edited" || state === "approved" || state === "live" || state === "offline", grantActive, steps, ...copy[state], approvedVersionId: approvedCurrent?.id ?? null, unpublishedChanges, approvalWaiting, wasOffline: takenOffline && !held };
 }
 
 /* ── the profile layer an owner may edit ─────────────────────────────────── */

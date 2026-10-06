@@ -26,12 +26,15 @@ export async function getOwnerLaunchSetup(businessId: string): Promise<OwnerLaun
     const row = d as { campaign_id: string; page_config: unknown } | null;
     if (!row) return none();                       // not this campaign's approved owner (or no campaign): indistinguishable, on purpose
     const parsed = parsePageDraft(row.page_config);
-    const [{ data: v }, { data: g }] = await Promise.all([
+    const [{ data: v }, { data: g }, { data: h, error: hErr }] = await Promise.all([
       sb.rpc("launch_partner_profile_versions", { p_business_id: businessId }),
       sb.from("launch_plan_grants").select("expires_at, revoked_at, superseded_at").eq("business_id", businessId),
+      sb.rpc("launch_partner_publication_hold", { p_business_id: businessId }),
     ]);
     const versions = ((v ?? []) as OwnerLaunchInput["versions"]);
-    const launch = deriveOwnerLaunch({ hasCampaign: true, grants: (g ?? []) as OwnerLaunchInput["grants"], versions });
+    // The takedown hold (no reason is ever returned). If it cannot be read, say nothing: the screen then stays on the safe side.
+    const held = hErr || !h ? null : (h as { held?: boolean }).held === true;
+    const launch = deriveOwnerLaunch({ hasCampaign: true, grants: (g ?? []) as OwnerLaunchInput["grants"], versions, held });
     // The newest owner-authored snapshot (an edit, or the approved copy of one) is what the owner sees; the admin's draft is the base.
     const newest = versions.find((x) => x.kind === "owner_edit" || x.kind === "approved");
     let latestProfile: OwnerProfile | null = null;

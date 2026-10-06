@@ -20,7 +20,7 @@ const label = "block text-sm font-semibold text-ink-soft";
  * The owner's launch-setup editor: reword what was prepared, remove what they don't want, add what's missing — all private. It saves a
  * private version (never the listing) and approval is a separate, explicit, confirmed step that publishes nothing.
  */
-export function LaunchSetupEditor({ businessId, initial, locked, approvedAt, live = false, unpublishedChanges = false }: { businessId: string; initial: EditorInitial; /** Approved (and not yet live): shown, not editable. */ locked: boolean; approvedAt: string | null; /** Already live: editing continues, and changes go public only when the owner publishes them. */ live?: boolean; unpublishedChanges?: boolean }) {
+export function LaunchSetupEditor({ businessId, initial, locked, offline = false, approvedAt, live = false, unpublishedChanges = false }: { businessId: string; initial: EditorInitial; /** Approved (and not yet live): shown, not editable. */ locked: boolean; /** An administrator took the page offline: shown for review, not editable, nothing can be approved or published. */ offline?: boolean; approvedAt: string | null; /** Already live: editing continues, and changes go public only when the owner publishes them. */ live?: boolean; unpublishedChanges?: boolean }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [f, setF] = useState(initial);
@@ -163,8 +163,10 @@ export function LaunchSetupEditor({ businessId, initial, locked, approvedAt, liv
         </section>
       ) : (
       <section aria-labelledby="approve-h" className="rounded-card border-2 border-line bg-paper p-5 shadow-soft">
-        <h2 id="approve-h" className="font-display text-xl font-bold text-ink">{locked ? "You’ve approved your setup" : "Happy with it?"}</h2>
-        {locked
+        <h2 id="approve-h" className="font-display text-xl font-bold text-ink">{offline ? "Your page is offline" : locked ? "You’ve approved your setup" : "Happy with it?"}</h2>
+        {offline
+          ? <p className="mt-1 text-sm text-ink-soft">Your saved setup is shown here so you can review it. It can’t be changed or published right now. If you weren’t expecting this, please contact OneShetland.</p>
+          : locked
           ? <p className="mt-1 text-sm text-ink-soft">Approved{approvedAt ? ` on ${new Date(approvedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}. Nothing is public until you go live.</p>
           : <>
               <p className="mt-1 text-sm text-ink-soft">Approving tells us this is the page you want. <strong>It does not publish anything</strong> — your page and content stay private until you choose to go live.</p>

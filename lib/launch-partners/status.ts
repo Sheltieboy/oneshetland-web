@@ -11,7 +11,7 @@
 export type Stage = "candidate" | "preparing" | "ready_to_invite" | "sent" | "archived";
 
 export type PipelineStatus =
-  | "candidate" | "preparing" | "ready_to_invite" | "sent" | "viewed" | "claim_submitted" | "claimed" | "setting_up" | "ready_to_go_live" | "live" | "archived";
+  | "candidate" | "preparing" | "ready_to_invite" | "sent" | "viewed" | "claim_submitted" | "claimed" | "setting_up" | "ready_to_go_live" | "live" | "offline" | "archived";
 
 /** The facts the status is derived from — the shape of one row from admin_launch_partner_list. */
 export interface PipelineRow {
@@ -40,7 +40,12 @@ export interface PipelineRow {
   last_viewed_at: string | null;
   view_count: number;
   setup_ready_at: string | null;
+  /** When this business FIRST went live. History: it stays set after a page is taken offline. */
   live_at: string | null;
+  /** Is a published version public right now? Absent on older rows: then live_at alone is read as "live". */
+  is_published?: boolean;
+  /** Set while an administrator's takedown is in force (the owner cannot go live again until it is lifted). */
+  offline_at?: string | null;
   has_preview: boolean;
   has_page_draft: boolean;
   has_email_draft: boolean;
@@ -49,12 +54,12 @@ export interface PipelineRow {
 }
 
 export const STATUS_ORDER: PipelineStatus[] = [
-  "candidate", "preparing", "ready_to_invite", "sent", "viewed", "claim_submitted", "claimed", "setting_up", "ready_to_go_live", "live",
+  "candidate", "preparing", "ready_to_invite", "sent", "viewed", "claim_submitted", "claimed", "setting_up", "ready_to_go_live", "live", "offline",
 ];
 
 export const STATUS_LABEL: Record<PipelineStatus, string> = {
   candidate: "Candidate", preparing: "Preparing", ready_to_invite: "Ready to invite", sent: "Sent", viewed: "Viewed",
-  claim_submitted: "Claim submitted", claimed: "Claimed", setting_up: "Setting up", ready_to_go_live: "Ready to go live", live: "Live", archived: "Archived",
+  claim_submitted: "Claim submitted", claimed: "Claimed", setting_up: "Setting up", ready_to_go_live: "Ready to go live", live: "Live", offline: "Offline", archived: "Archived",
 };
 
 /** A short phrase for the pipeline tabs. */
@@ -63,7 +68,7 @@ export const TAB_LABEL: Record<PipelineStatus, string> = { ...STATUS_LABEL, cand
 /** Colour family for a status pill (mapped to the admin pill tones in the UI). */
 export const STATUS_TONE: Record<PipelineStatus, "gray" | "amber" | "blue" | "green" | "red"> = {
   candidate: "gray", preparing: "amber", ready_to_invite: "blue", sent: "blue", viewed: "blue", claim_submitted: "amber",
-  claimed: "green", setting_up: "green", ready_to_go_live: "green", live: "green", archived: "gray",
+  claimed: "green", setting_up: "green", ready_to_go_live: "green", live: "green", offline: "red", archived: "gray",
 };
 
 export const inviteUsable = (r: PipelineRow) => r.invite.status === "open" || r.invite.status === "claim pending" || r.invite.status === "claimed";
@@ -71,9 +76,15 @@ export const inviteUsable = (r: PipelineRow) => r.invite.status === "open" || r.
 /** Has an invited claim been approved (so the person now owns the business)? */
 export const isClaimed = (r: PipelineRow): boolean => r.claim?.status === "approved" && r.has_owner;
 
+/** Is a published page public right now? live_at is HISTORY (it stays set after a takedown), so it only answers when nothing better is known. */
+export const isPublishedNow = (r: Pick<PipelineRow, "live_at" | "is_published">): boolean => r.is_published ?? !!r.live_at;
+/** Was this page live once and then taken offline by an administrator (and not yet allowed to go live again)? */
+export const isTakenOffline = (r: Pick<PipelineRow, "live_at" | "is_published" | "offline_at">): boolean => !!r.live_at && !isPublishedNow(r) && !!r.offline_at;
+
 export function derivePipelineStatus(r: PipelineRow): PipelineStatus {
   if (r.stage === "archived") return "archived";
-  if (r.live_at) return "live";
+  if (isPublishedNow(r)) return "live";
+  if (isTakenOffline(r)) return "offline";
   if (r.setup_ready_at && isClaimed(r)) return "ready_to_go_live";
   if (isClaimed(r)) {
     const started = !!r.grant || r.product_count > 0 || r.import_batch_count > 0;
@@ -106,6 +117,7 @@ export function nextAction(r: PipelineRow, status: PipelineStatus = derivePipeli
     case "setting_up": return r.grant ? "Wait for the owner to review and approve their setup" : "Grant launch-partner Premium";
     case "ready_to_go_live": return "The owner approved their setup — waiting for them to go live";
     case "live": return "Nothing — they're live";
+    case "offline": return "Page taken offline — open Status to allow them to go live again";
     case "archived": return "Archived";
   }
 }

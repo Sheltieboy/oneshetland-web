@@ -44,6 +44,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Your launch setup</h1>
         {ctx.launch.state === "live"
           ? <p className="mt-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900">You’re live. Your approved page is public. Anything you change here stays private until you publish it.</p>
+          : ctx.launch.state === "offline"
+          ? <p role="status" className="mt-2 rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-semibold text-amber-900">Your page is currently offline. Your OneShetland listing is unchanged, and your setup and everything you’ve saved are safe. If you weren’t expecting this, please contact OneShetland.</p>
           : <p className="mt-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900">Nothing here is live. This is a private draft that only you and OneShetland can see. Your public listing hasn’t changed.</p>}
 
         <div className="mt-6"><LaunchSetupCard launch={ctx.launch} href={base} publicHref={`/directory/${business.id}`} hideCta /></div>
@@ -56,7 +58,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
         {(ctx.launch.state === "approved" || ctx.launch.state === "live") && <div className="mt-6"><GoLivePanel businessId={business.id} publicHref={`/directory/${business.id}`} live={ctx.launch.state === "live"} waiting={ctx.launch.approvalWaiting} /></div>}
 
-        <div className="mt-6"><LaunchSetupEditor businessId={business.id} initial={initial} locked={ctx.launch.state === "approved"} approvedAt={approvedAt} live={ctx.launch.state === "live"} unpublishedChanges={ctx.launch.unpublishedChanges} /></div>
+        <div className="mt-6"><LaunchSetupEditor businessId={business.id} initial={initial} locked={ctx.launch.state === "approved" || ctx.launch.state === "offline"} offline={ctx.launch.state === "offline"} approvedAt={approvedAt} live={ctx.launch.state === "live"} unpublishedChanges={ctx.launch.unpublishedChanges} /></div>
 
         <section aria-labelledby="examples-h" className="mt-6 rounded-card border border-line bg-paper p-5 shadow-soft">
           <h2 id="examples-h" className="font-display text-xl font-bold text-ink">Examples we prepared <span className="text-sm font-semibold text-ink-muted">· not on sale</span></h2>

@@ -8,10 +8,11 @@ import { BIZ } from "@/lib/business-data";
  */
 export function LaunchSetupCard({ launch, href, publicHref, hideCta = false }: { launch: OwnerLaunch; href: string; /** Where the public page is (used once they are live). */ publicHref?: string; /** On the setup page itself the card is a progress summary: no button back to where you already are. */ hideCta?: boolean }) {
   const done = launch.state === "live";
-  const calm = done;
+  const offline = launch.state === "offline";
+  const calm = done || offline;
   const target = launch.state === "approved" ? `${href}#go-live` : done ? (publicHref ?? href) : href;
   return (
-    <section aria-labelledby="launch-setup-h" data-launch-card={launch.state} className={"rounded-card border-2 p-5 shadow-soft sm:p-6 " + (calm ? "border-emerald-300 bg-emerald-50" : "border-violet-300 bg-violet-50")}>
+    <section aria-labelledby="launch-setup-h" data-launch-card={launch.state} className={"rounded-card border-2 p-5 shadow-soft sm:p-6 " + (offline ? "border-amber-300 bg-amber-50" : calm ? "border-emerald-300 bg-emerald-50" : "border-violet-300 bg-violet-50")}>
       <p className="eyebrow" style={{ color: BIZ }}>Launch partner</p>
       <h2 id="launch-setup-h" className="mt-1 font-display text-2xl font-bold text-ink">{launch.title}</h2>
       <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">{launch.body}</p>

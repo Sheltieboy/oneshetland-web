@@ -42,7 +42,7 @@ export interface CampaignDetail extends PipelineRow {
   events: CampaignEvent[];
   /** The owner's side, from the campaign's own records: when they approved, the approved version, any published version, and the version trail. */
   approved_at?: string | null; approved_version_id?: string | null; published_version_id?: string | null;
-  versions?: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published"; created_at: string; actor_role: string | null }[];
+  versions?: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published" | "unpublished"; created_at: string; actor_role: string | null }[];
 }
 
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -128,6 +128,10 @@ export async function createCampaignWithDraft(a: Parameters<typeof createCampaig
 export const updateCampaign = (id: string, patch: Record<string, unknown>) => rpc<unknown>("admin_launch_partner_update", { p_id: id, p_patch: patch });
 export const setStage = (id: string, stage: string, note?: string) => rpc<void>("admin_launch_partner_set_stage", { p_id: id, p_stage: stage, p_note: note ?? null });
 export const markSent = (id: string, note?: string) => rpc<void>("admin_launch_partner_mark_sent", { p_id: id, p_note: note ?? null });
+/** Take a published page offline (administrators only; a reason is required). Unpublishes — deletes and reverts nothing. */
+export const takeOffline = (id: string, reason: string) => rpc<{ already_offline: boolean; offline_at: string }>("admin_launch_partner_take_offline", { p_id: id, p_reason: reason });
+/** Lift the takedown hold so the OWNER can go live again through the normal step. Publishes nothing. */
+export const allowRepublish = (id: string) => rpc<{ already_allowed: boolean }>("admin_launch_partner_allow_republish", { p_id: id });
 
 /** The private Business Page draft — admin, or the owner after an APPROVED launch-partner claim. Null for everyone else. */
 export async function readPageDraft(businessId: string): Promise<{ campaignId: string; slug: string; stage: string; draft: PageDraft } | null> {
