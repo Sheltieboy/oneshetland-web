@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/admin/AdminUI";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { markSentAction, setStageAction } from "@/app/admin/launch-partners/actions";
 import { Section } from "./fields";
+import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 import { STATUS_LABEL, STATUS_TONE, derivePipelineStatus, isClaimed, nextAction, type PipelineRow } from "@/lib/launch-partners/status";
 import type { CampaignEvent } from "@/lib/launch-partners/campaigns.server";
 
@@ -20,9 +21,13 @@ export function StatusSection({ row, events }: { row: PipelineRow; events: Campa
   const [err, setErr] = useState<string | null>(null);
   const status = derivePipelineStatus(row);
 
+  /** Run a stage action so the buttons can NEVER be left disabled: a refused, lost or unanswered request becomes a plain error and a refresh. */
   async function go(fn: () => Promise<{ ok: boolean; error?: string }>) {
-    setBusy(true); setErr(null); const r = await fn(); setBusy(false);
-    if (!r.ok) setErr((r as { error: string }).error); else router.refresh();
+    setBusy(true); setErr(null);
+    const g = await runGuarded(fn);
+    setBusy(false);
+    if (!g.ok) { setErr(g.error); router.refresh(); return; }
+    if (!g.value.ok) setErr((g.value as { error: string }).error); else router.refresh();
   }
   const milestones: [string, string | null | boolean][] = [
     ["Launch preview prepared", row.has_preview], ["Business page prepared", row.has_page_draft], ["Marked ready to invite", row.stage === "ready_to_invite" || row.stage === "sent"],

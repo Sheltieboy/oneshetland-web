@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 
 /** The small form kit the launch-partner editor sections share. */
 export const inputCls = "mt-1 block w-full rounded-lg border border-line-strong bg-white px-3 py-2 text-sm";
@@ -33,8 +34,10 @@ export function SaveBar({ onSave, label = "Save", disabled }: { onSave: () => Pr
     <div className="flex flex-wrap items-center gap-3">
       <button type="button" disabled={busy || disabled} onClick={async () => {
         setBusy(true); setMsg(null);
-        const e = await onSave();
-        setBusy(false); setMsg(e ? { ok: false, text: e } : { ok: true, text: "Saved." });
+        const g = await runGuarded(onSave);
+        setBusy(false);
+        const e = g.ok ? g.value : g.error;
+        setMsg(e ? { ok: false, text: e } : { ok: true, text: "Saved." });
       }} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy ? "Saving…" : label}</button>
       {msg && <p role="status" className={"text-sm font-semibold " + (msg.ok ? "text-emerald-700" : "text-rose-700")}>{msg.text}</p>}
     </div>

@@ -8,9 +8,12 @@ import { resetEmailToDefaultAction, saveEmailAction, sendInvitationEmailAction }
 import { Field, SaveBar, Section, inputCls } from "./fields";
 import { EMAIL_STATUS_LABEL, checkEmail, emailStatus, isOpeningPrompt, renderInvitationEmail, type EmailStatus } from "@/lib/launch-partners/email";
 import { GATE_MESSAGE, evaluateSendGates } from "@/lib/launch-partners/send-core";
+import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 import type { PipelineRow } from "@/lib/launch-partners/status";
 
 const TONE: Record<EmailStatus, "gray" | "amber" | "blue" | "green"> = { contact_missing: "amber", draft_needed: "amber", draft_ready: "blue", invitation_needed: "blue", ready_to_send: "green", sent: "green" };
+/** Said when a send request got no answer: it may or may not have gone, and the server will not send the same invitation twice. */
+const SEND_UNKNOWN = "The request didn’t finish, so it isn’t clear whether the email went. Nothing has been resent. This page has been refreshed: if the status now shows Sent, it went — otherwise check your sent mail before trying again. The server will not send the same invitation twice.";
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) : "—");
 
 /**
@@ -55,16 +58,19 @@ export function EmailSection({ row, slug, businessName, initial, sessionLink }: 
   const canSend = blockers.length === 0 && !dirty && !busy;
 
   async function save() {
-    const r = await saveEmailAction(row.id, f);
-    if (r.ok) { setSaved(f); router.refresh(); return null; }
-    return r.error;
+    const g = await runGuarded(() => saveEmailAction(row.id, f));
+    if (!g.ok) return g.error;
+    if (g.value.ok) { setSaved(f); router.refresh(); return null; }
+    return g.value.error;
   }
 
   async function reset() {
     if (!(await confirm({ title: "Reset to the default template?", body: <>This <strong>replaces</strong> the current subject, personalised opening and message with the standard template for {businessName}. Any edits you have made to them will be lost. Your contact details are kept.</>, confirmLabel: "Replace my draft", danger: true }))) return;
     setBusy(true); setMsg(null);
-    const r = await resetEmailToDefaultAction(row.id);
+    const g = await runGuarded(() => resetEmailToDefaultAction(row.id));
     setBusy(false);
+    if (!g.ok) { setMsg({ ok: false, text: g.error }); router.refresh(); return; }
+    const r = g.value;
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
     const next = { ...f, subject: r.subject, opening: r.opening, body: r.body };
     setF(next); setSaved(next); setMsg({ ok: true, text: "Reset to the default template." }); router.refresh();
@@ -88,8 +94,11 @@ export function EmailSection({ row, slug, businessName, initial, sessionLink }: 
     if (!ok) return;
     setBusy(true); setMsg(null);
     const path = sessionLink.url.slice(sessionLink.url.indexOf("/launch/"));
-    const r = await sendInvitationEmailAction(row.id, path, { confirm: true, recipient: saved.contactEmail, subject: saved.subject });
+    const g = await runGuarded(() => sendInvitationEmailAction(row.id, path, { confirm: true, recipient: saved.contactEmail, subject: saved.subject }), 90_000);
     setBusy(false);
+    // A request that never answered says NOTHING about whether the email went: do not claim either way, never invite a blind second click.
+    if (!g.ok) { setMsg({ ok: false, text: SEND_UNKNOWN }); router.refresh(); return; }
+    const r = g.value;
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
     setMsg({ ok: true, text: r.recorded ? `Sent to ${r.recipient}.` : `Sent to ${r.recipient}, but recording it failed — mark it sent by hand.` }); router.refresh();
   }

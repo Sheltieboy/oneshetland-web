@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
 import { importExistingAction } from "@/app/admin/launch-partners/actions";
+import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 import { PrepareLaunchPartner } from "./PrepareLaunchPartner";
 import { STATUS_LABEL, STATUS_ORDER, STATUS_TONE, TAB_LABEL, countByStatus, derivePipelineStatus, nextAction, nextActionHref, pipelineCells, realRows, type PipelineRow, type PipelineStatus } from "@/lib/launch-partners/status";
 
@@ -26,8 +27,10 @@ export function LaunchPartnersPipeline({ rows, importable, loadError }: { rows: 
 
   async function importExisting() {
     setImporting(true); setNote(null);
-    const r = await importExistingAction();
+    const g = await runGuarded(() => importExistingAction(), 60_000);
     setImporting(false);
+    if (!g.ok) { setNote(g.error); router.refresh(); return; }
+    const r = g.value;
     if (!r.ok) setNote(r.error);
     else { setNote(`Brought in ${r.outcome.created.length} preview${r.outcome.created.length === 1 ? "" : "s"} as drafts. Nothing was published, invited or sent.`); router.refresh(); }
   }
