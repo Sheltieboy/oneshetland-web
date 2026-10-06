@@ -14,6 +14,8 @@ import { OutreachPanels } from "@/components/admin/launch-partners/OutreachPanel
 import { StatusSection } from "@/components/admin/launch-partners/StatusSection";
 import { EnrichmentSection } from "@/components/admin/launch-partners/EnrichmentSection";
 import { enrichmentView } from "@/lib/launch-partners/enrich.server";
+import { WorkflowRail } from "@/components/admin/launch-partners/WorkflowRail";
+import { deriveWorkflow } from "@/lib/launch-partners/workflow";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch partner" };
@@ -34,6 +36,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const page = (pg.ok ? pg.value : null) as PageDraft | null;
   const claimMode = preview?.claim === "live" ? "live" : "holding";
   const enrich = await enrichmentView(c);
+  // The workflow is READ from the same facts as everything below it: the pipeline row, the preview's claim mode and the saved email draft.
+  const workflow = deriveWorkflow({ row: c, claimMode, email: { subject: c.email_subject, body: c.email_body, opening: c.email_opening, contactEmail: c.contact_email } });
 
   const facts: [string, string][] = [
     ["Category", c.category ?? "—"], ["Location", c.locality ?? "—"],
@@ -44,7 +48,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   ];
 
   return (
-    <>
+    <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_14rem] xl:gap-5">
+    <div className="min-w-0">
       <Link href="/admin/launch-partners" className="text-sm font-semibold text-ink-soft hover:text-ink">← Launch partners</Link>
       <div className="mb-5 mt-2 flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -84,6 +89,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
         <StatusSection row={c} events={c.events ?? []} />
       </div>
-    </>
+    </div>
+    <WorkflowRail id={c.id} workflow={workflow} />
+    </div>
   );
 }

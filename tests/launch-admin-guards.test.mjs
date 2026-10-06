@@ -63,7 +63,7 @@ describe("No Admin button can be left disabled by a failed request", () => {
   });
   test("no Admin launch-partner component awaits a server action bare: each is inside runGuarded, or inside a SaveBar (which guards it)", () => {
     const viaSaveBar = ["PageDraftEditor.tsx", "PreviewEditor.tsx", "PositioningField.tsx"]; // their save handlers run only through <SaveBar onSave=…>
-    const allowed = new Map([["PrepareLaunchPartner.tsx", ["searchCandidatesAction"]]]); // the debounced search holds no button
+    const allowed = new Map([["PrepareLaunchPartner.tsx", ["searchCandidatesAction"]], ["WorkflowRail.tsx", ["runWorkflowAction"]]]); // the debounced search holds no button; runWorkflowAction is itself the runGuarded wrapper (tested in launch-workflow)
     for (const f of readdirSync(new URL(`../${DIR}/`, import.meta.url)).filter((x) => x.endsWith(".tsx"))) {
       const src = read(`${DIR}/${f}`);
       for (const m of src.matchAll(/await\s+([a-zA-Z]+Action)\(/g)) {

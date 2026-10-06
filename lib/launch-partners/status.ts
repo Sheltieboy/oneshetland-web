@@ -66,7 +66,7 @@ export const STATUS_TONE: Record<PipelineStatus, "gray" | "amber" | "blue" | "gr
   claimed: "green", setting_up: "green", ready_to_go_live: "green", live: "green", archived: "gray",
 };
 
-const inviteUsable = (r: PipelineRow) => r.invite.status === "open" || r.invite.status === "claim pending" || r.invite.status === "claimed";
+export const inviteUsable = (r: PipelineRow) => r.invite.status === "open" || r.invite.status === "claim pending" || r.invite.status === "claimed";
 
 /** Has an invited claim been approved (so the person now owns the business)? */
 export const isClaimed = (r: PipelineRow): boolean => r.claim?.status === "approved" && r.has_owner;
