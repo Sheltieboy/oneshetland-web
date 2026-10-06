@@ -15,13 +15,13 @@ const lfs = defaultEmailDraft({ businessName: "Love From Shetland", opening: "Yo
 const dowry = defaultEmailDraft({ businessName: "The Dowry" });
 const renders = [
   { name: "lfs-no-invitation", input: { ...lfs, businessName: "Love From Shetland" } },
-  { name: "lfs-with-invitation", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: URL } },
+  { name: "lfs-with-invitation", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK } },
   { name: "lfs-masked", input: { ...lfs, businessName: "Love From Shetland", maskedUrl: "https://oneshetland.com/launch/love-from-shetland?invite=[the real link is shown once, when you generate the invitation]" } },
   { name: "dowry-prompt-with-invitation", input: { ...dowry, businessName: "The Dowry", invitationUrl: LINK.replace("love-from-shetland", "the-dowry") } },
-  { name: "legacy-link-token", input: { subject: "s", body: "Hi\n\n" + LINK_PLACEHOLDER + "\n\nBye", opening: "x", businessName: "X", invitationUrl: URL } },
+  { name: "legacy-link-token", input: { subject: "s", body: "Hi\n\n" + LINK_PLACEHOLDER + "\n\nBye", opening: "x", businessName: "X", invitationUrl: LINK } },
   { name: "hostile-text", input: { subject: "<b>Hi & bye</b>", body: "A <script>alert(1)</script> & \"q\" 'q'\n\n" + TOKEN_OPENING + "\n\n" + TOKEN_CTA, opening: "a < b > c", businessName: "X & Y", invitationUrl: "javascript:alert(1)" } },
   { name: "hostile-url-attribute", input: { subject: "s", body: TOKEN_CTA, invitationUrl: 'https://x.example/a"onmouseover="y' } },
-  { name: "bullets-and-breaks", input: { subject: "s", body: "Line one\nLine two\n\n• a\n• b & c\n\n" + TOKEN_CTA, invitationUrl: URL } },
+  { name: "bullets-and-breaks", input: { subject: "s", body: "Line one\nLine two\n\n• a\n• b & c\n\n" + TOKEN_CTA, invitationUrl: LINK } },
 ];
 const checks = [
   { name: "ok", input: { subject: lfs.subject, body: lfs.body, opening: lfs.opening, contactEmail: "a@b.co" } },

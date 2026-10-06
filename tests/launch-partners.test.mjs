@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
-import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE } from "../lib/launch-partners/email.ts";
+import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE, EMAIL_LOGO_URL } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
 import { listingState, prepareEligibility, eligibilityOf, LISTING_LABEL } from "../lib/launch-partners/eligibility.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
@@ -351,5 +351,44 @@ describe("Directory eligibility: the card and the Prepare action cannot contradi
   });
   test("if the public check cannot be made, nothing is claimed to be public", () => {
     assert.match(read("lib/launch-partners/campaigns.server.ts"), /let visible = new Set<string>\(\);[^]*catch \{ \/\* if the public check cannot be made, nothing is claimed to be public \*\/ \}/);
+  });
+});
+
+describe("Invitation email: light OneShetland branding (renderer shared with the Edge Function)", () => {
+  const OPENING = "You make something genuinely Shetland.";
+  const LINK = "https://oneshetland.com/launch/demo-shop?invite=" + "7f3a9c1e5b2d4f60a8c7e9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9f1";
+  const draft = defaultEmailDraft({ businessName: "Demo Shop", opening: OPENING });
+  const out = renderInvitationEmail({ ...draft, businessName: "Demo Shop", invitationUrl: LINK });
+
+  test("the HTML carries the live site's mark (a resized copy of logo-mark-keyed.png) and the name as real text, above the message", () => {
+    assert.equal(EMAIL_LOGO_URL, "https://oneshetland.com/brand/email/logo-mark-120.png");
+    assert.ok(out.html.includes(`<img src="${EMAIL_LOGO_URL}" width="40" height="40" alt="OneShetland"`));
+    assert.match(out.html, />OneShetland<\/td>/);
+    assert.ok(out.html.indexOf(EMAIL_LOGO_URL) < out.html.indexOf("Hello,"));
+  });
+  test("the resized logo asset exists (small 120x120 PNG) and the authoritative site logo is still there", () => {
+    const png = readFileSync(new URL("../public/brand/email/logo-mark-120.png", import.meta.url));
+    assert.equal(png.subarray(1, 4).toString(), "PNG"); assert.equal(png.readUInt32BE(16), 120); assert.equal(png.readUInt32BE(20), 120); assert.ok(png.length < 60_000, "light enough for email");
+    assert.ok(statSync(new URL("../public/brand/logo-mark-keyed.png", import.meta.url)).isFile());
+  });
+  test("core copy, personalised opening position and the CTA with the private URL are intact", () => {
+    const i = (s) => out.html.indexOf(s);
+    assert.ok(i("Hello,") < i("I’m Darren") && i("I’m Darren") < i("Demo Shop is one of the businesses") && i("is one of the businesses") < i(OPENING) && i(OPENING) < i("private preview specifically for") && i(CTA_LABEL) < i("If you like what you see"));
+    assert.ok(out.html.includes(`href="${LINK}"`)); assert.equal(out.html.split(LINK).length - 1, 2); assert.equal(out.hasInvitation, true);
+  });
+  test("the only link is the invitation button; the logo has no link, no query string, no tracking pixel", () => {
+    assert.equal((out.html.match(/<a /g) ?? []).length, 1); assert.equal((out.html.match(/<img /g) ?? []).length, 1); assert.ok(!EMAIL_LOGO_URL.includes("?"));
+    assert.doesNotMatch(out.html.toLowerCase(), /unsubscribe|manage preferences|view in browser|newsletter|track/);
+  });
+  test("the plain-text version is unchanged by the branding: no markup, no logo, link present", () => {
+    assert.ok(!out.text.includes("<img") && !out.text.includes(EMAIL_LOGO_URL) && !/<[a-z/]/i.test(out.text));
+    assert.ok(out.text.includes(OPENING) && out.text.includes(`View your private preview: ${LINK}`) && out.text.startsWith("Hello,\n"));
+  });
+  test("without an invitation there is still no link and no URL in the HTML or text (branding adds no <a>)", () => {
+    const r = renderInvitationEmail({ ...draft, businessName: "Demo Shop" });
+    assert.doesNotMatch(r.html, /<a /); assert.doesNotMatch(r.html + r.text, /invite=/);
+  });
+  test("web copy carries no sender or transport settings (they live only in the Edge Function)", () => {
+    const src = read("lib/launch-partners/email.ts"); assert.doesNotMatch(src, /TrackOpens|TrackLinks|LAUNCH_OUTREACH_FROM|postmark/i);
   });
 });
