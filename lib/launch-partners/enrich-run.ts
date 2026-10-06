@@ -32,6 +32,9 @@ export type RunOutcome =
 
 export class QuotaError extends Error { constructor(message: string) { super(message); this.name = "QuotaError"; } }
 
+/** Text that is mostly U+FFFD "could not decode" marks is not a page, whatever the headers said. */
+export const isGarbled = (s: string): boolean => s.length > 0 && (s.match(/\uFFFD/g) ?? []).length / s.length > 0.02;
+
 export const MAX_EXTRA_PAGES = 4;
 export const MAX_IMAGE_CANDIDATES = 12;
 const MIN_IMAGE_BYTES = 6_000;
@@ -47,6 +50,7 @@ export async function gatherBundle(startUrl: string, deps: RunDeps): Promise<{ o
   let home: ExtractedPage;
   try {
     const r = await deps.fetchPage(start.toString());
+    if (isGarbled(r.text)) throw new SourceFetchError("not_html", "The page came back as unreadable data, not text.");
     home = extractPage(r.text, r.finalUrl);
     notes.push({ url: r.finalUrl, status: "ok", chars: home.text.length });
   } catch (e) {
@@ -59,7 +63,8 @@ export async function gatherBundle(startUrl: string, deps: RunDeps): Promise<{ o
   const allowed = extra.filter((u) => { const x = new URL(u); const ok = robotsAllows(rules, `${x.pathname}${x.search}`); if (!ok) notes.push({ url: u, status: "skipped", detail: "robots.txt" }); return ok; });
   const settled = await Promise.allSettled(allowed.map((u) => deps.fetchPage(u)));
   settled.forEach((s, i) => {
-    if (s.status === "fulfilled") { const p = extractPage(s.value.text, s.value.finalUrl); pages.push(p); notes.push({ url: s.value.finalUrl, status: "ok", chars: p.text.length }); }
+    if (s.status === "fulfilled" && isGarbled(s.value.text)) notes.push({ url: allowed[i], status: "failed", detail: "unreadable data, not text" });
+    else if (s.status === "fulfilled") { const p = extractPage(s.value.text, s.value.finalUrl); pages.push(p); notes.push({ url: s.value.finalUrl, status: "ok", chars: p.text.length }); }
     else notes.push({ url: allowed[i], status: "failed", detail: s.reason instanceof SourceFetchError ? s.reason.message : "could not be read" });
   });
 

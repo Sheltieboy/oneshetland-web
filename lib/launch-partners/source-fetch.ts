@@ -17,9 +17,11 @@
 import https from "node:https";
 import net from "node:net";
 import dns from "node:dns";
+import zlib from "node:zlib";
+import { Readable, pipeline, type Transform } from "node:stream";
 import { checkFetchUrl, isBlockedAddress, ImageFetchError, type GetResult } from "../product-import/image-fetch.ts";
 
-export type SourceErrorCode = "bad_url" | "blocked_address" | "resolve_failed" | "redirect" | "offsite" | "http_status" | "timeout" | "network" | "too_large" | "not_html" | "robots";
+export type SourceErrorCode = "bad_url" | "blocked_address" | "resolve_failed" | "redirect" | "offsite" | "http_status" | "timeout" | "network" | "too_large" | "not_html" | "bad_encoding" | "robots";
 export class SourceFetchError extends Error {
   code: SourceErrorCode;
   constructor(code: SourceErrorCode, message: string) { super(message); this.code = code; this.name = "SourceFetchError"; }
@@ -30,6 +32,22 @@ export const PAGE_TIMEOUT_MS = 7_000;
 export const BOT_TOKEN = "OneShetlandPreviewBot";
 export const USER_AGENT = `${BOT_TOKEN}/1.0 (+https://oneshetland.com)`;
 const MAX_REDIRECTS = 3;
+
+/**
+ * The encodings we ASK for and can decode. The request must say so honestly: some servers (a page-cache plugin in front of
+ * nginx, a CDN) send a pre-compressed copy whatever the client asked for, and Node does not decompress for us. Anything else
+ * a server sends is refused by name, never read as text.
+ */
+export const ACCEPT_ENCODING = "gzip, deflate, br";
+export const REQUEST_HEADERS: Record<string, string> = {
+  Accept: "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.5,*/*;q=0.1",
+  "User-Agent": USER_AGENT,
+  "Accept-Encoding": ACCEPT_ENCODING,
+  "Accept-Language": "en-GB,en;q=0.8",
+};
+const SUPPORTED_ENCODINGS = new Set(["gzip", "x-gzip", "deflate", "br"]);
+/** More layers than this is not a web server being helpful. */
+const MAX_ENCODING_LAYERS = 2;
 
 export interface SourceDeps {
   resolve: (host: string) => Promise<string[]>;
@@ -48,7 +66,7 @@ export const defaultSourceDeps: SourceDeps = {
         const family = net.isIPv6(address) ? 6 : 4;
         if (o && o.all) cb(null, [{ address, family }]); else cb(null, address, family);
       }) as unknown as https.RequestOptions["lookup"],
-      headers: { Accept: "text/html,application/xhtml+xml;q=0.9,text/plain;q=0.5,*/*;q=0.1", "User-Agent": USER_AGENT, "Accept-Encoding": "identity", "Accept-Language": "en-GB,en;q=0.8" },
+      headers: REQUEST_HEADERS,
       signal,
     }, (r) => {
       const headers: Record<string, string | undefined> = {};
@@ -113,6 +131,82 @@ export function robotsAllows(rules: RobotsRules | null, pathAndQuery: string): b
 
 /* ── the fetch ───────────────────────────────────────────────────────────── */
 
+/* ── decoding what the server sent ──────────────────────────────────────── */
+
+/** The content-encoding layers, in the order the server applied them, minus "identity". Throws for anything we cannot decode. */
+export function parseEncodings(header: string | undefined): string[] {
+  const layers = (header ?? "").toLowerCase().split(",").map((x) => x.trim()).filter((x) => x && x !== "identity");
+  if (layers.length > MAX_ENCODING_LAYERS) throw new SourceFetchError("bad_encoding", "The page was wrapped in too many layers of compression to read.");
+  for (const l of layers) if (!SUPPORTED_ENCODINGS.has(l)) throw new SourceFetchError("bad_encoding", `The site sent its page in an encoding we can't read (${l.slice(0, 20)}).`);
+  return layers;
+}
+
+const decoderFor = (enc: string): Transform => (enc === "br" ? zlib.createBrotliDecompress() : enc === "deflate" ? zlib.createInflate() : zlib.createGunzip());
+
+/** Mark errors that came from the NETWORK side, so a corrupt-compression error is never mistaken for one (and vice versa). */
+async function* tagWire(src: AsyncIterable<Uint8Array>): AsyncGenerator<Uint8Array> {
+  try { yield* src; } catch (e) { (e as { wire?: boolean }).wire = true; throw e; }
+}
+
+/** Pass chunks through, refusing to go past `max` bytes. */
+async function* capped(src: AsyncIterable<Uint8Array>, max: number, onOver: () => Error, onStop?: () => void): AsyncGenerator<Uint8Array> {
+  let n = 0;
+  try {
+    for await (const c of src) { n += c.byteLength; if (n > max) throw onOver(); yield c; }
+  } finally { onStop?.(); }
+}
+
+/**
+ * The page's bytes, decompressed, with BOTH sizes bounded: what crosses the wire (so a slow giant is refused early) and what comes
+ * out the other end (so a tiny file that inflates to gigabytes — a "zip bomb" — is stopped as soon as it passes the cap, never held in
+ * memory). Decoding is streamed; nothing is decoded that is not within the cap.
+ */
+async function readBody(body: AsyncIterable<Uint8Array>, layers: string[], maxBytes: number): Promise<Uint8Array> {
+  const tooBig = () => new SourceFetchError("too_large", "The page is too large to read.");
+  let stream: AsyncIterable<Uint8Array> = capped(tagWire(body), maxBytes, tooBig);
+  const decoders: Transform[] = [];
+  for (const enc of [...layers].reverse()) {
+    const d = decoderFor(enc); decoders.push(d);
+    pipeline(Readable.from(stream), d, (err) => { if (err) d.destroy(err); });
+    stream = d;
+  }
+  const chunks: Uint8Array[] = []; let size = 0;
+  try {
+    for await (const c of capped(stream, maxBytes, tooBig, () => decoders.forEach((d) => d.destroy()))) { chunks.push(c); size += c.byteLength; }
+  } catch (e) {
+    if (e instanceof SourceFetchError || (e as { wire?: boolean }).wire || !layers.length) throw e;
+    throw new SourceFetchError("bad_encoding", "The page's compressed content could not be decoded.");
+  }
+  const out = new Uint8Array(size); let off = 0; for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+  return out;
+}
+
+/** True when the bytes are not text: NUL bytes, or a large share of control / non-character bytes, in the first few KB. */
+export function looksBinary(bytes: Uint8Array): boolean {
+  const n = Math.min(bytes.length, 4096);
+  if (n === 0) return false;
+  let bad = 0;
+  for (let i = 0; i < n; i++) {
+    const b = bytes[i];
+    if (b === 0) return true;
+    if (b < 9 || (b > 13 && b < 32) || b === 127) bad++;
+  }
+  return bad / n > 0.1;
+}
+
+/** The charset to decode with: the header's, else a <meta> in the first 2 KB, else UTF-8. An unknown label falls back to UTF-8. */
+export function chooseCharset(contentType: string, head: Uint8Array): string {
+  const fromHeader = /charset=["']?([a-z0-9_.:-]+)/i.exec(contentType)?.[1];
+  if (fromHeader) return fromHeader;
+  const first = new TextDecoder("latin1").decode(head.subarray(0, 2048));
+  return /<meta[^>]+charset\s*=\s*["']?\s*([a-z0-9_.:-]+)/i.exec(first)?.[1] ?? "utf-8";
+}
+
+export function decodeText(bytes: Uint8Array, contentType: string): string {
+  const charset = chooseCharset(contentType, bytes);
+  try { return new TextDecoder(charset, { fatal: false }).decode(bytes); } catch { return new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+}
+
 export interface FetchedText { finalUrl: string; status: number; text: string; contentType: string }
 
 /** GET one same-site page as text. Throws SourceFetchError; never returns a non-200 body. */
@@ -157,24 +251,23 @@ export async function fetchSourceText(
           r.destroy(); throw new SourceFetchError("not_html", "That address is not a web page.");
         }
       }
+      // What crosses the wire is limited first (a Content-Length over the cap is refused outright)…
       const declared = Number(r.headers["content-length"]);
       if (Number.isFinite(declared) && declared > maxBytes) { r.destroy(); throw new SourceFetchError("too_large", "The page is too large to read."); }
-      const chunks: Uint8Array[] = []; let size = 0;
-      try {
-        for await (const c of r.body) {
-          size += c.byteLength;
-          if (size > maxBytes) { r.destroy(); throw new SourceFetchError("too_large", "The page is too large to read."); }
-          chunks.push(c);
-        }
-      } catch (e) {
+      let layers: string[];
+      try { layers = parseEncodings(r.headers["content-encoding"]); } catch (e) { r.destroy(); throw e; }
+      // …then the body is read and DECOMPRESSED under the same cap, so the cap means the same thing for a plain page and a squeezed one.
+      let bytes: Uint8Array;
+      try { bytes = await readBody(r.body, layers, maxBytes); }
+      catch (e) {
+        r.destroy();
         if (e instanceof SourceFetchError) throw e;
         if (ctrl.signal.aborted) throw new SourceFetchError("timeout", "The page took too long to download.");
         throw new SourceFetchError("network", "The download was interrupted.");
       }
-      const bytes = new Uint8Array(size); let off = 0; for (const c of chunks) { bytes.set(c, off); off += c.byteLength; }
-      const charset = /charset=([a-z0-9_-]+)/.exec(contentType)?.[1] ?? "utf-8";
-      let text: string;
-      try { text = new TextDecoder(charset, { fatal: false }).decode(bytes); } catch { text = new TextDecoder("utf-8", { fatal: false }).decode(bytes); }
+      // Whatever the headers claimed, a page of text is text: binary data is refused here, before anything reads it as a page.
+      if (r.status === 200 && looksBinary(bytes)) throw new SourceFetchError("not_html", "That address returned binary data, not a web page.");
+      const text = decodeText(bytes, contentType);
       return { finalUrl: url.toString(), status: r.status, text, contentType };
     }
   } finally { clearTimeout(timer); }
