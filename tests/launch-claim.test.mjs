@@ -120,7 +120,7 @@ describe("admin", () => {
   test("a launch-partner claim is recognisable, decided by the existing approve, and leads to an EXPLICIT Premium grant", () => {
     const m = read("components/admin/ClaimsManager.tsx");
     assert.match(m, /Launch partner invitation/); assert.match(m, /approve_business_claim/);
-    assert.match(m, /Grant launch-partner Premium →/); assert.match(m, /tier=premium/);
+    assert.match(m, /Continue in the launch workflow →/); assert.match(m, /or open Launch partner access directly/); assert.match(m, /tier=premium/);
     assert.doesNotMatch(m, /admin_grant_launch_plan/, "approving never grants a plan on its own");
     const la = read("components/admin/LaunchPartnerAccess.tsx");
     assert.match(la, /admin_grant_launch_plan/); assert.match(la, /initialTier/);

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { getBusinessClaims } from "@/lib/admin-data.server";
-import { AdminHeader, Empty } from "@/components/admin/AdminUI";
+import { AdminHeader } from "@/components/admin/AdminUI";
 import { ClaimsManager } from "@/components/admin/ClaimsManager";
 import { LaunchPartnerAccess, type GrantListRow } from "@/components/admin/LaunchPartnerAccess";
 import { createClient } from "@/lib/supabase/server";
@@ -29,7 +29,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
           <Link key={k} href={`/admin/claims?status=${k}`} className={"rounded-pill px-4 py-1.5 text-sm font-semibold " + ((launch ? "launch" : invites ? "invites" : filter) === k ? "bg-rose-600 text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{label}</Link>
         ))}
       </div>
-      {invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : rows.length === 0 ? <Empty>No claims here.</Empty> : <ClaimsManager rows={rows as never[]} />}
+      {invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : <ClaimsManager key={filter} rows={rows as never[]} />}
     </>
   );
 }

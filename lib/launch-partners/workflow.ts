@@ -25,7 +25,7 @@ export type StepId =
 export type StepState = "complete" | "current" | "future" | "attention";
 
 /** Where a step leads: a section on this page, or an existing screen. */
-export type StepTarget = { kind: "section"; id: "preview" | "page" | "invitation" | "email" | "status" } | { kind: "href"; href: string };
+export type StepTarget = { kind: "section"; id: "preview" | "page" | "invitation" | "email" | "grant" | "status" } | { kind: "href"; href: string };
 
 /** The only two actions the rail performs itself — the same server actions the page's own buttons call. Everything else is a jump. */
 export type DirectAction = "mark_ready" | "open_claiming";
@@ -60,6 +60,11 @@ export interface WorkflowInput {
   claimMode: "live" | "holding";
   /** The SAVED email draft (the same values the Email section's readiness check reads). */
   email: { subject: string | null; body: string | null; opening: string | null; contactEmail: string | null };
+  /**
+   * The business's most recent launch-grant RECORD (from the same grant table the Launch partner access screen manages), or null if it
+   * never had one. It is what lets an expired or removed grant read as "needs attention" instead of "never granted". Nothing is stored here.
+   */
+  lastGrant?: { status: "active" | "expired" | "revoked" | "superseded" | "replaced_by_subscription"; expires_at: string } | null;
 }
 
 /** Steps that are a state, not a task: nothing to click while they are current. */
@@ -67,7 +72,7 @@ const WAITING = new Set<StepId>(["wait", "go_live", "live"]);
 const section = (id: Extract<StepTarget, { kind: "section" }>["id"]): StepTarget => ({ kind: "section", id });
 const CLAIMS_PENDING = "/admin/claims?status=pending";
 
-export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workflow {
+export function deriveWorkflow({ row, claimMode, email, lastGrant = null }: WorkflowInput): Workflow {
   const status = derivePipelineStatus(row);
   const archived = status === "archived";
   const sent = !!row.sent_at || row.stage === "sent";
@@ -81,6 +86,9 @@ export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workfl
   const claimApproved = isClaimed(row);
   const claimOther = !!claim && !claimPending && claim.status !== "approved";
   const afterClaim = !!claim || claimApproved || !!row.live_at;     // a response has arrived (merely opening the preview is not one)
+  // A grant that is giving access now (the row's own active grant), or one that has become a paid subscription, completes the step.
+  const grantDone = !!row.grant || lastGrant?.status === "replaced_by_subscription";
+  const grantEnded = !grantDone && claimApproved && (lastGrant?.status === "expired" || lastGrant?.status === "revoked");
   const gatesOpen = (row.is_test || ready) && !archived;      // the server's own rule for generating an invitation
 
   const S = (s: Omit<WorkflowStep, "available"> & { available?: boolean }): WorkflowStep => ({ available: true, ...s });
@@ -99,8 +107,8 @@ export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workfl
     S({ id: "send", label: "Send invitation", state: done(sent), available: usable && emailCheck.ok && !sent, target: section("email"), cta: "Go to Email" }),
     S({ id: "wait", label: "Wait for response", state: done(afterClaim), available: sent, target: section("status") }),
     S({ id: "approve_claim", label: "Approve claim", state: done(claimApproved), available: !!claim, target: { kind: "href", href: CLAIMS_PENDING }, cta: "Review claim" }),
-    S({ id: "grant", label: "Grant Launch Partner", state: done(!!row.grant), available: claimApproved, target: { kind: "href", href: `/admin/claims?status=launch&business=${row.business_id}` }, cta: "Grant Premium" }),
-    S({ id: "go_live", label: "Ready to go live", state: done(!!row.setup_ready_at || !!row.live_at), available: claimApproved && !!row.grant, target: section("status") }),
+    S({ id: "grant", label: "Grant Launch Partner", state: done(grantDone), available: claimApproved, target: section("grant"), cta: "Grant access" }),
+    S({ id: "go_live", label: "Ready to go live", state: done(!!row.setup_ready_at || !!row.live_at), available: claimApproved && grantDone, target: section("status") }),
     S({ id: "live", label: "Live", state: done(!!row.live_at), available: !!row.setup_ready_at || !!row.live_at, target: section("status") }),
   ];
   const by = (id: StepId) => steps.find((s) => s.id === id)!;
@@ -110,11 +118,12 @@ export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workfl
 
   // ── attention: something that was fine, or is needed, is not (these outrank the ordinary next step) ──
   if (inviteGone) mark("generate_invite", "attention", `The invitation ${row.invite.status === "expired" ? "has expired" : "was revoked"} — generate a fresh one.`);
-  if (sent && usable && claimMode === "holding") mark("open_claiming", "attention", "Claiming is closed, so the recipient cannot claim yet.");
+  if (sent && usable && claimMode === "holding" && !afterClaim) mark("open_claiming", "attention", "Claiming is closed, so the recipient cannot claim yet.");
   if (claimOther) mark("approve_claim", "attention", `The claim is ${claim!.status}.`);
+  if (grantEnded) mark("grant", "attention", `Their launch-partner access has ${lastGrant!.status === "expired" ? "expired" : "been removed"} — grant it again if they should still have it.`);
 
   // ── current: attention first; otherwise the first thing still to do, in Darren's order ──
-  let current: WorkflowStep | null = (["approve_claim", "generate_invite", "open_claiming"] as const).map(by).find((x) => x.state === "attention") ?? null;
+  let current: WorkflowStep | null = (["approve_claim", "grant", "generate_invite", "open_claiming"] as const).map(by).find((x) => x.state === "attention") ?? null;
   if (!current) {
     const gating: StepId[] = ["prepare", "mark_ready", "generate_invite", "open_claiming", "review_email", "send", "wait", "approve_claim", "grant", "go_live", "live"];
     for (const id of gating) {
@@ -123,7 +132,7 @@ export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workfl
       if (id === "mark_ready" && row.is_test) continue;              // a test fixture does not need the stage to generate an invitation
       if (id === "approve_claim" && !claim) continue;                 // nothing to decide until a claim exists
       if (id === "grant" && !claimApproved) continue;
-      if (id === "go_live" && !(claimApproved && row.grant)) continue;
+      if (id === "go_live" && !(claimApproved && grantDone)) continue;
       if (id === "live" && !row.setup_ready_at) continue;
       current = x; break;
     }
@@ -141,7 +150,7 @@ export function deriveWorkflow({ row, claimMode, email }: WorkflowInput): Workfl
       case "send": current.note = "Needs the link from when it was generated — generate again if the page was reloaded."; break;
       case "wait": current.note = row.first_viewed_at ? `Preview opened ${row.view_count} time${row.view_count === 1 ? "" : "s"}. Waiting for a claim.` : "Sent. Waiting for the recipient."; break;
       case "approve_claim": current.note = "A claim is waiting for your decision."; break;
-      case "grant": current.note = "Approved — grant launch-partner Premium."; break;
+      case "grant": if (current.state !== "attention") current.note = "Claim approved. Choose Pro or Premium and an end date — right on this page."; break;
       case "go_live": current.note = "Granted. Waiting for them to add their catalogue and review the page."; break;
       case "live": current.note = "Ready. Waiting for them to press Go live."; break;
     }

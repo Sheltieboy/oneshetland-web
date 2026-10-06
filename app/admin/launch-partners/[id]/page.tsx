@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusPill } from "@/components/admin/AdminUI";
 import { getCampaign } from "@/lib/launch-partners/campaigns.server";
-import { STATUS_LABEL, STATUS_TONE, derivePipelineStatus } from "@/lib/launch-partners/status";
+import { STATUS_LABEL, STATUS_TONE, derivePipelineStatus, isClaimed } from "@/lib/launch-partners/status";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 import type { PageDraft } from "@/lib/business-page/types";
@@ -14,6 +14,8 @@ import { OutreachPanels } from "@/components/admin/launch-partners/OutreachPanel
 import { StatusSection } from "@/components/admin/launch-partners/StatusSection";
 import { EnrichmentSection } from "@/components/admin/launch-partners/EnrichmentSection";
 import { enrichmentView } from "@/lib/launch-partners/enrich.server";
+import { GrantSection } from "@/components/admin/launch-partners/GrantSection";
+import { grantContext } from "@/lib/launch-partners/grant.server";
 import { WorkflowRail } from "@/components/admin/launch-partners/WorkflowRail";
 import { deriveWorkflow } from "@/lib/launch-partners/workflow";
 
@@ -21,7 +23,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch partner" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["peerie", "Peerie Bot draft"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["status", "Status"]];
+const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["peerie", "Peerie Bot draft"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["grant", "Launch access"], ["status", "Status"]];
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -37,7 +39,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const claimMode = preview?.claim === "live" ? "live" : "holding";
   const enrich = await enrichmentView(c);
   // The workflow is READ from the same facts as everything below it: the pipeline row, the preview's claim mode and the saved email draft.
-  const workflow = deriveWorkflow({ row: c, claimMode, email: { subject: c.email_subject, body: c.email_body, opening: c.email_opening, contactEmail: c.contact_email } });
+  // Launch partner access is shown once their claim is approved (or if they ever had a grant); it reads the real grant records.
+  const approved = isClaimed(c);
+  const grant = approved ? await grantContext(c.business_id) : { lookup: null, last: null };
+  const showGrant = approved || !!grant.last;
+  const workflow = deriveWorkflow({ row: c, claimMode, email: { subject: c.email_subject, body: c.email_body, opening: c.email_opening, contactEmail: c.contact_email }, lastGrant: grant.last });
 
   const facts: [string, string][] = [
     ["Category", c.category ?? "—"], ["Location", c.locality ?? "—"],
@@ -67,7 +73,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
       <nav aria-label="Sections" className="mb-6 flex flex-wrap gap-2">
-        {NAV.map(([k, l]) => <a key={k} href={`#${k}`} className="rounded-pill border border-line-strong px-3 py-1 text-sm font-semibold text-ink-soft hover:bg-sand">{l}</a>)}
+        {NAV.filter(([k]) => k !== "grant" || showGrant).map(([k, l]) => <a key={k} href={`#${k}`} className="rounded-pill border border-line-strong px-3 py-1 text-sm font-semibold text-ink-soft hover:bg-sand">{l}</a>)}
       </nav>
 
       <div className="space-y-6">
@@ -87,6 +93,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {preview ? <PreviewEditor id={c.id} initial={preview} /> : <Section id="preview" title="Preview"><p role="alert" className="text-sm font-semibold text-rose-700">The stored preview is not valid: {pv.ok ? "" : pv.error}</p></Section>}
         {page && preview ? <PageDraftEditor id={c.id} initial={page} preview={preview} previewHref={`/admin-preview/launch-partners/${c.id}/business-page`} /> : <Section id="page" title="Business page"><p className="text-sm text-ink-muted">{pg.ok ? "Prepare the launch preview first." : `The stored page draft is not valid: ${pg.error}`}</p></Section>}
         <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
+        {showGrant && <GrantSection businessId={c.business_id} businessName={c.name} lookup={grant.lookup} />}
         <StatusSection row={c} events={c.events ?? []} />
       </div>
     </div>

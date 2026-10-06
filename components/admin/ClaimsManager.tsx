@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card, StatusPill } from "@/components/admin/AdminUI";
+import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
 import { useNotify } from "@/components/ui/ConfirmProvider";
 
 type Row = {
@@ -19,6 +19,8 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
   const notify = useNotify();
   const [list, setList] = useState(rows);
   const [busy, setBusy] = useState<string | null>(null);
+  /** Claims approved in THIS visit stay on screen with their next step, even after the server list (which only holds pending ones) refreshes. */
+  const [justApproved, setJustApproved] = useState<Set<string>>(new Set());
 
   function patch(id: string, status: string) { setList((l) => l.map((r) => (r.id === id ? { ...r, status } : r))); router.refresh(); }
 
@@ -29,6 +31,7 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
       const { error } = await sb.rpc("approve_business_claim", { p_claim_id: r.id });
       if (error) throw error;
       sb.functions.invoke("notify-claim", { body: { claim_id: r.id, outcome: "approved" } }).catch(() => {});
+      setJustApproved((x) => new Set(x).add(r.id));
       patch(r.id, "approved");
     } catch (e) { notify({ title: "Couldn't approve", body: e instanceof Error ? e.message : "Could not approve.", tone: "error" }); } finally { setBusy(null); }
   }
@@ -46,6 +49,9 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
     finally { setBusy(null); }
   }
 
+  // The empty message lives HERE, not in the page: if the page swapped this component for a placeholder when the server list emptied
+  // (which is exactly what happens after approving the last pending claim), the approved row and its next step would vanish.
+  if (list.length === 0) return <Empty>No claims here.</Empty>;
   return (
     <div className="space-y-3">
       {list.map((r) => (
@@ -63,9 +69,15 @@ export function ClaimsManager({ rows }: { rows: Row[] }) {
               <p className="mt-1 text-xs text-ink-faint">{new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
             </div>
             {r.status === "approved" && (r.business?.id ?? r.business_id) && (
-              r.source === "launch_partner_invitation"
-                ? <Link href={`/admin/claims?status=launch&business=${r.business?.id ?? r.business_id}&tier=premium`} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95">Grant launch-partner Premium →</Link>
-                : <Link href={`/admin/claims?status=launch&business=${r.business?.id ?? r.business_id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">Launch partner access →</Link>
+              <div className="flex flex-col items-end gap-2">
+                {justApproved.has(r.id) && <p role="status" className="text-sm font-semibold text-emerald-700">Approved ✓{r.source === "launch_partner_invitation" ? " — next: grant launch-partner access" : ""}</p>}
+                {r.source === "launch_partner_invitation"
+                  ? <>
+                      <Link href={`/admin/launch-partners/for-business/${r.business?.id ?? r.business_id}`} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95">Continue in the launch workflow →</Link>
+                      <Link href={`/admin/claims?status=launch&business=${r.business?.id ?? r.business_id}&tier=premium`} className="text-sm font-semibold text-ink-soft underline underline-offset-2 hover:text-ink">or open Launch partner access directly</Link>
+                    </>
+                  : <Link href={`/admin/claims?status=launch&business=${r.business?.id ?? r.business_id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">Launch partner access →</Link>}
+              </div>
             )}
             {r.status === "pending" && (
               <div className="flex gap-2">

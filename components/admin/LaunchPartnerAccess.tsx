@@ -32,7 +32,17 @@ const input = "w-full rounded-lg border border-line-strong bg-white px-3 py-2 te
  * Every rule (tiers, expiry window, reason, "not a business that pays", audit) lives in the database; this only
  * collects the inputs, identifies the business, asks before acting, and reports what the database said.
  */
-export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: GrantListRow[]; /** A business picked from the claims list, looked up on the server. */ initial?: LaunchLookupRow | null; /** Pre-selects the tier for a launch-partner claim. The grant itself is still an explicit, audited action. */ initialTier?: "pro" | "premium" }) {
+export function LaunchPartnerAccess({ grants, initial, initialTier, lockedTo }: {
+  grants: GrantListRow[];
+  /** A business picked from the claims list, looked up on the server. */ initial?: LaunchLookupRow | null;
+  /** Pre-selects the tier for a launch-partner claim. The grant itself is still an explicit, audited action. */ initialTier?: "pro" | "premium";
+  /**
+   * Campaign context: the id of the ONE business this panel may act on. The search box, the result list and the all-grants list are not
+   * shown, and grant/remove refuse any other business — so launching from a campaign cannot be pointed at a different one. Everything else
+   * (the form, the confirmation, the database functions and their audit) is exactly the generic screen's.
+   */
+  lockedTo?: string;
+}) {
   const router = useRouter();
   const confirm = useConfirm();
   const notify = useNotify();
@@ -72,6 +82,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
 
   async function grant() {
     if (!selected) return;
+    if (lockedTo && selected.business_id !== lockedTo) return;
     const expiresAt = expiryFromDate(date);
     if (!expiresAt) return;
     const ok = await confirm({
@@ -100,6 +111,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
   }
 
   async function revoke(id: string, name: string) {
+    if (lockedTo && id !== lockedTo) return;
     const why = revokeReason.trim();
     if (why.length < REVOKE_REASON_MIN) return;
     const ok = await confirm({
@@ -130,6 +142,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
 
   return (
     <div className="space-y-5">
+      {!lockedTo && (
       <Card>
         <h2 className="font-display text-lg font-bold text-ink">Launch partner access</h2>
         <p className="mt-1 text-sm text-ink-soft">
@@ -157,6 +170,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
           </ul>
         )}
       </Card>
+      )}
 
       {selected && plan && (
         <Card>
@@ -223,6 +237,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
         </Card>
       )}
 
+      {!lockedTo && (
       <Card>
         <h3 className="font-display text-base font-bold text-ink">All launch grants</h3>
         {grants.length === 0 ? (
@@ -246,6 +261,7 @@ export function LaunchPartnerAccess({ grants, initial, initialTier }: { grants: 
           </ul>
         )}
       </Card>
+      )}
     </div>
   );
 }
