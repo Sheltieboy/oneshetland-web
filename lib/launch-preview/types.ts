@@ -21,7 +21,12 @@ export interface PreviewProduct {
   source?: string;
 }
 
-export interface PreviewPhoto { src: string; alt: string; /** CSS object-position for cropping a wide photo into a tall frame, e.g. '30% 50%'. */ position?: string }
+export interface PreviewPhoto {
+  src: string; alt: string;
+  /** CSS object-position for cropping a wide photo into a tall frame, e.g. '30% 50%'. */ position?: string;
+  /** Optional explicit role. A logo is shown whole (contained); omitted, the role is worked out from the file name, alt text and the business's logo field (lib/business-page/image-role.ts). */
+  role?: 'logo' | 'photo';
+}
 
 /** An experience the business's own public site already offers, shown as it COULD look on OneShetland. Never bookable. */
 export interface PreviewExperience {

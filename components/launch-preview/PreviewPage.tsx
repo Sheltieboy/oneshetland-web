@@ -37,7 +37,7 @@ function Lock({ className = "h-4 w-4" }: { className?: string }) {
 function Shopfront({ cfg, className = "", eager = false }: { cfg: PreviewConfig; className?: string; eager?: boolean }) {
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      <Img eager={eager} src={cfg.business.image.src} alt={cfg.business.image.alt} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: cfg.business.image.position }} />
+      <Img eager={eager} src={cfg.business.image.src} alt={cfg.business.image.alt} role={cfg.business.image.role} knownLogos={[cfg.business.logo]} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: cfg.business.image.position }} />
     </div>
   );
 }
@@ -86,7 +86,7 @@ function Hero({ cfg }: { cfg: PreviewConfig }) {
         <div className="relative mx-auto w-full max-w-sm lg:max-w-none">
           {ambient ? (
             <div className="relative isolate grid aspect-[4/5] w-full content-start justify-items-center overflow-hidden rounded-[2rem] pt-[16%] shadow-2xl ring-4 ring-white/15">
-              <Img eager src={cfg.business.image.src} alt={cfg.business.image.alt} className="absolute inset-0 -z-20 h-full w-full object-cover" style={{ objectPosition: cfg.hero.position ?? cfg.business.image.position }} />
+              <Img eager decorative src={cfg.business.image.src} alt={cfg.business.image.alt} role={cfg.business.image.role} knownLogos={[cfg.business.logo]} className="absolute inset-0 -z-20 h-full w-full object-cover" style={{ objectPosition: cfg.hero.position ?? cfg.business.image.position }} />
               <div className="absolute inset-0 -z-10" style={{ background: `linear-gradient(160deg, ${NAVY}d9, ${catColor(cfg)}99)` }} />
               <div className="mx-6 rounded-3xl bg-white p-5 text-center shadow-xl">
                 <span className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-2xl bg-white"><Img eager src={logoOf(cfg)} alt="" className="h-full w-full object-contain" /></span>
@@ -370,7 +370,7 @@ function Across({ cfg, facts }: { cfg: PreviewConfig; facts: DirectoryFacts }) {
           <Head eyebrow="What's good locally" title="Handpicked from across the isles" color={col} />
           <div className="grid grid-cols-5 gap-3">
             <div className="relative isolate col-span-3 flex min-h-[290px] overflow-hidden rounded-3xl shadow-lift">
-              <Img src={cfg.business.image.src} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" style={{ objectPosition: cfg.business.image.position }} />
+              <Img decorative src={cfg.business.image.src} alt="" role={cfg.business.image.role} knownLogos={[cfg.business.logo]} className="absolute inset-0 -z-10 h-full w-full object-cover" style={{ objectPosition: cfg.business.image.position }} />
               <div className="absolute inset-0 -z-10" style={{ background: `linear-gradient(to top, ${col}f2, ${col}66 45%, transparent)` }} />
               <div className="mt-auto p-4 text-white sm:p-5">
                 <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">{pillarLabel(cfg)}</span>

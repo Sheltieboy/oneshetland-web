@@ -126,7 +126,7 @@ function HeroVisual({ model }: { model: BusinessPageModel }) {
     const [a, b] = hero.collage;
     return (
       <>
-        <div className={frame}><Img eager src={hero.image.src} alt={hero.image.alt} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: hero.image.position }} /></div>
+        <div className={frame}><Img eager src={hero.image.src} alt={hero.image.alt} role={hero.image.role} knownLogos={[id.logo]} className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: hero.image.position }} /></div>
         {a && hero.collage.length >= 2 && a.price != null && (
           <div className="absolute -bottom-4 -left-2 hidden w-36 rotate-[-4deg] overflow-hidden rounded-2xl bg-white p-1.5 shadow-xl sm:block lg:-left-8 lg:w-44">
             <Img eager src={a.src} alt="" className="aspect-square w-full rounded-xl object-cover" />
@@ -163,7 +163,7 @@ function HeroVisual({ model }: { model: BusinessPageModel }) {
   // The deliberate branded card: used whenever there is no suitable photograph.
   return (
     <div className={frame + " isolate grid place-items-center"} style={{ background: `linear-gradient(160deg, ${id.accent}, #1e1b4b)` }}>
-      {hero.image && <Img eager src={hero.image.src} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-25 mix-blend-luminosity" style={{ objectPosition: hero.image.position }} />}
+      {hero.image && <Img eager decorative src={hero.image.src} alt="" role={hero.image.role} knownLogos={[id.logo]} className="absolute inset-0 -z-20 h-full w-full object-cover opacity-25 mix-blend-luminosity" style={{ objectPosition: hero.image.position }} />}
       <svg aria-hidden="true" viewBox="0 0 400 400" className="absolute inset-0 -z-10 h-full w-full opacity-25" fill="none" stroke="white" strokeWidth="1.5" preserveAspectRatio="xMidYMid slice"><circle cx="330" cy="70" r="60" /><circle cx="330" cy="70" r="105" /><circle cx="330" cy="70" r="150" /><circle cx="60" cy="340" r="50" /><circle cx="60" cy="340" r="95" /></svg>
       <div className="mx-6 w-full max-w-xs rounded-3xl bg-white p-6 text-center shadow-2xl">
         <span className="mx-auto grid h-24 w-24 place-items-center overflow-hidden rounded-2xl text-3xl font-black text-white" style={{ background: id.logo ? "#fff" : id.accent }}>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { LIME, NAVY, gbp } from "@/lib/business-page/tokens";
+import { fitClasses, imageRole, type ImageRole } from "@/lib/business-page/image-role";
 
 /**
  * Presentation pieces shared by the Launch Partner Preview and Business Page V2, so the two read as one design
@@ -8,9 +9,20 @@ import { LIME, NAVY, gbp } from "@/lib/business-page/tokens";
  * They carry no business logic and no sales copy: anything specific is passed in by the caller.
  */
 
-export function Img({ src, alt, className = "", style, eager = false }: { src: string; alt: string; className?: string; style?: React.CSSProperties; eager?: boolean }) {
+/**
+ * A picture. A LOGO (decided by lib/business-page/image-role.ts) is shown whole — contained, padded, on white — wherever the
+ * caller asked for a cropping `object-cover`; a photograph keeps its crop. `decorative` pictures (faint backgrounds behind
+ * other content) are simply left out when they are logos: a logo is never a texture.
+ */
+export function Img({ src, alt, className = "", style, eager = false, role, knownLogos, decorative = false }: {
+  src: string; alt: string; className?: string; style?: React.CSSProperties; eager?: boolean;
+  role?: ImageRole | null; knownLogos?: (string | null | undefined)[]; decorative?: boolean;
+}) {
+  const r = imageRole(src, alt, { role, knownLogos });
+  if (r === "logo" && decorative && /\bobject-cover\b/.test(className)) return null;
+  const fitted = fitClasses(className, r);
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" className={className} style={style} />;
+  return <img src={src} alt={alt} loading={eager ? "eager" : "lazy"} decoding="async" referrerPolicy="no-referrer" className={fitted} style={fitted !== className ? { ...style, objectPosition: undefined } : style} data-image-role={r} />;
 }
 
 export function Section({ id, eyebrow, title, children, tone = "cream", className = "" }: { id?: string; eyebrow?: string; title?: ReactNode; children: ReactNode; tone?: "cream" | "sand" | "white" | "navy"; className?: string }) {
