@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { derivePipelineStatus, nextAction, countByStatus, pipelineCells, STATUS_ORDER } from "../lib/launch-partners/status.ts";
 import { defaultEmailDraft, classifyDraft, ACTIVE_EMAIL_TEMPLATE, renderInvitationEmail, checkEmail, emailStatus, isOpeningPrompt, openingPrompt, TOKEN_CTA, TOKEN_OPENING, LINK_PLACEHOLDER, NO_INVITATION_TITLE, CTA_LABEL, CTA_FALLBACK_LINE, EMAIL_LOGO_URL } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
+import { replacementPlan, runGuarded } from "../lib/launch-partners/invitation-replace.ts";
 import { listingState, prepareEligibility, eligibilityOf, LISTING_LABEL } from "../lib/launch-partners/eligibility.ts";
 import { parsePreviewConfig, parsePageDraft, isSafeUrl } from "../lib/launch-partners/validate.ts";
 import { buildPageDraft } from "../lib/launch-partners/draft.ts";
@@ -290,7 +291,8 @@ describe("sending: the web app only asks — the Supabase Edge Function sends", 
     const a = read("app/admin/launch-partners/actions.ts");
     assert.match(a, /if \(c\.sent_at && !opts\.replaceSent\)/);
     const ui = read("components/admin/launch-partners/InvitationSection.tsx");
-    assert.match(ui, /Replace an invitation that was already emailed\?/); assert.match(ui, /replaceSent: !!row\.sent_at/);
+    assert.match(ui, /emailed: !!row\.sent_at/); assert.match(ui, /replaceSent: plan\.replaceSent/);
+    assert.match(read("lib/launch-partners/invitation-replace.ts"), /This invitation has already been emailed/);
   });
   test("no test in this file sends to a real address", () => {
     const here = read("tests/launch-partners.test.mjs");
@@ -390,5 +392,50 @@ describe("Invitation email: light OneShetland branding (renderer shared with the
   });
   test("web copy carries no sender or transport settings (they live only in the Edge Function)", () => {
     const src = read("lib/launch-partners/email.ts"); assert.doesNotMatch(src, /TrackOpens|TrackLinks|LAUNCH_OUTREACH_FROM|postmark/i);
+  });
+});
+
+describe("Replacing an invitation that has ALREADY been emailed", () => {
+  test("never emailed and nothing live: no question, no flag", () => {
+    assert.deepEqual(replacementPlan({ emailed: false, usable: false }), { confirm: null, replaceSent: false });
+  });
+  test("live but never emailed: the ordinary question, and the server is NOT told it is replacing an emailed link", () => {
+    const p = replacementPlan({ emailed: false, usable: true });
+    assert.equal(p.replaceSent, false); assert.equal(p.confirm?.emailed, false); assert.match(p.confirm.title, /Replace the current invitation/);
+  });
+  test("already emailed: an explicit warning that the emailed link will stop working, with a safe Cancel", () => {
+    for (const usable of [true, false]) {
+      const p = replacementPlan({ emailed: true, usable });
+      assert.ok(p.confirm, "must always ask"); assert.equal(p.replaceSent, true); assert.equal(p.confirm.emailed, true); assert.equal(p.confirm.danger, true);
+      assert.match(p.confirm.title, /already been emailed/); assert.match(p.confirm.body, /will stop working/); assert.match(p.confirm.body, /Nothing is sent automatically/);
+      assert.match(p.confirm.cancelLabel, /Cancel/); assert.match(p.confirm.confirmLabel, /Revoke the emailed link and replace it/);
+    }
+  });
+  test("the screen cannot be left waiting: a rejected request, a hung request and a good answer all settle", async () => {
+    const good = await runGuarded(async () => ({ ok: true })); assert.deepEqual(good, { ok: true, value: { ok: true } });
+    const bad = await runGuarded(async () => { throw new Error("Server action not found."); });
+    assert.equal(bad.ok, false); assert.equal(bad.kind, "rejected"); assert.match(bad.error, /didn’t go through/); assert.match(bad.error, /Nothing was changed/);
+    assert.doesNotMatch(bad.error, /Server action not found/, "no internal text leaks to the screen");
+    const t0 = Date.now(); const hung = await runGuarded(() => new Promise(() => {}), 40);
+    assert.equal(hung.ok, false); assert.equal(hung.kind, "timeout"); assert.match(hung.error, /check the Invitation status/); assert.ok(Date.now() - t0 < 2000);
+  });
+  test("SERVER: replacing an emailed invitation is refused unless the confirmation flag is present (UI bypass cannot get around it)", () => {
+    const src = read("app/admin/launch-partners/actions.ts"); const fn = src.slice(src.indexOf("export async function issueInvitationAction"), src.indexOf("export async function revokeInvitationAction"));
+    assert.match(fn, /await requireAdmin\(\)/);
+    assert.ok(fn.indexOf("c.sent_at && !opts.replaceSent") > 0 && fn.indexOf("c.sent_at && !opts.replaceSent") < fn.indexOf('rpc("admin_issue_launch_invite"'), "the refusal comes BEFORE any database call");
+    assert.match(fn, /already been emailed/); assert.match(fn, /return \{ ok: false/);
+  });
+  test("SCREEN: the warning is shown in the page, only its Confirm button reaches the server, and the button is always released", () => {
+    const src = read("components/admin/launch-partners/InvitationSection.tsx");
+    assert.match(src, /replacementPlan\(\{ emailed: !!row\.sent_at, usable \}\)/); assert.match(src, /role="alertdialog"/);
+    assert.equal((src.match(/issueInvitationAction\(/g) ?? []).length, 1, "one call site");
+    assert.match(src, /issueInvitationAction\(row\.id, days, \{ replaceSent: plan\.replaceSent \}\)/, "the flag comes only from the plan, never hard-coded");
+    const generate = src.slice(src.indexOf("function generate()"), src.indexOf("async function issue("));
+    assert.doesNotMatch(generate, /issueInvitationAction|await /, "clicking Generate never calls the server itself when a warning is due");
+    const issue = src.slice(src.indexOf("async function issue("), src.indexOf("async function revoke()"));
+    assert.match(issue, /runGuarded\(/); assert.ok(issue.indexOf("setBusy(false)") > issue.indexOf("runGuarded(") && issue.indexOf("setBusy(false)") < issue.indexOf("if (!r.ok)"), "released before any branch can return");
+    assert.match(issue, /router\.refresh\(\)/);
+    for (const name of ["revoke", "toggleClaim"]) { const b = src.slice(src.indexOf(`async function ${name}(`)); assert.match(b.slice(0, 700), /runGuarded\(/, `${name} is guarded too`); }
+    assert.match(src, /disabled=\{busy \|\| !canGenerate \|\| !!pending\}/);
   });
 });

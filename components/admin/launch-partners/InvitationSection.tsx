@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/admin/AdminUI";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { issueInvitationAction, revokeInvitationAction, setClaimModeAction } from "@/app/admin/launch-partners/actions";
 import { Section, inputCls } from "./fields";
+import { replacementPlan, runGuarded, type ReplacementPlan } from "@/lib/launch-partners/invitation-replace";
 import type { PipelineRow } from "@/lib/launch-partners/status";
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" }) : "—");
@@ -22,34 +23,43 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  /** The replacement waiting for an explicit yes/no, shown in the page itself (not a pop-up that can be missed or dismissed by a stray key). */
+  const [pending, setPending] = useState<ReplacementPlan | null>(null);
   const inv = row.invite;
   const usable = inv.status === "open" || inv.status === "claim pending" || inv.status === "claimed";
   const canGenerate = row.is_test || row.stage === "ready_to_invite" || row.stage === "sent";
 
-  async function generate() {
-    const sent = !!row.sent_at;
-    if ((usable || sent) && !(await confirm({
-      title: sent ? "Replace an invitation that was already emailed?" : "Replace the current invitation?",
-      body: sent ? "This invitation has already been emailed. Generating a new one revokes it, and the link they received will stop working." : "Generating a new one revokes the current link at once, so only one invitation is ever valid.",
-      confirmLabel: sent ? "Revoke and replace" : "Generate new invitation", danger: true,
-    }))) return;
-    setBusy(true); setErr(null); setLink(null);
-    const r = await issueInvitationAction(row.id, days, { replaceSent: !!row.sent_at });
-    setBusy(false);
-    if (!r.ok) { setErr(r.error); return; }
-    const url = `${window.location.origin}${r.path}`;
-    setLink(url); onLink?.({ url, expiresAt: r.expiresAt }); router.refresh();
+  /** Click on "Generate": ask first when something would be revoked; otherwise go straight ahead. */
+  function generate() {
+    setErr(null);
+    const plan = replacementPlan({ emailed: !!row.sent_at, usable });
+    if (plan.confirm) { setPending(plan); return; }
+    void issue(plan);
+  }
+  /** The ONLY place the server is asked to issue. `plan.replaceSent` is passed only for an invitation that was emailed. */
+  async function issue(plan: ReplacementPlan) {
+    setPending(null); setBusy(true); setErr(null); setLink(null);
+    const r = await runGuarded(() => issueInvitationAction(row.id, days, { replaceSent: plan.replaceSent }));
+    setBusy(false); // whatever happened, the button is released
+    if (!r.ok) { setErr(r.error); router.refresh(); return; }
+    if (!r.value.ok) { setErr(r.value.error); router.refresh(); return; }
+    const url = `${window.location.origin}${r.value.path}`;
+    setLink(url); onLink?.({ url, expiresAt: r.value.expiresAt }); router.refresh();
   }
   async function revoke() {
     if (!(await confirm({ title: "Revoke this invitation?", body: "The link stops working immediately. A claim already sent is not affected.", confirmLabel: "Revoke", danger: true }))) return;
-    setBusy(true); const r = await revokeInvitationAction(row.id); setBusy(false);
-    if (!r.ok) setErr(r.error); else { setLink(null); onLink?.(null); router.refresh(); }
+    setBusy(true); setErr(null);
+    const g = await runGuarded(() => revokeInvitationAction(row.id));
+    setBusy(false);
+    if (!g.ok) { setErr(g.error); router.refresh(); return; }
+    if (!g.value.ok) setErr(g.value.error); else { setLink(null); onLink?.(null); router.refresh(); }
   }
   async function toggleClaim() {
     setBusy(true); setErr(null);
-    const r = await setClaimModeAction(row.id, claimMode === "live" ? "holding" : "live");
+    const g = await runGuarded(() => setClaimModeAction(row.id, claimMode === "live" ? "holding" : "live"));
     setBusy(false);
-    if (!r.ok) setErr(r.error); else router.refresh();
+    if (!g.ok) { setErr(g.error); router.refresh(); return; }
+    if (!g.value.ok) setErr(g.value.error); else router.refresh();
   }
 
   return (
@@ -63,9 +73,19 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
         <label className="text-sm font-semibold text-ink-soft">Valid for (days)
           <input type="number" min={1} max={120} value={days} onChange={(e) => setDays(Math.min(120, Math.max(1, Number(e.target.value) || 30)))} className={inputCls + " w-24"} />
         </label>
-        <button onClick={generate} disabled={busy || !canGenerate} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy ? "Working…" : usable ? "Generate a new private invitation" : "Generate private invitation"}</button>
+        <button onClick={generate} disabled={busy || !canGenerate || !!pending} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy ? "Working…" : usable ? "Generate a new private invitation" : "Generate private invitation"}</button>
         {usable && <button onClick={revoke} disabled={busy} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50">Revoke</button>}
       </div>
+      {pending?.confirm && (
+        <div role="alertdialog" aria-labelledby="replace-title" aria-describedby="replace-body" className="rounded-xl border-2 border-rose-300 bg-rose-50 p-4">
+          <p id="replace-title" className="text-sm font-bold text-rose-900">{pending.confirm.title}</p>
+          <p id="replace-body" className="mt-1 text-sm text-rose-900">{pending.confirm.body}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button autoFocus onClick={() => setPending(null)} className="rounded-pill border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">{pending.confirm.cancelLabel}</button>
+            <button onClick={() => void issue(pending)} className="rounded-pill bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95">{pending.confirm.confirmLabel}</button>
+          </div>
+        </div>
+      )}
       {err && <p role="alert" className="text-sm font-semibold text-rose-700">{err}</p>}
       {link && (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-3" role="status">
