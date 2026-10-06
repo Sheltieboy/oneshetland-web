@@ -11,7 +11,7 @@ import { STATUS_LABEL, STATUS_TONE, derivePipelineStatus, isClaimed, nextAction,
 import type { CampaignEvent } from "@/lib/launch-partners/campaigns.server";
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) : null);
-const KIND: Record<string, string> = { created: "Campaign created", updated: "Edited", stage: "Stage changed", marked_sent: "Recorded as sent (by hand)", first_viewed: "Private preview opened for the first time" };
+const KIND: Record<string, string> = { created: "Campaign created", updated: "Edited", stage: "Stage changed", marked_sent: "Recorded as sent (by hand)", first_viewed: "Private preview opened for the first time", version_owner_edit: "Owner edited their page", profile_approved: "Owner approved their setup", went_live: "Owner went live" };
 
 /** Where this partner stands: the derived status, a milestone checklist from real facts, stage controls, and the audit trail. */
 export function StatusSection({ row, events }: { row: PipelineRow; events: CampaignEvent[] }) {
@@ -61,7 +61,7 @@ export function StatusSection({ row, events }: { row: PipelineRow; events: Campa
         <details className="rounded-xl border border-line p-4">
           <summary className="cursor-pointer text-sm font-bold text-ink">History ({events.length})</summary>
           <ul className="mt-3 space-y-1.5 text-sm">
-            {events.map((e) => <li key={e.id} className="flex flex-wrap gap-x-3 text-ink-soft"><span className="text-ink-muted">{when(e.created_at)}</span><span className="font-semibold text-ink">{KIND[e.kind] ?? e.kind}</span>{e.kind === "updated" && Array.isArray((e.detail as { fields?: string[] }).fields) && <span className="text-ink-muted">{((e.detail as { fields: string[] }).fields).join(", ")}</span>}</li>)}
+            {events.map((e) => <li key={e.id} className="flex flex-wrap gap-x-3 text-ink-soft"><span className="text-ink-muted">{when(e.created_at)}</span><span className="font-semibold text-ink">{KIND[e.kind] ?? e.kind}</span>{e.kind === "updated" && Array.isArray((e.detail as { fields?: string[] }).fields) && <span className="text-ink-muted">{((e.detail as { fields: string[] }).fields).join(", ")}</span>}{e.kind === "went_live" && <span className="text-ink-muted">published version {String((e.detail as { version_id?: string }).version_id ?? "").slice(0, 8)} (approved {String((e.detail as { approved_version_id?: string }).approved_version_id ?? "").slice(0, 8)}){(e.detail as { republish?: boolean }).republish ? " · an update" : ""}</span>}</li>)}
           </ul>
         </details>
       )}

@@ -25,6 +25,8 @@ import { tierUnlocks, galleryLimit } from "@/lib/listing-tiers";
 import { getShopProducts } from "@/lib/shop-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { businessSchema, breadcrumbSchema } from "@/lib/seo-schema";
+import { getPublishedLaunchPage } from "@/lib/launch-partners/published.server";
+import { PublishedBusinessPage } from "@/components/business-page/PublishedBusinessPage";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +65,10 @@ export default async function BusinessPage({
   const openGiftId = one(sp.gift);
   const b = await getBusiness(id);
   if (!b) notFound();
+
+  // A launch partner that has GONE LIVE shows the setup its owner approved and published. Everyone else is unchanged.
+  const published = await getPublishedLaunchPage(b.id);
+  if (published) return <PublishedBusinessPage b={b} draft={published.draft} searchParams={sp} />;
 
   const [{ offers, loyalty, services, unitItems }, { events, jobs, owner }, account, shopProducts] = await Promise.all([
     getBusinessExtras(b.id),

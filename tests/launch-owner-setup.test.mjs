@@ -44,10 +44,14 @@ describe("The owner's launch state — read from real records", () => {
   test("an owner who has started editing, then one who approved, move the card on — from the version records alone", () => {
     const e = deriveOwnerLaunch(input({ versions: [v("owner_edit")] })); assert.equal(e.state, "edited"); assert.equal(e.showCard, true); assert.equal(e.steps[3].state, "current");
     const a = deriveOwnerLaunch(input({ versions: [v("approved", { is_approved_current: true }), v("owner_edit")] }));
-    assert.equal(a.state, "approved"); assert.equal(a.showCard, true); assert.equal(a.steps[3].state, "done"); assert.equal(a.steps[4].state, "current"); assert.match(a.body, /Nothing is public yet/);
+    assert.equal(a.state, "approved"); assert.equal(a.showCard, true); assert.equal(a.steps[3].state, "done"); assert.equal(a.steps[4].state, "current"); assert.equal(a.title, "Your setup is approved"); assert.equal(a.cta, "Go live on OneShetland"); assert.match(a.body, /Going live will make your approved OneShetland business page public/); assert.match(a.body, /optional/);
   });
-  test("9 · a published (live) launch partner → the prompt is gone and nothing blocks the ordinary dashboard", () => {
-    const l = deriveOwnerLaunch(input({ versions: [v("published"), v("approved", { is_approved_current: true })] })); assert.equal(l.state, "live"); assert.equal(l.showCard, false);
+  test("9/16 · a published (live) launch partner → the unfinished-task card is replaced by a compact success state; the ordinary dashboard is primary again", () => {
+    const l = deriveOwnerLaunch(input({ versions: [v("published", { id: "p1", parent_id: "a1" }), v("approved", { id: "a1", is_approved_current: true })] }));
+    assert.equal(l.state, "live"); assert.equal(l.title, "You’re live on OneShetland ✓"); assert.equal(l.cta, "View my page"); assert.ok(l.steps.every((s) => s.state === "done"));
+    assert.equal(l.unpublishedChanges, false); assert.equal(l.approvalWaiting, false);
+    const m = read("app/business/[id]/manage/page.tsx"); assert.match(m, /const launchPrompt = launch\.state === "review" \|\| launch\.state === "edited"/, "the generic 'Nothing needs you' stays suppressed only while a TASK is waiting, never once live");
+    assert.equal(deriveOwnerLaunch(input({ grants: [grant({ revoked_at: PAST })], versions: [v("published", { id: "p1", parent_id: "a1" }), v("approved", { id: "a1", is_approved_current: true })] })).state, "live", "an ended grant does not un-live a published page");
   });
   test("10 · a revoked, expired or replaced grant → no 'ready to launch' flow at all", () => {
     for (const g of [grant({ revoked_at: PAST }), grant({ expires_at: PAST }), grant({ superseded_at: PAST })]) {
@@ -94,15 +98,15 @@ describe("Safety: nothing is published or imported, and the owner is the only ac
   test("5 · the prepared draft stays private: nothing in the owner flow writes the business, products, services, offers, passes, images or publication state", () => {
     const code = ownerFiles.map(strip).join("\n");
     assert.doesNotMatch(code, /\.from\(["'`](local_businesses|products|book_services|book_unit_items|local_offers|launch_partner_campaigns)/);
-    assert.doesNotMatch(code, /\.(insert|upsert|delete)\(|\.update\(|\.storage\b|service_role|SERVICE_ROLE|setup_ready_at|live_at|go_live/i);
+    assert.doesNotMatch(code, /\.(insert|upsert|delete)\(|\.update\(|\.storage\b|service_role|SERVICE_ROLE|setup_ready_at|live_at/i);
     assert.doesNotMatch(code, /product_import|import_set_row|createProduct|admin_launch_partner_update|admin_grant_launch_plan/);
   });
-  test("6 · the only database writes are the two audited owner functions (save a private version; approve a version)", () => {
+  test("6 · the only database writes are the three audited owner functions (save a private version; approve a version; go live with the approved one)", () => {
     const code = ownerFiles.map(strip).join("\n");
     const rpcs = [...code.matchAll(/\.rpc\(\s*["'`]([a-z_]+)["'`]/g)].map((m) => m[1]);
-    assert.deepEqual([...new Set(rpcs)].sort(), ["launch_partner_owner_approve", "launch_partner_owner_save_profile", "launch_partner_page_draft", "launch_partner_profile_versions", "launch_partner_version_profile"]);
+    assert.deepEqual([...new Set(rpcs)].sort(), ["launch_partner_owner_approve", "launch_partner_owner_go_live", "launch_partner_owner_save_profile", "launch_partner_page_draft", "launch_partner_profile_versions", "launch_partner_version_profile"]);
     const a = strip("app/business/[id]/manage/launch-setup/actions.ts");
-    assert.match(a, /^"use server"|\n"use server"/m); assert.equal((a.match(/launch_partner_owner_save_profile/g) ?? []).length, 2); assert.equal((a.match(/launch_partner_owner_approve/g) ?? []).length, 1);
+    assert.match(a, /^"use server"|\n"use server"/m); assert.equal((a.match(/launch_partner_owner_save_profile/g) ?? []).length, 2); assert.equal((a.match(/launch_partner_owner_approve/g) ?? []).length, 2, "approve: once for the owner's approval, once when publishing a later edit"); assert.equal((a.match(/launch_partner_owner_go_live/g) ?? []).length, 2);
   });
   test("3/4 · the owner is identified by the database, per business: every action starts with requireBusinessOwner(this id), the draft reader answers only the approved owner, and the page 404s otherwise", () => {
     const a = read("app/business/[id]/manage/launch-setup/actions.ts"); assert.match(a, /await requireBusinessOwner\(businessId, \{ returnPath/); assert.doesNotMatch(a, /businessId = |let businessId/);
@@ -112,7 +116,7 @@ describe("Safety: nothing is published or imported, and the owner is the only ac
     const m = read("app/business/[id]/manage/page.tsx"); assert.match(m, /requireBusinessOwner\(id\)/); assert.match(m, /getOwnerLaunchSetup\(business\.id\)/, "the card is computed for the page's own, verified business");
   });
   test("3 · the card's link points at the SAME business's setup", () => {
-    const m = read("app/business/[id]/manage/page.tsx"); assert.match(m, /<LaunchSetupCard launch=\{launch\} href=\{`\$\{base\}\/launch-setup`\} \/>/); assert.match(m, /const base = `\/business\/\$\{business\.id\}\/manage`/);
+    const m = read("app/business/[id]/manage/page.tsx"); assert.match(m, /<LaunchSetupCard launch=\{launch\} href=\{`\$\{base\}\/launch-setup`\} publicHref=\{`\/directory\/\$\{business\.id\}`\} \/>/); assert.match(m, /const base = `\/business\/\$\{business\.id\}\/manage`/);
     assert.match(read("components/business/LaunchSetupCard.tsx"), /href=\{href\}/);
   });
   test("2/9 · the card outranks 'Nothing needs you right now' and the ordinary Next suggestion only while a task is waiting; the ordinary dashboard is untouched otherwise", () => {
@@ -147,10 +151,10 @@ describe("The admin workflow reflects the owner's real progress", () => {
   const w = (owner) => deriveWorkflow({ row: row(), claimMode: "live", email, owner });
   test("8 · granted, owner has done nothing → 'Waiting for owner review'", () => { const x = w({ edited: false, approved: false, published: false }); assert.equal(x.current.id, "owner_review"); assert.equal(x.headline, "Waiting for owner review"); assert.match(x.current.note, /Waiting for the owner to review/); });
   test("8 · the owner edited → 'Owner is editing — waiting for approval'", () => { const x = w({ edited: true, approved: false, published: false }); assert.equal(x.headline, "Owner is editing — waiting for approval"); assert.match(x.current.note, /started editing/); });
-  test("7/8 · the owner approved → 'Owner review' is ticked from the approval record, and the next step is honest that going live is not switched on", () => {
+  test("7/8 · the owner approved → 'Owner review' is ticked from the approval record, and the next step is honest that it is the owner's call to go live", () => {
     const x = w({ edited: true, approved: true, published: false });
-    assert.equal(x.steps.find((s) => s.id === "owner_review").state, "complete"); assert.equal(x.current.id, "go_live"); assert.equal(x.headline, "Owner approved — go-live not switched on");
-    assert.match(x.current.note, /Nothing is published: going live isn't switched on yet/);
+    assert.equal(x.steps.find((s) => s.id === "owner_review").state, "complete"); assert.equal(x.current.id, "go_live"); assert.equal(x.headline, "Owner approved — waiting for them to go live");
+    assert.match(x.current.note, /Nothing is public until they choose to go live/);
   });
   test("there is no admin checkbox: the input is only the owner's real actions, and the page derives them from the campaign's own records", () => {
     const page = read("app/admin/launch-partners/[id]/page.tsx");
@@ -158,7 +162,7 @@ describe("The admin workflow reflects the owner's real progress", () => {
     const code = read("lib/launch-partners/workflow.ts").replace(/\/\*[\s\S]*?\*\//g, ""); assert.doesNotMatch(code, /useState|setApproved|localStorage|fetch\(/);
   });
   test("the admin status line no longer says the owner should add their catalogue; it names the real wait", () => {
-    const s = read("lib/launch-partners/status.ts"); assert.doesNotMatch(s, /Let them add their catalogue/); assert.match(s, /Wait for the owner to review and approve their setup/); assert.match(s, /going live is not switched on yet/);
+    const s = read("lib/launch-partners/status.ts"); assert.doesNotMatch(s, /Let them add their catalogue/); assert.match(s, /Wait for the owner to review and approve their setup/); assert.match(s, /waiting for them to go live/);
   });
   test("a removed grant after the owner approved is still flagged to the admin, not hidden by the approval", () => {
     const x = deriveWorkflow({ row: row({ grant: null }), claimMode: "live", email, lastGrant: { status: "revoked", expires_at: PAST }, owner: { edited: true, approved: true, published: false } });

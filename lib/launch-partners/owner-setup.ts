@@ -25,7 +25,7 @@ export interface OwnerLaunchInput {
   /** The business's launch-grant rows as the owner may read them. */
   grants: { expires_at: string; revoked_at?: string | null; superseded_at?: string | null }[];
   /** launch_partner_profile_versions, newest first. */
-  versions: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published"; created_at: string; is_approved_current?: boolean }[];
+  versions: { id: string; kind: "prepared" | "owner_edit" | "approved" | "published"; created_at: string; parent_id?: string | null; is_approved_current?: boolean }[];
   now?: Date;
 }
 
@@ -38,6 +38,12 @@ export interface OwnerLaunch {
   title: string;
   body: string;
   cta: string;
+  /** The version the owner approved and that is current (what Go live publishes), or null. */
+  approvedVersionId: string | null;
+  /** Live, and the owner has saved changes the public page does not show yet. */
+  unpublishedChanges: boolean;
+  /** Live, and the newest approval has not been published yet (a one-click "publish"). */
+  approvalWaiting: boolean;
 }
 
 const activeGrant = (g: OwnerLaunchInput["grants"], now: Date) => g.some((x) => !x.revoked_at && !x.superseded_at && new Date(x.expires_at) > now);
@@ -56,15 +62,27 @@ export function deriveOwnerLaunch(i: OwnerLaunchInput): OwnerLaunch {
   else if (edited) state = "edited";
   else state = "review";
 
+  const approvedCurrent = i.versions.find((v) => v.kind === "approved" && v.is_approved_current !== false) ?? null;
+  const pubIdx = i.versions.findIndex((v) => v.kind === "published");
+  const livePub = pubIdx >= 0 ? i.versions[pubIdx] : null;
+  // versions are newest first: anything with a lower index than the published row is newer than it
+  const unpublishedChanges = state === "live" && i.versions.some((v, ix) => ix < pubIdx && (v.kind === "owner_edit" || v.kind === "approved"));
+  const approvalWaiting = state === "live" && !!approvedCurrent && !!livePub && livePub.parent_id !== approvedCurrent.id;
+
   const steps: OwnerLaunch["steps"] = [
     { label: "Business claimed", state: "done" },
     { label: "Launch Partner access active", state: "done" },
     { label: "Review your prepared page", state: state === "review" ? "current" : "done" },
-    { label: "Confirm your content", state: state === "approved" ? "done" : state === "edited" ? "current" : "todo" },
-    { label: "Ready to go live", state: state === "approved" ? "current" : "todo" },
+    { label: "Confirm your content", state: state === "approved" || state === "live" ? "done" : state === "edited" ? "current" : "todo" },
+    { label: state === "live" ? "Live on OneShetland" : "Ready to go live", state: state === "live" ? "done" : state === "approved" ? "current" : "todo" },
   ];
   const copy: Record<OwnerLaunchState, { title: string; body: string; cta: string }> = {
-    none: { title: "", body: "", cta: "" }, ended: { title: "", body: "", cta: "" }, live: { title: "", body: "", cta: "" },
+    none: { title: "", body: "", cta: "" }, ended: { title: "", body: "", cta: "" },
+    live: {
+      title: "You’re live on OneShetland ✓",
+      body: unpublishedChanges ? "Your approved page is public. You have changes that aren’t public yet — review and publish them when you’re ready." : "Your approved page is public. You can keep improving it any time, and add products, services and offers whenever you like.",
+      cta: "View my page",
+    },
     review: {
       title: "Your OneShetland setup is ready to review",
       body: "We’ve already prepared your business page and initial content. Review what we’ve put together, make any changes you want, and choose when you’re ready to go live. Nothing is public until you say so.",
@@ -76,12 +94,12 @@ export function deriveOwnerLaunch(i: OwnerLaunchInput): OwnerLaunch {
       cta: "Continue my launch setup",
     },
     approved: {
-      title: "You’ve approved your launch setup",
-      body: "Thank you. Nothing is public yet, and you can still look over what you approved. We’ll let you know when you can go live.",
-      cta: "View my launch setup",
+      title: "Your setup is approved",
+      body: "Everything is ready. Going live will make your approved OneShetland business page public. Products, services and offers are optional — they appear only if you add them.",
+      cta: "Go live on OneShetland",
     },
   };
-  return { state, showCard: state === "review" || state === "edited" || state === "approved", grantActive, steps, ...copy[state] };
+  return { state, showCard: state === "review" || state === "edited" || state === "approved" || state === "live", grantActive, steps, ...copy[state], approvedVersionId: approvedCurrent?.id ?? null, unpublishedChanges, approvalWaiting };
 }
 
 /* ── the profile layer an owner may edit ─────────────────────────────────── */

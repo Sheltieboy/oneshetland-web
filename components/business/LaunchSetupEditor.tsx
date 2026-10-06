@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { approveLaunchSetupAction, saveLaunchSetupAction } from "@/app/business/[id]/manage/launch-setup/actions";
+import { approveLaunchSetupAction, publishChangesAction, saveLaunchSetupAction } from "@/app/business/[id]/manage/launch-setup/actions";
 import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 import type { OwnerEdit } from "@/lib/launch-partners/owner-setup";
 
@@ -20,12 +20,12 @@ const label = "block text-sm font-semibold text-ink-soft";
  * The owner's launch-setup editor: reword what was prepared, remove what they don't want, add what's missing — all private. It saves a
  * private version (never the listing) and approval is a separate, explicit, confirmed step that publishes nothing.
  */
-export function LaunchSetupEditor({ businessId, initial, locked, approvedAt }: { businessId: string; initial: EditorInitial; /** Approved: shown, not editable. */ locked: boolean; approvedAt: string | null }) {
+export function LaunchSetupEditor({ businessId, initial, locked, approvedAt, live = false, unpublishedChanges = false }: { businessId: string; initial: EditorInitial; /** Approved (and not yet live): shown, not editable. */ locked: boolean; approvedAt: string | null; /** Already live: editing continues, and changes go public only when the owner publishes them. */ live?: boolean; unpublishedChanges?: boolean }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [f, setF] = useState(initial);
   const [saved, setSaved] = useState(JSON.stringify(initial));
-  const [busy, setBusy] = useState<"save" | "approve" | null>(null);
+  const [busy, setBusy] = useState<"save" | "approve" | "publish" | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const dirty = JSON.stringify(f) !== saved;
   const set = (p: Partial<EditorInitial>) => setF((x) => ({ ...x, ...p }));
@@ -53,6 +53,21 @@ export function LaunchSetupEditor({ businessId, initial, locked, approvedAt }: {
     if (!g.ok) { setMsg({ ok: false, text: g.error }); router.refresh(); return; }
     if (!g.value.ok) { setMsg({ ok: false, text: g.value.error }); router.refresh(); return; }
     router.refresh();
+  }
+
+  async function publish() {
+    const ok = await confirm({
+      title: "Publish your changes?",
+      body: "Your saved changes will replace the page that is public now. You can keep editing afterwards. Products, services and offers are not affected.",
+      confirmLabel: "Publish my changes",
+    });
+    if (!ok) return;
+    setBusy("publish"); setMsg(null);
+    const g = await runGuarded(() => publishChangesAction(businessId), 60_000);
+    setBusy(null);
+    if (!g.ok) { setMsg({ ok: false, text: g.error }); router.refresh(); return; }
+    if (!g.value.ok) { setMsg({ ok: false, text: g.value.error }); router.refresh(); return; }
+    setMsg({ ok: true, text: "Published. Your changes are now public." }); router.refresh();
   }
 
   return (
@@ -139,16 +154,25 @@ export function LaunchSetupEditor({ businessId, initial, locked, approvedAt }: {
         )}
       </fieldset>
 
+      {live ? (
+        <section aria-labelledby="publish-h" className="rounded-card border-2 border-line bg-paper p-5 shadow-soft">
+          <h2 id="publish-h" className="font-display text-xl font-bold text-ink">Your public page</h2>
+          <p className="mt-1 text-sm text-ink-soft">Edits are saved privately. The page customers see changes only when you publish them{unpublishedChanges ? " — and you have saved changes that aren’t public yet" : ""}.</p>
+          <button type="button" onClick={publish} disabled={dirty || !!busy || !unpublishedChanges} className="mt-3 rounded-pill bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy === "publish" ? "Publishing…" : "Publish my changes"}</button>
+          {dirty && <p className="mt-2 text-sm text-amber-700">Save your changes first.</p>}
+        </section>
+      ) : (
       <section aria-labelledby="approve-h" className="rounded-card border-2 border-line bg-paper p-5 shadow-soft">
         <h2 id="approve-h" className="font-display text-xl font-bold text-ink">{locked ? "You’ve approved your setup" : "Happy with it?"}</h2>
         {locked
-          ? <p className="mt-1 text-sm text-ink-soft">Approved{approvedAt ? ` on ${new Date(approvedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}. Nothing is public yet; we’ll let you know when you can go live.</p>
+          ? <p className="mt-1 text-sm text-ink-soft">Approved{approvedAt ? ` on ${new Date(approvedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}` : ""}. Nothing is public until you go live.</p>
           : <>
               <p className="mt-1 text-sm text-ink-soft">Approving tells us this is the page you want. <strong>It does not publish anything</strong> — your page and content stay private until you choose to go live.</p>
               <button type="button" onClick={approve} disabled={dirty || !!busy} className="mt-3 rounded-pill bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy === "approve" ? "Approving…" : "Approve my setup"}</button>
               {dirty && <p className="mt-2 text-sm text-amber-700">Save your changes first, so you approve exactly what you’ve written.</p>}
             </>}
       </section>
+      )}
       {msg && <p role={msg.ok ? "status" : "alert"} className={"text-sm font-semibold " + (msg.ok ? "text-emerald-700" : "text-rose-700")}>{msg.text}</p>}
     </div>
   );

@@ -62,7 +62,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         <div className="ml-auto"><AvailabilityChip data={dashboard} base={base} /></div>
       </div>
 
-      {launch.showCard && <div className="mb-8"><LaunchSetupCard launch={launch} href={`${base}/launch-setup`} /></div>}
+      {launch.showCard && <div className="mb-8"><LaunchSetupCard launch={launch} href={`${base}/launch-setup`} publicHref={`/directory/${business.id}`} /></div>}
 
       {/* The dashboard proper: what needs you, how the week went, the code. */}
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>

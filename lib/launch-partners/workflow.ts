@@ -159,14 +159,14 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
       case "approve_claim": current.note = "A claim is waiting for your decision."; break;
       case "grant": if (current.state !== "attention") current.note = "Claim approved. Choose Pro or Premium and an end date — right on this page."; break;
       case "owner_review": current.note = owner.edited ? "The owner has started editing their page and hasn't approved it yet." : "Waiting for the owner to review the setup you prepared."; break;
-      case "go_live": current.note = "The owner approved their setup. Nothing is published: going live isn't switched on yet."; break;
+      case "go_live": current.note = "The owner has approved their setup. Nothing is public until they choose to go live."; break;
       case "live": current.note = "Ready. Waiting for them to press Go live."; break;
     }
   }
 
   // The "wait" step has nothing to click: it is a state, not a task.
   const headline = current === null ? (row.live_at ? "Live" : "Nothing to do")
-    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? "Owner approved — go-live not switched on" : "Waiting for them to go live")
+    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? "Owner approved — waiting for them to go live" : "Waiting for them to go live")
     : current.state === "attention" ? `Needs attention: ${current.label}`
     : `Next: ${current.label}`;
   return { status, statusLabel: STATUS_LABEL[status], statusTone: STATUS_TONE[status], steps, current, headline };

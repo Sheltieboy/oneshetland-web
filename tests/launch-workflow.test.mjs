@@ -83,7 +83,7 @@ describe("The next action, from the real state", () => {
     const gr = { ...claimed, grant: { tier: "premium", expires_at: FUTURE } };
     const granted = wf(gr, "live"); assert.equal(granted.current.id, "owner_review"); assert.ok(isWaitingStep(granted)); assert.equal(granted.headline, "Waiting for owner review");
     const editing = deriveWorkflow({ row: gr, claimMode: "live", email: GOOD, owner: { edited: true, approved: false, published: false } }); assert.equal(editing.headline, "Owner is editing — waiting for approval");
-    const approvedByOwner = deriveWorkflow({ row: gr, claimMode: "live", email: GOOD, owner: { edited: true, approved: true, published: false } }); assert.equal(approvedByOwner.current.id, "go_live"); assert.equal(approvedByOwner.headline, "Owner approved — go-live not switched on"); assert.equal(approvedByOwner.steps.find((x) => x.id === "owner_review").state, "complete");
+    const approvedByOwner = deriveWorkflow({ row: gr, claimMode: "live", email: GOOD, owner: { edited: true, approved: true, published: false } }); assert.equal(approvedByOwner.current.id, "go_live"); assert.equal(approvedByOwner.headline, "Owner approved — waiting for them to go live"); assert.equal(approvedByOwner.steps.find((x) => x.id === "owner_review").state, "complete");
     const rdy = wf({ ...gr, setup_ready_at: "x" }, "live"); assert.equal(rdy.current.id, "owner_review", "setup_ready_at alone is not the owner's approval");
   });
   test("8 · Already live → everything complete, no current step, headline 'Live'", () => {

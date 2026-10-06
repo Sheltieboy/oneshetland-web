@@ -5,6 +5,7 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { getOwnerLaunchSetup } from "@/lib/launch-partners/owner-setup.server";
 import { LaunchSetupEditor, type EditorInitial } from "@/components/business/LaunchSetupEditor";
 import { LaunchSetupCard } from "@/components/business/LaunchSetupCard";
+import { GoLivePanel } from "@/components/business/GoLivePanel";
 import { gbp } from "@/lib/business-page/tokens";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +23,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const base = `/business/${business.id}/manage`;
   if (!ctx.draft || !ctx.prepared) notFound();
   const back = <div className="border-b border-line bg-white"><div className="mx-auto max-w-4xl px-5 py-2 text-sm"><Link href={base} className="font-semibold text-ink-soft hover:text-ink">← Back to your dashboard</Link></div></div>;
-  if (ctx.launch.state === "none" || ctx.launch.state === "ended" || ctx.launch.state === "live") {
+  if (ctx.launch.state === "none" || ctx.launch.state === "ended") {
     return (<>{back}<div className="mx-auto max-w-4xl px-5 py-10"><h1 className="font-display text-3xl font-bold text-ink">Your launch setup</h1>
-      <p className="mt-2 text-ink-soft">{ctx.launch.state === "live" ? "Your launch setup is complete." : ctx.launch.state === "none" ? "Your launch setup opens as soon as your Launch Partner access has been added. Nothing has changed on your listing." : "Your launch-partner access has ended, so there is nothing to set up here. Your listing and everything on it is unchanged."}</p></div></>);
+      <p className="mt-2 text-ink-soft">{ctx.launch.state === "none" ? "Your launch setup opens as soon as your Launch Partner access has been added. Nothing has changed on your listing." : "Your launch-partner access has ended, so there is nothing to set up here. Your listing and everything on it is unchanged."}</p></div></>);
   }
   const d = ctx.draft;
   const approvedAt = ctx.versions.find((v) => v.kind === "approved")?.created_at ?? null;
@@ -41,16 +42,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       {back}
       <div className="mx-auto max-w-4xl px-5 py-8 sm:py-10">
         <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Your launch setup</h1>
-        <p className="mt-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900">Nothing here is live. This is a private draft that only you and OneShetland can see. Your public listing hasn’t changed.</p>
+        {ctx.launch.state === "live"
+          ? <p className="mt-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900">You’re live. Your approved page is public. Anything you change here stays private until you publish it.</p>
+          : <p className="mt-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-900">Nothing here is live. This is a private draft that only you and OneShetland can see. Your public listing hasn’t changed.</p>}
 
-        <div className="mt-6"><LaunchSetupCard launch={{ ...ctx.launch, cta: "" }} href={base} hideCta /></div>
+        <div className="mt-6"><LaunchSetupCard launch={ctx.launch} href={base} publicHref={`/directory/${business.id}`} hideCta /></div>
 
         <div className="mt-6 flex flex-wrap gap-2">
-          <Link href={`${base}/page-draft`} target="_blank" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">See your page as a draft →</Link>
+          {ctx.launch.state === "live" ? <Link href={`/directory/${business.id}`} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">View my public page →</Link> : null}
+          <Link href={`${base}/page-draft`} target="_blank" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">{ctx.launch.state === "live" ? "See my saved changes →" : "See your page as a draft →"}</Link>
           <Link href={`${base}/page-draft?view=future-live`} target="_blank" className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft hover:bg-sand">See how customers will see it →</Link>
         </div>
 
-        <div className="mt-6"><LaunchSetupEditor businessId={business.id} initial={initial} locked={ctx.launch.state === "approved"} approvedAt={approvedAt} /></div>
+        {(ctx.launch.state === "approved" || ctx.launch.state === "live") && <div className="mt-6"><GoLivePanel businessId={business.id} publicHref={`/directory/${business.id}`} live={ctx.launch.state === "live"} waiting={ctx.launch.approvalWaiting} /></div>}
+
+        <div className="mt-6"><LaunchSetupEditor businessId={business.id} initial={initial} locked={ctx.launch.state === "approved"} approvedAt={approvedAt} live={ctx.launch.state === "live"} unpublishedChanges={ctx.launch.unpublishedChanges} /></div>
 
         <section aria-labelledby="examples-h" className="mt-6 rounded-card border border-line bg-paper p-5 shadow-soft">
           <h2 id="examples-h" className="font-display text-xl font-bold text-ink">Examples we prepared <span className="text-sm font-semibold text-ink-muted">· not on sale</span></h2>

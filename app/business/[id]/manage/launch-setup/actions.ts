@@ -28,7 +28,7 @@ export async function saveLaunchSetupAction(businessId: string, edit: OwnerEdit)
   try {
     const ctx = await context(businessId);
     if (!ctx.campaignId || !ctx.draft || !ctx.prepared) return { ok: false, error: refused };
-    if (!["review", "edited"].includes(ctx.launch.state)) return { ok: false, error: ctx.launch.state === "approved" ? "You’ve already approved this setup." : "Your launch setup isn’t open for editing." };
+    if (!["review", "edited", "live"].includes(ctx.launch.state)) return { ok: false, error: ctx.launch.state === "approved" ? "You’ve already approved this setup. Go live, or ask us if you need to change it." : "Your launch setup isn’t open for editing." };
     const built = buildOwnerProfile(ctx.prepared, edit);
     if (!built.ok) return built;
     // The page that results must pass the same validator as any page draft (https / own-path addresses, sizes).
@@ -67,4 +67,58 @@ export async function approveLaunchSetupAction(businessId: string): Promise<Resu
     revalidatePath(`/business/${businessId}/manage`); revalidatePath(`/business/${businessId}/manage/launch-setup`);
     return { ok: true, approvedAt: (a as { approved_at: string }).approved_at };
   } catch (e) { return { ok: false, error: clean(e) }; }
+}
+
+
+/** Map a database refusal to something an owner can act on. The gates raise plain sentences (55000); anything else is generic. */
+function liveError(e: { code?: string; message: string }): string {
+  if (e.code === "55000" || /^Only the setup you approved|^Your (business|Launch)/.test(e.message)) return e.message;
+  if (e.code === "42501") return refused;
+  return "Your page couldn’t go live just now. Nothing was changed — try again.";
+}
+
+/**
+ * GO LIVE: publish the setup the owner APPROVED. Never automatic, never an older or newer draft: the database publishes only the campaign's
+ * current approved version and refuses anything else, atomically and idempotently (a second click is a no-op that reports "already live").
+ * It writes a published version and the campaign's go-live columns — nothing on the business, its products, services or offers.
+ */
+export async function goLiveAction(businessId: string): Promise<Result<{ alreadyLive: boolean }>> {
+  try {
+    const ctx = await context(businessId);
+    if (!ctx.campaignId) return { ok: false, error: refused };
+    if (!ctx.launch.approvedVersionId || !(ctx.launch.state === "approved" || (ctx.launch.state === "live" && ctx.launch.approvalWaiting))) return { ok: false, error: "Approve your setup first." };
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("launch_partner_owner_go_live", { p_business_id: businessId, p_version_id: ctx.launch.approvedVersionId });
+    if (error) return { ok: false, error: liveError(error) };
+    revalidateLive(businessId);
+    return { ok: true, alreadyLive: (data as { already_live?: boolean })?.already_live === true };
+  } catch (e) { return { ok: false, error: clean(e) }; }
+}
+
+/** After going live the owner can keep editing their page; this approves their latest saved edit AND publishes it, as one explicit action. */
+export async function publishChangesAction(businessId: string): Promise<Result<object>> {
+  try {
+    const ctx = await context(businessId);
+    if (!ctx.campaignId || ctx.launch.state !== "live" || !ctx.launch.unpublishedChanges) return { ok: false, error: "There are no changes to publish." };
+    const sb = await createClient();
+    let approvedId = ctx.launch.approvedVersionId;
+    const newest = ctx.versions.find((v) => v.kind === "owner_edit");
+    const newestApproved = ctx.versions.find((v) => v.kind === "approved");
+    const ownerEditIsNewer = !!newest && (!newestApproved || ctx.versions.indexOf(newest) < ctx.versions.indexOf(newestApproved));
+    if (ownerEditIsNewer && newest) {
+      const { data: a, error: e1 } = await sb.rpc("launch_partner_owner_approve", { p_business_id: businessId, p_version_id: newest.id });
+      if (e1) return { ok: false, error: liveError(e1) };
+      approvedId = (a as { approved_version_id: string }).approved_version_id;
+    }
+    if (!approvedId) return { ok: false, error: "There are no changes to publish." };
+    const { error } = await sb.rpc("launch_partner_owner_go_live", { p_business_id: businessId, p_version_id: approvedId });
+    if (error) return { ok: false, error: liveError(error) };
+    revalidateLive(businessId);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: clean(e) }; }
+}
+
+function revalidateLive(businessId: string) {
+  revalidatePath(`/directory/${businessId}`); revalidatePath(`/directory`);
+  revalidatePath(`/business/${businessId}/manage`); revalidatePath(`/business/${businessId}/manage/launch-setup`); revalidatePath("/admin/launch-partners", "layout");
 }
