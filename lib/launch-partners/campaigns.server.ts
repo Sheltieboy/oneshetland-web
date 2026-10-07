@@ -130,6 +130,10 @@ export const setStage = (id: string, stage: string, note?: string) => rpc<void>(
 export const markSent = (id: string, note?: string) => rpc<void>("admin_launch_partner_mark_sent", { p_id: id, p_note: note ?? null });
 /** Take a published page offline (administrators only; a reason is required). Unpublishes — deletes and reverts nothing. */
 export const takeOffline = (id: string, reason: string) => rpc<{ already_offline: boolean; offline_at: string }>("admin_launch_partner_take_offline", { p_id: id, p_reason: reason });
+/** Record "do not contact": Launch Partner outreach to this business (and the contact address on file) stops. Administrators only; reasons are a fixed list. */
+export const stopOutreach = (id: string, reason: string, note: string | null) => rpc<{ already_stopped: boolean; id: string }>("admin_launch_partner_stop_outreach", { p_id: id, p_reason: reason, p_note: note });
+/** Lift it, deliberately: a reason is required. Administrators only. */
+export const resumeOutreach = (id: string, reason: string) => rpc<{ not_stopped: boolean }>("admin_launch_partner_resume_outreach", { p_id: id, p_reason: reason });
 /** Lift the takedown hold so the OWNER can go live again through the normal step. Publishes nothing. */
 export const allowRepublish = (id: string) => rpc<{ already_allowed: boolean }>("admin_launch_partner_allow_republish", { p_id: id });
 

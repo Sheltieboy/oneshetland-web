@@ -21,11 +21,12 @@
 import { checkEmail } from "./email.ts";
 
 export type GateFailure =
-  | "not_confirmed" | "already_sent" | "not_ready" | "contact_missing" | "contact_invalid" | "draft_incomplete"
+  | "do_not_contact" | "not_confirmed" | "already_sent" | "not_ready" | "contact_missing" | "contact_invalid" | "draft_incomplete"
   | "invitation_invalid" | "invitation_expired" | "link_missing" | "recipient_changed" | "subject_changed";
 
 export interface SendInput {
-  campaign: { id: string; slug: string; businessName: string; stage: string; sentAt: string | null; contactEmail: string | null; subject: string | null; opening: string | null; body: string | null };
+  campaign: { id: string; slug: string; businessName: string; stage: string; sentAt: string | null; contactEmail: string | null; subject: string | null; opening: string | null; body: string | null;
+    /** Launch Partner outreach to this business (or this contact address) has been stopped. */ outreachStopped?: boolean };
   invitation: { status: string; expiresAt: string | null; tokenValidForThisBusiness: boolean };
   /** The private link, built from the token Darren just generated. */
   invitationUrl: string | null;
@@ -33,6 +34,7 @@ export interface SendInput {
 }
 
 export const GATE_MESSAGE: Record<GateFailure, string> = {
+  do_not_contact: "Launch Partner outreach to this business has been stopped (do not contact), so nothing was sent.",
   not_confirmed: "Confirm the send first.",
   already_sent: "This invitation email has already been recorded as sent.",
   not_ready: "Mark the campaign Ready to invite first.",
@@ -52,6 +54,7 @@ const emailShape = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 export function evaluateSendGates(i: SendInput, deps: { now: () => Date }): GateFailure[] {
   const f: GateFailure[] = [];
   const c = i.campaign;
+  if (c.outreachStopped) f.push("do_not_contact");                       // first: nothing below can make a stopped business sendable
   if (!i.confirmation?.confirm) f.push("not_confirmed");
   if (c.sentAt) f.push("already_sent");
   if (c.stage !== "ready_to_invite") f.push("not_ready");

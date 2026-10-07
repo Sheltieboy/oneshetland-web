@@ -249,7 +249,7 @@ describe("sending: the web app only asks — the Supabase Edge Function sends", 
     for (const c of g.checks) assert.deepEqual(checkEmail(c.input), c.expected, `check ${c.name}`);
     for (const t of g.gates) {
       const i = t.input;
-      const got = evaluateSendGates({ campaign: { id: "c", slug: "love-from-shetland", businessName: "Love From Shetland", stage: i.stage, sentAt: i.sentAt, contactEmail: i.contactEmail, subject: i.subject, opening: i.opening, body: i.body },
+      const got = evaluateSendGates({ campaign: { id: "c", slug: "love-from-shetland", businessName: "Love From Shetland", stage: i.stage, sentAt: i.sentAt, contactEmail: i.contactEmail, subject: i.subject, opening: i.opening, body: i.body, outreachStopped: i.outreachStopped === true },
         invitation: { status: i.invitationStatus, expiresAt: i.expiresAt, tokenValidForThisBusiness: i.tokenValid }, invitationUrl: URL64, confirmation: i.confirm }, { now: () => new Date(t.nowIso) });
       assert.deepEqual([...got].sort(), t.expected, `gates ${t.name}`);
     }

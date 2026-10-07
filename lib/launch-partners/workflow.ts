@@ -102,6 +102,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   // A grant that is giving access now (the row's own active grant), or one that has become a paid subscription, completes the step.
   const grantDone = !!row.grant || lastGrant?.status === "replaced_by_subscription";
   const grantEnded = !grantDone && claimApproved && (lastGrant?.status === "expired" || lastGrant?.status === "revoked");
+  const outreachStopped = !!row.outreach && !sent;                   // do not contact: nothing can be sent. (After a send it is informational only.)
   const gatesOpen = (row.is_test || ready) && !archived;      // the server's own rule for generating an invitation
 
   const S = (s: Omit<WorkflowStep, "available"> & { available?: boolean }): WorkflowStep => ({ available: true, ...s });
@@ -131,6 +132,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   if (archived) return { status, statusLabel: STATUS_LABEL[status], statusTone: STATUS_TONE[status], steps, current: null, headline: "Archived — nothing to do" };
 
   // ── attention: something that was fine, or is needed, is not (these outrank the ordinary next step) ──
+  if (outreachStopped) mark("send", "attention", `Launch Partner outreach to this business has been stopped${row.outreach!.scope === "address" ? " (this contact address asked not to be contacted)" : ""}. Nothing can be sent — open Email to see why.`);
   if (inviteGone) mark("generate_invite", "attention", `The invitation ${row.invite.status === "expired" ? "has expired" : "was revoked"} — generate a fresh one.`);
   if (sent && usable && claimMode === "holding" && !afterClaim) mark("open_claiming", "attention", "Claiming is closed, so the recipient cannot claim yet.");
   if (claimOther) mark("approve_claim", "attention", `The claim is ${claim!.status}.`);
@@ -138,7 +140,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   if (grantEnded) mark("grant", "attention", `Their launch-partner access has ${lastGrant!.status === "expired" ? "expired" : "been removed"} — grant it again if they should still have it.`);
 
   // ── current: attention first; otherwise the first thing still to do, in Darren's order ──
-  let current: WorkflowStep | null = (["approve_claim", "grant", "generate_invite", "open_claiming", "live"] as const).map(by).find((x) => x.state === "attention") ?? null;
+  let current: WorkflowStep | null = (["send", "approve_claim", "grant", "generate_invite", "open_claiming", "live"] as const).map(by).find((x) => x.state === "attention") ?? null;
   if (!current) {
     const gating: StepId[] = ["prepare", "mark_ready", "generate_invite", "open_claiming", "review_email", "send", "wait", "approve_claim", "grant", "owner_review", "go_live", "live"];
     for (const id of gating) {
@@ -163,7 +165,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
       case "generate_invite": if (current.state !== "attention") current.note = "Creates the private link. Sends nothing."; break;
       case "open_claiming": if (current.state !== "attention") current.note = "Lets the recipient claim from the preview."; break;
       case "review_email": current.note = emailCheck.problems[0] ?? "Check the saved email."; break;
-      case "send": current.note = "Needs the link from when it was generated — generate again if the page was reloaded."; break;
+      case "send": if (current.state !== "attention") current.note = "Needs the link from when it was generated — generate again if the page was reloaded."; break;
       case "wait": current.note = row.first_viewed_at ? `Preview opened ${row.view_count} time${row.view_count === 1 ? "" : "s"}. Waiting for a claim.` : "Sent. Waiting for the recipient."; break;
       case "approve_claim": current.note = "A claim is waiting for your decision."; break;
       case "grant": if (current.state !== "attention") current.note = "Claim approved. Choose Pro or Premium and an end date — right on this page."; break;
@@ -175,6 +177,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
 
   // The "wait" step has nothing to click: it is a state, not a task.
   const headline = current === null ? (published ? "Live" : "Nothing to do")
+    : outreachStopped && current.id === "send" ? "Outreach stopped — do not send"
     : offline && current.id === "live" ? "Page taken offline"
     : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? (wasLive ? "Taken offline earlier — waiting for the owner to go live again" : "Owner approved — waiting for them to go live") : "Waiting for them to go live")
     : current.state === "attention" ? `Needs attention: ${current.label}`

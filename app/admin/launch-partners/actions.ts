@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import {
-  allowRepublish, candidateFor, createCampaignWithDraft, directoryRecords, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, takeOffline, updateCampaign,
+  allowRepublish, resumeOutreach, stopOutreach, candidateFor, createCampaignWithDraft, directoryRecords, getCampaign, importExistingPreviews, listInvites, markSent, searchCandidates, setStage, takeOffline, updateCampaign,
   type CampaignDetail, type CandidateRow, type ImportOutcome,
 } from "@/lib/launch-partners/campaigns.server";
 import { buildPageSkeleton, buildPreviewSkeleton, slugFromName, type DirectoryRecord } from "@/lib/launch-partners/draft";
@@ -266,6 +266,41 @@ export async function allowRepublishAction(id: string): Promise<Result<{ already
     const r = await allowRepublish(id);
     await revalidateTakedown(id);
     return { ok: true, alreadyAllowed: r?.already_allowed === true };
+  } catch (e) { return fail(e); }
+}
+
+const OUTREACH_REASONS = ["requested", "bounced", "complaint", "incorrect_contact", "admin"] as const;
+export type OutreachReason = (typeof OUTREACH_REASONS)[number];
+
+/**
+ * STOP LAUNCH PARTNER OUTREACH ("do not contact"). Administrators only (requireAdmin here; the database function checks again). It is
+ * recorded in the database, and the database itself — at the step that reserves a send — then refuses any Launch Partner invitation to this
+ * business or to its contact address, whatever page is open. It sends nothing, changes no claim, grant, listing or account email, and needs an
+ * explicit confirmation. The internal note stays with administrators.
+ */
+export async function stopOutreachAction(id: string, input: { reason: string; note?: string }, confirmation: { confirm: boolean }): Promise<Result<{ alreadyStopped: boolean }>> {
+  await requireAdmin();
+  try {
+    if (confirmation?.confirm !== true) return { ok: false, error: "Please confirm that you want to stop outreach." };
+    if (!(OUTREACH_REASONS as readonly string[]).includes(input?.reason)) return { ok: false, error: "Choose why outreach is being stopped." };
+    const note = (input.note ?? "").trim();
+    if (note.length > 500) return { ok: false, error: "The note is limited to 500 characters." };
+    const r = await stopOutreach(id, input.reason, note || null);
+    revalidatePath(`/admin/launch-partners/${id}`); revalidatePath("/admin/launch-partners");
+    return { ok: true, alreadyStopped: r?.already_stopped === true };
+  } catch (e) { return fail(e); }
+}
+
+/** Remove a do-not-contact, deliberately: needs a reason and an explicit confirmation, is recorded in the history, and is admin-only. */
+export async function resumeOutreachAction(id: string, reason: string, confirmation: { confirm: boolean }): Promise<Result<{ notStopped: boolean }>> {
+  await requireAdmin();
+  try {
+    if (confirmation?.confirm !== true) return { ok: false, error: "Please confirm that you want to allow outreach again." };
+    const why = (reason ?? "").trim();
+    if (why.length < 3) return { ok: false, error: "Give a reason for removing the suppression." };
+    const r = await resumeOutreach(id, why);
+    revalidatePath(`/admin/launch-partners/${id}`); revalidatePath("/admin/launch-partners");
+    return { ok: true, notStopped: r?.not_stopped === true };
   } catch (e) { return fail(e); }
 }
 

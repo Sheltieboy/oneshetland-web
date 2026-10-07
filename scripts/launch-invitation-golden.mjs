@@ -46,6 +46,8 @@ const gates = [
   ["no-invitation", mut((c) => { c.invitationStatus = "none"; })], ["revoked", mut((c) => { c.invitationStatus = "revoked"; })], ["token-wrong-business", mut((c) => { c.tokenValid = false; })],
   ["expired", mut((c) => { c.expiresAt = past; })], ["recipient-changed", mut((c) => { c.confirm.recipient = "other@example.test"; })], ["subject-changed", mut((c) => { c.confirm.subject = "older"; })],
   ["recipient-case-insensitive", mut((c) => { c.confirm.recipient = "HELLO@Example.TEST"; })],
+  ["do-not-contact", mut((c) => { c.outreachStopped = true; })],
+  ["do-not-contact-and-other-problems", mut((c) => { c.outreachStopped = true; c.stage = "preparing"; c.contactEmail = null; })],
 ].map(([name, input]) => ({ name, input, nowIso: NOW }));
 
 const out = {
@@ -54,7 +56,7 @@ const out = {
   gates: gates.map((g) => {
     const i = g.input;
     const failures = evaluateSendGates({
-      campaign: { id: "c", slug: "love-from-shetland", businessName: "Love From Shetland", stage: i.stage, sentAt: i.sentAt, contactEmail: i.contactEmail, subject: i.subject, opening: i.opening, body: i.body },
+      campaign: { id: "c", slug: "love-from-shetland", businessName: "Love From Shetland", stage: i.stage, sentAt: i.sentAt, contactEmail: i.contactEmail, subject: i.subject, opening: i.opening, body: i.body, outreachStopped: i.outreachStopped === true },
       invitation: { status: i.invitationStatus, expiresAt: i.expiresAt, tokenValidForThisBusiness: i.tokenValid }, invitationUrl: LINK, confirmation: i.confirm,
     }, { transport: { send: async () => ({ id: "" }) }, now: () => new Date(g.nowIso) });
     return { ...g, expected: [...failures].sort() };

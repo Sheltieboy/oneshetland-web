@@ -96,6 +96,7 @@ function PartnerCard({ r }: { r: PipelineRow }) {
               <Link href={`/admin/launch-partners/${r.id}`} className="font-display text-xl font-bold text-ink hover:underline">{r.name}</Link>
               <StatusPill label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />
               {r.is_test && <StatusPill label="Test fixture" tone="purple" />}
+              {r.outreach && <StatusPill label="Outreach stopped" tone="red" />}
               {!r.is_active && <StatusPill label="Not publicly listed" tone="gray" />}
             </div>
             <p className="mt-0.5 text-sm text-ink-muted">{[r.positioning, r.locality].filter(Boolean).join(" · ") || "No positioning yet"}</p>

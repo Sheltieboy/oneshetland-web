@@ -13,6 +13,13 @@ export type Stage = "candidate" | "preparing" | "ready_to_invite" | "sent" | "ar
 export type PipelineStatus =
   | "candidate" | "preparing" | "ready_to_invite" | "sent" | "viewed" | "claim_submitted" | "claimed" | "setting_up" | "ready_to_go_live" | "live" | "offline" | "archived";
 
+/**
+ * Launch Partner outreach has been stopped for this business (or for its contact address). ADMIN-ONLY: it carries the internal note, which
+ * is never shown to the recipient or the owner. `scope` says which rule matched: the business itself, or only the contact address (the same
+ * person asked not to be contacted about another business).
+ */
+export interface OutreachBlock { id: string; scope: "business" | "address"; reason: "requested" | "bounced" | "complaint" | "incorrect_contact" | "admin"; note: string | null; since: string; by: string | null; business_id: string; address_recorded: boolean }
+
 /** The facts the status is derived from — the shape of one row from admin_launch_partner_list. */
 export interface PipelineRow {
   id: string;
@@ -46,6 +53,8 @@ export interface PipelineRow {
   is_published?: boolean;
   /** Set while an administrator's takedown is in force (the owner cannot go live again until it is lifted). */
   offline_at?: string | null;
+  /** Launch Partner outreach stopped (do not contact) for this business or contact address; null/absent = outreach is open. */
+  outreach?: OutreachBlock | null;
   has_preview: boolean;
   has_page_draft: boolean;
   has_email_draft: boolean;

@@ -51,7 +51,7 @@ export function EmailSection({ row, slug, businessName, initial, sessionLink }: 
 
   // What stands between this draft and a send, from the SAVED values (the server re-checks everything itself).
   const blockers = evaluateSendGates({
-    campaign: { id: row.id, slug, businessName, stage: row.stage, sentAt: row.sent_at, contactEmail: saved.contactEmail, subject: saved.subject, opening: saved.opening, body: saved.body },
+    campaign: { id: row.id, slug, businessName, stage: row.stage, sentAt: row.sent_at, contactEmail: saved.contactEmail, subject: saved.subject, opening: saved.opening, body: saved.body, outreachStopped: !!row.outreach },
     invitation: { status: inv.status, expiresAt: inv.expires_at, tokenValidForThisBusiness: !!sessionLink && invLive },
     invitationUrl: sessionLink?.url ?? null, confirmation: { confirm: true, recipient: saved.contactEmail, subject: saved.subject },
   }, { now: () => new Date() });

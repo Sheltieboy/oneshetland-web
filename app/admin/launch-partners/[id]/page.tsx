@@ -12,6 +12,7 @@ import { PreviewEditor } from "@/components/admin/launch-partners/PreviewEditor"
 import { PageDraftEditor } from "@/components/admin/launch-partners/PageDraftEditor";
 import { OutreachPanels } from "@/components/admin/launch-partners/OutreachPanels";
 import { StatusSection } from "@/components/admin/launch-partners/StatusSection";
+import { OutreachStopSection } from "@/components/admin/launch-partners/OutreachStopSection";
 import { EnrichmentSection } from "@/components/admin/launch-partners/EnrichmentSection";
 import { enrichmentView } from "@/lib/launch-partners/enrich.server";
 import { GrantSection } from "@/components/admin/launch-partners/GrantSection";
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Launch partner" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["peerie", "Peerie Bot draft"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["grant", "Launch access"], ["status", "Status"]];
+const NAV: [string, string][] = [["business", "Business"], ["positioning", "Positioning"], ["peerie", "Peerie Bot draft"], ["preview", "Preview"], ["page", "Business page"], ["invitation", "Invitation"], ["email", "Email"], ["outreach", "Do not contact"], ["grant", "Launch access"], ["status", "Status"]];
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -93,6 +94,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         {preview ? <PreviewEditor id={c.id} initial={preview} /> : <Section id="preview" title="Preview"><p role="alert" className="text-sm font-semibold text-rose-700">The stored preview is not valid: {pv.ok ? "" : pv.error}</p></Section>}
         {page && preview ? <PageDraftEditor id={c.id} initial={page} preview={preview} previewHref={`/admin-preview/launch-partners/${c.id}/business-page`} /> : <Section id="page" title="Business page"><p className="text-sm text-ink-muted">{pg.ok ? "Prepare the launch preview first." : `The stored page draft is not valid: ${pg.error}`}</p></Section>}
         <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
+        <OutreachStopSection row={c} businessName={c.name} />
         {showGrant && <GrantSection businessId={c.business_id} businessName={c.name} lookup={grant.lookup} />}
         <StatusSection row={c} events={c.events ?? []} />
       </div>
