@@ -67,20 +67,12 @@ export function ClaimFlow({ slug, businessId, businessName, locality, state, ema
       </Shell>
     );
   }
-  if (effective === "claimed_by_other") {
+  // Neither of these says who else has claimed what, or that anyone has: the same plain words, and a way to ask.
+  if (effective === "claimed_by_other" || effective === "invite_used") {
     return (
       <Shell>
-        <Card title="This business has already been claimed">
-          <p>{businessName} is already managed from another OneShetland account, so this invitation can&apos;t be used to claim it. If that doesn&apos;t look right, please reply to the message Darren sent you and he&apos;ll look into it.</p>
-        </Card>
-      </Shell>
-    );
-  }
-  if (effective === "invite_used") {
-    return (
-      <Shell>
-        <Card title="This invitation has already been used">
-          <p>It was used from a different OneShetland account, and that claim is still being looked at. If you meant to claim {businessName} yourself, please reply to the message Darren sent you and he&apos;ll sort it out.</p>
+        <Card title="This invitation is no longer available">
+          <p>If you were expecting to take part, reply to the email you received or contact <a href="mailto:hello@oneshetland.com" className="font-semibold underline underline-offset-2">hello@oneshetland.com</a> and we&apos;ll help.</p>
         </Card>
       </Shell>
     );

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
 import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { INVITE_DEFAULT_DAYS, INVITE_MAX_DAYS, INVITE_TONE, clampInviteDays, inviteLabel } from "@/lib/launch-partners/invite-state";
 
 export type InviteRow = {
   slug: string; business_id: string; business_name: string; created_at: string; expires_at: string | null;
@@ -13,7 +14,6 @@ export type InviteRow = {
 };
 export type PreviewOption = { slug: string; businessId: string; name: string };
 
-const TONE: Record<string, "green" | "gray" | "red" | "amber" | "blue"> = { open: "blue", "claim pending": "amber", claimed: "green", revoked: "red", expired: "gray" };
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 
 /**
@@ -26,7 +26,7 @@ export function LaunchInvites({ rows, previews }: { rows: InviteRow[]; previews:
   const confirm = useConfirm();
   const notify = useNotify();
   const [slug, setSlug] = useState(previews[0]?.slug ?? "");
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(INVITE_DEFAULT_DAYS);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{ url: string; slug: string } | null>(null);
 
@@ -34,7 +34,7 @@ export function LaunchInvites({ rows, previews }: { rows: InviteRow[]; previews:
     const p = previews.find((x) => x.slug === slug);
     if (!p) return;
     const live = rows.find((r) => r.slug === slug && !r.revoked_at && r.status !== "expired");
-    if (live && !(await confirm({ title: "Replace the current invitation?", body: <>{p.name} already has an invitation ({live.status}). Issuing a new one revokes it at once; its link stops working.</>, confirmLabel: "Issue new invitation", danger: true }))) return;
+    if (live && !(await confirm({ title: "Replace the current invitation?", body: <>{p.name} already has an invitation ({inviteLabel(live).toLowerCase()}). Issuing a new one revokes it at once; its link stops working.</>, confirmLabel: "Issue new invitation", danger: true }))) return;
     setBusy(true);
     try {
       const { data, error } = await createClient().rpc("admin_issue_launch_invite", { p_slug: p.slug, p_business_id: p.businessId, p_expires_at: new Date(Date.now() + days * 86_400_000).toISOString() });
@@ -64,7 +64,7 @@ export function LaunchInvites({ rows, previews }: { rows: InviteRow[]; previews:
             </select>
           </label>
           <label className="text-sm font-semibold text-ink-soft">Valid for (days)
-            <input type="number" min={1} max={120} value={days} onChange={(e) => setDays(Math.min(120, Math.max(1, Number(e.target.value) || 30)))} className="mt-1 block w-24 rounded-lg border border-line-strong bg-white px-3 py-2 text-sm" />
+            <input type="number" min={1} max={INVITE_MAX_DAYS} value={days} onChange={(e) => setDays(clampInviteDays(e.target.value))} className="mt-1 block w-24 rounded-lg border border-line-strong bg-white px-3 py-2 text-sm" />
           </label>
           <button onClick={issue} disabled={busy || !slug} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy ? "Issuing…" : "Issue invitation"}</button>
         </div>
@@ -83,11 +83,11 @@ export function LaunchInvites({ rows, previews }: { rows: InviteRow[]; previews:
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-display font-bold text-ink">{r.business_name}</p>
-                <StatusPill label={r.status} tone={TONE[r.status] ?? "gray"} />
+                <StatusPill label={inviteLabel(r)} tone={INVITE_TONE[inviteLabel(r)]} />
               </div>
               <p className="mt-1 text-sm text-ink-muted">{r.slug} · issued {day(r.created_at)}{r.expires_at ? ` · expires ${day(r.expires_at)}` : ""}</p>
               {r.claimant_email && <p className="text-sm text-ink-soft">Claimed through it by {r.claimant_name ?? "—"} · {r.claimant_email} ({r.claim_status})</p>}
-              {r.revoked_at && <p className="text-sm text-rose-700">Revoked {day(r.revoked_at)}{r.revoked_reason ? ` — ${r.revoked_reason}` : ""}</p>}
+              {r.revoked_at && <p className="text-sm text-rose-700">{inviteLabel(r) === "Replaced" ? "Replaced by a newer invitation" : inviteLabel(r) === "Expired" ? "Closed after it expired" : "Revoked"} {day(r.revoked_at)}{r.revoked_reason && inviteLabel(r) === "Revoked" ? ` — ${r.revoked_reason}` : ""}</p>}
             </div>
             {!r.revoked_at && r.status !== "expired" && <button onClick={() => revoke(r)} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50">Revoke</button>}
           </div>

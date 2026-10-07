@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusPill } from "@/components/admin/AdminUI";
-import { getCampaign } from "@/lib/launch-partners/campaigns.server";
+import { getCampaign, listInvites } from "@/lib/launch-partners/campaigns.server";
 import { STATUS_LABEL, STATUS_TONE, derivePipelineStatus, isClaimed } from "@/lib/launch-partners/status";
 import { parsePageDraft, parsePreviewConfig } from "@/lib/launch-partners/validate";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
@@ -39,6 +39,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const page = (pg.ok ? pg.value : null) as PageDraft | null;
   const claimMode = preview?.claim === "live" ? "live" : "holding";
   const enrich = await enrichmentView(c);
+  // Every invitation ever issued for this preview, newest first; the newest is the current one (shown above), the rest are kept history.
+  const invitesForSlug = (await listInvites().catch(() => [])).filter((i) => i.slug === c.slug);
   // The workflow is READ from the same facts as everything below it: the pipeline row, the preview's claim mode and the saved email draft.
   // Launch partner access is shown once their claim is approved (or if they ever had a grant); it reads the real grant records.
   const approved = isClaimed(c);
@@ -93,7 +95,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
         {preview ? <PreviewEditor id={c.id} initial={preview} /> : <Section id="preview" title="Preview"><p role="alert" className="text-sm font-semibold text-rose-700">The stored preview is not valid: {pv.ok ? "" : pv.error}</p></Section>}
         {page && preview ? <PageDraftEditor id={c.id} initial={page} preview={preview} previewHref={`/admin-preview/launch-partners/${c.id}/business-page`} /> : <Section id="page" title="Business page"><p className="text-sm text-ink-muted">{pg.ok ? "Prepare the launch preview first." : `The stored page draft is not valid: ${pg.error}`}</p></Section>}
-        <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
+        <OutreachPanels row={c} claimMode={claimMode} businessName={c.name} history={invitesForSlug.slice(1)} email={{ contactName: c.contact_name, contactEmail: c.contact_email, subject: c.email_subject, opening: c.email_opening, body: c.email_body }} />
         <OutreachStopSection row={c} businessName={c.name} />
         {showGrant && <GrantSection businessId={c.business_id} businessName={c.name} lookup={grant.lookup} />}
         <StatusSection row={c} events={c.events ?? []} />

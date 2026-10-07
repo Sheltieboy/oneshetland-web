@@ -613,8 +613,9 @@ function Closing({ cfg, viewer }: { cfg: PreviewConfig; viewer: Viewer }) {
           </>
         ) : kind === "claimed_by_other" || kind === "invite_used" ? (
           <>
-            <h2 className="font-display text-4xl font-bold sm:text-5xl">{kind === "claimed_by_other" ? "This business has already been claimed" : "This invitation has already been used"}</h2>
-            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">If that doesn&apos;t look right, please reply to the message Darren sent you and he&apos;ll look into it.</p>
+            {/* The same words for both: neither says who claimed what, or that anyone else did. */}
+            <h2 className="font-display text-4xl font-bold sm:text-5xl">This invitation is no longer available</h2>
+            <p className="mx-auto mt-4 max-w-xl text-lg text-white/90">If you were expecting to take part, reply to the email you received or contact <a href="mailto:hello@oneshetland.com" className="font-semibold underline underline-offset-2">hello@oneshetland.com</a> and we&rsquo;ll help.</p>
           </>
         ) : (
           <>

@@ -11,7 +11,8 @@ export interface PrivatePreview { cfg: PreviewConfig; token: string; businessId:
 /**
  * The one door into a private preview. Returns the preview ONLY if the invitation cookie holds a token the database
  * accepts for this slug AND for the business this preview is configured for. Every failure — no cookie, wrong,
- * revoked, expired, unknown slug, mismatch — is the same null, which the page turns into an ordinary 404.
+ * revoked, expired, REPLACED, unknown slug, mismatch — is the same null, which the page turns into notFound(), which /launch renders as ONE calm
+ * "this invitation link is no longer active" page (app/launch/not-found.tsx) that takes no input. Nothing here distinguishes the reasons.
  */
 export async function openPrivatePreview(slug: string): Promise<PrivatePreview | null> {
   if (!isSlug(slug)) return null;
@@ -22,11 +23,13 @@ export async function openPrivatePreview(slug: string): Promise<PrivatePreview |
   if (code?.directoryBusinessId && isReviewToken(slug, token)) return { cfg: code, token, businessId: code.directoryBusinessId, review: true };
   // The content comes from the campaign Admin manages (checked against the token in the database); the code config
   // is only the fallback for a preview that has not been brought into Admin yet.
+  // The same two database questions are asked for EVERY well-formed token, valid or not, so the work done does not vary with the token's state
+  // (no early exit for an unknown preview). The answers are only compared afterwards.
   const stored = await readStoredPreview(slug, token);
-  const cfg = stored ?? code;
-  if (!cfg || !cfg.directoryBusinessId) return null;
   const sb = await createClient();
   const { data, error } = await sb.rpc("launch_invite_resolve", { p_slug: slug, p_token: token });
+  const cfg = stored ?? code;
+  if (!cfg || !cfg.directoryBusinessId) return null;
   if (error || typeof data !== "string" || data !== cfg.directoryBusinessId) return null;
   return { cfg, token, businessId: data };
 }

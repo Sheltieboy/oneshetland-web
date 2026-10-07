@@ -47,7 +47,8 @@ export function EmailSection({ row, slug, businessName, initial, sessionLink }: 
     subject: f.subject, body: f.body, opening: f.opening, businessName,
     invitationUrl: sessionLink?.url ?? null,
     maskedUrl: !sessionLink && invLive ? `${origin}/launch/${slug}?invite=[the real link is shown once, when you generate the invitation]` : null,
-  }), [f.subject, f.body, f.opening, businessName, sessionLink, invLive, origin, slug]);
+    invitationExpiresAt: sessionLink?.expiresAt ?? (invLive ? inv.expires_at : null),      // the invitation's real expiry, exactly as the sent email will state it
+  }), [f.subject, f.body, f.opening, businessName, sessionLink, invLive, origin, slug, inv.expires_at]);
 
   // What stands between this draft and a send, from the SAVED values (the server re-checks everything itself).
   const blockers = evaluateSendGates({

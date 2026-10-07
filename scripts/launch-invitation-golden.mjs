@@ -15,8 +15,12 @@ const lfs = defaultEmailDraft({ businessName: "Love From Shetland", opening: "Yo
 const dowry = defaultEmailDraft({ businessName: "The Dowry" });
 const renders = [
   { name: "lfs-no-invitation", input: { ...lfs, businessName: "Love From Shetland" } },
-  { name: "lfs-with-invitation", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK } },
-  { name: "lfs-masked", input: { ...lfs, businessName: "Love From Shetland", maskedUrl: "https://oneshetland.com/launch/love-from-shetland?invite=[the real link is shown once, when you generate the invitation]" } },
+  { name: "lfs-with-invitation", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK, invitationExpiresAt: "2026-11-05T19:50:17.506Z" } },
+  { name: "lfs-with-invitation-no-expiry-known", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK } },
+  { name: "lfs-with-invitation-bst-boundary", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK, invitationExpiresAt: "2026-10-25T00:30:00.000Z" } },
+  { name: "lfs-with-invitation-london-midnight", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK, invitationExpiresAt: "2026-10-06T23:30:00.000Z" } },
+  { name: "lfs-with-invitation-bad-expiry", input: { ...lfs, businessName: "Love From Shetland", invitationUrl: LINK, invitationExpiresAt: "not a date" } },
+  { name: "lfs-masked", input: { ...lfs, businessName: "Love From Shetland", maskedUrl: "https://oneshetland.com/launch/love-from-shetland?invite=[the real link is shown once, when you generate the invitation]", invitationExpiresAt: "2026-11-05T19:50:17.506Z" } },
   { name: "dowry-prompt-with-invitation", input: { ...dowry, businessName: "The Dowry", invitationUrl: LINK.replace("love-from-shetland", "the-dowry") } },
   { name: "legacy-link-token", input: { subject: "s", body: "Hi\n\n" + LINK_PLACEHOLDER + "\n\nBye", opening: "x", businessName: "X", invitationUrl: LINK } },
   { name: "hostile-text", input: { subject: "<b>Hi & bye</b>", body: "A <script>alert(1)</script> & \"q\" 'q'\n\n" + TOKEN_OPENING + "\n\n" + TOKEN_CTA, opening: "a < b > c", businessName: "X & Y", invitationUrl: "javascript:alert(1)" } },

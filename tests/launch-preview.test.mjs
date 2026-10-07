@@ -104,7 +104,9 @@ describe("internal review access", () => {
     assert.equal(reviewEnabled({ NODE_ENV: "test", LAUNCH_PREVIEW_REVIEW_SECRET: secret }), false);
   });
   test("a review session can neither claim nor reach the claim page", () => {
-    assert.match(read("app/launch/[slug]/claim/page.tsx"), /open\.review \|\| open\.cfg\.claim === "holding"/);
+    const claim = read("app/launch/[slug]/claim/page.tsx");
+    assert.match(claim, /if \(!open \|\| open\.review\) notFound\(\);/, "a review session gets the generic page, as before");
+    assert.match(claim, /open\.cfg\.claim === "holding"\) return <InviteInactive variant="not_open" \/>/, "a closed claim is a calm page for a valid invitation (a review session has already left)");
     assert.match(read("lib/launch-preview/invite.server.ts"), /isReviewToken\(slug, token\)/);
   });
   test("the review secret is not in source control", () => {

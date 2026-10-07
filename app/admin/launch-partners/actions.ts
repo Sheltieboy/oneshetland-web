@@ -13,6 +13,7 @@ import { prepareEligibility } from "@/lib/launch-partners/eligibility";
 import { enrichCampaign, type EnrichResult } from "@/lib/launch-partners/enrich.server";
 import { normaliseSourceUrl } from "@/lib/launch-partners/source-url";
 import { checkEmail, defaultEmailDraft } from "@/lib/launch-partners/email";
+import { clampInviteDays } from "@/lib/launch-partners/invite-state";
 import type { PreviewConfig } from "@/lib/launch-preview/types";
 
 /**
@@ -196,7 +197,7 @@ export async function issueInvitationAction(id: string, days: number, opts: { re
     // recipient holds — so that must be an explicit, separate decision, never a side effect of pressing Generate.
     if (c.sent_at && !opts.replaceSent) return { ok: false, error: "This invitation has already been emailed. Replacing it makes the link they received stop working — confirm that you really want to replace it." };
     if (!c.is_test && c.stage !== "ready_to_invite" && c.stage !== "sent") return { ok: false, error: "Mark the campaign Ready to invite before generating its private invitation." };
-    const d = Math.min(120, Math.max(1, Math.floor(days || 30)));
+    const d = clampInviteDays(days);                       // 1–120, defaulting to the ONE canonical lifetime (30 days)
     const sb = await createClient();
     const { data, error } = await sb.rpc("admin_issue_launch_invite", { p_slug: c.slug, p_business_id: c.business_id, p_expires_at: new Date(Date.now() + d * 86_400_000).toISOString() });
     if (error) return { ok: false, error: error.message };

@@ -7,19 +7,20 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { issueInvitationAction, revokeInvitationAction, setClaimModeAction, setStageAction } from "@/app/admin/launch-partners/actions";
 import { Section, inputCls } from "./fields";
 import { replacementPlan, runGuarded, type ReplacementPlan } from "@/lib/launch-partners/invitation-replace";
+import { INVITE_DEFAULT_DAYS, INVITE_MAX_DAYS, INVITE_TONE, clampInviteDays, inviteLabel } from "@/lib/launch-partners/invite-state";
+import type { InviteSummaryRow } from "@/lib/launch-partners/campaigns.server";
 import type { PipelineRow } from "@/lib/launch-partners/status";
 
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" }) : "—");
-const TONE = { none: "gray", open: "blue", "claim pending": "amber", claimed: "green", revoked: "red", expired: "gray" } as const;
 
 /**
  * The private invitation. Generating it creates a link and NOTHING else — no email is sent. The link is shown once
  * (the database keeps only a hash) and is never saved in the draft. Claiming stays closed on the preview until you open it.
  */
-export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow; claimMode: "live" | "holding"; /** The private link and its expiry, in memory only, right after generation (null when cleared). */ onLink?: (l: { url: string; expiresAt: string } | null) => void }) {
+export function InvitationSection({ row, claimMode, onLink, history = [] }: { row: PipelineRow; claimMode: "live" | "holding"; /** The private link and its expiry, in memory only, right after generation (null when cleared). */ onLink?: (l: { url: string; expiresAt: string } | null) => void; /** Earlier invitations for this preview, newest first (kept, never deleted). */ history?: InviteSummaryRow[] }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(INVITE_DEFAULT_DAYS);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -73,7 +74,7 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
   return (
     <Section id="invitation" title="Invitation" sub="A private link to the preview. Generating it sends nothing to anyone.">
       <div className="flex flex-wrap items-center gap-2">
-        <StatusPill label={inv.status === "none" ? "Not issued" : inv.status === "claim pending" ? "Used for a claim" : inv.status[0].toUpperCase() + inv.status.slice(1)} tone={TONE[inv.status]} />
+        <StatusPill label={inviteLabel({ status: inv.status })} tone={INVITE_TONE[inviteLabel({ status: inv.status })]} />
         {inv.created_at && <span className="text-sm text-ink-muted">Issued {day(inv.created_at)}{inv.expires_at ? ` · expires ${day(inv.expires_at)}` : ""}</span>}
       </div>
       {!canGenerate && (
@@ -85,7 +86,7 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
       )}
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm font-semibold text-ink-soft">Valid for (days)
-          <input type="number" min={1} max={120} value={days} onChange={(e) => setDays(Math.min(120, Math.max(1, Number(e.target.value) || 30)))} className={inputCls + " w-24"} />
+          <input type="number" min={1} max={INVITE_MAX_DAYS} value={days} onChange={(e) => setDays(clampInviteDays(e.target.value))} className={inputCls + " w-24"} />
         </label>
         <button onClick={generate} disabled={busy || !canGenerate || !!pending} className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">{busy ? "Working…" : usable ? "Generate a new private invitation" : "Generate private invitation"}</button>
         {usable && <button onClick={revoke} disabled={busy} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50">Revoke</button>}
@@ -107,6 +108,24 @@ export function InvitationSection({ row, claimMode, onLink }: { row: PipelineRow
           <input readOnly value={link} onFocus={(e) => e.currentTarget.select()} className="mt-2 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 font-mono text-xs" aria-label="Invitation link" />
           <button onClick={() => navigator.clipboard?.writeText(link)} className="mt-2 rounded-pill border border-amber-400 px-4 py-1.5 text-sm font-semibold text-amber-900 hover:bg-amber-100">Copy</button>
         </div>
+      )}
+      {history.length > 0 && (
+        <details className="rounded-xl border border-line p-4">
+          <summary className="cursor-pointer text-sm font-bold text-ink">Earlier invitations ({history.length})</summary>
+          <ul className="mt-3 space-y-1.5 text-sm">
+            {history.map((h, i) => {
+              const label = inviteLabel(h);          // the row carries status, reason, expires_at and revoked_at: nothing extra is stored for a label
+              return (
+                <li key={`${h.created_at}-${i}`} className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <StatusPill label={label} tone={INVITE_TONE[label]} />
+                  <span className="text-ink-soft">Issued {day(h.created_at)}{h.expires_at ? ` · expired or due ${day(h.expires_at)}` : ""}{h.revoked_at ? ` · closed ${day(h.revoked_at)}` : ""}</span>
+                  {h.revoked_reason && label === "Revoked" && <span className="text-ink-muted">· {h.revoked_reason}</span>}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 text-xs text-ink-muted">Everyone who opens one of these now sees the same calm &ldquo;this invitation link is no longer active&rdquo; page. It never shows a newer link.</p>
+        </details>
       )}
       <div className="rounded-xl bg-cream/70 p-4 text-sm text-ink-soft">
         <p className="font-bold text-ink">What the link does</p>
