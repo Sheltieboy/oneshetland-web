@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { publicClient } from "@/lib/supabase/public";
+import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-source";
 
 /**
  * /api/social-image — branded 1080×1080 social cards for the Peerie Press
@@ -44,22 +45,13 @@ function loadFonts() {
 }
 
 /**
- * satori/resvg can only decode PNG/JPEG — event covers are mostly WebP. Fetch
- * the cover and re-encode to JPEG (capped at 1080px wide) as a data URI.
- * Returns null on any failure so the template falls back to the branded navy.
+ * satori/resvg can only decode PNG/JPEG — event covers are mostly WebP — so a cover is re-encoded to a JPEG data
+ * URI. The URL comes from a column any signed-in user can write, so it is untrusted: lib/social-image-source.ts
+ * decides whether it may be fetched at all (this project's own storage only), fetches it with no redirects and hard
+ * size/time limits, and decodes it with format and pixel limits. Anything refused or failing returns null and the
+ * template falls back to the branded navy.
  */
-async function coverAsJpegDataUri(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    const { default: sharp } = await import("sharp");
-    const jpeg = await sharp(buf).resize({ width: SIZE, height: SIZE, fit: "cover" }).jpeg({ quality: 82 }).toBuffer();
-    return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
-  } catch {
-    return null;
-  }
-}
+const imagePolicy = () => policyFromSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
 const fmtDay = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Europe/London" });
@@ -150,7 +142,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     if (!e) return new Response("event not found", { status: 404 });
     const where = [e.venue, e.locality].filter(Boolean).join(", ");
-    const cover = e.cover_url ? await coverAsJpegDataUri(e.cover_url) : null;
+    const cover = e.cover_url ? await coverAsJpegDataUri(e.cover_url, imagePolicy()) : null;
     return new ImageResponse(
       (
         <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: NAVY, position: "relative", fontFamily: "Inter" }}>
@@ -237,7 +229,8 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
     if (!prod) return new Response("product not found", { status: 404 });
     const biz = (Array.isArray(prod.business) ? prod.business[0] : prod.business) as { name?: string; logo_url?: string } | null;
-    const photo = (prod.photos as string[])?.[0] ? await coverAsJpegDataUri((prod.photos as string[])[0]) : null;
+    const firstPhoto = Array.isArray(prod.photos) ? (prod.photos as unknown[])[0] : null;
+    const photo = firstPhoto ? await coverAsJpegDataUri(firstPhoto, imagePolicy()) : null;
     const LOCAL = "#7c3aed";
     return new ImageResponse(
       (
