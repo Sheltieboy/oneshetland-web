@@ -4,11 +4,18 @@ import { createClient } from "@/lib/supabase/client";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 import { newCheckoutAttemptId } from "./checkout-attempt";
 
-function invokeError(error: { message: string; context?: { json?: () => Promise<{ error?: string }> } }): Promise<never> {
+/** The error a purchase call throws. `status` and `code` let the checkout tell a final refusal (declined, expired, conflicting) from a transient failure. */
+export type PurchaseError = Error & { status?: number; code?: string };
+
+function invokeError(error: { message: string; context?: { status?: number; json?: () => Promise<{ error?: string; code?: string }> } }): Promise<never> {
   return (async () => {
     let msg = error.message;
-    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; } catch { /* */ }
-    throw new Error(msg);
+    let code: string | undefined;
+    try { const b = await error.context?.json?.(); if (b?.error) msg = b.error; code = b?.code; } catch { /* */ }
+    const err: PurchaseError = new Error(msg);
+    err.status = error.context?.status;
+    err.code = code;
+    throw err;
   })();
 }
 
@@ -111,6 +118,8 @@ export async function startGift(
     recipientEmail: string;
     recipientName?: string | null;
     message?: string | null;
+    /** One id per deliberate gift purchase (createAttemptHolder in the modal) — NOT minted here, so a retry reuses it. */
+    clientRequestId: string;
   },
   opts: { useSavedCard?: boolean; payWithWallet?: boolean } = {},
 ): Promise<GiftStart> {
@@ -118,6 +127,7 @@ export async function startGift(
   const sb = createClient();
   const { data, error } = await sb.functions.invoke("create-gift-intent", {
     body: {
+      client_request_id: input.clientRequestId,
       kind: input.kind,
       unit_item_id: input.unitItemId,
       service_id: input.serviceId,

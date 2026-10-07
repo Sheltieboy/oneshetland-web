@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +8,7 @@ import { getBasket, setLineQty, clearBasket, basketItemsPence, subscribeBasket, 
 import { gbp, shippingQuote, type BusinessShipping } from "@/lib/shop-data";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { fetchCardOnFile } from "@/lib/payment-state";
+import { createAttemptHolder, isFinalRefusal } from "@/lib/checkout-attempt";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "@/lib/stripe-sca";
 
 /**
@@ -44,6 +45,10 @@ export default function BasketPage() {
 
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // One reference per deliberate checkout. The same basket, delivery details and payment method reuse it, so a double-click, a
+  // retry after a timeout or a cancelled-then-resumed card sheet resolves to the SAME order on the server (no second reservation,
+  // no second charge); changing anything is a different purchase and gets its own. The server keys on (buyer, id).
+  const attempt = useRef(createAttemptHolder()).current;
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [placed, setPlaced] = useState<string | null>(null); // order id
 
@@ -118,6 +123,11 @@ export default function BasketPage() {
       const sb = createClient();
       const { data, error } = await sb.functions.invoke("create-product-order-intent", {
         body: {
+          client_request_id: attempt.idFor(JSON.stringify([
+            basket!.business_id, basket!.lines.map((l) => [l.product_id, l.variant_id ?? null, l.qty]), effFulfilment,
+            effFulfilment !== "collect" ? [name.trim(), address.trim(), postcode.trim(), phone.trim(), effFulfilment === "fetch" ? regionSlug : null] : null,
+            note.trim(), payWith, payWith === "card" && cardOnFile === true && !useNewCard,
+          ])),
           business_id: basket!.business_id,
           items: basket!.lines.map((l) => ({ product_id: l.product_id, variant_id: l.variant_id, qty: l.qty })),
           fulfilment: effFulfilment,
@@ -136,19 +146,24 @@ export default function BasketPage() {
         // supabase-js buries the fn's JSON error body; surface it.
         const ctx = (error as { context?: Response }).context;
         const body = ctx ? await ctx.json().catch(() => null) : null;
-        throw new Error(body?.error ?? error.message ?? "Checkout failed");
+        // Keep the status and code: a definitive refusal ends this attempt (the next click is a new purchase); a network failure
+        // or a 5xx does not, so the retry resumes the same order.
+        const failure: Error & { status?: number; code?: string } = new Error(body?.error ?? error.message ?? "Checkout failed");
+        failure.status = ctx?.status; failure.code = body?.code;
+        throw failure;
       }
 
       // A saved-card charge the issuer wants authenticated is PAUSED, not failed:
       // complete THAT PaymentIntent instead of starting a second order.
       const settled = await settleSavedCardPayment(data as ScaStart);
       if (settled.outcome === "cancelled") { setBusy(false); return; }
-      if (settled.outcome === "failed") throw new Error(settled.message);
+      if (settled.outcome === "failed") { attempt.spend(); throw new Error(settled.message); }
       const scaCharged = settled.outcome === "succeeded";
-      if (data.charged || scaCharged) { clearBasket(); setPlaced(data.order_id); return; }
+      if (data.charged || scaCharged) { attempt.spend(); clearBasket(); setPlaced(data.order_id); return; }
       if (data.clientSecret) { setClientSecret(data.clientSecret); setPlaced(null); return; }
       throw new Error(data.error ?? "Checkout failed");
     } catch (e) {
+      if (isFinalRefusal(e)) attempt.spend();
       setErr(e instanceof Error ? e.message : "Checkout failed");
     } finally { setBusy(false); }
   }
@@ -279,7 +294,7 @@ export default function BasketPage() {
               amountPence={total}
               accent={SHOP}
               payLabel={`Pay ${gbp(total)}`}
-              onPaid={() => { clearBasket(); setPlaced("paid"); }}
+              onPaid={() => { attempt.spend(); clearBasket(); setPlaced("paid"); }}
               onCancel={() => setClientSecret(null)}
             />
           </div>

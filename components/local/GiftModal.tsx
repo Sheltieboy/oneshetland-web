@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/Modal";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { startGift, confirmGift, fetchWalletBalance } from "@/lib/local-commerce-client";
 import { gbp } from "@/lib/currency";
+import { createAttemptHolder, isFinalRefusal } from "@/lib/checkout-attempt";
 
 type Confirmation = { ok: boolean; gift_id: string; code: string; claim_url?: string; email_sent?: boolean };
 
@@ -37,6 +38,9 @@ export function GiftModal({
   const [walletPence, setWalletPence] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One reference per deliberate gift: the same recipient, message and payment method reuse it (so a double-click, a retry or a
+  // cancelled-then-resumed card sheet resolves to the SAME gift on the server); changing any of them is a different gift.
+  const attempt = useRef(createAttemptHolder()).current;
 
   const validEmail = /^\S+@\S+\.\S+$/.test(recipientEmail.trim());
 
@@ -62,11 +66,13 @@ export function GiftModal({
           recipientEmail: recipientEmail.trim(),
           recipientName: recipientName.trim() || null,
           message: message.trim() || null,
+          clientRequestId: attempt.idFor(JSON.stringify([target.kind, target.id, recipientEmail.trim().toLowerCase(), recipientName.trim(), message.trim(), viaWallet ? "wallet" : "card"])),
         },
         viaWallet ? { payWithWallet: true } : { useSavedCard: true },
       );
       if ("charged" in res) {
         const c = await confirmGift(res.gift_id, res.payment_intent_id);
+        attempt.spend();                                     // delivered: the next gift is a new purchase
         setConfirm(c);
         setStep("done");
         router.refresh();
@@ -77,6 +83,7 @@ export function GiftModal({
       setPiId(res.payment_intent_id);
       setStep("pay");
     } catch (e) {
+      if (isFinalRefusal(e)) attempt.spend();                // declined / expired / refused: that attempt is over
       setError(e instanceof Error ? e.message : "Could not start the gift.");
     } finally {
       setBusy(false);
@@ -117,6 +124,7 @@ export function GiftModal({
           payLabel={`Pay ${gbp(target.pricePence)}`}
           onPaid={async () => {
             const c = await confirmGift(giftId, piId);
+            attempt.spend();
             setConfirm(c);
             setStep("done");
             router.refresh();
