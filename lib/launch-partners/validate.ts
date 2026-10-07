@@ -9,10 +9,15 @@
  */
 import type { PreviewConfig } from "../launch-preview/types.ts";
 import { EMPHASES, HERO_VISUALS, type PageDraft } from "../business-page/types.ts";
+import { isLocalPath } from "../redirect.ts";
 
-/** Our own path ("/launch/…") or an https address. Never javascript:, data:, http:, or a protocol-relative "//host". */
+/**
+ * Our own path ("/launch/…") or an https address. Never javascript:, data:, http:, or a protocol-relative "//host".
+ * "Our own path" is the shared isLocalPath, not a prefix test: a browser deletes tabs and newlines before parsing, so
+ * "/<TAB>/host" is a link to another site that a startsWith("//") check lets through.
+ */
 export const isSafeUrl = (v: unknown): v is string =>
-  typeof v === "string" && v.length <= 2048 && ((v.startsWith("/") && !v.startsWith("//") && !v.includes("\\")) || /^https:\/\/[^\s/]+/.test(v));
+  typeof v === "string" && v.length <= 2048 && (isLocalPath(v) || /^https:\/\/[^\s/]+/.test(v));
 
 const URL_KEYS = new Set(["src", "image", "source", "url", "logo"]);
 
