@@ -8,7 +8,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { renderInvitationEmail, defaultEmailDraft, OUTREACH_OPT_OUT, OUTREACH_IDENTITY, OUTREACH_CONTACT, checkEmail } from "../lib/launch-partners/email.ts";
+import { renderInvitationEmail, defaultEmailDraft, OUTREACH_OPT_OUT, OUTREACH_IDENTITY, OUTREACH_CONTACT, OUTREACH_COMPANY_NAME, OUTREACH_REGISTRATION, OUTREACH_OFFICE, checkEmail } from "../lib/launch-partners/email.ts";
 import { evaluateSendGates, GATE_MESSAGE } from "../lib/launch-partners/send-core.ts";
 import { deriveWorkflow, isWaitingStep } from "../lib/launch-partners/workflow.ts";
 import { derivePipelineStatus } from "../lib/launch-partners/status.ts";
@@ -22,17 +22,26 @@ describe("The email: identity and opt-out", () => {
   const out = renderInvitationEmail({ ...draft, businessName: "Demo", invitationUrl: LINK });
   test("1 · the exact wording", () => {
     assert.equal(OUTREACH_OPT_OUT, "If you’d rather not receive another Launch Partner invitation from us, just reply and let us know.");
-    assert.equal(OUTREACH_IDENTITY, "OneShetland is operated by Darren Fullerton Consultancy Ltd."); assert.equal(OUTREACH_CONTACT, "hello@oneshetland.com");
+    assert.equal(OUTREACH_COMPANY_NAME, "Darren Fullerton Consultancy Ltd"); assert.equal(OUTREACH_IDENTITY, "OneShetland is operated by Darren Fullerton Consultancy Ltd.");
+    assert.equal(OUTREACH_REGISTRATION, "Registered in England and Wales · Company No. 15480428"); assert.equal(OUTREACH_OFFICE, "Registered office: 155A Tottenham Lane, London, N8 9BT");
+    assert.equal(OUTREACH_CONTACT, "hello@oneshetland.com");
+  });
+  test("1b · the statutory particulars (registered name, place of registration, number, registered office) are in the HTML AND the text, exactly once; the trading address is not used", () => {
+    for (const v of [out.text, out.html]) {
+      for (const part of ["Darren Fullerton Consultancy Ltd", "England and Wales", "15480428", "155A Tottenham Lane, London, N8 9BT", "hello@oneshetland.com"]) assert.equal(v.split(part).length - 1, 1, `${part} appears once`);
+      assert.doesNotMatch(v, /Burra|Hamnavoe|ZE2/);
+    }
+    assert.ok(out.text.trimEnd().endsWith(OUTREACH_OPT_OUT), "and the opt-out line follows the disclosure");
   });
   test("2 · both lines, and the contact route, are in the HTML AND the plain text of every render", () => {
-    for (const part of [OUTREACH_OPT_OUT, OUTREACH_IDENTITY, OUTREACH_CONTACT]) { assert.ok(out.text.includes(part), `text ${part}`); assert.ok(out.html.includes(part), `html ${part}`); }
-    assert.ok(out.text.trimEnd().endsWith(`${OUTREACH_IDENTITY} ${OUTREACH_CONTACT}`));
+    for (const part of [OUTREACH_OPT_OUT, OUTREACH_IDENTITY, OUTREACH_REGISTRATION, OUTREACH_OFFICE, OUTREACH_CONTACT]) { assert.ok(out.text.includes(part), `text ${part}`); assert.ok(out.html.includes(part), `html ${part}`); }
+    assert.ok(out.text.trimEnd().endsWith(OUTREACH_OPT_OUT));
   });
   test("3 · they are added by the RENDERER, not stored in the draft: an edited or older draft cannot lose them, and the stored template does not carry them", () => {
     for (const body of ["Just this.\n\n{{INVITATION_CTA}}", "Old.\n\n{{INVITATION_LINK}}\n\nDarren", ""]) {
-      const r = renderInvitationEmail({ subject: "s", body, invitationUrl: LINK }); assert.ok(r.text.includes(OUTREACH_OPT_OUT) && r.html.includes(OUTREACH_IDENTITY));
+      const r = renderInvitationEmail({ subject: "s", body, invitationUrl: LINK }); assert.ok(r.text.includes(OUTREACH_OPT_OUT) && r.html.includes(OUTREACH_IDENTITY) && r.text.includes(OUTREACH_REGISTRATION) && r.html.includes(OUTREACH_OFFICE));
     }
-    assert.ok(!draft.body.includes("reply and let us know") && !draft.body.includes("operated by"), "the default template does not carry the lines — they cannot be edited away because they are not in it");
+    assert.ok(!draft.body.includes("reply and let us know") && !draft.body.includes("operated by") && !draft.body.includes("15480428") && !draft.body.includes("Tottenham"), "the default template does not carry the lines — they cannot be edited away because they are not in it");
     assert.ok(renderInvitationEmail({ ...draft, businessName: "Demo" }).text.includes(OUTREACH_OPT_OUT), "present in the preview with no invitation yet, so Darren sees exactly what they will");
   });
   test("4 · quiet: small grey text after a hairline — no link, image, unsubscribe, banner or promotional copy; the only link is still the preview button", () => {
