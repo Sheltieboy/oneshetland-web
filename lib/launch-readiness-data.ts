@@ -661,10 +661,10 @@ export const LAUNCH_READINESS: ReadinessDataset = {
     },
     {
       id: "real-user-acceptance-testing", area: "launch", title: "Real-user acceptance testing (Launch Test Centre)",
-      description: "Trusted testers run the nine launch journeys in the live iOS and Android apps and record the outcome privately on the website.",
+      description: "Trusted testers run the launch journeys on the live website, the iPhone app and the Android app (nine shared journeys plus two website-only checks) and record the outcome privately on the website.",
       status: "in_progress", criticality: "important", weight: 1,
-      evidence: "Web-only V1 live: private /launch-testing and admin /admin/launch-testing, database-enforced access, private screenshot bucket. Migration 20261125000000 applied and registered; DB suite 40/40, web unit and guard tests passing. No tester added, no result recorded, real-money tests not yet configured.",
-      nextAction: "Darren inspects the production Test Centre, then set the low-value product and Hub on the real-money tests, add the first tester and run the programme.",
+      evidence: "Live for all three platforms (Website, iPhone, Android): private /launch-testing and admin /admin/launch-testing, per-platform progress and readiness, database-enforced access and platform isolation, private screenshot bucket. Migrations 20261125000000 and 20261126000000 applied and registered (Website 11 mandatory checks, iPhone 9, Android 9). Real-user acceptance is NOT done: no result recorded, real-money tests not yet configured, one tester (iOS only).",
+      nextAction: "Darren inspects the live all-platform Test Centre, then set the low-value product and Hub on the real-money tests, assign platforms, add the external tester and run the programme.",
       lastUpdated: "2026-10-11",
     },
     {
