@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         "/notifications",
         "/g/", // one-time gift claim links
         "/launch/", // private launch-partner previews — invitation only
+        "/launch-testing", // private acceptance-testing area for invited testers (also noindex; the real protection is the database)
         "/proposal", // unlisted partnership proposal — private, not for search
         "/proposal.html",
         "/merk-points", // unlisted concept note — private, not for search

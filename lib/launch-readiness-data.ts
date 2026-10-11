@@ -660,6 +660,14 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       lastUpdated: "2026-09-24",
     },
     {
+      id: "real-user-acceptance-testing", area: "launch", title: "Real-user acceptance testing (Launch Test Centre)",
+      description: "Trusted testers run the nine launch journeys in the live iOS and Android apps and record the outcome privately on the website.",
+      status: "in_progress", criticality: "important", weight: 1,
+      evidence: "Web-only V1 built and tested in source (private /launch-testing, admin /admin/launch-testing, database-enforced access, private screenshot bucket; DB suite 40/40, web unit and guard tests passing). NOT yet live: needs migration 20261125000000_launch_test_centre applied to production, then the web deployed. No tester has been added and no result recorded.",
+      nextAction: "Apply the migration, deploy the web, add the first tester, set the low-value product and Hub on the real-money tests, then run the programme.",
+      lastUpdated: "2026-10-11",
+    },
+    {
       id: "launch-release-timing", area: "launch", title: "App-store / public release timing",
       description: "A date for public launch and App Store release.",
       status: "not_started", criticality: "important", weight: 1,

@@ -7,6 +7,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   { group: "Overview", items: [
     { href: "/admin", label: "Dashboard" },
     { href: "/admin/launch-readiness", label: "Launch readiness" },
+    { href: "/admin/launch-testing", label: "Launch testing" },
   ] },
   { group: "Fetch", items: [
     { href: "/admin/drivers", label: "Driver approvals", badgeKey: "pendingDrivers" },
