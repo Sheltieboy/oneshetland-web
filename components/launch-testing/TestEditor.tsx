@@ -10,7 +10,7 @@ import type { LaunchTest } from "@/lib/launch-testing/types";
 export function TestEditor({ test }: { test: LaunchTest }) {
   const router = useRouter();
   const [f, setF] = useState({
-    title: test.title, purpose: test.purpose, steps: test.steps.join("\n"), expected_outcome: test.expected_outcome, priority: test.priority,
+    title: test.title, purpose: test.purpose, steps: test.steps.join("\n"), webSteps: (test.web_steps ?? []).join("\n"), expected_outcome: test.expected_outcome, priority: test.priority,
     mandatory: test.mandatory, active: test.active, platform: test.platform, sort_order: String(test.sort_order), money_test_type: test.money_test_type,
     spend: test.expected_max_spend_pence == null ? "" : (test.expected_max_spend_pence / 100).toFixed(2),
     target_url: test.target_url ?? "", target_note: test.target_note ?? "", help_text: test.help_text ?? "", effort: test.effort_minutes == null ? "" : String(test.effort_minutes),
@@ -25,7 +25,8 @@ export function TestEditor({ test }: { test: LaunchTest }) {
     if (pounds !== null && (!Number.isFinite(pounds) || pounds < 0)) { setMsg({ ok: false, text: "Enter the expected spend in pounds, like 1.50." }); return; }
     run(async () => {
       const r = await updateTestAction(test.id, {
-        title: f.title, purpose: f.purpose, steps: f.steps.split("\n").map((s) => s.trim()).filter(Boolean), expected_outcome: f.expected_outcome,
+        title: f.title, purpose: f.purpose, steps: f.steps.split("\n").map((s) => s.trim()).filter(Boolean),
+        web_steps: f.webSteps.split("\n").map((s) => s.trim()).filter(Boolean), expected_outcome: f.expected_outcome,
         priority: f.priority, mandatory: f.mandatory, active: f.active, platform: f.platform, sort_order: parseInt(f.sort_order, 10) || 100,
         money_test_type: f.money_test_type, expected_max_spend_pence: pounds, target_url: f.target_url.trim() || null, target_note: f.target_note.trim() || null,
         help_text: f.help_text.trim() || null, effort_minutes: f.effort.trim() ? parseInt(f.effort, 10) : null,
@@ -48,6 +49,7 @@ export function TestEditor({ test }: { test: LaunchTest }) {
         <label className="text-sm font-semibold text-ink sm:col-span-2">Title<input className={inp} value={f.title} onChange={(e) => set("title", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink sm:col-span-2">Why we are testing this<textarea rows={2} className={inp} value={f.purpose} onChange={(e) => set("purpose", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink sm:col-span-2">Steps (one per line)<textarea rows={5} className={inp} value={f.steps} onChange={(e) => set("steps", e.target.value)} /></label>
+        <label className="text-sm font-semibold text-ink sm:col-span-2">Website steps <span className="font-normal text-ink-muted">(one per line — shown to Website testers instead of the steps above; leave empty to reuse them)</span><textarea rows={4} className={inp} value={f.webSteps} onChange={(e) => set("webSteps", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink sm:col-span-2">What should happen<textarea rows={3} className={inp} value={f.expected_outcome} onChange={(e) => set("expected_outcome", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink sm:col-span-2">Instruction for this test <span className="font-normal text-ink-muted">(e.g. which £1.50 product to buy, or which Hub to donate to)</span>
           <input className={inp} value={f.target_note} onChange={(e) => set("target_note", e.target.value)} /></label>
@@ -60,7 +62,7 @@ export function TestEditor({ test }: { test: LaunchTest }) {
         <label className="text-sm font-semibold text-ink sm:col-span-2">Help / reimbursement wording <span className="font-normal text-ink-muted">(shown in the warning — only promise what you will do)</span>
           <input className={inp} value={f.help_text} onChange={(e) => set("help_text", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink">Priority<select className={inp} value={f.priority} onChange={(e) => set("priority", e.target.value as typeof f.priority)}><option value="critical">Critical</option><option value="high">High</option><option value="normal">Normal</option></select></label>
-        <label className="text-sm font-semibold text-ink">Phone type<select className={inp} value={f.platform} onChange={(e) => set("platform", e.target.value as typeof f.platform)}><option value="all">Both</option><option value="ios">iPhone only</option><option value="android">Android only</option></select></label>
+        <label className="text-sm font-semibold text-ink">Applies to<select className={inp} value={f.platform} onChange={(e) => set("platform", e.target.value as typeof f.platform)}><option value="all">All platforms (Website, iPhone, Android)</option><option value="web">Website only</option><option value="ios">iPhone only</option><option value="android">Android only</option></select></label>
         <label className="text-sm font-semibold text-ink">Order<input className={inp} inputMode="numeric" value={f.sort_order} onChange={(e) => set("sort_order", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink">Minutes it takes<input className={inp} inputMode="numeric" value={f.effort} onChange={(e) => set("effort", e.target.value)} /></label>
         <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={f.mandatory} onChange={(e) => set("mandatory", e.target.checked)} /> Mandatory for launch</label>

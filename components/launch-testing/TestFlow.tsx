@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { startAttemptAction, submitAttemptAction } from "@/lib/launch-testing/actions";
 import { moneyWarning, requiresAck, ACK_LABEL, NEVER_SHARE_NOTICE } from "@/lib/launch-testing/money";
+import { goTryIt, whereToDoIt } from "@/lib/launch-testing/platform";
 import { EvidenceUploader } from "./EvidenceUploader";
 import type { MoneyType, Platform, ReviewState } from "@/lib/launch-testing/types";
 
@@ -79,7 +80,7 @@ export function TestFlow({ number, platform, sessionId, test, current, last, att
         </ol>
         {test.target_note && <p className="mt-3 rounded-lg bg-sand px-3 py-2 text-sm text-ink"><strong>For this test:</strong> {test.target_note}</p>}
         {test.target_url && <a href={test.target_url} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex min-h-[44px] items-center rounded-pill border-2 border-line px-4 text-sm font-bold text-teal-dark">Open the page ↗</a>}
-        <p className="mt-3 text-sm text-ink-muted">Open the OneShetland app on your {platform === "ios" ? "iPhone" : "Android phone"} to do this.</p>
+        <p className="mt-3 text-sm text-ink-muted">{whereToDoIt(platform)}</p>
         <h2 className="mt-4 text-xs font-bold uppercase tracking-widest text-ink-muted">What should happen</h2>
         <p className="mt-1 text-ink">{test.expected_outcome}</p>
       </section>
@@ -115,7 +116,7 @@ export function TestFlow({ number, platform, sessionId, test, current, last, att
       {current && (
         <section className="space-y-4" aria-label="How did it go?">
           <h2 className="font-display text-2xl font-bold text-ink">How did it go?</h2>
-          <p className="text-sm text-ink-muted">Go and try it in the OneShetland app, then come back and tell us.</p>
+          <p className="text-sm text-ink-muted">{goTryIt(platform)}</p>
           <div className="grid gap-3">
             <button type="button" onClick={() => setChoice("passed")} aria-pressed={choice === "passed"}
               className={"min-h-[60px] rounded-card border-2 px-4 text-left text-lg font-bold " + (choice === "passed" ? "border-emerald-600 bg-emerald-600 text-white" : "border-emerald-600 bg-emerald-50 text-emerald-900")}>✓ Everything worked</button>

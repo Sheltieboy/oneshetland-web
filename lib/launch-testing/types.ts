@@ -1,5 +1,6 @@
-/** Shapes shared by the Launch Test Centre (tester and admin sides). Mirrors migration 20261125000000_launch_test_centre. */
-export type Platform = "ios" | "android";
+/** Shapes shared by the Launch Test Centre (tester and admin sides). Mirrors migrations 20261125000000_launch_test_centre and 20261126000000_launch_test_centre_web_platform. */
+export type Platform = "web" | "ios" | "android";
+export type DeviceClass = "desktop" | "mobile" | "tablet";
 export type MoneyType = "none" | "wallet" | "real_card" | "donation";
 export type AttemptStatus = "in_progress" | "passed" | "issue" | "blocked";
 export type ReviewState = "open" | "reviewed" | "fix_pending" | "ready_for_retest" | "resolved";
@@ -13,7 +14,7 @@ export interface Programme {
 
 export interface LaunchTest {
   id: string; programme_id: string; slug: string; category: string; title: string; purpose: string;
-  steps: string[]; expected_outcome: string; priority: Priority; mandatory: boolean;
+  steps: string[]; web_steps: string[] | null; expected_outcome: string; priority: Priority; mandatory: boolean;
   platform: "all" | Platform; sort_order: number; active: boolean;
   target_url: string | null; target_note: string | null;
   money_test_type: MoneyType; expected_max_spend_pence: number | null; help_text: string | null;
@@ -22,7 +23,8 @@ export interface LaunchTest {
 
 export interface Session {
   id: string; programme_id: string; user_id: string; platform: Platform;
-  app_build: string | null; device_model: string | null; started_at: string; completed_at: string | null;
+  app_build: string | null; device_model: string | null; browser: string | null; device_class: DeviceClass | null; viewport: string | null;
+  started_at: string; completed_at: string | null;
 }
 
 export interface Attempt {
@@ -46,4 +48,5 @@ export interface LatestAttempt {
   attempt_id: string; test_id: string; user_id: string; platform: Platform; app_build: string | null;
   status: AttemptStatus; review_state: ReviewState | null; retest_requested: boolean;
   started_at: string; completed_at: string | null; attempts_total: number;
+  browser?: string | null; device_class?: DeviceClass | null; viewport?: string | null;
 }

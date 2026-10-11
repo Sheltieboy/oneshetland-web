@@ -3,19 +3,20 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addTesterAction, updateTesterAction } from "@/lib/launch-testing/actions";
+import { PLATFORMS as PLATFORM_ORDER, PLATFORM_LABEL } from "@/lib/launch-testing/platform";
 import type { AdminTester, Platform } from "@/lib/launch-testing/types";
 
-const PLATFORMS: Array<{ id: Platform; label: string }> = [{ id: "ios", label: "iPhone" }, { id: "android", label: "Android" }];
+const PLATFORMS: Array<{ id: Platform; label: string }> = PLATFORM_ORDER.map((id) => ({ id, label: PLATFORM_LABEL[id] }));
 
 function PlatformBoxes({ value, onChange }: { value: Platform[]; onChange: (v: Platform[]) => void }) {
   return (
     <div className="flex flex-wrap gap-3">
       {PLATFORMS.map((p) => (
         <label key={p.id} className="flex items-center gap-2 text-sm text-ink">
-          <input type="checkbox" checked={value.includes(p.id)} onChange={(e) => onChange(e.target.checked ? [...value, p.id] : value.filter((x) => x !== p.id))} /> {p.label}
+          <input type="checkbox" checked={value.includes(p.id)} onChange={(e) => onChange(e.target.checked ? PLATFORM_ORDER.filter((x) => x === p.id || value.includes(x)) : value.filter((x) => x !== p.id))} /> {p.label}
         </label>
       ))}
-      <span className="text-xs text-ink-muted">(none ticked = either)</span>
+      <span className="text-xs text-ink-muted">(none ticked = all three)</span>
     </div>
   );
 }
@@ -43,7 +44,7 @@ export function AddTester({ programmeId }: { programmeId: string }) {
         <label className="text-sm font-semibold text-ink">Private note <span className="font-normal text-ink-muted">(only you see it)</span>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2" /></label>
       </div>
-      <div className="mt-3"><p className="mb-1 text-sm font-semibold text-ink">Phone type(s) to cover</p><PlatformBoxes value={platforms} onChange={setPlatforms} /></div>
+      <div className="mt-3"><p className="mb-1 text-sm font-semibold text-ink">Platform(s) to cover</p><PlatformBoxes value={platforms} onChange={setPlatforms} /></div>
       <div className="mt-3 flex items-center gap-3">
         <button type="button" onClick={add} disabled={pending || !email.trim()} className="rounded-pill bg-navy px-5 py-2 text-sm font-bold text-white disabled:opacity-60">{pending ? "Adding…" : "Add tester"}</button>
         {msg && <span role="status" className={"text-sm " + (msg.ok ? "text-emerald-700" : "text-rose-700")}>{msg.text}</span>}

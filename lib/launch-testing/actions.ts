@@ -10,7 +10,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAccount } from "@/lib/auth";
 import { requireAdmin } from "@/lib/admin-data.server";
-import type { Platform } from "./types";
+import type { DeviceClass, Platform } from "./types";
+import { isPlatform } from "./platform";
 
 export type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -29,7 +30,8 @@ function fail(e: unknown): { ok: false; error: string } {
 }
 
 const isUuid = (s: unknown): s is string => typeof s === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
-const platformOk = (p: unknown): p is Platform => p === "ios" || p === "android";
+const platformOk = (p: unknown): p is Platform => isPlatform(p);
+const classOk = (c: unknown): c is DeviceClass => c === "desktop" || c === "mobile" || c === "tablet";
 
 async function signedInClient() {
   const account = await getAccount();
@@ -38,11 +40,20 @@ async function signedInClient() {
 }
 
 // ── tester ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────
-export async function openSessionAction(input: { programmeId: string; platform: Platform; build?: string; device?: string }): Promise<Result<{ sessionId: string }>> {
+export type OpenSessionInput = {
+  programmeId: string; platform: Platform; build?: string; device?: string;
+  /** Website sessions only: coarse, non-identifying browser facts. Ignored (and nulled) for the apps. */
+  browser?: string; deviceClass?: DeviceClass | null; viewport?: string;
+};
+
+export async function openSessionAction(input: OpenSessionInput): Promise<Result<{ sessionId: string }>> {
   const sb = await signedInClient();
   if (!sb) return { ok: false, error: "Please sign in again." };
-  if (!isUuid(input.programmeId) || !platformOk(input.platform)) return { ok: false, error: "Choose iPhone or Android." };
-  const { data, error } = await sb.rpc("launch_test_open_session", { p_programme: input.programmeId, p_platform: input.platform, p_build: input.build ?? null, p_device: input.device ?? null });
+  if (!isUuid(input.programmeId) || !platformOk(input.platform)) return { ok: false, error: "Choose Website, iPhone or Android." };
+  const { data, error } = await sb.rpc("launch_test_open_session", { p_programme: input.programmeId, p_platform: input.platform, p_build: input.build ?? null, p_device: input.device ?? null,
+    p_browser: input.platform === "web" ? (input.browser ?? null) : null,
+    p_device_class: input.platform === "web" && classOk(input.deviceClass) ? input.deviceClass : null,
+    p_viewport: input.platform === "web" && typeof input.viewport === "string" && /^[0-9]{2,5}x[0-9]{2,5}$/.test(input.viewport) ? input.viewport : null });
   if (error) return fail(error);
   revalidatePath("/launch-testing");
   return { ok: true, sessionId: data as string };
@@ -101,7 +112,7 @@ export async function updateTesterAction(input: { testerId: string; enabled: boo
 }
 
 export type TestPatch = Partial<{
-  title: string; category: string; purpose: string; steps: string[]; expected_outcome: string; priority: string; mandatory: boolean;
+  title: string; category: string; purpose: string; steps: string[]; web_steps: string[] | null; expected_outcome: string; priority: string; mandatory: boolean;
   platform: string; sort_order: number; active: boolean; target_url: string | null; target_note: string | null; money_test_type: string;
   expected_max_spend_pence: number | null; help_text: string | null; effort_minutes: number | null;
 }>;

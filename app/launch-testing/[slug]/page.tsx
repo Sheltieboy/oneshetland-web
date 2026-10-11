@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireTester } from "../gate";
 import { loadTestPage } from "@/lib/launch-testing/data.server";
+import { isPlatform, stepsFor } from "@/lib/launch-testing/platform";
 import type { Platform } from "@/lib/launch-testing/types";
 import { TestFlow } from "@/components/launch-testing/TestFlow";
 
@@ -9,8 +10,8 @@ export default async function LaunchTestPage({ params, searchParams }: { params:
   const { slug } = await params;
   const { p } = await searchParams;
   const ctx = await requireTester(`/launch-testing/${slug}`);
-  const wanted: Platform | null = p === "ios" || p === "android" ? p : null;
-  const page = await loadTestPage(ctx.programme, slug, wanted);
+  const wanted: Platform | null = isPlatform(p) ? p : null;
+  const page = await loadTestPage(ctx.programme, slug, wanted, ctx.platforms);
   if (!page) notFound();
   const { test, session, current, previous, attachments, number } = page;
 
@@ -22,7 +23,7 @@ export default async function LaunchTestPage({ params, searchParams }: { params:
         platform={session.platform}
         sessionId={session.id}
         test={{
-          id: test.id, category: test.category, title: test.title, purpose: test.purpose, steps: test.steps, expected_outcome: test.expected_outcome,
+          id: test.id, category: test.category, title: test.title, purpose: test.purpose, steps: stepsFor(test, session.platform), expected_outcome: test.expected_outcome,
           mandatory: test.mandatory, money_test_type: test.money_test_type, expected_max_spend_pence: test.expected_max_spend_pence,
           target_url: test.target_url, target_note: test.target_note, help_text: test.help_text, effort_minutes: test.effort_minutes,
         }}

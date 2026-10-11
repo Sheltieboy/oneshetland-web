@@ -105,3 +105,28 @@ describe("web-only, and nothing near money", () => {
     assert.match(flow, /target="_blank" rel="noopener noreferrer"/);
   });
 });
+
+describe("Website is a first-class platform", () => {
+  test("the tester pages never hard-code 'open the app' wording: it comes from the platform helpers, which special-case the website", () => {
+    for (const f of ["components/launch-testing/TestFlow.tsx", "components/launch-testing/TesterHomeView.tsx", "components/launch-testing/SessionPicker.tsx"]) {
+      assert.doesNotMatch(code[f], /Open the OneShetland app|in the OneShetland app/, f);
+    }
+    assert.match(code["components/launch-testing/TestFlow.tsx"], /whereToDoIt\(platform\)/);
+  });
+  test("session actions accept web, and web context is only forwarded for web sessions", () => {
+    const a = code["lib/launch-testing/actions.ts"];
+    assert.match(a, /isPlatform\(p\)/);
+    assert.match(a, /p_browser: input\.platform === "web"/); assert.match(a, /p_device_class: input\.platform === "web"/); assert.match(a, /p_viewport: input\.platform === "web"/);
+  });
+  test("the tester loaders only ever read platforms the tester is assigned (never trusting the URL)", () => {
+    const d = code["lib/launch-testing/data.server.ts"];
+    assert.match(d, /platformsFor\(assigned\)/); assert.match(d, /allowed\.includes\(wanted\)/);
+  });
+  test("web context collection stays coarse: no canvas, audio, font, WebGL or battery fingerprinting anywhere in the feature", () => {
+    for (const f of FEATURE) assert.doesNotMatch(code[f], /getContext\(|AudioContext|FontFace|getBattery|enumerateDevices|deviceMemory|hardwareConcurrency|geolocation|canvas/i, f);
+  });
+  test("the admin screens offer Overall, Website, iPhone and Android, and the tester form offers all three platforms", () => {
+    assert.match(src["app/admin/launch-testing/page.tsx"], /\["overall", \.\.\.PLATFORMS\]/);
+    assert.match(src["components/launch-testing/TesterManager.tsx"], /PLATFORM_ORDER\.map/);
+  });
+});
