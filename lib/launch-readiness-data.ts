@@ -663,8 +663,8 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       id: "real-user-acceptance-testing", area: "launch", title: "Real-user acceptance testing (Launch Test Centre)",
       description: "Trusted testers run the nine launch journeys in the live iOS and Android apps and record the outcome privately on the website.",
       status: "in_progress", criticality: "important", weight: 1,
-      evidence: "Web-only V1 built and tested in source (private /launch-testing, admin /admin/launch-testing, database-enforced access, private screenshot bucket; DB suite 40/40, web unit and guard tests passing). NOT yet live: needs migration 20261125000000_launch_test_centre applied to production, then the web deployed. No tester has been added and no result recorded.",
-      nextAction: "Apply the migration, deploy the web, add the first tester, set the low-value product and Hub on the real-money tests, then run the programme.",
+      evidence: "Web-only V1 live: private /launch-testing and admin /admin/launch-testing, database-enforced access, private screenshot bucket. Migration 20261125000000 applied and registered; DB suite 40/40, web unit and guard tests passing. No tester added, no result recorded, real-money tests not yet configured.",
+      nextAction: "Darren inspects the production Test Centre, then set the low-value product and Hub on the real-money tests, add the first tester and run the programme.",
       lastUpdated: "2026-10-11",
     },
     {
