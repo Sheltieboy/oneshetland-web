@@ -18,7 +18,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
       <AdminTabs programme={o.programme?.slug} />
       {!o.programme ? <Empty>No test programme was found.</Empty> : (
         <div className="space-y-3">
-          {o.tests.map((t) => <TestEditor key={`${t.id}-${t.sort_order}-${t.title}`} test={t} />)}
+          {o.tests.map((t) => <TestEditor key={`${t.id}-${t.sort_order}-${t.title}`} test={t} number={o.numbers.get(t.id) ?? null} />)}
           <p className="pt-2 text-sm text-ink-muted">The Test Centre only <em>describes</em> these journeys. The purchases and donation happen in the live app, with the live payment system — nothing here can take or refund money.</p>
         </div>
       )}

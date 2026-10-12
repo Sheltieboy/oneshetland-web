@@ -7,7 +7,7 @@ import { formatMaxSpend } from "@/lib/launch-testing/money";
 import type { LaunchTest } from "@/lib/launch-testing/types";
 
 /** A lightweight edit form for ONE test: the things Darren needs to set (which product, which Hub, how much, wording), not a general authoring tool. */
-export function TestEditor({ test }: { test: LaunchTest }) {
+export function TestEditor({ test, number }: { test: LaunchTest; number: number | null }) {
   const router = useRouter();
   const [f, setF] = useState({
     title: test.title, purpose: test.purpose, steps: test.steps.join("\n"), webSteps: (test.web_steps ?? []).join("\n"), expected_outcome: test.expected_outcome, priority: test.priority,
@@ -40,7 +40,7 @@ export function TestEditor({ test }: { test: LaunchTest }) {
   return (
     <details className="rounded-card border border-line bg-paper">
       <summary className="flex cursor-pointer flex-wrap items-center gap-2 p-4">
-        <span className="font-bold text-ink">{test.sort_order}. {test.title}</span>
+        <span className="font-bold text-ink">{number ? `${number}.` : "–"} {test.title}</span>
         {!test.active && <span className="rounded-pill bg-sand px-2 py-0.5 text-xs font-bold text-ink-muted">Inactive</span>}
         {test.mandatory && <span className="rounded-pill bg-navy px-2 py-0.5 text-xs font-bold text-white">Mandatory</span>}
         {test.money_test_type !== "none" && <span className="rounded-pill bg-rose-600 px-2 py-0.5 text-xs font-bold text-white">REAL MONEY · {formatMaxSpend(test.expected_max_spend_pence) ?? "no cap set"}</span>}
@@ -63,7 +63,7 @@ export function TestEditor({ test }: { test: LaunchTest }) {
           <input className={inp} value={f.help_text} onChange={(e) => set("help_text", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink">Priority<select className={inp} value={f.priority} onChange={(e) => set("priority", e.target.value as typeof f.priority)}><option value="critical">Critical</option><option value="high">High</option><option value="normal">Normal</option></select></label>
         <label className="text-sm font-semibold text-ink">Applies to<select className={inp} value={f.platform} onChange={(e) => set("platform", e.target.value as typeof f.platform)}><option value="all">All platforms (Website, iPhone, Android)</option><option value="web">Website only</option><option value="ios">iPhone only</option><option value="android">Android only</option></select></label>
-        <label className="text-sm font-semibold text-ink">Order<input className={inp} inputMode="numeric" value={f.sort_order} onChange={(e) => set("sort_order", e.target.value)} /></label>
+        <label className="text-sm font-semibold text-ink">Order <span className="font-normal text-ink-muted">(sort value, not the number shown)</span><input className={inp} inputMode="numeric" value={f.sort_order} onChange={(e) => set("sort_order", e.target.value)} /></label>
         <label className="text-sm font-semibold text-ink">Minutes it takes<input className={inp} inputMode="numeric" value={f.effort} onChange={(e) => set("effort", e.target.value)} /></label>
         <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={f.mandatory} onChange={(e) => set("mandatory", e.target.checked)} /> Mandatory for launch</label>
         <label className="flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" checked={f.active} onChange={(e) => set("active", e.target.checked)} /> Active (testers can see it)</label>

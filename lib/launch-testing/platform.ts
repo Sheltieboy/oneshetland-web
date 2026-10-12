@@ -22,6 +22,16 @@ export function platformsFor(assigned: readonly Platform[] | null | undefined): 
   return a.length ? PLATFORMS.filter((p) => a.includes(p)) : [...PLATFORMS];
 }
 
+/**
+ * The number people see for a test: its position (1, 2, 3 …) in the programme's active tests ordered by sort_order — never the raw sort_order
+ * (10, 20 … is only there so tests can be slotted in later). It is canonical across platforms: Website, iPhone and Android all call the
+ * shared tests 1–9, and the Website-only checks keep 10 and 11 rather than being renumbered per platform. Inactive tests have no number.
+ */
+export function testNumbers(tests: Array<{ id: string; slug?: string; sort_order: number; active: boolean }>): Map<string, number> {
+  const ordered = tests.filter((t) => t.active).sort((a, b) => a.sort_order - b.sort_order || (a.slug ?? a.id).localeCompare(b.slug ?? b.id));
+  return new Map(ordered.map((t, i) => [t.id, i + 1]));
+}
+
 /** Whether a test applies on a platform ('all' = every platform; a test with its own platform applies there only). */
 export const appliesTo = (test: Pick<LaunchTest, "platform">, platform: Platform) => test.platform === "all" || test.platform === platform;
 

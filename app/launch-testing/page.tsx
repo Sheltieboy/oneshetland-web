@@ -23,7 +23,7 @@ export default async function LaunchTestingHome({ searchParams }: { searchParams
       programme={ctx.programme} firstName={first}
       platforms={home.byPlatform} overall={home.overall} selected={platform}
       session={session ? { build: session.app_build, device: session.device_model, browser: session.browser, deviceClass: session.device_class, viewport: session.viewport } : null}
-      tests={tests.map((t) => ({ ...t, status: latest.get(t.id)?.status ?? "not_started", retest: !!latest.get(t.id)?.retest_requested }))}
+      tests={tests.map((t) => ({ ...t, number: home.numbers[t.id], status: latest.get(t.id)?.status ?? "not_started", retest: !!latest.get(t.id)?.retest_requested }))}
       progress={progress}
     />
   );

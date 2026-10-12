@@ -8,7 +8,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { launchAccessFor } from "../lib/launch-testing/access.ts";
 import { buildMatrix, cellState, summarise, progressByPlatform, latestPerTest, myProgress, stateOfAttempt } from "../lib/launch-testing/readiness.ts";
-import { PLATFORMS, PLATFORM_LABEL, isPlatform, platformsFor, appliesTo, whereToDoIt, goTryIt, stepsFor, detectWebContext } from "../lib/launch-testing/platform.ts";
+import { PLATFORMS, PLATFORM_LABEL, isPlatform, platformsFor, appliesTo, whereToDoIt, goTryIt, stepsFor, detectWebContext, testNumbers } from "../lib/launch-testing/platform.ts";
 import { moneyWarning, requiresAck, formatMaxSpend, ACK_LABEL, NEVER_SHARE_NOTICE } from "../lib/launch-testing/money.ts";
 import { checkEvidence, sniffImageType, evidencePath, MAX_EVIDENCE_BYTES } from "../lib/launch-testing/evidence.ts";
 
@@ -82,6 +82,29 @@ describe("the platform model", () => {
     assert.equal(detectWebContext("Mozilla/5.0 (Linux; Android 14; SM-X900) AppleWebKit/537.36 Chrome/130.0.0.0 Safari/537.36").deviceClass, "tablet");
     assert.equal(detectWebContext("Mozilla/5.0 (Windows NT 10.0) Gecko/20100101 Firefox/131.0", 0, 0).viewport, null);
     assert.deepEqual(Object.keys(chrome).sort(), ["browser", "deviceClass", "viewport"], "no other facts are collected");
+  });
+});
+
+describe("visible test numbers are positions, not sort values", () => {
+  const rc1 = [10, 20, 30, 40, 50, 60, 70, 80, 90, 110, 120].map((sort_order, i) => ({ id: `t${i}`, slug: `s${i}`, sort_order, active: true, platform: i >= 9 ? "web" : "all" }));
+  test("RC1's 10…90, 110, 120 display as 1…11", () => {
+    const n = testNumbers([...rc1].reverse());                                  // input order is irrelevant
+    assert.deepEqual(rc1.map((t) => n.get(t.id)), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+  test("platform filtering keeps the canonical number: iPhone/Android 1–9, Website 1–11 (web-only tests stay 10 and 11)", () => {
+    const n = testNumbers(rc1);
+    const shown = (p) => rc1.filter((t) => appliesTo(t, p)).map((t) => n.get(t.id));
+    assert.deepEqual(shown("ios"), [1, 2, 3, 4, 5, 6, 7, 8, 9]); assert.deepEqual(shown("android"), [1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    assert.deepEqual(shown("web"), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+  test("a test inserted later by sort value slots in and the numbers stay sequential; an inactive test has no number and leaves no gap", () => {
+    const n = testNumbers([...rc1, { id: "new", slug: "new", sort_order: 55, active: true }, { id: "off", slug: "off", sort_order: 25, active: false }]);
+    assert.equal(n.get("new"), 6); assert.equal(n.get("t5"), 7); assert.equal(n.has("off"), false); assert.equal(n.get("t2"), 3);
+    assert.deepEqual([...n.values()].sort((a, b) => a - b), Array.from({ length: 12 }, (_, i) => i + 1));
+  });
+  test("equal sort values order deterministically; the underlying sort values are never changed", () => {
+    const a = [{ id: "b", slug: "b", sort_order: 10, active: true }, { id: "a", slug: "a", sort_order: 10, active: true }];
+    assert.deepEqual([...testNumbers(a)], [["a", 1], ["b", 2]]); assert.deepEqual(a.map((t) => t.sort_order), [10, 10]);
   });
 });
 

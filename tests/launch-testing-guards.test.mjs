@@ -130,3 +130,13 @@ describe("Website is a first-class platform", () => {
     assert.match(src["components/launch-testing/TesterManager.tsx"], /PLATFORM_ORDER\.map/);
   });
 });
+
+describe("test numbers shown to people", () => {
+  test("no screen renders the raw sort_order as a number; the tester, matrix, editor and result pages use the canonical position", () => {
+    for (const f of FEATURE.filter((x) => x.endsWith(".tsx"))) assert.doesNotMatch(code[f], />\s*\{(?:test|t)\.sort_order\}/, f);
+    assert.match(code["components/launch-testing/TesterHomeView.tsx"], /\{t\.number\}/);
+    assert.match(code["components/launch-testing/TestEditor.tsx"], /\{number \? /);
+    assert.match(code["app/admin/launch-testing/page.tsx"], /o\.numbers\.get\(t\.id\)/);
+    assert.match(code["lib/launch-testing/data.server.ts"], /testNumbers\(list\)\.get\(test\.id\)/);
+  });
+});

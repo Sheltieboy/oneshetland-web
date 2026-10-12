@@ -10,7 +10,7 @@ import { getAccount, accountName, type Account } from "@/lib/auth";
 import { adminAccessFor } from "@/lib/admin-access";
 import { launchAccessFor, type LaunchAccess } from "./access";
 import { latestPerTest, buildMatrix, summarise, progressByPlatform, type Matrix, type Readiness, type PlatformProgress, type Progress } from "./readiness";
-import { appliesTo, platformsFor } from "./platform";
+import { appliesTo, platformsFor, testNumbers } from "./platform";
 import type { AdminTester, Attachment, Attempt, LatestAttempt, LaunchTest, Platform, Programme, Session } from "./types";
 
 export const EVIDENCE_BUCKET = "launch-test-evidence";
@@ -52,6 +52,8 @@ export async function resolveTesterContext(): Promise<TesterContext> {
 export interface TesterHome {
   sessions: Session[]; session: Session | null; platform: Platform | null; tests: LaunchTest[]; attempts: Attempt[];
   byPlatform: PlatformProgress[]; overall: Progress; allowed: Platform[];
+  /** test id → the visible number (position in the full ordered list, not in this platform's list). */
+  numbers: Record<string, number>;
 }
 
 /**
@@ -74,7 +76,7 @@ export async function loadTesterHome(programme: Programme, wanted: Platform | nu
   const session = platform ? sessions.find((x) => x.platform === platform) ?? null : null;
   const tests = platform ? allTests.filter((x) => appliesTo(x, platform)) : [];
   const { platforms: byPlatform, overall } = progressByPlatform(allowed, allTests, sessions, attempts);
-  return { sessions, session, platform, tests, attempts, byPlatform, overall, allowed };
+  return { sessions, session, platform, tests, attempts, byPlatform, overall, allowed, numbers: Object.fromEntries(testNumbers(allTests)) };
 }
 
 export interface TestPage {
@@ -103,8 +105,7 @@ export async function loadTestPage(programme: Programme, slug: string, wanted: P
   const previous = attempts.find((a) => a.status !== "in_progress") ?? null;
   const shown = current ?? previous;
   const attachments = shown ? await attachmentsFor(sb, [shown.id]) : [];
-  const applicable = list.filter((t) => appliesTo(t, session.platform));
-  return { test, session, attempts, current, previous, attachments, number: applicable.findIndex((t) => t.id === test.id) + 1 };
+  return { test, session, attempts, current, previous, attachments, number: testNumbers(list).get(test.id) ?? 0 };
 }
 
 async function attachmentsFor(sb: Awaited<ReturnType<typeof createClient>>, attemptIds: string[]): Promise<Array<Attachment & { url: string | null }>> {
@@ -121,12 +122,12 @@ async function attachmentsFor(sb: Awaited<ReturnType<typeof createClient>>, atte
 // ── administrators ───────────────────────────────────────────────────────────────────────────────────────────────────────────
 export interface AdminOverview {
   programmes: Programme[]; programme: Programme | null; tests: LaunchTest[]; testers: AdminTester[]; latest: LatestAttempt[];
-  matrix: Matrix | null; readiness: Readiness | null;
+  matrix: Matrix | null; readiness: Readiness | null; numbers: Map<string, number>;
 }
 
 export async function loadAdminOverview(programmeSlug?: string | null): Promise<AdminOverview> {
   const sb = await createClient();
-  const empty: AdminOverview = { programmes: [], programme: null, tests: [], testers: [], latest: [], matrix: null, readiness: null };
+  const empty: AdminOverview = { programmes: [], programme: null, tests: [], testers: [], latest: [], matrix: null, readiness: null, numbers: new Map() };
   const { data: progs, error } = await sb.from("launch_test_programmes").select(PROGRAMME_COLS).order("created_at", { ascending: false });
   if (error) { logFail("loadAdminOverview", error); return empty; }
   const programmes = (progs ?? []) as Programme[];
@@ -146,13 +147,13 @@ export async function loadAdminOverview(programmeSlug?: string | null): Promise<
     testers.map((x) => ({ user_id: x.user_id, enabled: x.enabled, platforms: x.platforms })),
     latest,
   );
-  return { programmes, programme, tests, testers, latest, matrix, readiness: summarise(matrix) };
+  return { programmes, programme, tests, testers, latest, matrix, readiness: summarise(matrix), numbers: testNumbers(tests) };
 }
 
 export interface AttemptDetail {
   attempt: Attempt; test: LaunchTest; session: Session | null; tester: AdminTester | null;
   history: Attempt[]; attachments: Array<Attachment & { url: string | null }>;
-  platformBySession: Record<string, Platform>;
+  platformBySession: Record<string, Platform>; number: number | null;
 }
 
 export async function loadAttemptDetail(id: string): Promise<AttemptDetail | null> {
@@ -169,11 +170,13 @@ export async function loadAttemptDetail(id: string): Promise<AttemptDetail | nul
     sb.from("launch_test_sessions").select("id, platform").eq("user_id", attempt.user_id).eq("programme_id", attempt.programme_id),
   ]);
   if (!t.data) return null;
+  const { data: numbered } = await sb.from("launch_tests").select("id, slug, sort_order, active").eq("programme_id", attempt.programme_id);
+  const number = testNumbers((numbered ?? []) as Array<{ id: string; slug: string; sort_order: number; active: boolean }>).get(attempt.test_id) ?? null;
   const platformBySession = Object.fromEntries(((ss.data ?? []) as Array<{ id: string; platform: Platform }>).map((x) => [x.id, x.platform]));
   const history = (h.data ?? []) as Attempt[];
   const tester = ((tr.data ?? []) as AdminTester[]).find((x) => x.user_id === attempt.user_id) ?? null;
   const attachments = await attachmentsFor(sb, history.map((x) => x.id));
-  return { attempt, test: t.data as LaunchTest, session: (s.data ?? null) as Session | null, tester, history, attachments, platformBySession };
+  return { attempt, test: t.data as LaunchTest, session: (s.data ?? null) as Session | null, tester, history, attachments, platformBySession, number };
 }
 
 export { latestPerTest };

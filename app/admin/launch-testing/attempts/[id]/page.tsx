@@ -20,12 +20,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const { id } = await params;
   const d = await loadAttemptDetail(id);
   if (!d) notFound();
-  const { attempt: a, test, session, tester, history, attachments, platformBySession } = d;
+  const { attempt: a, test, session, tester, history, attachments, platformBySession, number } = d;
   const name = tester?.display_name || tester?.full_name || tester?.email || "Tester";
 
   return (
     <>
-      <AdminHeader title={test.title} sub={`${name}${tester?.email ? ` · ${tester.email}` : ""}`} />
+      <AdminHeader title={`${number ? `${number}. ` : ""}${test.title}`} sub={`${name}${tester?.email ? ` · ${tester.email}` : ""}`} />
       <Link href="/admin/launch-testing" className="mb-4 inline-block text-sm font-semibold text-ink-soft hover:underline">← Results</Link>
       <div className="space-y-5">
         <Card>

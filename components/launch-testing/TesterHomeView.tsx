@@ -5,7 +5,7 @@ import { PLATFORM_BLURB, PLATFORM_LABEL, whereToDoIt } from "@/lib/launch-testin
 import type { LaunchTest, Platform, Programme } from "@/lib/launch-testing/types";
 import { SessionPicker } from "./SessionPicker";
 
-type Row = LaunchTest & { status: "not_started" | "in_progress" | "passed" | "issue" | "blocked"; retest: boolean };
+type Row = LaunchTest & { number: number; status: "not_started" | "in_progress" | "passed" | "issue" | "blocked"; retest: boolean };
 type SessionView = { build: string | null; device: string | null; browser: string | null; deviceClass: string | null; viewport: string | null };
 
 /** The tester's landing page, as pure presentation (the page loads the data, this draws it). */
@@ -80,7 +80,7 @@ export function TesterHomeView({ programme, firstName, platforms, overall, selec
           </section>
 
           <ol className="space-y-3">
-            {tests.map((t, i) => {
+            {tests.map((t) => {
               const status = t.status;
               const warn = moneyWarning(t);
               const badge = {
@@ -94,7 +94,7 @@ export function TesterHomeView({ programme, firstName, platforms, overall, selec
                 <li key={t.id}>
                   <Link href={`/launch-testing/${t.slug}?p=${selected}`} className="block rounded-card border border-line bg-paper p-4 shadow-soft transition hover:border-line-strong focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-bold text-white" aria-hidden>{i + 1}</span>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-bold text-white" aria-hidden>{t.number}</span>
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{t.category}{t.mandatory ? " · Needed" : " · Optional"}{t.effort_minutes ? ` · about ${t.effort_minutes} min` : ""}</p>
                         <p className="mt-0.5 font-display text-lg font-bold leading-snug text-ink">{t.title}</p>

@@ -105,7 +105,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
                 <tbody>
                   {matrix.tests.filter((t) => shown.some((pl) => appliesTo(t, pl))).map((t) => (
                     <tr key={t.id} className="border-t border-line">
-                      <td className="py-2 pr-3 text-ink">{o.tests.find((x) => x.id === t.id)?.title}{t.mandatory ? "" : <span className="ml-1 text-xs text-ink-muted">(optional)</span>}
+                      <td className="py-2 pr-3 text-ink"><span className="mr-1 font-bold text-ink-muted">{o.numbers.get(t.id)}.</span>{o.tests.find((x) => x.id === t.id)?.title}{t.mandatory ? "" : <span className="ml-1 text-xs text-ink-muted">(optional)</span>}
                         {t.platform !== "all" && <span className="ml-1 rounded-pill bg-sand px-1.5 py-0.5 text-[10px] font-bold uppercase text-ink-muted">{PLATFORM_LABEL[t.platform]} only</span>}</td>
                       {columns.map((u) => (
                         <td key={u.user_id} className="px-2 py-1 text-center">
