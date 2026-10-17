@@ -34,7 +34,7 @@ describe("private, not merely hidden", () => {
   test("robots.txt disallows it, the sitemap never lists it, and no public page or menu links to it", () => {
     assert.match(read("app/robots.ts"), /"\/launch-testing"/);
     assert.doesNotMatch(read("app/sitemap.ts"), /launch-testing/);
-    const offenders = walk("app").concat(walk("components")).concat(walk("lib")).filter((f) => !FEATURE.includes(f) && f !== "app/robots.ts" && f !== "components/admin/AdminSidebar.tsx" && f !== "lib/launch-readiness-data.ts")   // the admin-only readiness dashboard may mention it
+    const offenders = walk("app").concat(walk("components")).concat(walk("lib")).filter((f) => !FEATURE.includes(f) && f !== "app/robots.ts" && f !== "components/admin/AdminSidebar.tsx" && f !== "lib/launch-readiness-data.ts" && f !== "lib/app-prompt.ts")   // the admin-only readiness dashboard may mention it; the install bar's exclusion list names the route only to stay OFF it
       .filter((f) => /launch-testing/.test(read(f)));
     assert.deepEqual(offenders, [], "only the admin sidebar and the admin-only readiness data may mention the area");
     const sidebar = read("components/admin/AdminSidebar.tsx");

@@ -11,6 +11,7 @@ import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
+import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -120,6 +121,7 @@ export default async function RootLayout({
             <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
             <HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes>
+            <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
           </ConfirmProvider>
         </ChargeApprovalListener>
       </body>
