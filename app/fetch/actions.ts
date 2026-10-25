@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { fetchApi } from "@/lib/fetch/transport.server";
+import { headerSummary, type HeaderSummary } from "@/lib/fetch/header";
 import type { ApplyInput, CreateInput, FetchResult, IssueKind, PhotoKind, QuoteInput, ReleaseReason, RunInput, UndeliverableReason } from "@/lib/fetch-api";
 
 /**
@@ -65,3 +66,10 @@ export async function photoBeginAction(id: string, kind: PhotoKind, mime: string
 }
 export async function photoSubmitAction(id: string, uploadId: string): R { return done(await (await fetchApi()).photoSubmit(uploadId), ...job(id)); }
 export async function photoViewAction(photoId: string, board = false): R<{ url: string }> { return (await fetchApi()).photoView(photoId, board); }
+
+/** The header chip refreshes through this (no browser client, no table subscription). */
+export async function headerSummaryAction(): Promise<HeaderSummary> {
+  const r = await (await fetchApi()).myRequests().catch(() => null);
+  return r?.ok ? headerSummary(r.data) : null;
+}
+

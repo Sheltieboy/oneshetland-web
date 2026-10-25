@@ -19,7 +19,6 @@ const TOOLS = [
   { href: "/admin/launch-partners", label: "Launch partners", desc: "Prepare previews and business pages, invite businesses, follow each to going live" },
   { href: "/admin/launch-readiness", label: "Launch readiness", desc: "What's done, what's left and what still blocks launch" },
   { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
-  { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, disputes" },
   { href: "/admin/payments", label: "Payments", desc: "Membership payments and refunds" },
   { href: "/admin/compliance", label: "Compliance log", desc: "Search a user's consent & verification record" },
   { href: "/admin/email", label: "Email centre", desc: "Templates, footer and the delivery log" },

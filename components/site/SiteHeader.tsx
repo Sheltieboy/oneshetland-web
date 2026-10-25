@@ -5,12 +5,13 @@ import Image from "next/image";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
-import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
+import { HeaderChip } from "@/components/fetch/v2/HeaderChip";
+import type { HeaderSummary } from "@/lib/fetch/header";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { BasketPill } from "@/components/shop/BasketPill";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
-type FetchStatus = { userId: string; status: string | null; count: number } | null;
+type FetchStatus = HeaderSummary;
 
 export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderUser; fetchStatus?: FetchStatus }) {
   const [open, setOpen] = useState(false);
@@ -87,7 +88,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             For businesses
           </Link>
           {fetchStatus && (
-            <FetchStatusIndicator userId={fetchStatus.userId} initialStatus={fetchStatus.status} initialCount={fetchStatus.count} />
+            <HeaderChip initial={fetchStatus} />
           )}
           {user ? (
             <div className="hidden items-center gap-2 sm:flex">

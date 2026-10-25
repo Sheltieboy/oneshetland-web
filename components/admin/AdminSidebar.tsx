@@ -11,7 +11,6 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   ] },
   { group: "Fetch", items: [
     { href: "/admin/fetch", label: "Fetch operations", badgeKey: "pendingDrivers" },
-    { href: "/admin/operations", label: "Operations" },
     { href: "/admin/payments", label: "Payments" },
   ] },
   { group: "Community", items: [

@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Fetch v1 web code retired by Fetch v2 (kept for reference only; not imported, built, typechecked or linted).
+    "legacy/**",
   ]),
 ]);
 

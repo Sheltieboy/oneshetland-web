@@ -164,27 +164,5 @@ export async function isRequestDriver(req: DeliveryRequest, userId: string): Pro
 
 /* ── Header status summary ────────────────────────────────────────────────── */
 
-export type FetchStatusSummary = {
-  /** The single most-relevant in-flight request for this user (as requester). */
-  status: string | null;
-  count: number;
-};
 
 /** A compact summary for the always-on header indicator (initial server value). */
-export async function getFetchStatusSummary(userId: string): Promise<FetchStatusSummary> {
-  const sb = await createServerClient();
-  return safe((async () => {
-    const { data } = await sb.from("delivery_requests")
-      .select("status")
-      .eq("customer_id", userId)
-      .in("status", ["pending", "matched", "collected"])
-      .order("created_at", { ascending: false });
-    const rows = (data ?? []) as { status: string }[];
-    // Surface the most progressed in-flight status first.
-    const order = ["collected", "matched", "pending"];
-    const status = rows.length
-      ? rows.map((r) => r.status).sort((a, b) => order.indexOf(a) - order.indexOf(b))[0]
-      : null;
-    return { status, count: rows.length };
-  })(), { status: null, count: 0 });
-}

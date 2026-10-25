@@ -5,6 +5,7 @@
 import { redirect } from "next/navigation";
 import { getAccount } from "@/lib/auth";
 import { fetchApi } from "@/lib/fetch/transport.server";
+import { headerSummary, type HeaderSummary } from "@/lib/fetch/header";
 import type { RequesterJobData } from "@/components/fetch/v2/RequesterJob";
 import type { DriverJobData } from "@/components/fetch/v2/DriverJob";
 
@@ -32,3 +33,12 @@ export async function loadJob(id: string): Promise<{ viewer: "requester"; data: 
   const hint = detail.data.request.status === "pending" ? await api.headingThatWay(id) : null;
   return { viewer: "requester", data: { ...common, hint: hint?.ok ? hint.data : null } };
 }
+
+/** The header chip's summary of the member's live Fetches (v2), or null. Never throws: the header must always render. */
+export async function getFetchHeaderSummary(): Promise<HeaderSummary> {
+  try {
+    const r = await (await fetchApi()).myRequests();
+    return r.ok ? headerSummary(r.data) : null;
+  } catch { return null; }
+}
+
