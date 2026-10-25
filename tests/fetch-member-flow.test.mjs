@@ -198,3 +198,20 @@ test("after the bank's check the server's state decides — a confirmed hold is 
   assert.equal(bankCheckResult("requires_payment_method", "failed").ok, false);
   assert.equal(bankCheckResult(null, "succeeded").text, "Your bank is still checking. We'll update this page.");
 });
+
+test("a blocking driver problem overrides 'Ready for collection': collection is paused, and collect/arrive are not offered", () => {
+  const j = { status: "matched", payment_status: "authorised", closed_at: null, cancel_requested_at: null };
+  const st = driverStatus(j, "driver_verification_expired");
+  assert.equal(st.label, "Collection is paused");
+  assert.equal(st.tone, "attention");
+  assert.match(st.detail, /payment is confirmed, but you can't collect the item until your driver details are sorted/);
+  assert.ok(!/You can collect/.test(st.detail), "never both 'you can collect' and 'you can't collect'");
+  assert.deepEqual(driverActions(j, NOW, "driver_verification_expired"), ["release", "photos", "message", "report"]);
+  assert.equal(driverStatus(j).label, "Ready for collection", "without a problem nothing changes");
+  assert.equal(driverStatus({ ...j, payment_status: "requires_action" }, "driver_suspended").detail, "You can't collect the item until your driver details are sorted.");
+  assert.ok(driverActions({ ...j, payment_status: "requires_action" }, NOW, "driver_suspended").includes("refresh_payment"));
+  assert.equal(driverStatus({ ...j, cancel_requested_at: at(0) }, "driver_verification_expired").label, "Cancellation asked", "a cancellation still comes first");
+  // Scenario I, as the preview and the job page render it.
+  const i = scenarios(NOW).find((x) => x.key === "i").screens[0];
+  assert.equal(driverStatus(i.detail.request, i.driverProblem).label, "Collection is paused");
+});

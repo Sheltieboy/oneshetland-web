@@ -26,13 +26,13 @@ export function DriverJob({ data }: { data: DriverJobData }) {
   const now = data.now;
   const arrived = r.status === "matched" ? [...data.timeline].reverse().find((e) => e.event === "arrived") : undefined;
   // Arrival is recorded once; after that the waiting notice replaces the button.
-  const actions = driverActions(r, now).filter((a) => !(a === "arrive" && arrived));
+  const actions = driverActions(r, now, data.driverProblem).filter((a) => !(a === "arrive" && arrived));
   const name = r.requester_first_name ?? "The requester";
   const photoKinds: PhotoKind[] = r.status === "matched" ? ["collection"] : r.status === "collected" ? ["delivery", "collection"] : r.status === "undeliverable" ? ["return", "delivery"] : [];
 
   return (
     <div className="space-y-4">
-      <StatusCard status={driverStatus(r)} />
+      <StatusCard status={driverStatus(r, data.driverProblem)} />
       {r.status === "matched" && r.payment_status !== "authorised" && !r.cancel_requested_at && (
         <Notice tone="warn">Waiting for the requester&apos;s payment to be confirmed. Please don&apos;t collect the item until this says it&apos;s ready.</Notice>
       )}
@@ -40,7 +40,7 @@ export function DriverJob({ data }: { data: DriverJobData }) {
         <Notice tone="warn">{name} has asked to cancel{r.cancel_request_reason ? `: “${r.cancel_request_reason}”` : "."} Please agree, or ask to go ahead.</Notice>
       )}
       {data.driverProblem && r.status === "matched" && (
-        <Notice tone="warn">{fetchMessage(data.driverProblem)} You can&apos;t collect the item until this is sorted. <Link href="/fetch/driver/verification" className="font-semibold underline">Your driver details</Link></Notice>
+        <Notice tone="warn">{fetchMessage(data.driverProblem)} <Link href="/fetch/driver/verification" className="font-semibold underline">Your driver details</Link></Notice>
       )}
       {arrived && <Notice>Waiting started {when(arrived.created_at)}. Any waiting charge is calculated automatically.</Notice>}
 
