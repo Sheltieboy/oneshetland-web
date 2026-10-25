@@ -1,31 +1,21 @@
 import Link from "next/link";
-import { getAccount } from "@/lib/auth";
-import { getPaymentState } from "@/lib/payment-state";
-import { createClient } from "@/lib/supabase/server";
-import { FETCH } from "@/lib/fetch-data";
-import { getRegions } from "@/lib/fetch-data.server";
-import { RequestComposer } from "@/components/fetch/RequestComposer";
+import { requireMember } from "@/lib/fetch/load.server";
+import { fetchApi } from "@/lib/fetch/transport.server";
+import { RequestWizard } from "@/components/fetch/v2/RequestWizard";
+import { AdultGate } from "@/components/fetch/v2/AdultGate";
+import { Notice, PageHead, Shell } from "@/components/fetch/v2/ui";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Request a delivery · Fetch" };
+export const metadata = { title: "Ask for a Fetch" };
 
-export default async function NewRequestPage() {
-  const account = await getAccount();
-  let hasCard = false;
-  if (account) {
-    const sb = await createClient();
-    hasCard = (await getPaymentState(sb, account.id)).card_on_file;
-  }
-  const regions = await getRegions();
-  return (
-    <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href="/fetch" className="text-sm font-semibold text-ink-soft hover:text-ink">← Fetch</Link>
-      <div className="mt-4 mb-8">
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: FETCH }}>OneShetland · Fetch</p>
-        <h1 className="mt-1 font-display text-4xl font-bold">Request a delivery</h1>
-        <p className="mt-2 text-lg text-ink-soft">Tell us what to collect and where to bring it. A local driver heading your way will pick it up.</p>
-      </div>
-      <RequestComposer isLoggedIn={!!account} hasCard={hasCard} regions={regions} />
-    </div>
-  );
+export default async function NewFetchPage() {
+  await requireMember("/fetch/new");
+  const api = await fetchApi();
+  const elig = await api.eligibility();
+  const head = <PageHead title="Ask for a Fetch" sub="What needs moving, from where, to where, and when." back={{ href: "/fetch", label: "Fetch" }} />;
+  if (!elig.ok) return <Shell>{head}<Notice tone="error">{elig.message}</Notice></Shell>;
+  if (elig.data.restricted) return <Shell>{head}<Notice tone="warn">Your account can&apos;t post Fetches at the moment. Please <Link href="/support" className="font-semibold underline">contact OneShetland</Link>.</Notice></Shell>;
+  if (!elig.data.adult_confirmed) return <Shell>{head}<AdultGate /></Shell>;
+  const [regions, categories] = await Promise.all([api.regions(), api.categories()]);
+  return <Shell>{head}<RequestWizard regions={regions.ok ? regions.data : []} categories={categories.ok ? categories.data : []} /></Shell>;
 }

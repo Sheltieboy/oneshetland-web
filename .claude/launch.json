@@ -6,6 +6,19 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "fetch-v2-preview",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:9",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY=preview-only-not-a-key",
+        "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=",
+        "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=",
+        "FETCH_PREVIEW=1",
+        "npx", "next", "dev", "-p", "3011"
+      ],
+      "port": 3011
     }
   ]
 }
