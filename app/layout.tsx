@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { getAccount, accountName } from "@/lib/auth";
 import { getFetchStatusSummary } from "@/lib/fetch-data.server";
+import { isFetchAvailable } from "@/lib/fetch-availability.server";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { ChargeApprovalListener } from "@/components/wallet/ChargeApprovalListener";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
@@ -64,7 +65,8 @@ export default async function RootLayout({
   const user = account
     ? { name: accountName(account), avatarUrl: account.profile?.avatar_url ?? null }
     : null;
-  const fetchStatus = account
+  // The header's live delivery chip only while Fetch is available to this visitor (the database's Fetch v2 flag).
+  const fetchStatus = account && (await isFetchAvailable())
     ? { userId: account.id, ...(await getFetchStatusSummary(account.id)) }
     : null;
 

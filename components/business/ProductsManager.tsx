@@ -8,6 +8,7 @@ import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import { PlanNote } from "@/components/business/CapabilityPaywall";
 import { requirePayoutReadyForPaidActivation, startOrResumePayoutSetup, payoutOnboardingErrorNotify, PAYOUT_NOT_READY_PROMPT } from "@/lib/payout-readiness";
 import { fmtDay } from "@/components/business/product-import/shared";
+import { SHOP_FETCH_DELIVERY_OFFERED } from "@/lib/fetch-availability";
 import {
   PRODUCT_CATEGORIES, gbp,
   type Product, type ProductVariant, type BusinessShipping, type StockMode,
@@ -520,10 +521,15 @@ function ShippingCard({ businessId, initial }: { businessId: string; initial: Bu
         </div>
       )}
 
-      <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink">
-        <input type="checkbox" checked={fetchIt} onChange={(e) => setFetchIt(e.target.checked)} /> Fetch delivery 🚗
-      </label>
-      <p className="mt-1 text-xs text-ink-muted">A OneShetland community driver collects the order from you and takes it to the buyer, usually within a day or two. The buyer pays the driver&rsquo;s fee — nothing for you to set up; just have the order ready when a driver&rsquo;s assigned.</p>
+      {/* Fetch delivery is paused while Fetch v2 is built; the saved setting is left as it is, just not offered. */}
+      {SHOP_FETCH_DELIVERY_OFFERED && (
+        <>
+          <label className="mt-4 flex items-center gap-2 text-sm font-semibold text-ink">
+            <input type="checkbox" checked={fetchIt} onChange={(e) => setFetchIt(e.target.checked)} /> Fetch delivery 🚗
+          </label>
+          <p className="mt-1 text-xs text-ink-muted">A OneShetland community driver collects the order from you and takes it to the buyer, usually within a day or two. The buyer pays the driver&rsquo;s fee — nothing for you to set up; just have the order ready when a driver&rsquo;s assigned.</p>
+        </>
+      )}
 
       <div className="mt-3 flex items-center justify-end gap-3">
         {msg && <span className="text-sm font-semibold text-teal-dark" role="status">{msg}</span>}

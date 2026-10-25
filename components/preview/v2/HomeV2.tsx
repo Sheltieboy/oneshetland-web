@@ -5,7 +5,7 @@ import type { ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import type { CruiseHomeCard } from "@/lib/cruise-data";
 import type { GamePrompt } from "@/lib/home-extras";
-import { SECTIONS } from "@/lib/sections";
+import { LISTED_SECTIONS } from "@/lib/sections";
 import { CATEGORY_LABEL } from "@/lib/local-data";
 import { PILLARS, PILLAR_ORDER, density, type Merch, type Pillar } from "@/lib/preview-v2";
 import { CropImg, MerchCard, Rail } from "@/components/preview/v2/Merch";
@@ -332,7 +332,7 @@ export function ExploreV2() {
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
         <h2 className="font-display text-xl font-bold text-ink">Explore OneShetland</h2>
         <div className="mt-3 flex flex-wrap gap-2">
-          {SECTIONS.map((s) => (
+          {LISTED_SECTIONS.map((s) => (
             <Link key={s.key} href={s.href} title={s.blurb} className="inline-flex items-center gap-2 rounded-pill bg-white px-4 py-2 text-sm font-semibold text-ink shadow-soft transition hover:-translate-y-0.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />{s.label}
             </Link>

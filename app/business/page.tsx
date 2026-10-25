@@ -82,13 +82,6 @@ const SHOWCASE: Showcase[] = [
     accent: "#d4921a",
   },
   {
-    title: "Fetch community delivery",
-    benefit: "Let customers get your goods brought to their door the island way, through Fetch.",
-    device: "phone",
-    src: "/business/fetch-phone.png",
-    accent: "#e0722a",
-  },
-  {
     title: "Community hubs",
     benefit: "Clubs, charities and groups get a branded hub — notices, members and fundraising in one place.",
     device: "laptop",

@@ -539,7 +539,7 @@ function StepCard({ state, onNext }: { state: OnboardingState; onNext: () => voi
       </div>
 
       <p className="mt-4 text-ink-soft">
-        One card covers everything across OneShetland — a Fetch delivery, an event ticket, a
+        One card covers everything across OneShetland — an event ticket, a shop order, a
         donation to a hub, a membership. It sits there until you actually buy something.
       </p>
 
@@ -591,8 +591,8 @@ function StepPayouts({ state, onNext }: { state: OnboardingState; onNext: () => 
       </div>
 
       <p className="mt-4 text-ink-soft">
-        Connect a bank account if you&apos;ll be earning through OneShetland — driving for
-        Fetch, selling something, or taking payments for a hub you run. One connection covers
+        Connect a bank account if you&apos;ll be earning through OneShetland — selling
+        something, or taking payments for a hub you run. One connection covers
         everything you get paid for personally.
       </p>
 

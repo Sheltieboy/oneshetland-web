@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { SECTIONS } from "@/lib/sections";
+import { LISTED_SECTIONS } from "@/lib/sections";
 
 export function SiteFooter() {
   return (
@@ -22,7 +22,7 @@ export function SiteFooter() {
           <div>
             <h4 className="eyebrow text-paper/50">Explore</h4>
             <ul className="mt-3 space-y-2">
-              {SECTIONS.slice(0, 5).map((s) => (
+              {LISTED_SECTIONS.slice(0, 5).map((s) => (
                 <li key={s.key}>
                   <Link href={s.href} className="text-paper/80 hover:text-paper">
                     {s.label}
@@ -35,7 +35,7 @@ export function SiteFooter() {
           <div>
             <h4 className="eyebrow text-paper/50">More</h4>
             <ul className="mt-3 space-y-2">
-              {SECTIONS.slice(5).map((s) => (
+              {LISTED_SECTIONS.slice(5).map((s) => (
                 <li key={s.key}>
                   <Link href={s.href} className="text-paper/80 hover:text-paper">
                     {s.label}

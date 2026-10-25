@@ -48,7 +48,7 @@ export default async function PaymentsPage() {
           <span className="rounded-pill px-3 py-1 text-sm font-semibold" style={hasCard ? { background: "#DCFCE7", color: "#065F46" } : { background: "#FEF3C7", color: "#92400E" }}>{hasCard ? "On file ✓" : cardState === "unknown" ? "Couldn\u2019t check" : "Not set up"}</span>
         </div>
         {hasCard && <p className="mt-1 text-sm font-semibold text-ink">{formatCardLabel(cardBrand, cardLast4)}</p>}
-        <p className="mt-1 text-sm text-ink-muted">Used for Fetch deliveries, event tickets, hub donations and memberships. Stored securely by Stripe and only charged when you pay for something.</p>
+        <p className="mt-1 text-sm text-ink-muted">Used for event tickets, shop orders, hub donations and memberships. Stored securely by Stripe and only charged when you pay for something.</p>
         <div className="mt-4"><CardSetup accent={NAVY} hasCard={hasCard} fundsSubscription={fundsSubscription} /></div>
       </section>
 
@@ -58,7 +58,7 @@ export default async function PaymentsPage() {
           <h2 className="font-display text-xl font-bold text-ink">Payouts (bank account)</h2>
           <span className="rounded-pill px-3 py-1 text-sm font-semibold" style={payoutsConnected ? { background: "#DCFCE7", color: "#065F46" } : { background: "#FEF3C7", color: "#92400E" }}>{payoutsConnected ? "Connected ✓" : payoutsPending ? "Verifying…" : "Not connected"}</span>
         </div>
-        <p className="mt-1 text-sm text-ink-muted">Connect a bank account to receive money you&apos;re owed — for example Fetch driving earnings. One connection covers everything you get paid for personally.</p>
+        <p className="mt-1 text-sm text-ink-muted">Connect a bank account to receive money you&apos;re owed — for example from selling or a hub you run. One connection covers everything you get paid for personally.</p>
         <div className="mt-4"><ConnectPayoutsButton accent={NAVY} connected={payoutsConnected} pending={payoutsPending} /></div>
       </section>
 

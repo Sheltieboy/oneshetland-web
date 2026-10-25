@@ -5,7 +5,7 @@ import { offerBadge, formatEventDate, formatEventTime, type HomeEvent, type Home
 import type { HomeShelves, ShelfProduct } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import { CATEGORY_LABEL } from "@/lib/local-data";
-import { SECTIONS } from "@/lib/sections";
+import { LISTED_SECTIONS } from "@/lib/sections";
 import { tierUnlocks } from "@/lib/listing-tiers";
 import type { GamePrompt } from "@/lib/home-extras";
 import { IslandCards } from "@/components/home/Shelves";
@@ -258,7 +258,7 @@ export function IslandAndCommunity({
 const ALREADY_ON_PAGE = new Set(["whats-on", "directory", "jobs"]);
 
 export function ExploreMore() {
-  const items = SECTIONS.filter((s) => !ALREADY_ON_PAGE.has(s.key));
+  const items = LISTED_SECTIONS.filter((s) => !ALREADY_ON_PAGE.has(s.key));
   return (
     <section className="mx-auto max-w-6xl px-5 pb-16 pt-12 sm:pb-20">
       <h2 className="font-display text-xl font-bold text-ink">More from OneShetland</h2>

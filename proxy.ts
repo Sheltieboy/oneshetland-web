@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { inviteHandoff } from "./lib/launch-preview/invite.ts";
+import { isFetchPath, fetchEnabledFor, FETCH_UNAVAILABLE_PATH } from "./lib/fetch-availability.ts";
 
 /**
  * Next 16 "proxy" (formerly middleware): keeps the Supabase auth session fresh
@@ -50,6 +51,17 @@ export async function proxy(request: NextRequest) {
 
   // Touch the user to trigger a token refresh if needed.
   await supabase.auth.getUser();
+
+  // Fetch is paused while Fetch v2 is built. Every /fetch route is answered by the coming-soon page unless the DATABASE's Fetch v2
+  // flag admits this visitor (fetch_v2_enabled: off / admins / testers / everyone). Fails closed — an error, or a database without
+  // the flag yet, means the coming-soon page. The real pages never render, so none of their loaders run.
+  if (isFetchPath(request.nextUrl.pathname) && !(await fetchEnabledFor(supabase))) {
+    const gated = NextResponse.rewrite(new URL(FETCH_UNAVAILABLE_PATH, request.url));
+    response.cookies.getAll().forEach((c) => gated.cookies.set(c));
+    gated.headers.set("Cache-Control", "private, no-store");
+    gated.headers.set("X-Robots-Tag", "noindex");
+    return gated;
+  }
 
   return response;
 }

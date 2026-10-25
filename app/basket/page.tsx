@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getBasket, setLineQty, clearBasket, basketItemsPence, subscribeBasket, type Basket } from "@/lib/basket";
 import { gbp, shippingQuote, type BusinessShipping } from "@/lib/shop-data";
+import { SHOP_FETCH_DELIVERY_OFFERED } from "@/lib/fetch-availability";
 import { PaymentCheckout } from "@/components/payments/PaymentCheckout";
 import { fetchCardOnFile } from "@/lib/payment-state";
 import { createAttemptHolder, isFinalRefusal } from "@/lib/checkout-attempt";
@@ -104,7 +105,7 @@ export default function BasketPage() {
   const allFreeUk = basket.lines.every((l) => l.free_uk_post);
   const collectOk = ship?.collect_enabled ?? true;
   const postOk = !!ship?.post_enabled && !anyCollectOnly;
-  const fetchOk = !!ship?.fetch_enabled; // local hand-to-hand — collect-only items are fine
+  const fetchOk = SHOP_FETCH_DELIVERY_OFFERED && !!ship?.fetch_enabled; // local hand-to-hand — collect-only items are fine
   const effFulfilment = fulfilment === "post" && postOk ? "post" : fulfilment === "fetch" && fetchOk ? "fetch" : "collect";
   const quote = effFulfilment === "post" ? (shippingQuote(ship, itemsPence, totalQty, postcode || "XX", allFreeUk) ?? 0) : 0;
   const total = itemsPence + quote;

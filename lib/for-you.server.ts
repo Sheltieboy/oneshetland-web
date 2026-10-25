@@ -24,6 +24,7 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { levelFromXp } from "@/lib/games-data";
 import { OWNED_TICKET_STATUSES } from "@/lib/event-ticket-utils";
+import { isFetchAvailable } from "@/lib/fetch-availability.server";
 
 export type ForYouKind =
   | "fetch"
@@ -116,7 +117,8 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
     gameItems,
     hubItems,
   ] = await Promise.all([
-    safe(fetchDeliveries(sb, userId)),
+    // Deliveries in flight link into /fetch, so they show only while Fetch is available to this visitor.
+    safe(isFetchAvailable().then((on) => (on ? fetchDeliveries(sb, userId) : []))),
     safe(fetchBookings(sb, userId)),
     safe(fetchGiftsToBook(sb, userId)),
     safe(fetchTickets(sb, userId)),

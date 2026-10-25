@@ -118,17 +118,25 @@ export const SECTIONS: Section[] = [
   },
 ];
 
+/** Sections that exist but are not linked anywhere (nav, footer, home grid). Fetch is paused while Fetch v2 is built: its
+ *  routes answer with a coming-soon page unless the database's Fetch v2 flag admits the visitor (see proxy.ts and
+ *  lib/fetch-availability.ts). Linking it again is a decision for when Fetch v2 is enabled for everyone. */
+export const UNLISTED_SECTION_KEYS: ReadonlySet<string> = new Set(["fetch"]);
+
+/** Every section that is linked from the site's navigation surfaces. */
+export const LISTED_SECTIONS: Section[] = SECTIONS.filter((s) => !UNLISTED_SECTION_KEYS.has(s.key));
+
 /** The handful shown directly in the top navigation bar, in display order.
  *  (Home is the wordmark; Profile lives in the header user menu.) */
 const PRIMARY_NAV_ORDER = ["whats-on", "local", "shop", "games", "cruise", "jobs", "directory", "hubs"];
 export const PRIMARY_NAV = PRIMARY_NAV_ORDER
-  .map((k) => SECTIONS.find((s) => s.key === k))
+  .map((k) => LISTED_SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
 
 /** Secondary sections tucked behind the "More" menu in the header. */
 const MORE_NAV_ORDER = ["get-it-done", "spik", "boats", "memories", "fetch"];
 export const MORE_NAV = MORE_NAV_ORDER
-  .map((k) => SECTIONS.find((s) => s.key === k))
+  .map((k) => LISTED_SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
 
 /** Hero photo per section (in /public/heroes). Sections without one use the
