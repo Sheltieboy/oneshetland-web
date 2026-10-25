@@ -81,16 +81,6 @@ async function attachProfiles<T extends Record<string, unknown>>(rows: T[], idKe
 
 /* ── Driver approvals ────────────────────────────────────────────────────── */
 
-export async function getPendingDrivers() {
-  return safe((async () => {
-    const sb = await createServerClient();
-    const { data } = await sb.from("driver_profiles")
-      .select("id, vehicle_type, vehicle_reg, notes, created_at, driver_status")
-      .eq("driver_status", "pending").order("created_at", { ascending: true });
-    return attachProfiles(data ?? [], "id");
-  })(), [] as Record<string, unknown>[]);
-}
-
 /* ── Event approvals ─────────────────────────────────────────────────────── */
 
 export async function getPendingEvents() {

@@ -10,7 +10,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/launch-testing", label: "Launch testing" },
   ] },
   { group: "Fetch", items: [
-    { href: "/admin/drivers", label: "Driver approvals", badgeKey: "pendingDrivers" },
+    { href: "/admin/fetch", label: "Fetch operations", badgeKey: "pendingDrivers" },
     { href: "/admin/operations", label: "Operations" },
     { href: "/admin/payments", label: "Payments" },
   ] },

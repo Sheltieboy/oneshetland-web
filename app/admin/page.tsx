@@ -5,7 +5,7 @@ import { AdminHeader, StatCard } from "@/components/admin/AdminUI";
 export const dynamic = "force-dynamic";
 
 const QUEUES = [
-  { href: "/admin/drivers", label: "Driver approvals", key: "pendingDrivers", desc: "Review pending driver applications" },
+  { href: "/admin/fetch", label: "Fetch operations", key: "pendingDrivers", desc: "Fetch jobs, payments, issues and driver verification" },
   { href: "/admin/events", label: "Event approvals", key: "pendingEvents", desc: "Approve hub events for the islands calendar" },
   { href: "/admin/claims", label: "Business claims", key: "pendingClaims", desc: "Verify directory ownership claims" },
   { href: "/admin/nfc", label: "NFC tiles", key: "nfcToPost", desc: "Tap-to-stamp tiles waiting to be posted" },
