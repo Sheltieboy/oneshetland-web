@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { messagesAction, paymentAction, photoBeginAction, photoSubmitAction, photoViewAction, reportProblemAction, sendMessageAction, setItemPhotoAction } from "@/app/fetch/actions";
 import type { IssueKind, Message, Photo, PhotoKind } from "@/lib/fetch-api";
-import { ISSUE_KINDS, when } from "@/lib/fetch/present";
+import { ISSUE_KINDS, bankCheckResult, when } from "@/lib/fetch/present";
 import { newKey } from "@/lib/fetch/flow";
 import { settleSavedCardPayment } from "@/lib/stripe-sca";
 import { uploadOne } from "@/components/fetch/v2/upload";
@@ -201,12 +201,10 @@ export function PaymentConfirm({ requestId, paymentStatus }: { requestId: string
     if (r.data.payment === "authorised") { setBusy(false); setMsg({ ok: true, text: "Payment authorisation confirmed." }); router.refresh(); return; }
     if (!r.data.client_secret) { setBusy(false); setMsg({ ok: false, text: "Your bank's check isn't available just now. Please try again." }); return; }
     const out = await settleSavedCardPayment({ status: "requires_action", clientSecret: r.data.client_secret });
-    await paymentAction(requestId, "refresh").catch(() => null);
+    // The server's refreshed state decides (a successful check on a hold is requires_capture, not "succeeded").
+    const after = await paymentAction(requestId, "refresh").catch(() => null);
     setBusy(false);
-    setMsg(out.outcome === "succeeded" ? { ok: true, text: "Payment authorisation confirmed." }
-      : out.outcome === "cancelled" ? { ok: false, text: "You closed your bank's check. Nothing has been taken — you can try again." }
-      : out.outcome === "pending" ? { ok: true, text: "Your bank is still checking. We'll update this page." }
-      : { ok: false, text: "Your bank didn't confirm it. Please try again, or update your card in your payments." });
+    setMsg(bankCheckResult(after?.ok ? after.data.payment : null, out.outcome));
     router.refresh();
   }
   return (

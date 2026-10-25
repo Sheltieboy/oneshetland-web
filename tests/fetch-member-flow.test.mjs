@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { STEPS, createInput, driverActions, newKey, photoProblem, requesterActions, stepProblems } from "../lib/fetch/flow.ts";
-import { ISSUE_KINDS, SIZE, TIMING, boardWhen, driverStatus, evidenceState, matchLabel, moneyLines, pounds, requesterStatus, timelineFor } from "../lib/fetch/present.ts";
+import { ISSUE_KINDS, SIZE, TIMING, bankCheckResult, boardWhen, driverStatus, evidenceState, matchLabel, moneyLines, pounds, requesterStatus, timelineFor } from "../lib/fetch/present.ts";
 import { QUOTE_PARCEL, QUOTE_SOFA, RUN_SATURDAY, VERIFICATION, scenarios } from "../lib/fetch/scenarios.ts";
 
 const NOW = Date.parse("2026-10-21T12:00:00Z"); // a Wednesday
@@ -189,4 +189,12 @@ test("scenarios A–J are all present and every screen's words are human", () =>
       assert.ok(st.label !== "—" && !RAW.test(st.label + st.detail), `${s.key}: ${st.label}`);
     }
   }
+});
+
+test("after the bank's check the server's state decides — a confirmed hold is never reported as closed or failed", () => {
+  // Stripe leaves a successful hold at requires_capture, which the generic helper calls "cancelled"; the server says authorised.
+  assert.deepEqual(bankCheckResult("authorised", "cancelled"), { ok: true, text: "Payment authorisation confirmed." });
+  assert.equal(bankCheckResult("requires_action", "cancelled").text, "You closed your bank's check. Nothing has been taken — you can try again.");
+  assert.equal(bankCheckResult("requires_payment_method", "failed").ok, false);
+  assert.equal(bankCheckResult(null, "succeeded").text, "Your bank is still checking. We'll update this page.");
 });

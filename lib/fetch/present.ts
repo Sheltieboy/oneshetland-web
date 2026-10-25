@@ -167,3 +167,15 @@ export function matchLabel(item: Pick<BoardItem, "match" | "fits_run_id">, runs:
   if (item.match === "beyond_vehicle") return "Too large for your vehicle";
   return null;
 }
+
+/**
+ * After the bank's check (3D Secure), what to tell the requester. The server's refreshed payment state decides: a Fetch payment is a
+ * hold, so a successful check leaves Stripe at requires_capture, which the generic saved-card helper does not count as success.
+ */
+export function bankCheckResult(serverPayment: string | null, sdk: "succeeded" | "pending" | "cancelled" | "failed"): { ok: boolean; text: string } {
+  if (serverPayment === "authorised") return { ok: true, text: "Payment authorisation confirmed." };
+  if (serverPayment === "requires_payment_method") return { ok: false, text: "Your bank didn't confirm it. Please update your card in your payments." };
+  if (serverPayment === "requires_action" && sdk === "cancelled") return { ok: false, text: "You closed your bank's check. Nothing has been taken — you can try again." };
+  if (serverPayment === "requires_action") return { ok: false, text: "Your bank didn't confirm it. Please try again." };
+  return { ok: true, text: "Your bank is still checking. We'll update this page." };
+}
