@@ -13,13 +13,13 @@ import { filterCount } from "@/lib/job-filters";
  */
 export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets: Facets; filters: JobFilters; accent: string; clearHref: string }) {
   const [open, setOpen] = useState(false);
-  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   // The page header uses backdrop-blur, which makes `position: fixed` children anchor to the header instead of the screen —
   // so the panel is rendered in a portal on <body>, and on desktop positioned under the button from its measured rect.
   const show = () => {
     const r = btn.current?.getBoundingClientRect();
-    setAnchor(r && window.innerWidth >= 768 ? { top: r.bottom + 8, right: Math.max(12, window.innerWidth - r.right) } : null);
+    setAnchor(r && window.innerWidth >= 768 ? { top: r.bottom + 8, left: Math.max(12, Math.min(r.left, window.innerWidth - 416 - 12)) } : null);   // 26rem wide, kept on screen
     setOpen(true);
   };
   const n = filterCount(filters);
@@ -65,7 +65,7 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
             role="dialog"
             aria-label="Filter jobs"
             data-testid="filters-panel"
-            style={{ ["--jobs-accent" as string]: accent, ...(anchor ? { top: anchor.top, right: anchor.right } : {}) }}
+            style={{ ["--jobs-accent" as string]: accent, ...(anchor ? { top: anchor.top, left: anchor.left } : {}) }}
             className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-paper p-5 shadow-lift md:inset-x-auto md:bottom-auto md:max-h-[70vh] md:w-[26rem] md:rounded-2xl"
           >
             {filters.q && <input type="hidden" name="q" value={filters.q} />}
