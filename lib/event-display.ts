@@ -122,6 +122,8 @@ export function whenText(e: { starts_at: string; ends_at?: string | null }, now:
 
 /** How many events the homepage mosaic shows: 1 hero + 1 medium + 2 small, then a row of 3. */
 export const HOME_MOSAIC_COUNT = 7;
+/** The OneShetland image used when an event has no cover of its own (the homepage has always used this). */
+export const HOME_FALLBACK_IMAGE = "/preview-v2/concert.jpg";
 export type HomeSlot = "hero" | "medium" | "small" | "tile";
 const SLOTS: HomeSlot[] = ["hero", "medium", "small", "small", "tile", "tile", "tile"];
 
@@ -131,9 +133,12 @@ export type HomeCard = {
   /** 1-based position in the mosaic, in the order the events arrived (chronological; nothing is re-ranked for its picture). */
   position: number;
   slot: HomeSlot;
-  /** true: draw the event's own cover as the card background. false: the text-only fallback (the event has no cover). */
-  photo: boolean;
+  /** The event's own cover, or null when it has none. */
   cover: string | null;
+  /** What the card draws: the event's own cover, else the OneShetland fallback image. Every card is image-backed. */
+  image: string;
+  /** true when `image` is the fallback because the event has no cover. */
+  usesFallback: boolean;
   /** "Fri 30 Oct", or "Happening now" for an event in progress. */
   badge: string;
   /** "19:30 · Mareel", or "Until 17:00 · Mareel" for an event in progress. */
@@ -151,7 +156,8 @@ const dateBadge = (iso: string): string =>
 /**
  * Which card each homepage event gets. Pure, so the layout rules are testable without rendering:
  *   · the events are taken in the order given (the page's own query already sorted them) — never re-ordered for a better picture;
- *   · EVERY card with a cover uses it, whatever its size; an event with no cover gets the text-only fallback;
+ *   · EVERY card with a cover uses it, whatever its size; an event with no cover uses the OneShetland fallback image (as it always
+ *     has) — the coloured text card is only the last resort, if that image itself cannot load (see HomeCardImage);
  *   · an event that is in progress (started today, finishing today) says "Happening now" and "Until HH:MM" rather than a stale time.
  */
 export function homeMosaicPlan(
@@ -164,7 +170,7 @@ export function homeMosaicPlan(
     const venue = e.venue?.trim() || null;
     const time = live ? untilLabel(e, now) : timeOnly(e.starts_at);
     return {
-      id: e.id, title: e.title, position: i + 1, slot: SLOTS[i], photo: !!cover, cover,
+      id: e.id, title: e.title, position: i + 1, slot: SLOTS[i], cover, image: cover ?? HOME_FALLBACK_IMAGE, usesFallback: !cover,
       badge: live ? "Happening now" : dateBadge(e.starts_at),
       line: [time, venue].filter(Boolean).join(" · "), venue, live,
       day: londonDayNumber(e.starts_at), month: londonMonthShort(e.starts_at), price: e.price_text?.trim() || null,

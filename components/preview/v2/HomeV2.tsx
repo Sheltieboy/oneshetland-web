@@ -5,7 +5,8 @@ import type { ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import type { CruiseHomeCard } from "@/lib/cruise-data";
 import type { GamePrompt } from "@/lib/home-extras";
-import { homeMosaicPlan, type HomeCard } from "@/lib/event-display";
+import { homeMosaicPlan, HOME_FALLBACK_IMAGE, type HomeCard } from "@/lib/event-display";
+import { HomeCardImage } from "@/components/preview/v2/HomeCardImage";
 import { SECTIONS } from "@/lib/sections";
 import { CATEGORY_LABEL } from "@/lib/local-data";
 import { PILLARS, PILLAR_ORDER, density, type Merch, type Pillar } from "@/lib/preview-v2";
@@ -63,11 +64,12 @@ const FOCUS = "outline-none focus-visible:ring-4 focus-visible:ring-amber-400 fo
 type Kind = "hero" | "medium" | "small" | "tile" | "rail";
 
 /**
- * One homepage event card. An event WITH a cover always draws it as the card background under the OneShetland dark gradient,
- * whatever the card's size; the coloured numeral card is only the fallback for an event that has no cover at all.
- * Position-based styling (hero / medium / small / tile / rail) changes size and type scale, never whether the picture is used.
+ * One homepage event card. EVERY card is image-backed: the event's own cover when it has one, otherwise the OneShetland fallback
+ * image (the same one the homepage has always used for an event without a cover). Position-based styling (hero / medium / small /
+ * tile / rail) changes size and type scale, never whether a picture is used. The coloured numeral card only appears as a last
+ * resort, if even the fallback image fails to load (see HomeCardImage).
  */
-function EventCard({ c, kind, tone = "amber" }: { c: HomeCard; kind: Kind; tone?: "amber" | "white" }) {
+function EventCard({ c, kind }: { c: HomeCard; kind: Kind }) {
   const base = `group relative isolate flex overflow-hidden rounded-3xl transition ${FOCUS} `;
   const size: Record<Kind, string> = {
     hero: "min-h-[340px] shadow-lift lg:col-span-7 lg:row-span-2 lg:min-h-[560px]",
@@ -76,47 +78,32 @@ function EventCard({ c, kind, tone = "amber" }: { c: HomeCard; kind: Kind; tone?
     tile: "min-h-[220px] shadow-soft hover:-translate-y-0.5 hover:shadow-lift lg:min-h-[240px]",
     rail: "min-h-[200px] shadow-soft",
   };
-  if (c.photo) {
-    const grad = kind === "medium" ? "bg-gradient-to-r from-black/80 via-black/40 to-transparent" : kind === "hero" ? "bg-gradient-to-t from-black/85 via-black/30 to-black/10" : "bg-gradient-to-t from-black/85 via-black/35 to-black/5";
-    return (
-      <Link href={`/whats-on/${c.id}`} className={base + size[kind]}>
-        <CropImg src={c.cover!} fallback="/preview-v2/concert.jpg" className="absolute inset-0 -z-10" />
-        <div className={`absolute inset-0 -z-10 ${grad}`} />
-        {kind === "hero" ? (
-          <div className="mt-auto w-full p-6 text-white sm:p-9">
-            <span className="inline-flex items-center gap-2 rounded-pill bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wide" style={{ color: EVENTS }}>
-              <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: EVENTS }} /> {c.badge}
-            </span>
-            <h3 className="mt-4 max-w-2xl font-display text-4xl font-bold leading-[1.02] [text-shadow:_0_2px_18px_rgb(0_0_0_/_55%)] sm:text-6xl">{c.title}</h3>
-            <p className="mt-3 text-base font-medium text-white/90 sm:text-lg">{c.line}{c.price ? ` · ${c.price}` : ""}</p>
-          </div>
-        ) : (
-          <div className="mt-auto w-full min-w-0 p-4 text-white sm:p-5">
-            <span className="text-xs font-black uppercase tracking-wider text-amber-300">{c.badge}</span>
-            <p className={"mt-1 line-clamp-2 font-display font-bold leading-tight [text-shadow:_0_1px_10px_rgb(0_0_0_/_55%)] " + (kind === "medium" ? "max-w-xs text-2xl" : kind === "tile" ? "text-xl" : "text-lg")}>{c.title}</p>
-            <p className="mt-1 truncate text-sm text-white/85">{c.line}</p>
-          </div>
-        )}
-      </Link>
-    );
-  }
-  // No cover: the existing coloured numeral card.
-  const amber = tone === "amber" || kind === "hero" || kind === "medium";
+  const grad = kind === "medium" ? "bg-gradient-to-r from-black/80 via-black/40 to-transparent" : kind === "hero" ? "bg-gradient-to-t from-black/85 via-black/30 to-black/10" : "bg-gradient-to-t from-black/85 via-black/35 to-black/5";
+  const backdrop = (
+    <div className="absolute inset-0 -z-10 p-5 text-white sm:p-7" style={{ background: `linear-gradient(150deg, ${EVENTS}, #92400e)` }}>
+      <span className={"font-display font-black leading-none " + (kind === "hero" ? "text-8xl" : kind === "medium" ? "text-5xl" : "text-6xl")}>
+        {c.day}<span className={"ml-2 font-bold uppercase opacity-80 " + (kind === "hero" ? "text-3xl" : "text-xl")}>{c.month}</span>
+      </span>
+    </div>
+  );
   return (
-    <Link
-      href={`/whats-on/${c.id}`}
-      className={base + size[kind] + (amber ? " text-white" : " border border-line bg-white")}
-      style={amber ? { background: `linear-gradient(150deg, ${EVENTS}, #92400e)` } : undefined}
-    >
-      <div className={"flex w-full min-w-0 flex-col justify-between " + (kind === "hero" ? "p-6 sm:p-9" : "p-5")}>
-        <span className={"font-display font-black leading-none " + (kind === "hero" ? "text-8xl" : kind === "medium" ? "text-5xl" : "text-6xl")} style={amber ? undefined : { color: EVENTS }}>
-          {c.day}<span className={"ml-2 font-bold uppercase " + (kind === "hero" ? "text-3xl" : "text-xl") + (amber ? " opacity-80" : " text-ink-muted")}>{c.month}</span>
-        </span>
-        <span className="mt-6 block min-w-0">
-          <span className={"block font-display font-bold leading-tight " + (kind === "hero" ? "line-clamp-3 text-4xl sm:text-6xl" : kind === "medium" ? "line-clamp-2 text-2xl" : "line-clamp-2 text-xl") + (amber ? "" : " text-ink")}>{c.title}</span>
-          <span className={"mt-1 block truncate text-sm font-medium " + (amber ? "text-white/85" : "text-ink-muted")}>{c.live ? `${c.badge} · ` : ""}{c.line}</span>
-        </span>
-      </div>
+    <Link href={`/whats-on/${c.id}`} className={base + size[kind]}>
+      <HomeCardImage src={c.image} fallbackSrc={HOME_FALLBACK_IMAGE} overlay={grad} backdrop={backdrop} />
+      {kind === "hero" ? (
+        <div className="mt-auto w-full p-6 text-white sm:p-9">
+          <span className="inline-flex items-center gap-2 rounded-pill bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wide" style={{ color: EVENTS }}>
+            <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: EVENTS }} /> {c.badge}
+          </span>
+          <h3 className="mt-4 max-w-2xl font-display text-4xl font-bold leading-[1.02] [text-shadow:_0_2px_18px_rgb(0_0_0_/_55%)] sm:text-6xl">{c.title}</h3>
+          <p className="mt-3 text-base font-medium text-white/90 sm:text-lg">{c.line}{c.price ? ` · ${c.price}` : ""}</p>
+        </div>
+      ) : (
+        <div className="mt-auto w-full min-w-0 p-4 text-white sm:p-5">
+          <span className="text-xs font-black uppercase tracking-wider text-amber-300">{c.badge}</span>
+          <p className={"mt-1 line-clamp-2 font-display font-bold leading-tight [text-shadow:_0_1px_10px_rgb(0_0_0_/_55%)] " + (kind === "medium" ? "max-w-xs text-2xl" : kind === "tile" ? "text-xl" : "text-lg")}>{c.title}</p>
+          <p className="mt-1 truncate text-sm text-white/85">{c.line}</p>
+        </div>
+      )}
     </Link>
   );
 }
@@ -127,7 +114,6 @@ export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEve
   const cards = homeMosaicPlan(events, new Date());
   const [c0, c1, c2, c3, ...tiles] = cards;
   if (!c0 && !showCruise) return null;
-  const tone = (c: HomeCard) => (c.position % 2 === 1 ? "amber" : "white");
   return (
     <Band>
       <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={{ label: "Full calendar", href: "/whats-on" }} />
@@ -141,7 +127,7 @@ export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEve
             <ul aria-label="More events" className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {cards.slice(1).map((c) => (
                 <li key={c.id} className="flex w-[72vw] max-w-[300px] shrink-0 snap-start flex-col">
-                  <EventCard c={c} kind="rail" tone={tone(c)} />
+                  <EventCard c={c} kind="rail" />
                 </li>
               ))}
             </ul>
@@ -152,15 +138,15 @@ export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEve
 
         {(c2 || c3) && (
           <div className="hidden gap-4 lg:col-span-5 lg:grid lg:grid-cols-2">
-            {c2 && <EventCard c={c2} kind="small" tone={tone(c2)} />}
-            {c3 ? <EventCard c={c3} kind="small" tone={tone(c3)} /> : !showCruise && lead ? <MerchCard m={lead} fill /> : null}
+            {c2 && <EventCard c={c2} kind="small" />}
+            {c3 ? <EventCard c={c3} kind="small" /> : !showCruise && lead ? <MerchCard m={lead} fill /> : null}
           </div>
         )}
       </div>
 
       {tiles.length > 0 && (
         <div className={`mt-4 hidden gap-4 lg:grid ${TILE_COLS[tiles.length] ?? "lg:grid-cols-3"}`}>
-          {tiles.map((c) => <EventCard key={c.id} c={c} kind="tile" tone={tone(c)} />)}
+          {tiles.map((c) => <EventCard key={c.id} c={c} kind="tile" />)}
         </div>
       )}
 

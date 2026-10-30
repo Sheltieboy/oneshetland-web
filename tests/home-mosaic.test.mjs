@@ -12,7 +12,7 @@ import { test, describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { setDb, setViewer } from "./support/fake-supabase.mjs";
-import { homeMosaicPlan, HOME_MOSAIC_COUNT } from "../lib/event-display.ts";
+import { homeMosaicPlan, HOME_MOSAIC_COUNT, HOME_FALLBACK_IMAGE } from "../lib/event-display.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const NOW = Date.parse("2026-12-05T12:00:00Z");
@@ -74,31 +74,35 @@ describe("selection: seven events, existing freshness rules intact", () => {
   });
 });
 
-describe("cards: every event with a cover uses it; no cover -> text fallback", () => {
+describe("cards: a cover when there is one, otherwise the OneShetland fallback image; text card only as a last resort", () => {
   const plan = () => homeMosaicPlan(ELIGIBLE.slice().sort((a, b) => a.starts_at.localeCompare(b.starts_at)), NOW);
+  test("the fallback is the same image the homepage has always used", () => assert.equal(HOME_FALLBACK_IMAGE, "/preview-v2/concert.jpg"));
   test("seven cards in the order given, with the hero / medium / small / small / tile x3 structure", () => {
     const p = plan(); assert.equal(p.length, 7);
     assert.deepEqual(p.map((c) => c.slot), ["hero", "medium", "small", "small", "tile", "tile", "tile"]);
     assert.deepEqual(p.map((c) => c.position), [1, 2, 3, 4, 5, 6, 7]);
   });
-  test("4. every card that has a cover is a photo card using that exact cover", () => {
-    for (const c of plan()) { if (c.cover) { assert.equal(c.photo, true); assert.match(c.cover, /^https:\/\/example\.invalid\/event-media\//); } }
+  test("4. every card that has a cover draws exactly that cover", () => {
+    for (const c of plan()) if (c.cover) { assert.equal(c.image, c.cover); assert.equal(c.usesFallback, false); assert.match(c.image, /^https:\/\/example\.invalid\/event-media\//); }
   });
-  test("5. position 3 uses its image", () => { const c = plan()[2]; assert.equal(c.photo, c.cover !== null); });
-  test("5b/6. positions 3 and 4 are image cards when their events have covers (they used to be text-only by position)", () => {
-    const withCovers = homeMosaicPlan([ELIGIBLE[0], ELIGIBLE[1], ELIGIBLE[3], ELIGIBLE[4]], NOW);   // all four have covers
-    assert.equal(withCovers[2].slot, "small"); assert.equal(withCovers[2].photo, true); assert.equal(withCovers[2].cover, ELIGIBLE[3].cover_url);
-    assert.equal(withCovers[3].slot, "small"); assert.equal(withCovers[3].photo, true); assert.equal(withCovers[3].cover, ELIGIBLE[4].cover_url);
+  test("5/6. positions 3 and 4 draw their own covers (they used to be text-only by position)", () => {
+    const four = homeMosaicPlan([ELIGIBLE[0], ELIGIBLE[1], ELIGIBLE[3], ELIGIBLE[4]], NOW);
+    assert.equal(four[2].slot, "small"); assert.equal(four[2].image, ELIGIBLE[3].cover_url);
+    assert.equal(four[3].slot, "small"); assert.equal(four[3].image, ELIGIBLE[4].cover_url);
   });
-  test("7. positions 5-7 use their images where available", () => {
+  test("7. positions 5-7 draw their covers where available", () => {
     const p = homeMosaicPlan(ELIGIBLE.filter((e) => e.cover_url).slice(0, 7), NOW);
-    for (const c of p.slice(4)) { assert.equal(c.slot, "tile"); assert.equal(c.photo, true); assert.ok(c.cover); }
+    for (const c of p.slice(4)) { assert.equal(c.slot, "tile"); assert.equal(c.image, c.cover); }
   });
-  test("8. an event with no cover gets the text-only fallback (and only that event does)", () => {
+  test("8. an event with no cover uses the OneShetland fallback image, NOT a text-only card (and no other event does)", () => {
     const p = plan(); const none = p.find((c) => c.title === "No Cover Comedy");
-    assert.equal(none.photo, false); assert.equal(none.cover, null);
-    assert.equal(p.filter((c) => !c.photo).length, 1);
-    assert.equal(homeMosaicPlan([{ id: "x", title: "Blank", starts_at: day(6), cover_url: "   " }], NOW)[0].photo, false, "a blank cover is no cover");
+    assert.equal(none.cover, null); assert.equal(none.image, HOME_FALLBACK_IMAGE); assert.equal(none.usesFallback, true);
+    assert.equal(p.filter((c) => c.usesFallback).length, 1);
+    assert.equal(homeMosaicPlan([{ id: "x", title: "Blank", starts_at: day(6), cover_url: "   " }], NOW)[0].image, HOME_FALLBACK_IMAGE, "a blank cover is no cover");
+  });
+  test("Gary Meikle's case: a no-cover event in the large HERO position gets the fallback image too", () => {
+    const hero = homeMosaicPlan([{ id: "g", title: "Gary Meikle: Yer Maw", starts_at: day(5, 19), cover_url: null }, ...ELIGIBLE.slice(1, 4)], NOW)[0];
+    assert.equal(hero.slot, "hero"); assert.equal(hero.image, HOME_FALLBACK_IMAGE); assert.equal(hero.usesFallback, true);
   });
   test("an event in progress says so; an upcoming one shows its Shetland date and time", () => {
     const p = plan();
@@ -115,12 +119,19 @@ describe("cards: every event with a cover uses it; no cover -> text fallback", (
 
 describe("component wiring", () => {
   const s = read("components/preview/v2/HomeV2.tsx");
-  test("the section builds its cards from the shared plan and uses the cover for every card with one", () => {
+  test("the section builds its cards from the shared plan; every card is image-backed through HomeCardImage", () => {
     assert.match(s, /homeMosaicPlan\(events, new Date\(\)\)/);
-    assert.match(s, /if \(c\.photo\)/); assert.match(s, /<CropImg src=\{c\.cover!\}/);
+    assert.match(s, /<HomeCardImage src=\{c\.image\} fallbackSrc=\{HOME_FALLBACK_IMAGE\}/);
+    assert.doesNotMatch(s, /if \(c\.photo\)|c\.photo/, "no card is text-only because of its position");
   });
-  test("small cards 3 and 4 are rendered through the same photo-capable card (not the old text-only branches)", () => {
-    assert.match(s, /<EventCard c=\{c2\} kind="small"/); assert.match(s, /<EventCard c=\{c3\} kind="small"/);
+  test("the text-only card is a last resort: real image -> fallback image -> only then the coloured backdrop", () => {
+    const i = read("components/preview/v2/HomeCardImage.tsx");
+    assert.match(i, /onError=\{\(\) => \(cur === fallbackSrc \? setDead\(true\) : setCur\(fallbackSrc\)\)\}/);
+    assert.match(i, /if \(dead\) return <>\{backdrop\}<\/>/);
+    assert.match(i, /naturalWidth === 0/, "also catches an image that failed before React attached onError");
+  });
+  test("small cards 3 and 4 are rendered through the same image-backed card (not the old text-only branches)", () => {
+    assert.match(s, /<EventCard c=\{c2\} kind="small" \/>/); assert.match(s, /<EventCard c=\{c3\} kind="small" \/>/);
     assert.doesNotMatch(s, /d\(e2\)|d\(e3\)/);
   });
   test("row two is three tiles; mobile is one swipeable scroll-snap rail, not seven stacked cards", () => {
