@@ -205,6 +205,7 @@ describe("UI structure (desktop + mobile)", () => {
     assert.match(panel, /Clear all/);
     assert.match(page, /data-testid="results-count"/);
     assert.match(page, /data-testid="active-filter"/);
+    assert.match(page, /filters\.category \? \[\{ label: filters\.category/, "a chosen category is also shown as a removable chip");
     assert.match(page, /No jobs match those filters\./);
     assert.match(page, /Clear filters/); assert.match(page, /View all jobs/);
   });

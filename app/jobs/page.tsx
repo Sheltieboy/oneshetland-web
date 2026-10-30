@@ -79,6 +79,7 @@ export default async function WorkHubPage({
     ((kind === "employment" ? EMPLOYMENT_OPTIONS : kind === "workplace" ? WORKPLACE_OPTIONS : SALARY_BANDS) as readonly { key: string; label: string }[]).find((o) => o.key === key)?.label ?? key;
   const active: { label: string; href: string }[] = isShifts ? [] : [
     ...(filters.q ? [{ label: `“${filters.q}”`, href: hrefFor(without(filters, "q")) }] : []),
+    ...(filters.category ? [{ label: filters.category as string, href: hrefFor(without(filters, "category")) }] : []),   // the category chip row can scroll the chosen one out of view on a phone
     ...filters.locations.map((v) => ({ label: v, href: hrefFor(without(filters, "locations", v)) })),
     ...filters.employment.map((v) => ({ label: optLabel("employment", v), href: hrefFor(without(filters, "employment", v)) })),
     ...filters.workplace.map((v) => ({ label: optLabel("workplace", v), href: hrefFor(without(filters, "workplace", v)) })),
@@ -164,7 +165,7 @@ export default async function WorkHubPage({
                 {a.label} <span aria-hidden>×</span>
               </Link>
             ))}
-            {(filterCount(filters) > 0 || filters.q) && (
+            {(filterCount(filters) > 0 || filters.q || filters.category) && (
               <Link href={hrefFor(clearAll(filters))} className="text-xs font-semibold text-ink-soft underline" data-testid="clear-all">Clear all</Link>
             )}
             <span className="ml-auto inline-flex items-center gap-1 text-xs text-ink-muted" data-testid="sort">
