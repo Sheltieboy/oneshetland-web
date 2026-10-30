@@ -894,7 +894,7 @@ export async function getBusinessEventsAndJobs(businessId: string): Promise<{
     safe(
       sb.from("jobs")
         .select("id, title, location, pay_text, posted_at")
-        .eq("business_id", businessId)
+        .eq("posted_as_business_id", businessId)   // the jobs column is posted_as_business_id; "business_id" does not exist and silently matched nothing
         .eq("is_hidden", false)
         .or(`expires_at.is.null,expires_at.gt.${now}`)
         .order("posted_at", { ascending: false })

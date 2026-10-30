@@ -5,6 +5,7 @@ import {
   formatPay, formatDuration, formatShiftDate, shiftDisplayBusiness, jobDisplayBusiness,
   URGENCY_CONFIG, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
+import { closingLabel } from "@/lib/job-taxonomy";
 
 export const JOBS = "#2a8b5c";
 export const SHIFTS = "#e8a020";
@@ -39,6 +40,7 @@ function Chip({ children, tone = "neutral" }: { children: React.ReactNode; tone?
 export function JobCard({ job }: { job: Job }) {
   const disp = jobDisplayBusiness(job);
   const name = disp.name;
+  const closing = closingLabel(job.expires_at);
   return (
     <Link
       href={`/jobs/${job.id}`}
@@ -71,6 +73,9 @@ export function JobCard({ job }: { job: Job }) {
         {job.housing_available && <Chip tone="jobs">Housing</Chip>}
         {job.source_label && <Chip>{job.source_label}</Chip>}
       </div>
+      {closing && (
+        <p className="text-xs font-semibold text-ink-muted" data-testid="job-closing">{closing}</p>
+      )}
     </Link>
   );
 }

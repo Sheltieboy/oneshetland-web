@@ -47,8 +47,8 @@ function parseTerm(t) {
 }
 
 class Query {
-  constructor(table) { this.table = table; this.preds = []; this.sort = []; this.lim = null; this.rng = null; this.single = false; }
-  select() { return this; }
+  constructor(table) { this.table = table; this.preds = []; this.sort = []; this.lim = null; this.rng = null; this.one = false; }
+  select(_cols, opts) { if (opts?.count) this.wantCount = true; return this; }
   eq(c, v) { this.preds.push((r) => ops.eq(r[c], v)); return this; }
   neq(c, v) { this.preds.push((r) => ops.neq(r[c], v)); return this; }
   in(c, arr) { this.preds.push((r) => arr.map(String).includes(String(r[c]))); return this; }
@@ -63,8 +63,8 @@ class Query {
   order(c, o = {}) { this.sort.push([c, o.ascending !== false]); return this; }
   limit(n) { this.lim = n; return this; }
   range(a, b) { this.rng = [a, b]; return this; }
-  maybeSingle() { this.single = true; return this; }
-  single_() { return this; }
+  maybeSingle() { this.one = true; return this; }
+  single() { this.one = true; return this; }
   rows() {
     const db = globalThis.__FAKE_DB__ ?? {};
     let rows = [...(db[this.table] ?? [])];
@@ -84,7 +84,7 @@ class Query {
   then(res, rej) {
     return Promise.resolve().then(() => {
       const rows = this.rows();
-      return { data: this.single ? (rows[0] ?? null) : rows, error: null };
+      return { data: this.one ? (rows[0] ?? null) : rows, error: null, ...(this.wantCount ? { count: rows.length } : {}) };
     }).then(res, rej);
   }
 }

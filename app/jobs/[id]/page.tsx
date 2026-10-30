@@ -5,6 +5,7 @@ import { getJob, formatJobPay, CONTRACT_LABELS, REMOTE_LABELS, jobDisplayBusines
 import { hasAppliedToJob, getSavedJobIds, getWorkerProfile } from "@/lib/jobs-data.server";
 import { JOBS } from "@/components/jobs/JobsUI";
 import { JobApplyPanel } from "@/components/jobs/JobApplyPanel";
+import { closingLabel } from "@/lib/job-taxonomy";
 import { TrackView } from "@/components/analytics/TrackView";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,9 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     { label: "Contract", value: CONTRACT_LABELS[job.contract_type] ?? job.contract_type },
     { label: "Working", value: REMOTE_LABELS[job.remote_mode] },
     ...(job.location ? [{ label: "Location", value: job.location }] : []),
+    ...(job.locality ? [{ label: "Area", value: job.locality }] : []),
+    ...(job.expires_at ? [{ label: "Closing", value: closingLabel(job.expires_at).replace(/^Closes /, "") || "—" }] : []),
+    ...(job.source_reference ? [{ label: "Reference", value: job.source_reference }] : []),
     ...(job.category ? [{ label: "Sector", value: job.category }] : []),
     ...(job.is_seasonal ? [{ label: "Seasonal", value: job.season_label || "Yes" }] : []),
     ...(job.relocation_support ? [{ label: "Relocation", value: "Supported" }] : []),
@@ -106,13 +110,16 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
               </p>
               {job.apply_url && (
                 <a href={job.apply_url} target="_blank" rel="noopener noreferrer" className="mt-3 block rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95" style={{ background: JOBS }}>
-                  Apply on the official site ↗
+                  Apply for this job ↗
                 </a>
               )}
               {job.expires_at && (
                 <p className="mt-3 text-xs text-ink-muted">Closing date: {new Date(job.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p>
               )}
               {job.source_label && <p className="mt-1 text-xs text-ink-muted">Listed {job.source_label}.</p>}
+              {job.source_url && job.source_url !== job.apply_url && (
+                <a href={job.source_url} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs font-medium text-ink-muted underline">View the original listing ↗</a>
+              )}
             </div>
           ) : isOwner ? (
             <div className="rounded-card border border-line bg-paper p-5 shadow-soft">

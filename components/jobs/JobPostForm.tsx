@@ -7,6 +7,7 @@ import { JOB_CATEGORIES, CONTRACT_LABELS, REMOTE_LABELS, type ContractType, type
 import { PeerieFill } from "@/components/ai/PeerieFill";
 import { AiGlow } from "@/components/ai/AiGlow";
 import { PEERIE } from "@/lib/peerie";
+import { EMPLOYER_DEFAULT_DAYS, closingInstantForDate, defaultExpiryIso, shetlandDateOf } from "@/lib/job-taxonomy";
 
 const JOBS = "#2a8b5c";
 
@@ -17,10 +18,14 @@ type Existing = {
   pay_hidden: boolean; pay_min: number | null; pay_max: number | null; pay_period: PayPeriod; pay_text: string;
   relocation_support: boolean; housing_available: boolean; is_seasonal: boolean; season_label: string;
   apply_url: string; apply_email: string;
+  /** ISO closing instant as stored; kept as-is on edit unless the employer changes it. */
+  expires_at: string | null;
 } | null;
 
 const PERIODS: PayPeriod[] = ["hour", "day", "week", "month", "year"];
-const EXPIRY = [{ label: "No close date", days: 0 }, { label: "30 days", days: 30 }, { label: "60 days", days: 60 }, { label: "90 days", days: 90 }];
+// Every listing closes: there is no "no close date". 30 days is the default (and what the database applies if a date is somehow missing).
+const EXPIRY = [{ label: "30 days", days: EMPLOYER_DEFAULT_DAYS }, { label: "60 days", days: 60 }, { label: "90 days", days: 90 }];
+const ymdPlus = (days: number) => shetlandDateOf(defaultExpiryIso(Date.now(), days));
 
 export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: boolean; businesses: Biz[]; existing: Existing }) {
   const router = useRouter();
@@ -40,7 +45,8 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
   const [housing, setHousing] = useState(existing?.housing_available ?? false);
   const [seasonal, setSeasonal] = useState(existing?.is_seasonal ?? false);
   const [seasonLabel, setSeasonLabel] = useState(existing?.season_label ?? "");
-  const [expiryDays, setExpiryDays] = useState(0);
+  // Closing date as a Shetland calendar day. New posting: 30 days from today. Editing: the date it already has (an existing listing is never silently changed).
+  const [closeOn, setCloseOn] = useState(existing?.expires_at ? shetlandDateOf(existing.expires_at) : ymdPlus(EMPLOYER_DEFAULT_DAYS));
   const [applyUrl, setApplyUrl] = useState(existing?.apply_url ?? "");
   const [applyEmail, setApplyEmail] = useState(existing?.apply_email ?? "");
   const [busy, setBusy] = useState(false);
@@ -106,7 +112,11 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
       const sb = createClient();
       const { data: { user } } = await sb.auth.getUser();
       if (!user) throw new Error("Please sign in.");
-      const expires_at = expiryDays > 0 ? new Date(Date.now() + expiryDays * 86400_000).toISOString() : null;
+      // Unchanged date on an existing listing keeps the exact stored instant; anything else closes at the end of the chosen Shetland day.
+      const unchanged = !!existing?.expires_at && shetlandDateOf(existing.expires_at) === closeOn;
+      const expires_at = unchanged ? existing!.expires_at : closingInstantForDate(closeOn);
+      if (!expires_at) throw new Error("Choose a closing date.");
+      if (new Date(expires_at).getTime() <= Date.now()) throw new Error("The closing date must be in the future.");
       const row = {
         posted_as_business_id: bizId,
         title: title.trim(),
@@ -126,6 +136,7 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
         season_label: seasonal ? (seasonLabel.trim() || null) : null,
         apply_url: applyUrl.trim() || null,
         apply_email: applyEmail.trim() || null,
+        expires_at,
       };
       if (existing) {
         const { error: dbErr } = await sb.from("jobs").update(row).eq("id", existing.id);
@@ -255,11 +266,13 @@ export function JobPostForm({ isLoggedIn, businesses, existing }: { isLoggedIn: 
       )}
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-ink">Auto-close listing</p>
-        <div className="flex flex-wrap gap-2">
+        <p className="mb-1 text-sm font-semibold text-ink">Closing date</p>
+        <p className="mb-2 text-xs text-ink-muted">Your listing closes automatically at the end of this day. If you do not choose one it closes {EMPLOYER_DEFAULT_DAYS} days after you post it. You can extend it later by editing the job.</p>
+        <div className="flex flex-wrap items-center gap-2">
           {EXPIRY.map((x) => (
-            <button key={x.days} type="button" onClick={() => setExpiryDays(x.days)} className={pill(expiryDays === x.days)} style={pillStyle(expiryDays === x.days)}>{x.label}</button>
+            <button key={x.days} type="button" onClick={() => setCloseOn(ymdPlus(x.days))} className={pill(closeOn === ymdPlus(x.days))} style={pillStyle(closeOn === ymdPlus(x.days))}>{x.label}</button>
           ))}
+          <input type="date" value={closeOn} min={ymdPlus(1)} onChange={(e) => setCloseOn(e.target.value)} className="auth-input w-auto" aria-label="Closing date" />
         </div>
       </div>
 

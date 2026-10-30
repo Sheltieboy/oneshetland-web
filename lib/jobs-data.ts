@@ -8,6 +8,12 @@
  */
 
 import { publicClient } from "@/lib/supabase/public";
+import {
+  JOB_CATEGORIES, JOB_CONTRACT_LABELS, normaliseJobCategory, jobCategoriesInUse, type JobCategory,
+} from "@/lib/job-taxonomy";
+
+// One vocabulary for every surface (see lib/job-taxonomy.ts); re-exported so existing imports keep working.
+export { JOB_CATEGORIES };
 
 // NOTE: this module is imported by BOTH server and client components (for the
 // shared types/constants/helpers below), so it must NOT import next/headers.
@@ -19,7 +25,7 @@ export const safe = async <T>(p: PromiseLike<T>, f: T): Promise<T> => {
 
 /* ── Jobs: types ─────────────────────────────────────────────────────────── */
 
-export type ContractType = "full-time" | "part-time" | "casual" | "apprenticeship" | "volunteer" | "freelance";
+export type ContractType = "full-time" | "part-time" | "casual" | "temporary" | "apprenticeship" | "volunteer" | "freelance";
 export type RemoteMode = "on_site" | "hybrid" | "remote";
 export type PayPeriod = "hour" | "day" | "week" | "month" | "year" | "total";
 export type JobStatus = "open" | "closed" | "filled";
@@ -37,6 +43,12 @@ export type Job = {
   posted_as_business_id: string | null;
   source: string | null;
   source_label: string | null;
+  /** The source's own page for the listing, its human reference (e.g. SIC09073), when the source published it, and when we first saw it. */
+  source_url: string | null;
+  source_reference: string | null;
+  source_published_at: string | null;
+  listed_at: string | null;
+  source_meta: Record<string, unknown> | null;
   external_employer_name: string | null;
   external_employer_logo_url: string | null;
   title: string;
@@ -95,10 +107,7 @@ export type WorkerProfile = {
   open_to_categories: string[];
 };
 
-export const CONTRACT_LABELS: Record<ContractType, string> = {
-  "full-time": "Full-time", "part-time": "Part-time", casual: "Casual",
-  apprenticeship: "Apprenticeship", volunteer: "Volunteer", freelance: "Freelance",
-};
+export const CONTRACT_LABELS: Record<ContractType, string> = JOB_CONTRACT_LABELS;
 export const REMOTE_LABELS: Record<RemoteMode, string> = {
   on_site: "On-site", hybrid: "Hybrid", remote: "Remote",
 };
@@ -107,12 +116,6 @@ export const JOB_APP_STATUS_LABELS: Record<JobAppStatus, string> = {
   offer: "Offer", hired: "Hired", declined: "Not selected", withdrawn: "Withdrawn",
 };
 export const PIPELINE_STAGES: JobAppStatus[] = ["applied", "viewed", "shortlisted", "interview", "offer", "hired"];
-
-export const JOB_CATEGORIES = [
-  "Hospitality", "Maritime", "Aquaculture", "Energy", "Care", "Health",
-  "Retail", "Trades", "Construction", "Tourism", "Education", "Public sector",
-  "Office & admin", "Transport", "Crofting", "Other",
-] as const;
 
 const PERIOD_SUFFIX: Record<PayPeriod, string> = {
   hour: "/hr", day: "/day", week: "/wk", month: "/mo", year: "/yr", total: "",
@@ -146,9 +149,11 @@ export async function getJobs(opts: JobFilter = {}): Promise<Job[]> {
       .eq("status", "open")
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .order("is_featured", { ascending: false })
-      .order("posted_at", { ascending: false })
+      .order("listed_at", { ascending: false })   // the source's own publication date when known, else first-seen
       .limit(opts.limit ?? 60);
-    if (opts.category) q = q.eq("category", opts.category);
+    // A category that is not in the vocabulary (a stale link, a typo) is ignored rather than returning an empty page.
+    const cat = normaliseJobCategory(opts.category);
+    if (cat) q = q.eq("category", cat);
     if (opts.contract_type) q = q.eq("contract_type", opts.contract_type);
     if (opts.keyword) {
       const k = opts.keyword.replace(/[%,]/g, "").trim();
@@ -157,6 +162,20 @@ export async function getJobs(opts: JobFilter = {}): Promise<Job[]> {
     const { data } = await q;
     return (data ?? []) as unknown as Job[];
   })(), []);
+}
+
+/** Category chips for the Jobs page: only categories that at least one live job has (an uncategorised feed shows none). */
+export async function getJobCategoriesInUse(): Promise<JobCategory[]> {
+  const sb = publicClient();
+  return safe((async () => {
+    const { data } = await sb.from("jobs")
+      .select("category")
+      .eq("is_hidden", false).eq("status", "open")
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .not("category", "is", null)
+      .limit(1000);
+    return jobCategoriesInUse((data ?? []).map((r: { category: string | null }) => r.category));
+  })(), [] as JobCategory[]);
 }
 
 export async function getJob(id: string): Promise<Job | null> {
@@ -174,7 +193,7 @@ export async function getFeaturedJobs(limit = 4): Promise<Job[]> {
       .select(JOB_SELECT)
       .eq("is_hidden", false).eq("status", "open").eq("is_featured", true)
       .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-      .order("posted_at", { ascending: false })
+      .order("listed_at", { ascending: false })
       .limit(limit);
     return (data ?? []) as unknown as Job[];
   })(), []);

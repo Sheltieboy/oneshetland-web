@@ -95,7 +95,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
      applications off the dashboard entirely. */
   // Supabase's builder is a PromiseLike, not a Promise — it has no .catch.
   const jobsRes = await Promise.allSettled([
-    sb.from("jobs").select("id").eq("business_id", businessId),
+    sb.from("jobs").select("id").eq("posted_as_business_id", businessId),
   ]);
   const jobIds = jobsRes[0].status === "fulfilled"
     ? ((jobsRes[0].value.data ?? []) as { id: string }[]).map((j) => j.id)

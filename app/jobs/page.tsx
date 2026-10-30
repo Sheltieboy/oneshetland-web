@@ -1,9 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  getJobs, getOpenShifts, JOB_CATEGORIES, SHIFT_CATEGORY_LABELS,
+  getJobs, getOpenShifts, getJobCategoriesInUse, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
 import { JobCard, ShiftCard, EmptyState, JOBS, SHIFTS } from "@/components/jobs/JobsUI";
+import { normaliseJobCategory } from "@/lib/job-taxonomy";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 import { getAccount } from "@/lib/auth";
 import { getMyPostingCounts } from "@/lib/jobs-data.server";
@@ -22,7 +23,7 @@ export default async function WorkHubPage({
 
   const account = await getAccount();
 
-  const [jobs, shifts, posted] = await Promise.all([
+  const [jobs, shifts, posted, jobCats] = await Promise.all([
     isShifts ? Promise.resolve([]) : getJobs({ category, keyword: q, contract_type: contract }),
     isShifts ? getOpenShifts(category) : Promise.resolve([]),
     // This page is the one the main nav's "Work" leads to, and it is entirely
@@ -34,6 +35,7 @@ export default async function WorkHubPage({
     // So: a shortcut, shown only to people who have actually posted something.
     // A worker never sees it, and the page stays what it is.
     account ? getMyPostingCounts(account.id) : Promise.resolve({ shifts: 0, jobs: 0 }),
+    isShifts ? Promise.resolve([]) : getJobCategoriesInUse(),
   ]);
 
   const mine = isShifts ? posted.shifts : posted.jobs;
@@ -54,7 +56,8 @@ export default async function WorkHubPage({
 
   const cats = isShifts
     ? Object.entries(SHIFT_CATEGORY_LABELS).map(([key, label]) => ({ key, label }))
-    : JOB_CATEGORIES.map((c) => ({ key: c, label: c }));
+    // Only categories a live job actually has — sixteen chips that all lead to "No jobs match" help nobody. The chosen one always stays.
+    : [...new Set([...jobCats, ...(normaliseJobCategory(category) ? [normaliseJobCategory(category)!] : [])])].map((c) => ({ key: c as string, label: c as string }));
 
   return (
     <>
@@ -101,7 +104,7 @@ export default async function WorkHubPage({
               Search
             </button>
           </form>
-          <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {cats.length > 0 && <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Link href={chipHref()} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " + (!category ? "text-paper shadow-soft" : "border border-line-strong text-ink-soft hover:bg-sand")} style={!category ? { background: accent } : undefined}>
               All
             </Link>
@@ -110,7 +113,7 @@ export default async function WorkHubPage({
                 {c.label}
               </Link>
             ))}
-          </div>
+          </div>}
         </div>
       </div>
 

@@ -30,6 +30,7 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
           existing={canEdit && existing ? {
             id: existing.id,
             posted_as_business_id: existing.posted_as_business_id,
+            expires_at: existing.expires_at,
             title: existing.title, description: existing.description ?? "",
             category: existing.category ?? "", contract_type: existing.contract_type,
             remote_mode: existing.remote_mode, location: existing.location ?? "",
