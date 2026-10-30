@@ -1,4 +1,5 @@
 import { publicClient } from "./supabase/public";
+import { currentEventsFilter } from "./event-currency";
 
 /* ── Types (mirror the app's lib/hubs-api.ts) ──────────────────────────────── */
 
@@ -160,7 +161,7 @@ export async function getHubEvents(hubId: string, limit = 12): Promise<HubEvent[
       .select(EVENT_COLS)
       .eq("organiser_hub_id", hubId)
       .eq("status", "published")
-      .gte("starts_at", now)
+      .or(currentEventsFilter(now))
       .order("starts_at", { ascending: true })
       .limit(limit);
     return (data ?? []) as HubEvent[];

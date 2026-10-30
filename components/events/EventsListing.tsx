@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { normaliseCategory } from "@/lib/event-categories";
 import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import {
@@ -254,9 +255,9 @@ function EventRow({ e }: { e: EventListItem }) {
           {organiser ? ` · ${organiser}` : ""}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          {e.category && (
+          {normaliseCategory(e.category) && (
             <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
-              {e.category}
+              {normaliseCategory(e.category)}
             </span>
           )}
           {label && (

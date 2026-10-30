@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { isOnToday } from "@/lib/event-currency";
 import { getHomeData } from "@/lib/home-data";
 import { getHeroImage } from "@/lib/hero-context";
 import { getTodaysGame } from "@/lib/home-extras";
@@ -57,7 +58,7 @@ export default async function Home() {
   if (today?.tempC != null) pills.push({ key: "w", label: `${today.place} ${Math.round(today.tempC)}° ${describeWeather(today.weatherCode).label}` });
   if (today?.sunset) pills.push({ key: "s", label: `Sunset ${today.sunset}` });
   if (showCruise && cruise) pills.push({ key: "c", label: cruise.isToday ? `${cruise.ships_count} ${cruise.ships_count === 1 ? "ship" : "ships"} in port` : "Ship arriving soon", href: "/cruise" });
-  const todaysEvents = data.events.filter((e) => new Date(e.starts_at).toDateString() === now.toDateString()).length;
+  const todaysEvents = data.events.filter((e) => isOnToday(e, now)).length;
   if (todaysEvents) pills.push({ key: "e", label: `${todaysEvents} on today`, href: "/whats-on" });
 
   return (

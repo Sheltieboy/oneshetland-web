@@ -1,3 +1,4 @@
+import { currentEventsFilter } from "./event-currency";
 import { publicClient } from "./supabase/public";
 import { unwrapPublic } from "./public-read";
 import { noticeHref } from "./home-curation";
@@ -7,6 +8,7 @@ export type HomeEvent = {
   id: string;
   title: string;
   starts_at: string;
+  ends_at: string | null;
   venue: string | null;
   category: string | null;
   cover_url: string | null;
@@ -191,10 +193,11 @@ type SB = ReturnType<typeof publicClient>;
 async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
   const { data } = await sb
     .from("events")
-    .select("id, title, starts_at, venue, category, cover_url, is_featured, price_text, has_tickets")
+    .select("id, title, starts_at, ends_at, venue, category, cover_url, is_featured, price_text, has_tickets")
     .eq("is_hidden", false)
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    .gte("starts_at", now)
+    // Still on, not just not-yet-started (see lib/event-currency.ts).
+    .or(currentEventsFilter(now))
     .order("is_featured", { ascending: false })
     .order("starts_at", { ascending: true })
     .limit(6);

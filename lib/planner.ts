@@ -219,9 +219,18 @@ export function buildPlan(opts: {
 
   // An explicit "no" is honoured everywhere. null still means "not said", so
   // nothing that hasn't answered disappears.
-  const places = candidates.filter(
-    (c) => c.kind === "place" && c.visitorReady !== false && wanted(c),
+  //
+  // An event already RUNNING when the window opens (a festival's second day, a gallery show)
+  // has no fixed moment to be at, so it is not pinned — it joins the places as a flexible stop,
+  // good until it ends. Without this it vanished from the plan the moment it began.
+  const runningEvents = candidates.filter(
+    (c) => c.kind === "event" && c.startsAt && c.endsAt
+      && new Date(c.startsAt) < start && new Date(c.endsAt) > start && wanted(c),
   );
+  const places = [
+    ...candidates.filter((c) => c.kind === "place" && c.visitorReady !== false && wanted(c)),
+    ...runningEvents,
+  ];
 
   const stops: Stop[] = [];
   let cursor = new Date(start);
@@ -385,6 +394,8 @@ function pickNext(args: {
     const arrive = addMinutes(cursor, travel.minutes);
     const depart = addMinutes(arrive, dwellMinutes(c));
     if (depart > mustFinishBy) continue;
+    // A running event is only worth going to if it is still on when you would get there.
+    if (c.kind === "event" && c.endsAt && arrive >= new Date(c.endsAt)) continue;
 
     // Never send someone to a place we KNOW is shut. Unknown is allowed
     // through — most businesses haven't filled their hours in yet — but it

@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { normaliseCategory } from "@/lib/event-categories";
 import { notFound } from "next/navigation";
 import {
   getEvent,
@@ -102,9 +103,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="relative mx-auto w-full max-w-5xl px-5 pb-9">
-          {e.category && (
+          {normaliseCategory(e.category) && (
             <span className="inline-block rounded-pill bg-paper/95 px-3 py-1 text-xs font-bold" style={{ color: EVENTS }}>
-              {e.category}
+              {normaliseCategory(e.category)}
             </span>
           )}
           <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight drop-shadow sm:text-5xl">

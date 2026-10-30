@@ -1,4 +1,5 @@
 import { hoursExpired } from "@/lib/opening-hours";
+import { overlapsWindowFilter } from "./event-currency";
 import { publicClient } from "@/lib/supabase/public";
 import { findPlace, needsFerry } from "@/lib/shetland-places";
 import type { Candidate, Interest } from "@/lib/planner";
@@ -95,7 +96,13 @@ async function fetchPlaces(planDate: Date): Promise<Candidate[]> {
     .filter((c) => Number.isFinite(c.lat) && Number.isFinite(c.lng) && !needsFerry(c.lat, c.lng));
 }
 
-/** Published events inside the window, placed via the gazetteer. */
+/**
+ * Published events on at some point inside the window, placed via the gazetteer — including a
+ * multi-day event or exhibition that began before the window but is still running (it used to
+ * need `starts_at` inside the window, so it vanished the moment it began). The engine
+ * (lib/planner.ts) pins events that START in the window and offers the already-running ones as
+ * flexible stops.
+ */
 async function fetchEvents(fromIso: string, toIso: string): Promise<Candidate[]> {
   const sb = publicClient();
   const { data } = await sb
@@ -103,8 +110,7 @@ async function fetchEvents(fromIso: string, toIso: string): Promise<Candidate[]>
     .select("id, title, description, venue, locality, category, starts_at, ends_at, cover_url, lat, lng")
     .eq("status", "published")
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    .gte("starts_at", fromIso)
-    .lte("starts_at", toIso)
+    .or(overlapsWindowFilter(fromIso, toIso))
     .order("starts_at", { ascending: true })
     .limit(60);
 

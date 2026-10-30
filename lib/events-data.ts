@@ -1,4 +1,6 @@
 import { publicClient } from "./supabase/public";
+import { currentEventsFilter, londonRangeEnd } from "./event-currency";
+import { storedValuesFor, uniqueCategories } from "./event-categories";
 
 // Full static category set — mirrors the app's EVENT_CATEGORIES (lib/events-api.ts),
 // including "Business". The public listing shows all of these regardless of which
@@ -284,22 +286,12 @@ const LIST_COLS =
 
 export type DateRange = "today" | "week" | "month" | "all";
 
-/** Compute the upper bound (ISO) for a date-range filter, relative to now. */
+/**
+ * Compute the upper bound (ISO) for a date-range filter, relative to now — in SHETLAND time
+ * (see londonRangeEnd), so "Today" ends at Lerwick midnight on a UTC server in summer too.
+ */
 function rangeTo(range: DateRange): string | undefined {
-  if (range === "all") return undefined;
-  const d = new Date();
-  if (range === "today") {
-    d.setHours(23, 59, 59, 999);
-  } else if (range === "week") {
-    // End of the current week (through Sunday) — a calendar week, not "next 7 days".
-    const daysToSunday = (7 - d.getDay()) % 7;
-    d.setDate(d.getDate() + daysToSunday);
-    d.setHours(23, 59, 59, 999);
-  } else if (range === "month") {
-    // End of the current calendar month — so "This month" (July) excludes August.
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999).toISOString();
-  }
-  return d.toISOString();
+  return londonRangeEnd(range);
 }
 
 /**
@@ -330,11 +322,13 @@ export async function getUpcomingEvents(
     .select(LIST_COLS)
     .eq("status", "published")
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    .or(`ends_at.gte.${now},and(ends_at.is.null,starts_at.gte.${now})`)
+    .or(currentEventsFilter(now))
     .order("starts_at", { ascending: true });
   const to = rangeTo(opts.range ?? "all");
   if (to) q = q.lte("starts_at", to);
-  if (opts.category) q = q.eq("category", opts.category);
+  // One logical category matches every stored spelling of it (current + legacy names).
+  const stored = storedValuesFor(opts.category);
+  if (stored.length > 0) q = q.in("category", stored);
   if (opts.offset) {
     q = q.range(opts.offset, opts.offset + limit - 1);
   } else {
@@ -375,7 +369,10 @@ export async function getEventsInMonth(year: number, month: number): Promise<Eve
   }
 }
 
-/** The distinct categories actually present in upcoming published events. */
+/**
+ * The categories present in current (upcoming or still-running) published events — one chip per
+ * LOGICAL category, so "Music" and the legacy "Music & Gigs" are a single choice.
+ */
 export async function getEventCategories(): Promise<string[]> {
   const sb = publicClient();
   const now = new Date().toISOString();
@@ -385,13 +382,9 @@ export async function getEventCategories(): Promise<string[]> {
       .select("category")
       .eq("status", "published")
       .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-      .gte("starts_at", now)
+      .or(currentEventsFilter(now))
       .not("category", "is", null);
-    const set = new Set<string>();
-    for (const r of (data ?? []) as { category: string | null }[]) {
-      if (r.category) set.add(r.category);
-    }
-    return [...set].sort((a, b) => a.localeCompare(b));
+    return uniqueCategories(((data ?? []) as { category: string | null }[]).map((r) => r.category));
   } catch {
     return [];
   }

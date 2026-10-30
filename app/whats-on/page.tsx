@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { normaliseCategory, sameCategory } from "@/lib/event-categories";
 import Link from "next/link";
 import {
   getUpcomingEvents,
@@ -35,7 +36,8 @@ export default async function WhatsOnPage({
   searchParams: Promise<{ category?: string; date?: string; free?: string; view?: string }>;
 }) {
   const sp = await searchParams;
-  const category = sp.category;
+  // A legacy name in an old link (?category=Music%20%26%20Gigs) resolves to its current category.
+  const category = normaliseCategory(sp.category) ?? undefined;
   const range = parseRange(sp.date);
   const freeOnly = sp.free === "1";
   const calendar = sp.view === "calendar";
@@ -111,7 +113,7 @@ export default async function WhatsOnPage({
         {calendar ? (
           <EventsBrowser
             mode="calendar"
-            monthEvents={category ? monthEvents.filter((e) => e.category === category) : monthEvents}
+            monthEvents={category ? monthEvents.filter((e) => sameCategory(e.category, category)) : monthEvents}
             initialYear={now.getFullYear()}
             initialMonth={now.getMonth()}
           />

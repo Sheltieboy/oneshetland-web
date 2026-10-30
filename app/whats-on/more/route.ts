@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { normaliseCategory } from "@/lib/event-categories";
 import { getUpcomingEvents, isFreeListEvent, type DateRange } from "@/lib/events-data";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ const PAGE_SIZE = 20;
  */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const category = url.searchParams.get("category") ?? undefined;
+  const category = normaliseCategory(url.searchParams.get("category")) ?? undefined;
   const dateParam = url.searchParams.get("date") ?? "all";
   const range: DateRange = RANGES.includes(dateParam as DateRange) ? (dateParam as DateRange) : "all";
   const freeOnly = url.searchParams.get("free") === "1";
