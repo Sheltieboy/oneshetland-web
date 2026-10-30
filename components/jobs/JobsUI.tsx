@@ -41,6 +41,7 @@ export function JobCard({ job }: { job: Job }) {
   const disp = jobDisplayBusiness(job);
   const name = disp.name;
   const closing = closingLabel(job.expires_at);
+  const urgent = /^Closes (today|tomorrow|in )/.test(closing);
   return (
     <Link
       href={`/jobs/${job.id}`}
@@ -74,7 +75,7 @@ export function JobCard({ job }: { job: Job }) {
         {job.source_label && <Chip>{job.source_label}</Chip>}
       </div>
       {closing && (
-        <p className="text-xs font-semibold text-ink-muted" data-testid="job-closing">{closing}</p>
+        <p className={"text-xs font-semibold " + (urgent ? "text-amber-700" : "text-ink-muted")} data-testid="job-closing" data-urgent={urgent ? "true" : undefined}>{closing}</p>
       )}
     </Link>
   );

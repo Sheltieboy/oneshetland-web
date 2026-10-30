@@ -1,10 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  getJobs, getOpenShifts, getJobCategoriesInUse, SHIFT_CATEGORY_LABELS,
+  getActiveJobs, getOpenShifts, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
 import { JobCard, ShiftCard, EmptyState, JOBS, SHIFTS } from "@/components/jobs/JobsUI";
-import { normaliseJobCategory } from "@/lib/job-taxonomy";
+import {
+  parseFilters, applyFilters, sortJobs, buildFacets, filterCount, toQuery, without, clearAll, resultsLabel, hasAnyRefinement,
+  EMPLOYMENT_OPTIONS, WORKPLACE_OPTIONS, SALARY_BANDS, type JobFilters,
+} from "@/lib/job-filters";
+import { JobFiltersPanel } from "@/components/jobs/JobFiltersPanel";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 import { getAccount } from "@/lib/auth";
 import { getMyPostingCounts } from "@/lib/jobs-data.server";
@@ -12,19 +16,26 @@ import { getMyPostingCounts } from "@/lib/jobs-data.server";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Work" };
 
+const isShiftsTab = (t?: string) => t === "shifts";
+
 export default async function WorkHubPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; category?: string; contract?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { tab, q, category, contract } = await searchParams;
+  const sp = await searchParams;
+  const str = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const tab = str(sp.tab);
+  const filters = parseFilters(sp);                       // jobs: everything lives in the URL
+  const q = isShiftsTab(tab) ? str(sp.q) : (filters.q || undefined);
+  const category = isShiftsTab(tab) ? str(sp.category) : (filters.category ?? undefined);
   const isShifts = tab === "shifts";
   const accent = isShifts ? SHIFTS : JOBS;
 
   const account = await getAccount();
 
-  const [jobs, shifts, posted, jobCats] = await Promise.all([
-    isShifts ? Promise.resolve([]) : getJobs({ category, keyword: q, contract_type: contract }),
+  const [allJobs, shifts, posted] = await Promise.all([
+    isShifts ? Promise.resolve([]) : getActiveJobs(),
     isShifts ? getOpenShifts(category) : Promise.resolve([]),
     // This page is the one the main nav's "Work" leads to, and it is entirely
     // worker-facing: browse and apply. Everything for the person who POSTED the
@@ -35,8 +46,11 @@ export default async function WorkHubPage({
     // So: a shortcut, shown only to people who have actually posted something.
     // A worker never sees it, and the page stays what it is.
     account ? getMyPostingCounts(account.id) : Promise.resolve({ shifts: 0, jobs: 0 }),
-    isShifts ? Promise.resolve([]) : getJobCategoriesInUse(),
   ]);
+
+  // Options come from the live jobs; the matching jobs from the URL state. No empty option is ever offered.
+  const facets = buildFacets(allJobs);
+  const jobs = sortJobs(applyFilters(allJobs, filters), filters.sort);
 
   const mine = isShifts ? posted.shifts : posted.jobs;
   const manageHref = isShifts ? "/shifts/manage" : "/jobs/manage";
@@ -46,18 +60,32 @@ export default async function WorkHubPage({
     : shifts;
 
   const chipHref = (cat?: string) => {
+    if (!isShifts) return `/jobs${toQuery({ ...filters, category: (cat ?? null) as JobFilters["category"] }) ? `?${toQuery({ ...filters, category: (cat ?? null) as JobFilters["category"] })}` : ""}`;
     const p = new URLSearchParams();
-    if (isShifts) p.set("tab", "shifts");
+    p.set("tab", "shifts");
     if (cat) p.set("category", cat);
     if (q) p.set("q", q);
-    const s = p.toString();
-    return s ? `/jobs?${s}` : "/jobs";
+    return `/jobs?${p.toString()}`;
   };
+  const hrefFor = (f: JobFilters) => { const qs = toQuery(f); return qs ? `/jobs?${qs}` : "/jobs"; };
 
+  // Category stays immediately visible; only categories live jobs have (the chosen one always stays).
   const cats = isShifts
     ? Object.entries(SHIFT_CATEGORY_LABELS).map(([key, label]) => ({ key, label }))
-    // Only categories a live job actually has — sixteen chips that all lead to "No jobs match" help nobody. The chosen one always stays.
-    : [...new Set([...jobCats, ...(normaliseJobCategory(category) ? [normaliseJobCategory(category)!] : [])])].map((c) => ({ key: c as string, label: c as string }));
+    : [...new Set([...facets.categories, ...(filters.category ? [filters.category] : [])])].map((c) => ({ key: c as string, label: c as string }));
+
+  // Active-filter chips: each removable on its own.
+  const optLabel = (kind: "employment" | "workplace" | "salary", key: string) =>
+    ((kind === "employment" ? EMPLOYMENT_OPTIONS : kind === "workplace" ? WORKPLACE_OPTIONS : SALARY_BANDS) as readonly { key: string; label: string }[]).find((o) => o.key === key)?.label ?? key;
+  const active: { label: string; href: string }[] = isShifts ? [] : [
+    ...(filters.q ? [{ label: `“${filters.q}”`, href: hrefFor(without(filters, "q")) }] : []),
+    ...filters.locations.map((v) => ({ label: v, href: hrefFor(without(filters, "locations", v)) })),
+    ...filters.employment.map((v) => ({ label: optLabel("employment", v), href: hrefFor(without(filters, "employment", v)) })),
+    ...filters.workplace.map((v) => ({ label: optLabel("workplace", v), href: hrefFor(without(filters, "workplace", v)) })),
+    ...filters.salary.map((v) => ({ label: optLabel("salary", v), href: hrefFor(without(filters, "salary", v)) })),
+    ...filters.employers.map((v) => ({ label: v, href: hrefFor(without(filters, "employers", v)) })),
+  ];
+  const refined = !isShifts && hasAnyRefinement(filters);
 
   return (
     <>
@@ -94,6 +122,13 @@ export default async function WorkHubPage({
         <div className="mx-auto max-w-6xl px-5 py-3">
           <form action="/jobs" method="get" className="mb-3 flex gap-2">
             {isShifts && <input type="hidden" name="tab" value="shifts" />}
+            {!isShifts && filters.category && <input type="hidden" name="category" value={filters.category} />}
+            {!isShifts && filters.locations.map((v) => <input key={`l${v}`} type="hidden" name="loc" value={v} />)}
+            {!isShifts && filters.employment.map((v) => <input key={`e${v}`} type="hidden" name="emp" value={v} />)}
+            {!isShifts && filters.workplace.map((v) => <input key={`w${v}`} type="hidden" name="work" value={v} />)}
+            {!isShifts && filters.salary.map((v) => <input key={`s${v}`} type="hidden" name="sal" value={v} />)}
+            {!isShifts && filters.employers.map((v) => <input key={`m${v}`} type="hidden" name="employer" value={v} />)}
+            {!isShifts && filters.sort !== "newest" && <input type="hidden" name="sort" value={filters.sort} />}
             <input
               name="q"
               defaultValue={q ?? ""}
@@ -104,7 +139,8 @@ export default async function WorkHubPage({
               Search
             </button>
           </form>
-          {cats.length > 0 && <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex items-center gap-2">
+          {cats.length > 0 && <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Link href={chipHref()} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " + (!category ? "text-paper shadow-soft" : "border border-line-strong text-ink-soft hover:bg-sand")} style={!category ? { background: accent } : undefined}>
               All
             </Link>
@@ -114,10 +150,31 @@ export default async function WorkHubPage({
               </Link>
             ))}
           </div>}
+          {!isShifts && <JobFiltersPanel facets={facets} filters={filters} accent={accent} clearHref={hrefFor(clearAll(filters))} />}
+          </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
+        {!isShifts && (
+          <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2" data-testid="results-bar">
+            <p className="font-display text-lg font-bold text-ink" data-testid="results-count" aria-live="polite">{resultsLabel(jobs.length)}</p>
+            {active.map((a) => (
+              <Link key={a.label + a.href} href={a.href} className="inline-flex items-center gap-1 rounded-pill border border-line-strong bg-paper px-3 py-1 text-xs font-semibold text-ink-soft hover:bg-sand" aria-label={`Remove filter ${a.label}`} data-testid="active-filter">
+                {a.label} <span aria-hidden>×</span>
+              </Link>
+            ))}
+            {(filterCount(filters) > 0 || filters.q) && (
+              <Link href={hrefFor(clearAll(filters))} className="text-xs font-semibold text-ink-soft underline" data-testid="clear-all">Clear all</Link>
+            )}
+            <span className="ml-auto inline-flex items-center gap-1 text-xs text-ink-muted" data-testid="sort">
+              Sort:
+              <Link href={hrefFor({ ...filters, sort: "newest" })} className={"rounded-pill px-2.5 py-1 font-semibold " + (filters.sort === "newest" ? "bg-sand text-ink" : "hover:bg-sand")}>Newest</Link>
+              <Link href={hrefFor({ ...filters, sort: "closing" })} className={"rounded-pill px-2.5 py-1 font-semibold " + (filters.sort === "closing" ? "bg-sand text-ink" : "hover:bg-sand")}>Closing soon</Link>
+            </span>
+          </div>
+        )}
+
         {mine > 0 && (
           <Link
             href={manageHref}
@@ -147,7 +204,18 @@ export default async function WorkHubPage({
             </div>
           )
         ) : jobs.length === 0 ? (
-          <EmptyState icon="💼" title="No jobs match" body="Try clearing filters or a different category — new roles are posted regularly." cta={{ label: "Post a job", href: "/jobs/new", color: JOBS }} />
+          refined ? (
+            <div className="rounded-card border border-line bg-paper px-6 py-12 text-center shadow-soft" data-testid="zero-results">
+              <p className="font-display text-2xl font-bold text-ink">No jobs match those filters.</p>
+              <p className="mx-auto mt-2 max-w-md text-ink-soft">Try removing a filter or searching for something broader.</p>
+              <div className="mt-5 flex flex-wrap justify-center gap-3">
+                <Link href={hrefFor(clearAll(filters))} className="rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: accent }}>Clear filters</Link>
+                <Link href="/jobs" className="rounded-pill border border-line-strong px-5 py-2.5 font-semibold text-ink hover:bg-sand">View all jobs</Link>
+              </div>
+            </div>
+          ) : (
+            <EmptyState icon="💼" title="No jobs right now" body="New roles are posted regularly — check back soon." cta={{ label: "Post a job", href: "/jobs/new", color: JOBS }} />
+          )
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {jobs.map((j) => <JobCard key={j.id} job={j} />)}

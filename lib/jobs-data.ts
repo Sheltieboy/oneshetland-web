@@ -164,6 +164,20 @@ export async function getJobs(opts: JobFilter = {}): Promise<Job[]> {
   })(), []);
 }
 
+/** Every live job, for the Jobs page: filtering, facets and sorting happen in lib/job-filters.ts so the options always reflect what is live. */
+export async function getActiveJobs(limit = 500): Promise<Job[]> {
+  const sb = publicClient();
+  return safe((async () => {
+    const { data } = await sb.from("jobs")
+      .select(JOB_SELECT)
+      .eq("is_hidden", false).eq("status", "open")
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+      .order("listed_at", { ascending: false })
+      .limit(limit);
+    return (data ?? []) as unknown as Job[];
+  })(), [] as Job[]);
+}
+
 /** Category chips for the Jobs page: only categories that at least one live job has (an uncategorised feed shows none). */
 export async function getJobCategoriesInUse(): Promise<JobCategory[]> {
   const sb = publicClient();
