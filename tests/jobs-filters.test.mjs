@@ -210,7 +210,8 @@ describe("UI structure (desktop + mobile)", () => {
   });
   test("panel is a bottom sheet on phones and a dropdown on desktop; it is a GET form (URL state); empty groups are never rendered", () => {
     assert.match(panel, /fixed inset-x-0 bottom-0/);
-    assert.match(panel, /md:absolute/);
+    assert.match(panel, /createPortal/, "rendered on <body>: the blurred header would otherwise capture position:fixed");
+    assert.match(panel, /md:w-\[26rem\]/);
     assert.match(panel, /method="get"/);
     assert.match(panel, /facets\.locations\.length > 0 && section\("Location"/);
     assert.match(panel, /if \(!has\) return null/);

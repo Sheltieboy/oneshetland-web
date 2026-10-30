@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import type { Facets, JobFilters } from "@/lib/job-filters";
 import { filterCount } from "@/lib/job-filters";
@@ -12,6 +13,15 @@ import { filterCount } from "@/lib/job-filters";
  */
 export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets: Facets; filters: JobFilters; accent: string; clearHref: string }) {
   const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  const btn = useRef<HTMLButtonElement>(null);
+  // The page header uses backdrop-blur, which makes `position: fixed` children anchor to the header instead of the screen —
+  // so the panel is rendered in a portal on <body>, and on desktop positioned under the button from its measured rect.
+  const show = () => {
+    const r = btn.current?.getBoundingClientRect();
+    setAnchor(r && window.innerWidth >= 768 ? { top: r.bottom + 8, right: Math.max(12, window.innerWidth - r.right) } : null);
+    setOpen(true);
+  };
   const n = filterCount(filters);
   const has = facets.locations.length + facets.employment.length + facets.workplace.length + facets.salary.length + facets.employers.length > 0;
   if (!has) return null;
@@ -35,7 +45,8 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
     <div className="relative" style={{ ["--jobs-accent" as string]: accent }}>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        ref={btn}
+        onClick={show}
         aria-expanded={open}
         aria-haspopup="dialog"
         data-testid="filters-button"
@@ -45,7 +56,7 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
         <span aria-hidden>⚙</span> {n > 0 ? `Filters (${n})` : "Filters"}
       </button>
 
-      {open && (
+      {open && typeof document !== "undefined" && createPortal(
         <>
           <button type="button" aria-label="Close filters" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-black/40 md:bg-transparent" />
           <form
@@ -54,7 +65,8 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
             role="dialog"
             aria-label="Filter jobs"
             data-testid="filters-panel"
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-paper p-5 shadow-lift md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-full md:mt-2 md:max-h-[70vh] md:w-[26rem] md:rounded-2xl"
+            style={{ ["--jobs-accent" as string]: accent, ...(anchor ? { top: anchor.top, right: anchor.right } : {}) }}
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-paper p-5 shadow-lift md:inset-x-auto md:bottom-auto md:max-h-[70vh] md:w-[26rem] md:rounded-2xl"
           >
             {filters.q && <input type="hidden" name="q" value={filters.q} />}
             {filters.category && <input type="hidden" name="category" value={filters.category} />}
@@ -75,7 +87,8 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
               <button type="submit" className="rounded-pill px-5 py-2 text-sm font-bold text-paper" style={{ background: accent }}>Show jobs</button>
             </div>
           </form>
-        </>
+        </>,
+        document.body,
       )}
     </div>
   );
