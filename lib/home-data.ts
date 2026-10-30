@@ -203,7 +203,7 @@ async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
     .or(currentEventsFilter(now))
     .order("is_featured", { ascending: false })
     .order("starts_at", { ascending: true })
-    .limit(6);
+    .limit(7);   // the homepage mosaic shows seven (lib/event-display.ts HOME_MOSAIC_COUNT)
   return (data ?? []) as HomeEvent[];
 }
 

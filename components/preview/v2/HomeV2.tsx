@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { formatEventDate, formatEventTime, type HomeEvent, type HomeNotice, type HomeCampaign } from "@/lib/home-data";
+import { type HomeEvent, type HomeNotice, type HomeCampaign } from "@/lib/home-data";
 import type { ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import type { CruiseHomeCard } from "@/lib/cruise-data";
 import type { GamePrompt } from "@/lib/home-extras";
+import { homeMosaicPlan, type HomeCard } from "@/lib/event-display";
 import { SECTIONS } from "@/lib/sections";
 import { CATEGORY_LABEL } from "@/lib/local-data";
 import { PILLARS, PILLAR_ORDER, density, type Merch, type Pillar } from "@/lib/preview-v2";
@@ -58,73 +59,121 @@ export function LivePills({ items }: { items: { key: string; label: string; href
 
 /* ── Right now in Shetland ─────────────────────────────────────────────────── */
 
+const FOCUS = "outline-none focus-visible:ring-4 focus-visible:ring-amber-400 focus-visible:ring-offset-2";
+type Kind = "hero" | "medium" | "small" | "tile" | "rail";
+
+/**
+ * One homepage event card. An event WITH a cover always draws it as the card background under the OneShetland dark gradient,
+ * whatever the card's size; the coloured numeral card is only the fallback for an event that has no cover at all.
+ * Position-based styling (hero / medium / small / tile / rail) changes size and type scale, never whether the picture is used.
+ */
+function EventCard({ c, kind, tone = "amber" }: { c: HomeCard; kind: Kind; tone?: "amber" | "white" }) {
+  const base = `group relative isolate flex overflow-hidden rounded-3xl transition ${FOCUS} `;
+  const size: Record<Kind, string> = {
+    hero: "min-h-[340px] shadow-lift lg:col-span-7 lg:row-span-2 lg:min-h-[560px]",
+    medium: "hidden min-h-[170px] shadow-soft lg:col-span-5 lg:flex",
+    small: "min-h-[180px] shadow-soft hover:-translate-y-0.5 hover:shadow-lift",
+    tile: "min-h-[220px] shadow-soft hover:-translate-y-0.5 hover:shadow-lift lg:min-h-[240px]",
+    rail: "min-h-[200px] shadow-soft",
+  };
+  if (c.photo) {
+    const grad = kind === "medium" ? "bg-gradient-to-r from-black/80 via-black/40 to-transparent" : kind === "hero" ? "bg-gradient-to-t from-black/85 via-black/30 to-black/10" : "bg-gradient-to-t from-black/85 via-black/35 to-black/5";
+    return (
+      <Link href={`/whats-on/${c.id}`} className={base + size[kind]}>
+        <CropImg src={c.cover!} fallback="/preview-v2/concert.jpg" className="absolute inset-0 -z-10" />
+        <div className={`absolute inset-0 -z-10 ${grad}`} />
+        {kind === "hero" ? (
+          <div className="mt-auto w-full p-6 text-white sm:p-9">
+            <span className="inline-flex items-center gap-2 rounded-pill bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wide" style={{ color: EVENTS }}>
+              <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: EVENTS }} /> {c.badge}
+            </span>
+            <h3 className="mt-4 max-w-2xl font-display text-4xl font-bold leading-[1.02] [text-shadow:_0_2px_18px_rgb(0_0_0_/_55%)] sm:text-6xl">{c.title}</h3>
+            <p className="mt-3 text-base font-medium text-white/90 sm:text-lg">{c.line}{c.price ? ` · ${c.price}` : ""}</p>
+          </div>
+        ) : (
+          <div className="mt-auto w-full min-w-0 p-4 text-white sm:p-5">
+            <span className="text-xs font-black uppercase tracking-wider text-amber-300">{c.badge}</span>
+            <p className={"mt-1 line-clamp-2 font-display font-bold leading-tight [text-shadow:_0_1px_10px_rgb(0_0_0_/_55%)] " + (kind === "medium" ? "max-w-xs text-2xl" : kind === "tile" ? "text-xl" : "text-lg")}>{c.title}</p>
+            <p className="mt-1 truncate text-sm text-white/85">{c.line}</p>
+          </div>
+        )}
+      </Link>
+    );
+  }
+  // No cover: the existing coloured numeral card.
+  const amber = tone === "amber" || kind === "hero" || kind === "medium";
+  return (
+    <Link
+      href={`/whats-on/${c.id}`}
+      className={base + size[kind] + (amber ? " text-white" : " border border-line bg-white")}
+      style={amber ? { background: `linear-gradient(150deg, ${EVENTS}, #92400e)` } : undefined}
+    >
+      <div className={"flex w-full min-w-0 flex-col justify-between " + (kind === "hero" ? "p-6 sm:p-9" : "p-5")}>
+        <span className={"font-display font-black leading-none " + (kind === "hero" ? "text-8xl" : kind === "medium" ? "text-5xl" : "text-6xl")} style={amber ? undefined : { color: EVENTS }}>
+          {c.day}<span className={"ml-2 font-bold uppercase " + (kind === "hero" ? "text-3xl" : "text-xl") + (amber ? " opacity-80" : " text-ink-muted")}>{c.month}</span>
+        </span>
+        <span className="mt-6 block min-w-0">
+          <span className={"block font-display font-bold leading-tight " + (kind === "hero" ? "line-clamp-3 text-4xl sm:text-6xl" : kind === "medium" ? "line-clamp-2 text-2xl" : "line-clamp-2 text-xl") + (amber ? "" : " text-ink")}>{c.title}</span>
+          <span className={"mt-1 block truncate text-sm font-medium " + (amber ? "text-white/85" : "text-ink-muted")}>{c.live ? `${c.badge} · ` : ""}{c.line}</span>
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+const TILE_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" };
+
 export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEvent[]; cruise: CruiseHomeCard | null; showCruise: boolean; lead?: Merch }) {
-  const [e0, e1, e2, e3] = events;
-  if (!e0 && !showCruise) return null;
-  const cover = (e: HomeEvent) => e.cover_url || "/preview-v2/concert.jpg";
-  const d = (e: HomeEvent) => new Date(e.starts_at);
+  const cards = homeMosaicPlan(events, new Date());
+  const [c0, c1, c2, c3, ...tiles] = cards;
+  if (!c0 && !showCruise) return null;
+  const tone = (c: HomeCard) => (c.position % 2 === 1 ? "amber" : "white");
   return (
     <Band>
       <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={{ label: "Full calendar", href: "/whats-on" }} />
+      {/* Desktop: a large hero beside a medium card and two small ones, then a row of three. Phones: the hero, then everything
+          else in one swipeable rail (native scroll-snap), so seven events never become seven full-height cards. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[repeat(2,minmax(0,1fr))]">
-        {e0 && (
-          <Link href={`/whats-on/${e0.id}`} className="group relative isolate flex min-h-[340px] overflow-hidden rounded-3xl shadow-lift lg:col-span-7 lg:row-span-2 lg:min-h-[560px]">
-            <CropImg src={cover(e0)} fallback="/preview-v2/concert.jpg" className="absolute inset-0 -z-10" />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
-            <div className="mt-auto w-full p-6 text-white sm:p-9">
-              <span className="inline-flex items-center gap-2 rounded-pill bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wide" style={{ color: EVENTS }}>
-                <span className="h-2 w-2 animate-pulse rounded-full" style={{ background: EVENTS }} /> {formatEventDate(e0.starts_at)}
-              </span>
-              <h3 className="mt-4 max-w-2xl font-display text-4xl font-bold leading-[1.02] [text-shadow:_0_2px_18px_rgb(0_0_0_/_55%)] sm:text-6xl">{e0.title}</h3>
-              <p className="mt-3 text-base font-medium text-white/90 sm:text-lg">{formatEventTime(e0.starts_at)}{e0.venue ? ` · ${e0.venue}` : ""}{e0.price_text ? ` · ${e0.price_text}` : ""}</p>
-            </div>
-          </Link>
+        {c0 && <EventCard c={c0} kind="hero" />}
+
+        {cards.length > 1 && (
+          <div className="lg:hidden">
+            <ul aria-label="More events" className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {cards.slice(1).map((c) => (
+                <li key={c.id} className="flex w-[72vw] max-w-[300px] shrink-0 snap-start flex-col">
+                  <EventCard c={c} kind="rail" tone={tone(c)} />
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
-        {/* supporting 1 — a photo card */}
-        {e1 && (
-          <Link href={`/whats-on/${e1.id}`} className="group relative isolate flex min-h-[170px] overflow-hidden rounded-3xl shadow-soft lg:col-span-5">
-            <CropImg src={cover(e1)} fallback="/preview-v2/concert.jpg" className="absolute inset-0 -z-10" />
-            <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
-            <div className="mt-auto p-5 text-white">
-              <span className="text-xs font-black uppercase tracking-wider text-amber-300">{formatEventDate(e1.starts_at)}</span>
-              <p className="mt-1 max-w-xs font-display text-2xl font-bold leading-tight">{e1.title}</p>
-              <p className="mt-1 text-sm text-white/80">{e1.venue ?? formatEventTime(e1.starts_at)}</p>
-            </div>
-          </Link>
-        )}
+        {c1 && <EventCard c={c1} kind="medium" />}
 
-        {/* supporting 2 + 3 — a big-numeral date card and the ship (or the next event) */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-5">
-          {e2 && (
-            <Link href={`/whats-on/${e2.id}`} className="group flex min-h-[150px] flex-col justify-between rounded-3xl p-5 text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift sm:min-h-[180px]" style={{ background: `linear-gradient(150deg, ${EVENTS}, #92400e)` }}>
-              <span className="font-display text-6xl font-black leading-none">{d(e2).getDate()}<span className="ml-2 text-xl font-bold uppercase opacity-80">{d(e2).toLocaleDateString("en-GB", { month: "short" })}</span></span>
-              <span>
-                <span className="block line-clamp-2 font-display text-xl font-bold leading-tight">{e2.title}</span>
-                <span className="mt-0.5 block text-xs font-medium text-white/80">{e2.venue ?? formatEventTime(e2.starts_at)}</span>
-              </span>
-            </Link>
-          )}
-          {showCruise && cruise ? (
-            <Link href={`/cruise/${cruise.date}`} className="group relative isolate flex min-h-[180px] flex-col justify-between overflow-hidden rounded-3xl p-5 text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift" style={{ background: "linear-gradient(150deg,#0a4a70,#032f4c)" }}>
-              {cruise.visits[0]?.image && <CropImg src={cruise.visits[0].image} className="absolute inset-0 -z-10 opacity-45" />}
-              <span className="text-[11px] font-black uppercase tracking-widest text-sky-200">{cruise.isToday ? "In port today" : "Next cruise call"}</span>
-              <span>
-                <span className="block font-display text-4xl font-black leading-none">{cruise.ships_count}<span className="ml-1.5 text-base font-bold opacity-80">{cruise.ships_count === 1 ? "ship" : "ships"}</span></span>
-                <span className="mt-1 block text-xs font-medium text-sky-100">{cruise.total_est_pax ? `~${cruise.total_est_pax.toLocaleString()} visitors ashore` : "Visitors ashore"}</span>
-              </span>
-            </Link>
-          ) : e3 ? (
-            <Link href={`/whats-on/${e3.id}`} className="group flex min-h-[180px] flex-col justify-between rounded-3xl border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
-              <span className="font-display text-6xl font-black leading-none" style={{ color: EVENTS }}>{d(e3).getDate()}<span className="ml-2 text-xl font-bold uppercase text-ink-muted">{d(e3).toLocaleDateString("en-GB", { month: "short" })}</span></span>
-              <span>
-                <span className="block line-clamp-2 font-display text-xl font-bold leading-tight text-ink">{e3.title}</span>
-                <span className="mt-0.5 block text-xs font-medium text-ink-muted">{e3.venue ?? formatEventTime(e3.starts_at)}</span>
-              </span>
-            </Link>
-          ) : lead ? <MerchCard m={lead} fill /> : null}
-        </div>
+        {(c2 || c3) && (
+          <div className="hidden gap-4 lg:col-span-5 lg:grid lg:grid-cols-2">
+            {c2 && <EventCard c={c2} kind="small" tone={tone(c2)} />}
+            {c3 ? <EventCard c={c3} kind="small" tone={tone(c3)} /> : !showCruise && lead ? <MerchCard m={lead} fill /> : null}
+          </div>
+        )}
       </div>
+
+      {tiles.length > 0 && (
+        <div className={`mt-4 hidden gap-4 lg:grid ${TILE_COLS[tiles.length] ?? "lg:grid-cols-3"}`}>
+          {tiles.map((c) => <EventCard key={c.id} c={c} kind="tile" tone={tone(c)} />)}
+        </div>
+      )}
+
+      {showCruise && cruise && (
+        <Link href={`/cruise/${cruise.date}`} className={"group relative isolate mt-4 flex min-h-[120px] flex-col justify-between overflow-hidden rounded-3xl p-5 text-white shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift sm:flex-row sm:items-end " + FOCUS} style={{ background: "linear-gradient(150deg,#0a4a70,#032f4c)" }}>
+          {cruise.visits[0]?.image && <CropImg src={cruise.visits[0].image} className="absolute inset-0 -z-10 opacity-45" />}
+          <span className="text-[11px] font-black uppercase tracking-widest text-sky-200">{cruise.isToday ? "In port today" : "Next cruise call"}</span>
+          <span className="sm:text-right">
+            <span className="block font-display text-4xl font-black leading-none">{cruise.ships_count}<span className="ml-1.5 text-base font-bold opacity-80">{cruise.ships_count === 1 ? "ship" : "ships"}</span></span>
+            <span className="mt-1 block text-xs font-medium text-sky-100">{cruise.total_est_pax ? `~${cruise.total_est_pax.toLocaleString()} visitors ashore` : "Visitors ashore"}</span>
+          </span>
+        </Link>
+      )}
     </Band>
   );
 }
