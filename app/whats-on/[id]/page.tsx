@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { eventWhen } from "@/lib/event-display";
 import { normaliseCategory } from "@/lib/event-categories";
 import { notFound } from "next/navigation";
 import {
@@ -112,7 +113,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {e.title}
           </h1>
           <p className="mt-3 text-lg text-paper/90">
-            {fmtLongDateTime(e.starts_at)}
+            {eventWhen(e.starts_at, e.ends_at).line}
             {e.venue ? ` · ${e.venue}` : ""}
           </p>
         </div>
@@ -173,9 +174,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <InfoCard label="When">
-              {fmtLongDateTime(e.starts_at)}
+              {eventWhen(e.starts_at, e.ends_at).start}
               {e.doors_open_at ? <span className="block text-ink-muted">Doors {fmtTime(e.doors_open_at)}</span> : null}
-              {e.ends_at ? <span className="block text-ink-muted">Until {fmtTime(e.ends_at)}</span> : null}
+              {eventWhen(e.starts_at, e.ends_at).end ? <span className="block text-ink-muted">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
             </InfoCard>
             <InfoCard label="Where">
               {e.venue ?? "Shetland"}

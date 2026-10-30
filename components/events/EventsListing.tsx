@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { normaliseCategory } from "@/lib/event-categories";
+import { venueAndOrganiser, rowEndSuffix } from "@/lib/event-display";
 import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import {
@@ -250,9 +251,7 @@ function EventRow({ e }: { e: EventListItem }) {
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-display text-lg font-bold leading-snug">{e.title}</h3>
         <p className="mt-0.5 truncate text-sm text-ink-muted">
-          {fmtTime(e.starts_at)}
-          {e.venue ? ` · ${e.venue}` : ""}
-          {organiser ? ` · ${organiser}` : ""}
+          {[fmtTime(e.starts_at), ...venueAndOrganiser(e.venue, organiser), rowEndSuffix(e.starts_at, e.ends_at)].filter(Boolean).join(" · ")}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {normaliseCategory(e.category) && (
