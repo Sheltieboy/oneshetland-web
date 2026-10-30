@@ -17,8 +17,10 @@
  * same name as the venue (trim, case, whitespace and apostrophe style only — no fuzzy matching), and keeps both
  * when they genuinely differ.
  *
- * No imports, so the suites that execute it under `node --test` can load it directly.
+ * Only imports ./event-state (itself dependency-free), so the suites that execute it under `node --test` can load it.
  */
+
+import { eventState, untilLabel, ongoingLabel } from "./event-state";
 
 const SHETLAND_TZ = "Europe/London";
 
@@ -94,4 +96,24 @@ export function venueAndOrganiser(venue?: string | null, organiser?: string | nu
   if (v) out.push(v);
   if (o && !sameName(v, o)) out.push(o);
   return out;
+}
+
+/**
+ * The grey meta line under a list row's title, and whether the row is ONGOING.
+ *  · upcoming (or any not-running event): "19:30 · Mareel · Shetland Arts · to Sun 6 Dec"
+ *  · ongoing: "Until Sun 18 Jan · Mareel" — its old start time/date is NOT shown, because that would read as still to come.
+ */
+export function rowMeta(
+  e: { starts_at: string; ends_at?: string | null; venue?: string | null },
+  organiser: string | null | undefined,
+  now: Date | number = new Date(),
+): { line: string; ongoing: boolean } {
+  const who = venueAndOrganiser(e.venue, organiser);
+  if (eventState(e, now) === "ongoing") return { line: [untilLabel(e, now), ...who].filter(Boolean).join(" · "), ongoing: true };
+  return { line: [timeOnly(e.starts_at), ...who, rowEndSuffix(e.starts_at, e.ends_at)].filter(Boolean).join(" · "), ongoing: false };
+}
+
+/** Longer "when" text for strips and cards that show a date: the date normally, "Ongoing · Until …" while it is running. */
+export function whenText(e: { starts_at: string; ends_at?: string | null }, now: Date | number = new Date()): string {
+  return eventState(e, now) === "ongoing" ? ongoingLabel(e, now) : longDateTime(e.starts_at);
 }

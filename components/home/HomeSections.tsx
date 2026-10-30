@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { londonDayNumber, londonMonthShort } from "@/lib/event-state";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { CruiseTodayCard } from "@/components/cruise/CruiseTodayCard";
 import { offerBadge, formatEventDate, formatEventTime, type HomeEvent, type HomeOffer, type HomeNotice, type HomeCampaign } from "@/lib/home-data";
@@ -104,8 +105,8 @@ export function WhatsHappening({ events, showCruise }: { events: HomeEvent[]; sh
                 <li key={e.id}>
                   <Link href={`/whats-on/${e.id}`} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-sand">
                     <span className="w-16 shrink-0 text-center">
-                      <span className="block text-[11px] font-bold uppercase leading-none" style={{ color: EVENTS }}>{new Date(e.starts_at).toLocaleDateString("en-GB", { month: "short" })}</span>
-                      <span className="block font-display text-2xl font-bold leading-tight text-ink">{new Date(e.starts_at).getDate()}</span>
+                      <span className="block text-[11px] font-bold uppercase leading-none" style={{ color: EVENTS }}>{londonMonthShort(e.starts_at)}</span>
+                      <span className="block font-display text-2xl font-bold leading-tight text-ink">{londonDayNumber(e.starts_at)}</span>
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate font-semibold text-ink">{e.title}</span>

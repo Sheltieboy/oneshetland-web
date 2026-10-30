@@ -111,6 +111,7 @@ describe("Drafts, hidden and unapproved events stay private", () => {
         ...islandsWide,
         ...titles((await local.getBusinessEventsAndJobs("biz-1")).events),
         ...titles(await hubs.getHubEvents("hub-1")),
+        ...titles(await events.getUpcomingEvents({ limit: 100, upcomingOnly: true })),
       ];
       for (const d of DRAFT_TITLES) assert.ok(!all.includes(d), `${viewer}: ${d} leaked`);
       assert.ok(!islandsWide.includes("Unapproved Hub Event"), "a hub event not calendar-approved stays off islands-wide lists");
@@ -130,32 +131,33 @@ describe("Drafts, hidden and unapproved events stay private", () => {
   });
 });
 
-describe("Home, Local, business and hub lists keep running events", () => {
-  test("Home strip: the running events are there, drafts are not, 'n on today' counts them", async () => {
+describe("Upcoming-only lists (Home, Local, business, hub) start today or later; the planner keeps running events", () => {
+  test("Home strip: today's and future events, but not an exhibition or festival that began on an earlier day", async () => {
     setViewer("anon");
-    const h = await home.getHomeData();
-    const t = titles(h.events);
-    assert.ok(t.includes("Tonight's Show") || t.includes("RIFFMAS 2026"));
+    const t = titles((await home.getHomeData()).events);
+    assert.ok(t.includes("Tonight's Show"), "started earlier today and still running: still today's event");
+    assert.ok(t.includes("Future Gig"));
+    for (const old of ["Art in Nature", "RIFFMAS 2026", "Gallery Show", "Hub Winter Fair"]) assert.ok(!t.includes(old), `${old} began on an earlier day`);
+    assert.ok(!t.includes("Last Week") && !t.includes("Old One-Day"));
     const { isOnToday } = await import("../lib/event-currency.ts");
-    assert.ok(h.events.some((e) => e.title === "RIFFMAS 2026") || true);
     assert.equal(isOnToday({ starts_at: "2026-12-04T19:00:00Z", ends_at: "2026-12-06T23:59:00Z" }), true, "festival day 2 is on today");
     assert.equal(isOnToday({ starts_at: "2026-12-06T10:00:00Z", ends_at: null }), false, "tomorrow is not today");
   });
-  test("Local feed lists the running exhibition and festival (6 slots)", async () => {
+  test("Local feed: upcoming-only", async () => {
     const t = titles((await local.getLocalFeed()).events);
-    assert.ok(t.includes("RIFFMAS 2026") || t.includes("Art in Nature") || t.includes("Gallery Show"));
-    assert.ok(!t.includes("Last Week") && !t.includes("Old One-Day"));
+    assert.ok(t.includes("Future Gig") && t.includes("Tonight's Show"));
+    assert.ok(!t.includes("RIFFMAS 2026") && !t.includes("Art in Nature") && !t.includes("Gallery Show"));
+    assert.ok(!t.includes("Last Week") && !t.includes("Started Today No End"));
   });
-  test("a business's page lists its running gallery show, not its draft", async () => {
-    const t = titles((await local.getBusinessEventsAndJobs("biz-1")).events);
-    assert.deepEqual(t, ["Gallery Show"]);
+  test("a business's coming events: upcoming-only (a running gallery show is not 'coming'), never its draft", async () => {
+    assert.deepEqual(titles((await local.getBusinessEventsAndJobs("biz-1")).events), []);
   });
-  test("a hub's own page lists its running fair (and still no drafts)", async () => {
+  test("a hub's coming events: upcoming-only, and no drafts", async () => {
     const t = titles(await hubs.getHubEvents("hub-1"));
-    assert.ok(t.includes("Hub Winter Fair"));
+    assert.ok(!t.includes("Hub Winter Fair"));
     assert.ok(!DRAFT_TITLES.some((d) => t.includes(d)));
   });
-  test("planner: a multi-day event running when the window opens is a candidate; a finished one is not", async () => {
+  test("planner: a multi-day event running when the window opens is still a (flexible) candidate; a finished one is not", async () => {
     const c = await planner.getPlannerCandidates("2026-12-05T09:00:00Z", "2026-12-05T18:00:00Z");
     const names = c.filter((x) => x.kind === "event").map((x) => x.name);
     assert.ok(names.includes("RIFFMAS 2026") && names.includes("Art in Nature") && names.includes("Tonight's Show"), names.join());

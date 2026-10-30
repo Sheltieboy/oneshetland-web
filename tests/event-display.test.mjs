@@ -105,10 +105,12 @@ describe("the pages use the shared helpers", () => {
     assert.ok(s.indexOf("multiDay ? <span className=\"block\">") < s.indexOf("Doors {fmtTime"), "multi-day end must come before Doors");
     assert.doesNotMatch(s, /Until \{fmtTime\(e\.ends_at\)\}/);
   });
-  test("list row builds venue/organiser through venueAndOrganiser and adds the multi-day suffix", () => {
+  test("list row builds its meta line through rowMeta, which uses venueAndOrganiser and the multi-day suffix", () => {
     const s = read("components/events/EventsListing.tsx");
-    assert.match(s, /venueAndOrganiser\(e\.venue, organiser\)/);
-    assert.match(s, /rowEndSuffix\(e\.starts_at, e\.ends_at\)/);
+    assert.match(s, /rowMeta\(e, organiser/);
     assert.doesNotMatch(s, /\{organiser \? ` · \$\{organiser\}` : ""\}/);
+    const d = read("lib/event-display.ts");
+    assert.match(d, /venueAndOrganiser\(e\.venue, organiser\)/);
+    assert.match(d, /rowEndSuffix\(e\.starts_at, e\.ends_at\)/);
   });
 });

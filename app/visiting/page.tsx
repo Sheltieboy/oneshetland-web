@@ -86,7 +86,7 @@ function Tint({ color, label }: { color: string; label?: string }) {
 export default async function VisitingPage() {
   const [{ places, makes, cruiseDays, words, offers }, events] = await Promise.all([
     getVisitingData(),
-    getUpcomingEvents({ limit: 8 }).catch(() => []),
+    getUpcomingEvents({ limit: 8, upcomingOnly: true }).catch(() => []),
   ]);
 
   return (

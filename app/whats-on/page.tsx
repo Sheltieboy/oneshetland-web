@@ -45,9 +45,11 @@ export default async function WhatsOnPage({
   // Highlights (featured + on-sale) are independent of the active filters —
   // fetched across all upcoming events, like the app's highlights row.
   const now = new Date();
+  const nowIso = now.toISOString();
   const [pageEvents, highlights, monthEvents, categories] = await Promise.all([
     getUpcomingEvents({ category, range, limit: PAGE_SIZE }),
-    getUpcomingEvents({ limit: 60 }),
+    // Featured / On-sale strips are upcoming-only: an exhibition that began weeks ago must not headline them.
+    getUpcomingEvents({ limit: 60, upcomingOnly: true }),
     calendar ? getEventsInMonth(now.getFullYear(), now.getMonth()) : Promise.resolve([] as EventListItem[]),
     getEventCategories(),
   ]);
@@ -119,8 +121,8 @@ export default async function WhatsOnPage({
           />
         ) : (
           <>
-            {showHighlights && featured.length > 0 && <FeaturedStrip events={featured} />}
-            {showHighlights && onSale.length > 0 && <OnSaleStrip events={onSale} />}
+            {showHighlights && featured.length > 0 && <FeaturedStrip events={featured} nowIso={nowIso} />}
+            {showHighlights && onSale.length > 0 && <OnSaleStrip events={onSale} nowIso={nowIso} />}
 
             {visible.length === 0 ? (
               <div className="rounded-xl border border-line bg-paper p-12 text-center shadow-soft">
@@ -144,7 +146,7 @@ export default async function WhatsOnPage({
             ) : (
               <>
                 <div className="mb-8 flex items-baseline justify-between">
-                  <h2 className="font-display text-2xl font-bold">Upcoming</h2>
+                  <h2 className="font-display text-2xl font-bold">What&apos;s on</h2>
                   <p className="text-sm text-ink-muted">
                     {visible.length}
                     {hasMore ? "+" : ""} event{visible.length === 1 ? "" : "s"}
@@ -166,6 +168,7 @@ export default async function WhatsOnPage({
                   freeOnly={freeOnly}
                   pageSize={PAGE_SIZE}
                   initialHasMore={hasMore}
+                  nowIso={nowIso}
                 />
               </>
             )}

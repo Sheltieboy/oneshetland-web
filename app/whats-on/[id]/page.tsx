@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { eventWhen } from "@/lib/event-display";
+import { eventState } from "@/lib/event-state";
 import { normaliseCategory } from "@/lib/event-categories";
 import { notFound } from "next/navigation";
 import {
@@ -104,6 +105,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
         </div>
 
         <div className="relative mx-auto w-full max-w-5xl px-5 pb-9">
+          {eventState(e, new Date()) === "ongoing" && (
+            <span className="mr-2 inline-block rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wide text-paper" style={{ background: EVENTS }}>
+              Ongoing
+            </span>
+          )}
           {normaliseCategory(e.category) && (
             <span className="inline-block rounded-pill bg-paper/95 px-3 py-1 text-xs font-bold" style={{ color: EVENTS }}>
               {normaliseCategory(e.category)}

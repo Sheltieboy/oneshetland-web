@@ -1,4 +1,5 @@
 import { currentEventsFilter } from "./event-currency";
+import { upcomingSurfaceFilter } from "./event-state";
 import { publicClient } from "./supabase/public";
 import { unwrapPublic } from "./public-read";
 import { noticeHref } from "./home-curation";
@@ -196,7 +197,9 @@ async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
     .select("id, title, starts_at, ends_at, venue, category, cover_url, is_featured, price_text, has_tickets")
     .eq("is_hidden", false)
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    // Still on, not just not-yet-started (see lib/event-currency.ts).
+    // "What's happening": events that START today (Shetland) or later and have not finished. An exhibition that began weeks
+    // ago is still discoverable on /whats-on but must not fill these slots under its old start date (lib/event-state.ts).
+    .gte("starts_at", upcomingSurfaceFilter().fromIso)
     .or(currentEventsFilter(now))
     .order("is_featured", { ascending: false })
     .order("starts_at", { ascending: true })
@@ -370,10 +373,10 @@ async function fetchSpik(sb: SB): Promise<HomeSpik> {
 /* ── Formatting helpers ───────────────────────────────────────────────────── */
 export function formatEventDate(iso: string): string {
   const d = new Date(iso);
-  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  return d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 }
 export function formatEventTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit", timeZone: "Europe/London" });
 }
 export function offerBadge(o: HomeOffer): string {
   if (o.discount_type === "percent" && o.discount_value) return `${o.discount_value}% off`;

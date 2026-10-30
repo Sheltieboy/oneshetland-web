@@ -1,5 +1,6 @@
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
+import { upcomingSurfaceFilter } from "./event-state";
 import { unwrapPublic } from "./public-read";
 
 export const SHETLAND_AREAS = [
@@ -704,6 +705,7 @@ export async function getLocalFeed(area?: string): Promise<{
           .select("id, title, starts_at, venue, locality, cover_url, category, price_text, has_tickets")
           .eq("status", "published")
           .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+          .gte("starts_at", upcomingSurfaceFilter().fromIso)   // upcoming-only: starts today or later
           .or(currentEventsFilter(now))
           .order("starts_at", { ascending: true })
           .limit(6);
@@ -882,6 +884,7 @@ export async function getBusinessEventsAndJobs(businessId: string): Promise<{
         .select("id, title, starts_at, venue, cover_url")
         .eq("organiser_business_id", businessId)
         .eq("status", "published")
+        .gte("starts_at", upcomingSurfaceFilter().fromIso)   // a business's coming events: starts today or later
         .or(currentEventsFilter(now))
         .order("starts_at", { ascending: true })
         .limit(3)

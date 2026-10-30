@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { normaliseCategory } from "@/lib/event-categories";
-import { venueAndOrganiser, rowEndSuffix } from "@/lib/event-display";
+import { rowMeta, whenText } from "@/lib/event-display";
+import { splitByState } from "@/lib/event-state";
 import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import {
@@ -10,7 +11,6 @@ import {
   type DateRange,
   groupByDate,
   fmtTime,
-  fmtLongDateTime,
   priceLabel,
 } from "@/lib/events-data";
 
@@ -146,7 +146,8 @@ function CalFallback({ size }: { size: number }) {
 }
 
 /* ── Featured strip (multiple heroes, horizontal scroll) ──────────────────── */
-export function FeaturedStrip({ events }: { events: EventListItem[] }) {
+export function FeaturedStrip({ events, nowIso }: { events: EventListItem[]; nowIso?: string }) {
+  const now = nowIso ? new Date(nowIso) : new Date();
   return (
     <section className="mb-12">
       <h2 className="mb-4 font-display text-2xl font-bold">Featured</h2>
@@ -176,7 +177,7 @@ export function FeaturedStrip({ events }: { events: EventListItem[] }) {
             <div className="absolute inset-x-3 bottom-3 text-paper">
               <h3 className="font-display text-lg font-bold leading-tight line-clamp-2">{e.title}</h3>
               <p className="mt-1 truncate text-sm text-paper/85">
-                {fmtLongDateTime(e.starts_at)}
+                {whenText(e, now)}
                 {e.venue ? ` · ${e.venue}` : ""}
               </p>
             </div>
@@ -188,7 +189,8 @@ export function FeaturedStrip({ events }: { events: EventListItem[] }) {
 }
 
 /* ── On-sale-now strip (events with tickets) ──────────────────────────────── */
-export function OnSaleStrip({ events }: { events: EventListItem[] }) {
+export function OnSaleStrip({ events, nowIso }: { events: EventListItem[]; nowIso?: string }) {
+  const now = nowIso ? new Date(nowIso) : new Date();
   return (
     <section className="mb-12">
       <h2 className="mb-4 flex items-center gap-2 font-display text-2xl font-bold">
@@ -216,7 +218,7 @@ export function OnSaleStrip({ events }: { events: EventListItem[] }) {
               </div>
               <div className="flex flex-1 flex-col gap-1.5 p-3">
                 <h3 className="font-display text-sm font-bold leading-snug line-clamp-2">{e.title}</h3>
-                <p className="text-xs text-ink-muted">{fmtLongDateTime(e.starts_at)}</p>
+                <p className="text-xs text-ink-muted">{whenText(e, now)}</p>
                 <span
                   className="mt-auto inline-block rounded-pill px-3 py-1.5 text-center text-xs font-bold text-paper"
                   style={{ background: EVENTS }}
@@ -233,8 +235,9 @@ export function OnSaleStrip({ events }: { events: EventListItem[] }) {
 }
 
 /* ── Event row (date-grouped list) ────────────────────────────────────────── */
-function EventRow({ e }: { e: EventListItem }) {
+function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
   const organiser = e.hub?.name ?? e.business?.name ?? null;
+  const meta = rowMeta(e, organiser, nowIso ? new Date(nowIso) : new Date());
   const label = priceLabel(e);
   return (
     <Link
@@ -251,9 +254,17 @@ function EventRow({ e }: { e: EventListItem }) {
       <div className="min-w-0 flex-1">
         <h3 className="truncate font-display text-lg font-bold leading-snug">{e.title}</h3>
         <p className="mt-0.5 truncate text-sm text-ink-muted">
-          {[fmtTime(e.starts_at), ...venueAndOrganiser(e.venue, organiser), rowEndSuffix(e.starts_at, e.ends_at)].filter(Boolean).join(" · ")}
+          {meta.line}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {meta.ongoing && (
+            <span
+              className="rounded-pill px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-paper"
+              style={{ background: EVENTS }}
+            >
+              Ongoing
+            </span>
+          )}
           {normaliseCategory(e.category) && (
             <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-semibold text-ink-soft">
               {normaliseCategory(e.category)}
@@ -280,18 +291,52 @@ function EventRow({ e }: { e: EventListItem }) {
 }
 
 /* ── Date-grouped listings ────────────────────────────────────────────────── */
-function DateGroupedList({ events }: { events: EventListItem[] }) {
-  const groups = groupByDate(events);
+const ONGOING_VISIBLE = 5;
+
+function DateGroupedList({ events, nowIso }: { events: EventListItem[]; nowIso?: string }) {
+  const now = nowIso ? new Date(nowIso) : new Date();
+  // Events that are running NOW sit in one labelled block at the top, with "until …" instead of their old start date;
+  // everything still to come is grouped by its own (Shetland) date as before.
+  const { ongoing, rest } = splitByState(events, now);
+  const groups = groupByDate(rest);
+  const [showAllOngoing, setShowAllOngoing] = useState(false);
+  const shownOngoing = showAllOngoing ? ongoing : ongoing.slice(0, ONGOING_VISIBLE);
+  // minmax(0,1fr), not an implicit auto column: an auto track grows to the longest nowrap line (a long venue name
+  // such as Mareel's) and pushes the whole page wider than a phone.
+  const grid = "grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[170px_minmax(0,1fr)]";
   return (
     <div className="space-y-12">
+      {ongoing.length > 0 && (
+        <div className={grid}>
+          <div className="md:sticky md:top-24 md:self-start">
+            <p className="font-display text-2xl font-bold" style={{ color: EVENTS }}>
+              Ongoing now
+            </p>
+            <p className="text-ink-muted">Running until they finish</p>
+            <div className="mt-3 hidden h-px w-10 md:block" style={{ background: EVENTS }} />
+          </div>
+          <div className="space-y-3">
+            {shownOngoing.map((e) => (
+              <EventRow key={e.id} e={e} nowIso={nowIso} />
+            ))}
+            {ongoing.length > ONGOING_VISIBLE && (
+              <button
+                type="button"
+                onClick={() => setShowAllOngoing((v) => !v)}
+                className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink-soft transition hover:bg-sand"
+              >
+                {showAllOngoing ? "Show fewer" : `Show ${ongoing.length - ONGOING_VISIBLE} more ongoing`}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
       {groups.map((g) => {
-        const d = new Date(g.events[0].starts_at);
-        const weekday = d.toLocaleDateString("en-GB", { weekday: "long" });
-        const dayMonth = d.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
-        // minmax(0,1fr), not an implicit auto column: an auto track grows to the longest nowrap line (a long venue name
-        // such as Mareel's) and pushes the whole page wider than a phone.
+        const iso = g.events[0].starts_at;
+        const weekday = new Date(iso).toLocaleDateString("en-GB", { weekday: "long", timeZone: "Europe/London" });
+        const dayMonth = new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" });
         return (
-          <div key={g.key} className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[170px_minmax(0,1fr)]">
+          <div key={g.key} className={grid}>
             <div className="md:sticky md:top-24 md:self-start">
               <p className="font-display text-2xl font-bold" style={{ color: EVENTS }}>
                 {weekday}
@@ -301,7 +346,7 @@ function DateGroupedList({ events }: { events: EventListItem[] }) {
             </div>
             <div className="space-y-3">
               {g.events.map((e) => (
-                <EventRow key={e.id} e={e} />
+                <EventRow key={e.id} e={e} nowIso={nowIso} />
               ))}
             </div>
           </div>
@@ -535,6 +580,7 @@ type BrowserProps =
       freeOnly: boolean;
       pageSize: number;
       initialHasMore: boolean;
+      nowIso?: string;
     }
   | {
       mode: "calendar";
@@ -557,6 +603,7 @@ function ListWithLoadMore({
   freeOnly,
   pageSize,
   initialHasMore,
+  nowIso,
 }: {
   initial: EventListItem[];
   category?: string;
@@ -564,6 +611,7 @@ function ListWithLoadMore({
   freeOnly: boolean;
   pageSize: number;
   initialHasMore: boolean;
+  nowIso?: string;
 }) {
   const [events, setEvents] = useState(initial);
   const [hasMore, setHasMore] = useState(initialHasMore);
@@ -653,7 +701,7 @@ function ListWithLoadMore({
           </p>
         </div>
       ) : (
-        <DateGroupedList events={filtered} />
+        <DateGroupedList events={filtered} nowIso={nowIso} />
       )}
 
       {hasMore && !q && (

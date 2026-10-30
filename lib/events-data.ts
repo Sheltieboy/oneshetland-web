@@ -1,5 +1,6 @@
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter, londonRangeEnd } from "./event-currency";
+import { londonDate, upcomingSurfaceFilter } from "./event-state";
 import { storedValuesFor, uniqueCategories } from "./event-categories";
 
 // Full static category set — mirrors the app's EVENT_CATEGORIES (lib/events-api.ts),
@@ -312,7 +313,7 @@ function rangeTo(range: DateRange): string | undefined {
  * "on today" — including a festival that began earlier in the week.
  */
 export async function getUpcomingEvents(
-  opts: { category?: string; range?: DateRange; limit?: number; offset?: number } = {},
+  opts: { category?: string; range?: DateRange; limit?: number; offset?: number; upcomingOnly?: boolean } = {},
 ): Promise<EventListItem[]> {
   const sb = publicClient();
   const now = new Date().toISOString();
@@ -324,6 +325,10 @@ export async function getUpcomingEvents(
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
     .or(currentEventsFilter(now))
     .order("starts_at", { ascending: true });
+  // Upcoming-only callers (featured / on-sale strips, the visitor page) must not be filled by an exhibition that began
+  // weeks ago and is merely still open: they want events that START today (Shetland) or later. The full list leaves this
+  // off, so ongoing events stay discoverable there (and are labelled as ongoing by the page).
+  if (opts.upcomingOnly) q = q.gte("starts_at", upcomingSurfaceFilter().fromIso);
   const to = rangeTo(opts.range ?? "all");
   if (to) q = q.lte("starts_at", to);
   // One logical category matches every stored spelling of it (current + legacy names).
@@ -490,8 +495,8 @@ export function groupByDate(events: EventListItem[]): DateGroup[] {
   const groups: DateGroup[] = [];
   const byKey = new Map<string, DateGroup>();
   for (const e of events) {
-    const d = new Date(e.starts_at);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    // The Shetland calendar day, not the server's or the viewer's, so a 00:30 BST event is grouped under its own day.
+    const key = londonDate(e.starts_at);
     let g = byKey.get(key);
     if (!g) {
       g = { key, label: fmtFullDate(e.starts_at), events: [] };
