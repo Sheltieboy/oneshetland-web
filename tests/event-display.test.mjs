@@ -101,6 +101,8 @@ describe("the pages use the shared helpers", () => {
     const s = read("app/whats-on/[id]/page.tsx");
     assert.match(s, /eventWhen\(e\.starts_at, e\.ends_at\)\.line/);
     assert.match(s, /eventWhen\(e\.starts_at, e\.ends_at\)\.end/);
+    // multi-day end sits directly under the start, before the doors line
+    assert.ok(s.indexOf("multiDay ? <span className=\"block\">") < s.indexOf("Doors {fmtTime"), "multi-day end must come before Doors");
     assert.doesNotMatch(s, /Until \{fmtTime\(e\.ends_at\)\}/);
   });
   test("list row builds venue/organiser through venueAndOrganiser and adds the multi-day suffix", () => {

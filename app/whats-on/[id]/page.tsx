@@ -175,8 +175,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             <InfoCard label="When">
               {eventWhen(e.starts_at, e.ends_at).start}
+              {/* A multi-day end reads as part of the start ("to Sunday 6 December…"), so it sits straight under it;
+                  a same-day "Until 23:00" keeps its old place after the doors. */}
+              {eventWhen(e.starts_at, e.ends_at).multiDay ? <span className="block">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
               {e.doors_open_at ? <span className="block text-ink-muted">Doors {fmtTime(e.doors_open_at)}</span> : null}
-              {eventWhen(e.starts_at, e.ends_at).end ? <span className="block text-ink-muted">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
+              {!eventWhen(e.starts_at, e.ends_at).multiDay && eventWhen(e.starts_at, e.ends_at).end ? <span className="block text-ink-muted">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
             </InfoCard>
             <InfoCard label="Where">
               {e.venue ?? "Shetland"}
