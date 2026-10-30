@@ -326,9 +326,9 @@ export async function getUpcomingEvents(
     .or(currentEventsFilter(now))
     .order("starts_at", { ascending: true });
   // Upcoming-only callers (featured / on-sale strips, the visitor page) must not be filled by an exhibition that began
-  // weeks ago and is merely still open: they want events that START today (Shetland) or later. The full list leaves this
+  // weeks ago and is merely still open: they want events that have not started, or are finishing today. The full list leaves this
   // off, so ongoing events stay discoverable there (and are labelled as ongoing by the page).
-  if (opts.upcomingOnly) q = q.gte("starts_at", upcomingSurfaceFilter().fromIso);
+  if (opts.upcomingOnly) q = q.or(upcomingSurfaceFilter().orFilter);
   const to = rangeTo(opts.range ?? "all");
   if (to) q = q.lte("starts_at", to);
   // One logical category matches every stored spelling of it (current + legacy names).

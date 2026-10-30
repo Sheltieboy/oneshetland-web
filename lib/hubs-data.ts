@@ -162,7 +162,7 @@ export async function getHubEvents(hubId: string, limit = 12): Promise<HubEvent[
       .select(EVENT_COLS)
       .eq("organiser_hub_id", hubId)
       .eq("status", "published")
-      .gte("starts_at", upcomingSurfaceFilter().fromIso)   // a hub's coming events: starts today or later
+      .or(upcomingSurfaceFilter().orFilter)   // a hub's coming events: not started yet, or finishing today
       .or(currentEventsFilter(now))
       .order("starts_at", { ascending: true })
       .limit(limit);

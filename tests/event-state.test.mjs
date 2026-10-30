@@ -57,6 +57,11 @@ describe("upcoming-only eligibility uses the Shetland day (GMT, BST, midnight, c
     assert.equal(isUpcomingSurfaceEligible({ starts_at: "2026-12-05T10:00:00Z", ends_at: "2026-12-05T17:00:00Z" }, NOW), true, "started earlier today, still on");
     assert.equal(isUpcomingSurfaceEligible({ starts_at: "2026-12-05T19:00:00Z", ends_at: null }, NOW), true);
     assert.equal(isUpcomingSurfaceEligible({ starts_at: "2026-12-05T08:00:00Z", ends_at: "2026-12-05T10:00:00Z" }, NOW), false, "already over");
+    // began this morning but runs on for weeks (Gaada Open Access: 30 Oct to 28 Nov) — ongoing, not a "what's happening next" event
+    assert.equal(isUpcomingSurfaceEligible({ starts_at: "2026-12-05T10:00:00Z", ends_at: "2027-01-05T17:00:00Z" }, NOW), false);
+    // RIFFMAS opening night, after the doors open: it is a multi-day event now running
+    assert.equal(isUpcomingSurfaceEligible(RIFF, at("2026-12-04T20:00:00Z")), false);
+    assert.equal(isUpcomingSurfaceEligible(RIFF, at("2026-12-04T18:00:00Z")), true, "before it starts, it is upcoming");
   });
   test("GMT winter: the day starts at 00:00Z", () => assert.equal(londonDayStartIso(at("2026-12-05T12:00:00Z")), "2026-12-05T00:00:00.000Z"));
   test("BST summer: the day starts an hour before UTC midnight", () => assert.equal(londonDayStartIso(at("2026-07-15T12:00:00Z")), "2026-07-14T23:00:00.000Z"));
@@ -75,7 +80,10 @@ describe("upcoming-only eligibility uses the Shetland day (GMT, BST, midnight, c
   test("the query filter says the same thing as the in-memory rule", () => {
     const f = upcomingSurfaceFilter(NOW);
     assert.equal(f.fromIso, "2026-12-05T00:00:00.000Z");
-    assert.equal(f.orFilter, "ends_at.gte.2026-12-05T12:00:00.000Z,and(ends_at.is.null,starts_at.gte.2026-12-05T12:00:00.000Z)");
+    assert.equal(f.orFilter, "starts_at.gte.2026-12-05T12:00:00.000Z,and(starts_at.gte.2026-12-05T00:00:00.000Z,ends_at.gte.2026-12-05T12:00:00.000Z,ends_at.lt.2026-12-06T00:00:00.000Z)");
+    // clock-change days: the day is 23 or 25 hours long and the "next day" boundary follows it
+    assert.match(upcomingSurfaceFilter(at("2026-03-29T12:00:00Z")).orFilter, /ends_at\.lt\.2026-03-29T23:00:00\.000Z/);   // spring-forward day ends 23:00Z
+    assert.match(upcomingSurfaceFilter(at("2026-10-25T12:00:00Z")).orFilter, /ends_at\.lt\.2026-10-26T00:00:00\.000Z/);   // autumn-back day is 25h
   });
 });
 
@@ -127,6 +135,7 @@ const FIX = [
   ev("Future Gig", "2026-12-12T19:00:00Z", "2026-12-12T22:00:00Z"),
   ev("Later Today", "2026-12-05T19:00:00Z", "2026-12-05T21:00:00Z"),
   ev("Started Earlier Today", "2026-12-05T10:00:00Z", "2026-12-05T17:00:00Z"),
+  ev("Began Today Runs On", "2026-12-05T10:00:00Z", "2027-01-05T17:00:00Z"),
   ev("RIFFMAS 2026", RIFF.starts_at, RIFF.ends_at),
   ev("I Fly the Flag", FLAG.starts_at, FLAG.ends_at, { category: "Arts & Culture" }),
   ev("Finished Show", "2026-11-28T19:00:00Z", "2026-11-28T22:00:00Z"),
@@ -160,6 +169,7 @@ describe("surfaces", () => {
   test("an event later today or started earlier today is still in the upcoming-only slots", async () => {
     const t = titles((await home.getHomeData()).events);
     assert.ok(t.includes("Later Today") && t.includes("Started Earlier Today") && t.includes("Future Gig"));
+    assert.ok(!t.includes("Began Today Runs On"), "it began this morning but runs for weeks: ongoing, not an upcoming slot");
   });
   test("7. an ongoing event DOES remain in the full What's On list", async () => {
     const t = titles(await events.getUpcomingEvents({ limit: 100 }));
@@ -187,7 +197,8 @@ describe("14. RIFFMAS through its life, in the real queries", () => {
              home: titles((await home.getHomeData()).events).includes("RIFFMAS 2026") };
   };
   test("before: in the list and (once today/within slots) upcoming", async () => { const r = await riffIn("2026-12-03T12:00:00Z"); assert.equal(r.full, true); assert.equal(r.home, true); });
-  test("opening night (it starts today): still an upcoming-style event today", async () => { const r = await riffIn("2026-12-04T18:00:00Z"); assert.equal(r.full, true); assert.equal(r.home, true); });
+  test("opening day before the doors open (it starts tonight): still upcoming", async () => { const r = await riffIn("2026-12-04T18:00:00Z"); assert.equal(r.full, true); assert.equal(r.home, true); });
+  test("opening night after the doors open: now ongoing, so out of the upcoming-only Home but still in the full list", async () => { const r = await riffIn("2026-12-04T20:00:00Z"); assert.equal(r.full, true); assert.equal(r.home, false); });
   test("day two: in the full list (as ongoing), NOT in the upcoming-only Home", async () => { const r = await riffIn("2026-12-05T12:00:00Z"); assert.equal(r.full, true); assert.equal(r.home, false); });
   test("after Sunday 23:59: gone from both", async () => { const r = await riffIn("2026-12-07T09:00:00Z"); assert.equal(r.full, false); assert.equal(r.home, false); mock.timers.reset(); mock.timers.enable({ apis: ["Date"], now: NOW }); });
 });
@@ -199,7 +210,7 @@ describe("the pages use the shared state rule", () => {
     assert.match(p, /upcomingOnly: true/); assert.match(p, /nowIso=\{nowIso\}/);
   });
   test("every upcoming-only query carries the same filter", () => {
-    for (const f of ["lib/home-data.ts", "lib/local-data.ts", "lib/hubs-data.ts", "lib/business-dashboard.server.ts"]) assert.match(read(f), /upcomingSurfaceFilter\(\)\.fromIso/, f);
+    for (const f of ["lib/home-data.ts", "lib/local-data.ts", "lib/hubs-data.ts", "lib/business-dashboard.server.ts"]) assert.match(read(f), /upcomingSurfaceFilter\(\)\.orFilter/, f);
     assert.match(read("app/visiting/page.tsx"), /upcomingOnly: true/);
   });
   test("the detail page marks a running event 'Ongoing' and keeps its real dates", () => {

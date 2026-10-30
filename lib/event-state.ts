@@ -13,8 +13,10 @@
  *
  * TWO KINDS OF SURFACE
  *   · Upcoming-only ("what's happening", "next events", a business's or hub's coming events, the visitor page): an event
- *     is eligible when it STARTS today (Shetland time) or later and has not finished. A six-week exhibition that began
- *     weeks ago never takes one of those slots, but something starting at 10:00 today that is still running does.
+ *     is eligible when it has not started yet, or when it started TODAY (Shetland time) and also finishes today — a
+ *     10:00-17:00 event in progress is still "today's event". Anything that has started and runs past today (an
+ *     exhibition, a festival's second day, a month-long open-access programme that merely began this morning) is ONGOING
+ *     and never takes one of those slots.
  *   · The full What's On list: ongoing events stay discoverable until they finish, but are grouped under "Ongoing now"
  *     and labelled "until …" — their old start date is never shown as if it were a future date.
  *
@@ -71,20 +73,33 @@ export function londonDayStartIso(now: Date | number = new Date()): string {
 export const londonDate = (v: Date | number | string): string =>
   new Date(ms(v) ?? 0).toLocaleDateString("en-CA", { timeZone: TZ });
 
-/**
- * Upcoming-only surfaces: starts today (Shetland) or later, and has not finished.
- * Mirrors the query the pages send (upcomingSurfaceFilter) so what is shown and what is fetched cannot drift.
- */
-export function isUpcomingSurfaceEligible(e: StateWindow, now: Date | number = new Date()): boolean {
-  if (eventState(e, now) === "finished") return false;
-  const s = ms(e.starts_at);
-  return s !== null && s >= new Date(londonDayStartIso(now)).getTime();
+/** ISO instant of 00:00 Shetland time at the start of the NEXT day (a day is 23, 24 or 25 hours; +26h is always inside the next one). */
+function nextDayStartIso(now: Date | number): string {
+  return londonDayStartIso(new Date(londonDayStartIso(now)).getTime() + 26 * 3600_000);
 }
 
-/** PostgREST filter pieces for an upcoming-only query: `.gte("starts_at", fromIso)` and `.or(orFilter)`. */
+/**
+ * Upcoming-only surfaces: not started yet, or started today and finishing today. Mirrors the query the pages send
+ * (upcomingSurfaceFilter) so what is shown and what is fetched cannot drift.
+ */
+export function isUpcomingSurfaceEligible(e: StateWindow, now: Date | number = new Date()): boolean {
+  const st = eventState(e, now);
+  if (st === "finished") return false;
+  if (st === "upcoming") return true;
+  const s = ms(e.starts_at), en = ms(e.ends_at);
+  return s !== null && en !== null && s >= new Date(londonDayStartIso(now)).getTime() && en < new Date(nextDayStartIso(now)).getTime();
+}
+
+/**
+ * PostgREST pieces for an upcoming-only query: `.or(orFilter)`.
+ *   starts_at >= now                                  — not started yet (with or without an end time)
+ *   starts today, still running, ends before tomorrow — in progress and finishing today
+ * (`fromIso` is the start of today, kept for callers that also want a plain lower bound.)
+ */
 export function upcomingSurfaceFilter(now: Date | number = new Date()): { fromIso: string; orFilter: string } {
   const nowIso = new Date(ms(now) ?? Date.now()).toISOString();
-  return { fromIso: londonDayStartIso(now), orFilter: `ends_at.gte.${nowIso},and(ends_at.is.null,starts_at.gte.${nowIso})` };
+  const fromIso = londonDayStartIso(now), nextIso = nextDayStartIso(now);
+  return { fromIso, orFilter: `starts_at.gte.${nowIso},and(starts_at.gte.${fromIso},ends_at.gte.${nowIso},ends_at.lt.${nextIso})` };
 }
 
 /* ── Wording ──────────────────────────────────────────────────────────────── */

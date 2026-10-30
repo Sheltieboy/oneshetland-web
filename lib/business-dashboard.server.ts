@@ -119,7 +119,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
       .eq("organiser_business_id", businessId),
     sb.from("events").select("id", { count: "exact", head: true })
       .eq("organiser_business_id", businessId).eq("status", "published")
-      .eq("is_hidden", false).gte("starts_at", upcomingSurfaceFilter().fromIso).or(currentEventsFilter(now)),
+      .eq("is_hidden", false).or(upcomingSurfaceFilter().orFilter).or(currentEventsFilter(now)),
     count("local_offers", (q) => q),
     count("local_offers", (q) => q.eq("is_active", true).lte("valid_from", now).gte("valid_until", now)),
     count("local_loyalty_programs", (q) => q),

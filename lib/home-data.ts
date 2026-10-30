@@ -197,9 +197,9 @@ async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
     .select("id, title, starts_at, ends_at, venue, category, cover_url, is_featured, price_text, has_tickets")
     .eq("is_hidden", false)
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
-    // "What's happening": events that START today (Shetland) or later and have not finished. An exhibition that began weeks
-    // ago is still discoverable on /whats-on but must not fill these slots under its old start date (lib/event-state.ts).
-    .gte("starts_at", upcomingSurfaceFilter().fromIso)
+    // "What's happening": events not yet started, or in progress and finishing today (Shetland). An exhibition that began days or
+    // weeks ago is still discoverable on /whats-on but must not fill these slots under its old start date (lib/event-state.ts).
+    .or(upcomingSurfaceFilter().orFilter)
     .or(currentEventsFilter(now))
     .order("is_featured", { ascending: false })
     .order("starts_at", { ascending: true })
