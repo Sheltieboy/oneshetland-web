@@ -66,23 +66,23 @@ export function JobFiltersPanel({ facets, filters, accent, clearHref }: { facets
             aria-label="Filter jobs"
             data-testid="filters-panel"
             style={{ ["--jobs-accent" as string]: accent, ...(anchor ? { top: anchor.top, left: anchor.left } : {}) }}
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-2xl border border-line bg-paper p-5 shadow-lift md:inset-x-auto md:bottom-auto md:max-h-[70vh] md:w-[26rem] md:rounded-2xl"
+            className="fixed inset-x-0 bottom-0 z-50 flex max-h-[85vh] flex-col overflow-hidden rounded-t-2xl border border-line bg-paper shadow-lift md:inset-x-auto md:bottom-auto md:max-h-[70vh] md:w-[26rem] md:rounded-2xl"
           >
             {filters.q && <input type="hidden" name="q" value={filters.q} />}
             {filters.category && <input type="hidden" name="category" value={filters.category} />}
             {filters.sort !== "newest" && <input type="hidden" name="sort" value={filters.sort} />}
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center justify-between px-5 pb-3 pt-5">
               <p className="font-display text-lg font-bold text-ink">Filters</p>
               <button type="button" onClick={() => setOpen(false)} className="rounded-pill px-3 py-1 text-sm font-semibold text-ink-soft hover:bg-sand">Close</button>
             </div>
-            <div className="space-y-3">
+            <div className="flex-1 space-y-3 overflow-y-auto px-5 pb-4">
               {facets.locations.length > 0 && section("Location", facets.locations.map((l) => box("loc", l.value, l.value, l.count, filters.locations.includes(l.value))))}
               {facets.employment.length > 0 && section("Employment", facets.employment.map((o) => box("emp", o.key, o.label, o.count, filters.employment.includes(o.key))))}
               {facets.workplace.length > 0 && section("Workplace", facets.workplace.map((o) => box("work", o.key, o.label, o.count, filters.workplace.includes(o.key))))}
               {facets.salary.length > 0 && section("Salary", facets.salary.map((o) => box("sal", o.key, o.label, o.count, filters.salary.includes(o.key))), "Jobs with no stated salary are still shown.")}
               {facets.employers.length > 0 && section("Employer", facets.employers.map((o) => box("employer", o.value, o.value, o.count, filters.employers.includes(o.value))))}
             </div>
-            <div className="sticky bottom-0 -mx-5 -mb-5 mt-4 flex items-center justify-between gap-3 border-t border-line bg-paper px-5 py-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-line bg-paper px-5 py-3">
               <Link href={clearHref} className="text-sm font-semibold text-ink-soft underline" onClick={() => setOpen(false)}>Clear all</Link>
               <button type="submit" className="rounded-pill px-5 py-2 text-sm font-bold text-paper" style={{ background: accent }}>Show jobs</button>
             </div>
