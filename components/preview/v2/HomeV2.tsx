@@ -138,7 +138,7 @@ export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEve
 
         {cards.length > 1 && (
           <div className="lg:hidden">
-            <ul aria-label="More events" className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ul aria-label="More events" className="-mx-5 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-3 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {cards.slice(1).map((c) => (
                 <li key={c.id} className="flex w-[72vw] max-w-[300px] shrink-0 snap-start flex-col">
                   <EventCard c={c} kind="rail" tone={tone(c)} />
