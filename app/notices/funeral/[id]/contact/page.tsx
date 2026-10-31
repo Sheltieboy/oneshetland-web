@@ -26,7 +26,10 @@ export default async function FuneralContactPage({ params }: { params: Promise<{
         </p>
         <div className="mt-6">
           {!r.ok && <Notice tone="error">This announcement could not be loaded just now ({r.error}). Please try again, or use the details below.</Notice>}
-          {r.ok && r.data && <FuneralEnquiryForm id={id} />}
+          {/* The online form posts to the submit-funeral-enquiry Edge Function. It is switched on (NEXT_PUBLIC_FUNERAL_ENQUIRY_ENABLED=1) only after the hosted Turnstile and trusted client-IP checks have passed; until then people are sent to the support details below. */}
+          {r.ok && r.data && (process.env.NEXT_PUBLIC_FUNERAL_ENQUIRY_ENABLED === "1"
+            ? <FuneralEnquiryForm id={id} />
+            : <Notice tone="info">Online enquiries are not open yet. Please use the support details below and quote this announcement&rsquo;s reference.</Notice>)}
         </div>
         <section className="mt-8 rounded-sm border bg-white/60 px-5 py-4 text-sm" style={{ borderColor: "#cdbfa6", color: "#2b3a47" }}>
           <h2 className="font-semibold">Prefer to speak to someone?</h2>
