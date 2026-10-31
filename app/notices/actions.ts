@@ -6,7 +6,7 @@
  */
 import { createClient } from "@/lib/supabase/server";
 import { callNotifyAudience, type RpcResult } from "@/lib/notices-rpc";
-import { approveFuneral, enableImportSource, revokeEssential, runRead, runWrite } from "@/lib/notices-actions-core";
+import { approveFuneral, enableImportSource, revokeEssential, runRead, runWrite, sendFuneralEnquiry } from "@/lib/notices-actions-core";
 
 const sessionClient = () => createClient();
 
@@ -20,8 +20,12 @@ export async function noticeRead(fn: string, args: Record<string, unknown>): Pro
 export async function revokeEssentialAlert(publisher: string, reason: string): Promise<RpcResult> {
   return revokeEssential(await sessionClient(), publisher, reason);
 }
-export async function approveFuneralNotice(id: string, method: string, note: string): Promise<RpcResult> {
-  return approveFuneral(await sessionClient(), id, method, note);
+export async function approveFuneralNotice(id: string, method: string, note: string, followup = "none"): Promise<RpcResult> {
+  return approveFuneral(await sessionClient(), id, method, note, followup);
+}
+/** Signed out or in: the database function is open to anyone, rate-limited, and only ever files a request for staff to verify. */
+export async function sendFuneralEnquiryAction(a: { id: string; kind: string; message: string; contact: string; name?: string; relationship?: string }): Promise<RpcResult> {
+  return sendFuneralEnquiry(await sessionClient(), a);
 }
 export async function enableNoticeImportSource(id: string, note: string): Promise<RpcResult> {
   return enableImportSource(await sessionClient(), id, note);

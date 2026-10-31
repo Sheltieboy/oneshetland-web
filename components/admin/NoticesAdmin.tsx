@@ -6,6 +6,7 @@ import { approveFuneralNotice, enableNoticeImportSource, noticeRead, noticeWrite
 import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
 import { Field, Status, btnDanger, btnPrimary, btnQuiet, inputCls, useAction } from "@/components/notices/Fields";
 import { CORRECTION_FIELDS, buildCorrection, formatNoticeDateTime } from "@/lib/notices-alerts";
+import { NOTE_CONTACT_MESSAGE, noteHasContact } from "@/lib/notices-actions-core";
 
 /* Every control here calls a server action that runs on the signed-in admin's OWN session: the database authorises and its refusal is shown. */
 
@@ -109,8 +110,12 @@ export function OrganisationsTab({ rows }: { rows: OrgRow[] }) {
 
 /* ── Funeral moderation ────────────────────────────────────────────────────── */
 export type FuneralRowAdmin = Record<string, unknown> & { id: string; status: string; full_name: string };
-export type ChangeReq = { id: string; funeral_id: string; kind: string; message: string; contact: string | null; created_at: string };
+export type ChangeReq = { id: string; funeral_id: string; kind: string; message: string; contact: string | null; created_at: string; source?: string; contact_name?: string | null; relationship?: string | null };
 const METHODS: [string, string][] = [["phone_callback", "Telephone call-back"], ["funeral_director_confirmation", "Funeral director confirmed"], ["in_person", "In person"], ["existing_notice_source", "Existing published notice"], ["other", "Other"]];
+const FOLLOWUPS: [string, string][] = [["none", "None needed"], ["callback_later", "Call back later"], ["awaiting_funeral_director", "Waiting for the funeral director"], ["awaiting_family_reply", "Waiting for the family"], ["refer_to_administrator", "Refer to an administrator"]];
+const REJECTIONS: [string, string][] = [["unverifiable", "Could not be verified"], ["duplicate", "Duplicate"], ["not_a_funeral_announcement", "Not a funeral announcement"], ["inappropriate", "Inappropriate"], ["other", "Other"]];
+const AUTHORITY: [string, string][] = [["funeral_director_confirmation", "Confirmed by the funeral director"], ["independent_contact", "Confirmed by an independent contact"], ["original_submitter", "Confirmed by the original submitter"]];
+const NOTE_HELP = "Optional. How it was verified is recorded in the fields, not here. Please don't write telephone numbers, email addresses or what the family told you: that stays in the restricted submission.";
 const TONE: Record<string, "green" | "amber" | "red" | "blue" | "gray"> = { submitted: "amber", in_review: "blue", needs_info: "amber", approved: "green", rejected: "red", withdrawn: "gray", taken_down: "gray" };
 
 function FuneralItem({ r }: { r: FuneralRowAdmin }) {
@@ -118,8 +123,11 @@ function FuneralItem({ r }: { r: FuneralRowAdmin }) {
   const act = useAction();
   const [note, setNote] = useState("");
   const [method, setMethod] = useState("");
+  const [followup, setFollowup] = useState("none");
+  const [code, setCode] = useState("");
   const status = r.status;
-  const review = async (action: string) => { const x = await act.run(() => noticeWrite("admin_funeral_review", { p_id: r.id, p_action: action, p_note: note || null, p_verification_method: null }), "Done."); if (x.ok) router.refresh(); };
+  const noteProblem = noteHasContact(note);
+  const review = async (action: string) => { const x = await act.run(async () => noteProblem ? { ok: false as const, error: NOTE_CONTACT_MESSAGE } : noticeWrite("admin_funeral_review", { p_id: r.id, p_action: action, p_note: note || null, p_verification_method: null, p_verification_outcome: action === "reject" ? "not_confirmed" : null, p_followup: action === "request_info" ? (followup === "none" ? "awaiting_family_reply" : followup) : followup, p_rejection_code: action === "reject" ? (code || "other") : null }), "Done."); if (x.ok) router.refresh(); };
   const pending = ["submitted", "in_review", "needs_info"].includes(status);
   return (
     <Card>
@@ -127,24 +135,28 @@ function FuneralItem({ r }: { r: FuneralRowAdmin }) {
       <dl className="mt-2 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
         {[["Submitted", when(r.created_at)], ["Submitted by", `${asS(r.submitter_name)} (${asS(r.submitter_role)}${r.submitter_relationship ? `, ${asS(r.submitter_relationship)}` : ""})`], ["Phone", asS(r.submitter_phone) || "—"], ["Email", asS(r.submitter_email) || "—"], ["Died", asS(r.died_on) || "—"], ["Area", asS(r.area_id) || "—"], ["Publish arrangements", r.service_public ? "Yes" : "No"], ["Notification approved", r.announce_in_notifications ? (r.announce_name_in_preview ? "Yes, with name" : "Yes, no name") : "No"]].map(([k, v]) => <div key={k}><dt className="inline font-semibold text-ink-soft">{k}: </dt><dd className="inline break-words text-ink">{v}</dd></div>)}
       </dl>
+      {r.verification_method ? <p className="mt-2 text-sm text-ink-soft">Verification: {String(r.verification_method).replace(/_/g, " ")} ({asS(r.verification_outcome) || "—"}), {when(r.verified_at)}{r.followup_action && r.followup_action !== "none" ? ` · follow-up: ${String(r.followup_action).replace(/_/g, " ")}` : ""}{r.verification_note ? ` · note: ${asS(r.verification_note)}` : ""}</p> : null}
+      {r.scrubbed_at ? <p className="mt-2 text-sm text-amber-900">The submitter&rsquo;s account was closed on {when(r.scrubbed_at)}: their private details have been removed. {r.retain_until ? `Scheduled for deletion after ${when(r.retain_until)}.` : ""}</p> : null}
       {r.announcement ? <p className="mt-2 whitespace-pre-line break-words text-sm text-ink-soft">{asS(r.announcement)}</p> : null}
       {r.review_message ? <p className="mt-2 text-sm text-amber-900">Message to submitter: {asS(r.review_message)}</p> : null}
       {pending && (
         <div className="mt-3 space-y-3">
-          <Field label="Note" hint="Required to approve (how it was verified), to ask for information (what is needed), and to reject." htmlFor={`fn${r.id}`}><textarea id={`fn${r.id}`} rows={2} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <Field label="Note" hint={NOTE_HELP + " Needed to ask for information (say what is needed)."} error={noteProblem ? NOTE_CONTACT_MESSAGE : undefined} htmlFor={`fn${r.id}`}><textarea id={`fn${r.id}`} rows={2} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
           <div className="flex flex-wrap items-center gap-2">
             {status !== "in_review" && <button type="button" className={btnQuiet} disabled={act.state.busy} onClick={() => review("start_review")}>Start review</button>}
-            <button type="button" className={btnQuiet} disabled={act.state.busy} onClick={() => review("request_info")}>Ask for information</button>
+            <button type="button" className={btnQuiet} disabled={act.state.busy || !note.trim() || noteProblem} onClick={() => review("request_info")}>Ask for information</button>
             <select aria-label="Verification method" className={inputCls + " !w-auto"} value={method} onChange={(e) => setMethod(e.target.value)}><option value="">How verified{"…"}</option>{METHODS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-            <button type="button" className={btnPrimary} disabled={act.state.busy} onClick={async () => { const x = await act.run(() => approveFuneralNotice(r.id, method, note), "Approved and published."); if (x.ok) router.refresh(); }}>Approve</button>
-            <button type="button" className={btnDanger} disabled={act.state.busy} onClick={() => review("reject")}>Reject</button>
+            <select aria-label="Follow-up" className={inputCls + " !w-auto"} value={followup} onChange={(e) => setFollowup(e.target.value)}>{FOLLOWUPS.map(([v, l]) => <option key={v} value={v}>Follow-up: {l}</option>)}</select>
+            <button type="button" className={btnPrimary} disabled={act.state.busy || !method || noteProblem} onClick={async () => { const x = await act.run(() => approveFuneralNotice(r.id, method, note, followup), "Approved and published."); if (x.ok) router.refresh(); }}>Approve</button>
+            <select aria-label="Reason for rejecting" className={inputCls + " !w-auto"} value={code} onChange={(e) => setCode(e.target.value)}><option value="">Reason for rejecting{"…"}</option>{REJECTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            <button type="button" className={btnDanger} disabled={act.state.busy || noteProblem} onClick={() => review("reject")}>Reject</button>
           </div>
         </div>
       )}
       {status === "approved" && (
         <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-[14rem] flex-1"><Field label="Reason for taking down" htmlFor={`td${r.id}`}><input id={`td${r.id}`} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
-          <button type="button" className={btnDanger} disabled={act.state.busy || !note.trim()} onClick={async () => { if (!window.confirm("Take this announcement down now?")) return; const x = await act.run(() => noticeWrite("admin_funeral_takedown", { p_id: r.id, p_reason: note }), "Taken down."); if (x.ok) router.refresh(); }}>Take down</button>
+          <div className="min-w-[14rem] flex-1"><Field label="Reason for taking down" error={noteProblem ? NOTE_CONTACT_MESSAGE : undefined} htmlFor={`td${r.id}`}><input id={`td${r.id}`} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
+          <button type="button" className={btnDanger} disabled={act.state.busy || !note.trim() || noteProblem} onClick={async () => { if (!window.confirm("Take this announcement down now?")) return; const x = await act.run(() => noticeWrite("admin_funeral_takedown", { p_id: r.id, p_reason: note }), "Taken down."); if (x.ok) router.refresh(); }}>Take down</button>
         </div>
       )}
       <div className="mt-2"><Status state={act.state} /></div>
@@ -157,13 +169,17 @@ function ChangeItem({ c }: { c: ChangeReq }) {
   const act = useAction();
   const [note, setNote] = useState("");
   const [corr, setCorr] = useState<Record<string, string>>({});
-  const resolve = async (outcome: "actioned" | "declined") => { const x = await act.run(() => noticeWrite("admin_funeral_resolve_change", { p_request: c.id, p_outcome: outcome, p_note: note || null, p_correction: outcome === "actioned" && c.kind === "correction" ? buildCorrection(corr) : null }), outcome === "actioned" ? "Actioned." : "Declined."); if (x.ok) router.refresh(); };
+  const [authority, setAuthority] = useState("");
+  const noAccount = c.source === "public" || c.source === "staff_logged";
+  const noteProblem = noteHasContact(note);
+  const resolve = async (outcome: "actioned" | "declined") => { const x = await act.run(async () => noteProblem ? { ok: false as const, error: NOTE_CONTACT_MESSAGE } : noAccount && outcome === "actioned" && !authority ? { ok: false as const, error: "Record how you verified who is asking (with the funeral director or an independent contact) before acting on this request." } : noticeWrite("admin_funeral_resolve_change", { p_request: c.id, p_outcome: outcome, p_note: note || null, p_correction: outcome === "actioned" && c.kind === "correction" ? buildCorrection(corr) : null, p_authority_check: authority || null }), outcome === "actioned" ? "Actioned." : "Declined."); if (x.ok) router.refresh(); };
   return (
     <Card>
-      <div className="flex flex-wrap items-center justify-between gap-2"><StatusPill label={c.kind === "takedown" ? "Takedown request" : "Correction request"} tone={c.kind === "takedown" ? "red" : "amber"} /><span className="text-xs text-ink-muted">{when(c.created_at)}</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><StatusPill label={c.kind === "takedown" ? "Takedown request" : c.kind === "enquiry" ? "Enquiry" : "Correction request"} tone={c.kind === "takedown" ? "red" : "amber"} /><span className="text-xs text-ink-muted">{when(c.created_at)}</span></div>
       <p className="mt-2 whitespace-pre-line break-words text-sm text-ink">{c.message}</p>
-      <p className="mt-1 text-xs text-ink-muted">Notice {c.funeral_id}{c.contact ? ` · contact: ${c.contact}` : ""}</p>
-      <div className="mt-3"><Field label="Outcome note" htmlFor={`cn${c.id}`}><input id={`cn${c.id}`} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
+      <p className="mt-1 text-xs text-ink-muted">Notice {c.funeral_id}{c.source === "public" ? " · from the website, no account" : c.source === "staff_logged" ? " · logged by staff" : ""}{c.contact_name ? ` · ${c.contact_name}` : ""}{c.relationship ? ` (${c.relationship})` : ""}{c.contact ? ` · contact: ${c.contact}` : ""}</p>
+      {noAccount && <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-semibold">Nothing changes until you have checked who is asking.</p><p className="mt-1">Contact the funeral director or an independent contact (not only the details given here) and record how.</p><div className="mt-2"><select aria-label="How authority was verified" className={inputCls} value={authority} onChange={(e) => setAuthority(e.target.value)}><option value="">How was this verified{"…"}</option>{AUTHORITY.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></div></div>}
+      <div className="mt-3"><Field label="Outcome note" hint={NOTE_HELP} error={noteProblem ? NOTE_CONTACT_MESSAGE : undefined} htmlFor={`cn${c.id}`}><input id={`cn${c.id}`} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
       {c.kind === "correction" && (
         <fieldset className="mt-3 space-y-2 rounded-lg border border-line p-3">
           <legend className="px-1 text-sm font-semibold text-ink">Correction (fill in only what changes)</legend>
@@ -176,9 +192,30 @@ function ChangeItem({ c }: { c: ChangeReq }) {
         </fieldset>
       )}
       <p className="mt-1 text-xs text-ink-muted">Actioning a takedown removes the announcement. Fields left blank are not changed; "Mark actioned" applies any you filled in.</p>
-      <div className="mt-2 flex gap-2"><button type="button" className={btnPrimary} disabled={act.state.busy} onClick={() => resolve("actioned")}>Mark actioned</button><button type="button" className={btnQuiet} disabled={act.state.busy} onClick={() => resolve("declined")}>Decline</button></div>
+      <div className="mt-2 flex gap-2"><button type="button" className={btnPrimary} disabled={act.state.busy || noteProblem || (noAccount && !authority)} onClick={() => resolve("actioned")}>Mark actioned</button><button type="button" className={btnQuiet} disabled={act.state.busy} onClick={() => resolve("declined")}>Decline</button></div>
       <div className="mt-2"><Status state={act.state} /></div>
     </Card>
+  );
+}
+
+/** A request that arrived by telephone, email or in person: staff record it, then it follows the same verified path as the website form. */
+function LogEnquiry() {
+  const router = useRouter();
+  const act = useAction();
+  const [id, setId] = useState(""); const [kind, setKind] = useState("takedown"); const [message, setMessage] = useState(""); const [contact, setContact] = useState(""); const [name, setName] = useState("");
+  return (
+    <details className="rounded-lg border border-line bg-paper p-4">
+      <summary className="flex min-h-[44px] cursor-pointer items-center text-sm font-semibold text-ink">Log a request received by telephone, email or in person</summary>
+      <div className="mt-3 space-y-3">
+        <Field label="Announcement reference" htmlFor="le-id"><input id="le-id" className={inputCls} value={id} onChange={(e) => setId(e.target.value.trim())} /></Field>
+        <Field label="Kind" htmlFor="le-kind"><select id="le-kind" className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}><option value="takedown">Removal</option><option value="correction">Correction</option><option value="enquiry">Question</option></select></Field>
+        <Field label="What was asked" hint="Don't copy private details here." htmlFor="le-msg"><textarea id="le-msg" rows={2} className={inputCls} value={message} onChange={(e) => setMessage(e.target.value)} /></Field>
+        <Field label="Caller's name" optional htmlFor="le-name"><input id="le-name" className={inputCls} value={name} onChange={(e) => setName(e.target.value)} /></Field>
+        <Field label="How to reach them" optional htmlFor="le-contact"><input id="le-contact" className={inputCls} value={contact} onChange={(e) => setContact(e.target.value)} /></Field>
+        <button type="button" className={btnPrimary} disabled={act.state.busy || !id || message.trim().length < 5} onClick={async () => { const x = await act.run(() => noticeWrite("admin_log_funeral_enquiry", { p_id: id, p_kind: kind, p_message: message, p_contact: contact || null, p_contact_name: name || null, p_relationship: null }), "Logged. It is in the open requests."); if (x.ok) { setMessage(""); setContact(""); setName(""); router.refresh(); } }}>Log request</button>
+        <Status state={act.state} />
+      </div>
+    </details>
   );
 }
 
@@ -189,6 +226,7 @@ export function FuneralTab({ rows, changes, status, basePath }: { rows: FuneralR
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
         {filters.map((s) => <a key={s || "all"} href={`${basePath}${basePath.includes("?") ? "&" : "?"}status=${s}`} className={"inline-flex min-h-[44px] items-center rounded-pill px-4 text-sm font-semibold " + (status === s ? "bg-navy text-paper" : "border border-line-strong text-ink-soft hover:bg-sand")}>{s ? s.replace("_", " ") : "All"}</a>)}
       </div>
+      <LogEnquiry />
       <section aria-label="Change requests" className="space-y-3">
         <h2 className="font-display text-xl font-bold text-ink">Open change requests ({changes.length})</h2>
         {changes.length === 0 ? <Empty>No open requests.</Empty> : changes.map((c) => <ChangeItem key={c.id} c={c} />)}
@@ -288,6 +326,41 @@ export function DispatchTab({ initialId }: { initialId: string }) {
       {rows && (rows.length === 0 ? <Empty>No notification has been requested for this notice.</Empty> : (
         <ul className="space-y-2">{rows.map((d, i) => <li key={i} className="rounded-xl border border-line bg-paper p-3 text-sm"><p className="font-semibold">{d.kind} {"·"} {d.status}</p><p className="text-ink-soft">Claimed {when(d.claimed_at)}{d.completed_at ? ` · completed ${when(d.completed_at)}` : ""}</p><p className="text-ink-soft">Recipients {d.recipients ?? "—"} {"·"} sent {d.sent ?? "—"} {"·"} held (quiet hours / settings) {d.held ?? "—"} {"·"} failed {d.failed ?? "—"}</p>{d.error && <p className="text-rose-800">{d.error}</p>}</li>)}</ul>
       ))}
+    </div>
+  );
+}
+
+/* ── Privacy: retention schedule (read-only report) and audit redaction ────── */
+export type RetentionRow = { funeral_id: string; status: string; retain_until: string; eligible: boolean; reason: string; blocked_by: string | null };
+export type RedactionCandidate = { audit_id: number; at: string; event: string; keys: string[] };
+
+export function PrivacyTab({ retention, candidates }: { retention: RetentionRow[]; candidates: RedactionCandidate[] }) {
+  const router = useRouter();
+  const act = useAction();
+  const [reason, setReason] = useState("");
+  const eligible = retention.filter((r) => r.eligible).length;
+  return (
+    <div className="space-y-8">
+      <section aria-label="Retention" className="space-y-3">
+        <h2 className="font-display text-xl font-bold text-ink">Funeral retention schedule</h2>
+        <p className="text-sm text-ink-soft">Read-only. Funeral records are deleted by a scheduled job only after release approval; until then nothing is deleted. {eligible} record{eligible === 1 ? " is" : "s are"} past the end of {eligible === 1 ? "its" : "their"} period; {retention.length - eligible} {retention.length - eligible === 1 ? "is" : "are"} scheduled or held.</p>
+        {retention.length === 0 ? <Empty>Nothing is scheduled.</Empty> : (
+          <div className="overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm"><thead className="bg-sand text-xs uppercase text-ink-soft"><tr><th className="px-3 py-2">Reference</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Delete after</th><th className="px-3 py-2">Why</th><th className="px-3 py-2">Held back</th></tr></thead>
+            <tbody>{retention.map((r) => <tr key={r.funeral_id} className="border-t border-line align-top"><td className="px-3 py-2 font-mono text-xs break-all">{r.funeral_id}</td><td className="px-3 py-2">{r.status.replace("_", " ")}</td><td className="whitespace-nowrap px-3 py-2">{when(r.retain_until)}</td><td className="px-3 py-2">{r.reason}</td><td className="px-3 py-2">{r.blocked_by ? r.blocked_by.replace("_", " ") : r.eligible ? "Due" : "—"}</td></tr>)}</tbody></table></div>
+        )}
+      </section>
+      <section aria-label="Audit redaction" className="space-y-3">
+        <h2 className="font-display text-xl font-bold text-ink">Audit entries holding free text, older than 12 months</h2>
+        <p className="text-sm text-ink-soft">For review. The audit log is never edited. An administrator may replace a piece of free text with &ldquo;[redacted]&rdquo; with a recorded reason; the event, time, who did it and what it concerned stay, and the redaction is itself recorded.</p>
+        <Field label="Reason for redacting (recorded)" hint="At least ten characters. No telephone numbers or email addresses." htmlFor="rd-reason"><input id="rd-reason" className={inputCls} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
+        <Status state={act.state} />
+        {candidates.length === 0 ? <Empty>No entries are due for review.</Empty> : (
+          <ul className="space-y-2">{candidates.map((c) => (
+            <li key={c.audit_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-paper p-3 text-sm"><span>{when(c.at)} · {c.event.replace(/_/g, " ")} · text in: {c.keys.join(", ")}</span>
+              <button type="button" className={btnQuiet} disabled={act.state.busy || reason.trim().length < 10 || noteHasContact(reason)} onClick={async () => { if (!window.confirm("Replace this free text with [redacted]? This cannot be undone.")) return; const x = await act.run(() => noticeWrite("admin_redact_audit_text", { p_audit_id: c.audit_id, p_keys: c.keys, p_reason: reason.trim() }), "Redacted."); if (x.ok) router.refresh(); }}>Redact</button></li>
+          ))}</ul>
+        )}
+      </section>
     </div>
   );
 }

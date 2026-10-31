@@ -106,6 +106,7 @@ export function FuneralSubmitForm({ areas, edit }: { areas: { id: string; name: 
       </fieldset>}
       {edit && <p className="text-sm text-ink-muted">Your contact details and the area stay as you first gave them. Saving sends the announcement back to us for checking.</p>}
 
+      {!edit && <p className="text-sm text-ink-muted">We use your name and contact details only to check this announcement with the family and to contact you about it. They are never shown publicly. If you later delete your account they are removed, and a published announcement stays up until its display period ends. See our <Link className="font-semibold underline" href="/privacy#funeral-announcements">privacy information</Link>.</p>}
       <Status state={state} />
       <button type="submit" disabled={state.busy} className={btnPrimary}>{state.busy ? "Sending…" : "Send for checking"}</button>
     </form>

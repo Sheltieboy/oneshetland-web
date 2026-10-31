@@ -240,11 +240,11 @@ describe("server-action authorisation paths", () => {
     assert.equal((await C.runWrite(sb, "drop_everything", {})).ok, false); assert.equal((await C.runWrite(sb, "set_my_notice_areas", { p_areas: [], p_user: "other" })).ok, false);
     assert.equal((await C.runRead(sb, "admin_import_status", {})).ok, false); assert.equal(sb.calls.length, 0);
   });
-  test("revoke needs a reason; approve needs method AND note; enabling an import needs a reuse note", async () => {
+  test("revoke needs a reason; approve needs a method (a note is optional but may not hold a phone number or email); enabling an import needs a reuse note", async () => {
     const sb = mk({ data: 1, error: null });
-    assert.equal((await C.revokeEssential(sb, "p", "  ")).ok, false); assert.equal((await C.approveFuneral(sb, "f", "", "note")).ok, false); assert.equal((await C.approveFuneral(sb, "f", "in_person", " ")).ok, false);
+    assert.equal((await C.revokeEssential(sb, "p", "  ")).ok, false); assert.equal((await C.approveFuneral(sb, "f", "", "note")).ok, false); assert.equal((await C.approveFuneral(sb, "f", "in_person", "Rang 01595 123456")).ok, false); assert.equal((await C.approveFuneral(sb, "f", "in_person", "mail jo@family.example")).ok, false);
     assert.equal((await C.enableImportSource(sb, "s", "short")).ok, false); assert.equal(sb.calls.length, 0);
-    assert.equal((await C.approveFuneral(sb, "f", "in_person", "rang family")).ok, true); assert.deepEqual(sb.calls[0].args, { p_id: "f", p_action: "approve", p_note: "rang family", p_verification_method: "in_person" });
+    assert.equal((await C.approveFuneral(sb, "f", "in_person", "rang family")).ok, true); assert.deepEqual(sb.calls[0].args, { p_id: "f", p_action: "approve", p_note: "rang family", p_verification_method: "in_person", p_verification_outcome: "confirmed", p_followup: "none" });
     assert.equal((await C.enableImportSource(sb, "s", "Open Government Licence confirmed")).ok, true);
   });
   test("every write the UI uses is on the allow-list and no service role is referenced", () => {
@@ -412,5 +412,52 @@ describe("follow-up: funeral edit flow and staff corrections", () => {
     assert.equal(A.buildCorrection({}), null); assert.equal(A.buildCorrection({ announcement: "  " }), null);
     const c = A.buildCorrection({ announcement: " New ", service_at: "2026-11-05T11:00", junk: "x", donation_info: "" }); assert.deepEqual(Object.keys(c).sort(), ["announcement", "service_at"]); assert.equal(c.announcement, "New"); assert.match(c.service_at, /^2026-11-05T/);
     assert.match(rd("components/admin/NoticesAdmin.tsx"), /p_correction: outcome === "actioned" && c\.kind === "correction" \? buildCorrection\(corr\)/);
+  });
+});
+
+describe("funeral privacy: no-account contact, structured moderation, privacy tab", () => {
+  const fake = () => { const calls = []; return { calls, rpc: async (fn, args) => { calls.push({ fn, args }); return { data: "req-1", error: null }; } }; };
+  test("the enquiry needs a message and a way to reply BEFORE anything is sent, and sends only its named parameters", async () => {
+    const sb = fake();
+    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "no", contact: "a@b.example" })).ok, false);
+    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "Please remove this", contact: "" })).ok, false);
+    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "x".repeat(1001), contact: "a@b.example" })).ok, false);
+    assert.equal(sb.calls.length, 0);
+    const ok = await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: " Please remove this ", contact: " rel@family.example ", name: " R ", relationship: "" });
+    assert.equal(ok.ok, true);
+    assert.deepEqual(sb.calls[0], { fn: "submit_funeral_enquiry", args: { p_id: "f", p_kind: "takedown", p_message: "Please remove this", p_contact: "rel@family.example", p_contact_name: "R", p_relationship: null } });
+    assert.equal(C.isAllowedWrite("submit_funeral_enquiry", { p_id: "f", p_user: "someone" }) !== null, true, "an extra argument is refused");
+  });
+  test("a moderation note cannot carry a telephone number or email address (mirrors the database)", () => {
+    for (const t of ["Rang 01595 123456", "call +44 1595 123456", "email jo@family.example"]) assert.equal(C.noteHasContact(t), true, t);
+    for (const t of ["Confirmed by the funeral director (ref 2026-17)", "", null, "Service on 12 November at 2pm"]) assert.equal(C.noteHasContact(t), false, String(t));
+  });
+  test("the structured moderation, resolve-with-authority, hold and redaction calls are allow-listed with exactly their parameters", () => {
+    assert.deepEqual(C.WRITE_RPCS.admin_funeral_review, ["p_id", "p_action", "p_note", "p_verification_method", "p_verification_outcome", "p_followup", "p_rejection_code"]);
+    assert.ok(C.WRITE_RPCS.admin_funeral_resolve_change.includes("p_authority_check"));
+    for (const fn of ["admin_log_funeral_enquiry", "admin_set_funeral_retention_hold", "admin_redact_audit_text"]) assert.ok(C.WRITE_RPCS[fn], fn);
+    assert.ok(!("delete_member_funeral_data" in C.WRITE_RPCS) && !("funeral_retention_run" in C.WRITE_RPCS) && !("delete_member_memberships" in C.WRITE_RPCS), "the service-role-only functions are never reachable from the website");
+    assert.ok(C.READ_RPCS.admin_funeral_retention_report && C.READ_RPCS.admin_audit_redaction_candidates);
+  });
+  test("the contact page works signed out, links from the announcement, offers the existing support route, and the form is wired to the no-account action", () => {
+    const page = rd("app/notices/funeral/[id]/contact/page.tsx"), detail = rd("app/notices/funeral/[id]/page.tsx"), form = rd("components/notices/FuneralEnquiryForm.tsx");
+    assert.doesNotMatch(strip(page), /getAccount|sign-in/, "no account is required");
+    assert.match(page, /Contact us about this announcement/); assert.match(page, /href="\/support"/); assert.doesNotMatch(strip(page), /@[a-z0-9-]+\.(com|co\.uk)/i, "no new address is invented");
+    assert.match(detail, /\/contact`/); assert.match(detail, /Contact us about this announcement/);
+    assert.match(form, /sendFuneralEnquiryAction/); assert.match(form, /honey|Leave this empty/); assert.match(form, /aria-hidden="true"/);
+    assert.match(form, /Nothing has been changed yet/);
+  });
+  test("the moderation screen records the structured fields, guards notes, and requires an authority check for no-account requests; the privacy tab is read-only for retention", () => {
+    const ui = strip(rd("components/admin/NoticesAdmin.tsx"));
+    for (const t of ["p_verification_outcome", "p_followup", "p_rejection_code", "p_authority_check", "admin_log_funeral_enquiry", "admin_redact_audit_text"]) assert.ok(ui.includes(t), t);
+    assert.match(ui, /noteHasContact/); assert.match(ui, /Nothing changes until you have checked who is asking/);
+    assert.doesNotMatch(ui, /funeral_retention_run|admin_set_funeral_retention_enabled/, "the website cannot run or enable the retention job");
+    assert.match(rd("app/admin/notices/page.tsx"), /\["privacy", "Privacy"\]/);
+  });
+  test("the privacy information states the funeral retention periods as ours (not statutory) and the funeral form links to it", () => {
+    const priv = rd("app/privacy/page.tsx").replace(/\s+/g, " ");
+    assert.match(priv, /id="funeral-announcements"/); assert.match(priv, /not set by law/); assert.match(priv, /90 days/); assert.match(priv, /30 days/); assert.match(priv, /12 months/);
+    assert.doesNotMatch(priv, /UK GDPR (requires|mandates)[^.]*(90|30) days/);
+    assert.match(rd("components/notices/FuneralForms.tsx"), /\/privacy#funeral-announcements/);
   });
 });

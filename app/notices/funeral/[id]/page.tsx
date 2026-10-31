@@ -22,10 +22,12 @@ export default async function FuneralDetail({ params }: { params: Promise<{ id: 
           {r.ok && r.data && <FuneralAnnouncement v={r.data} />}
         </div>
         {r.ok && r.data && (
-          <details className="mt-6 rounded-sm border bg-white/60 px-5 py-3" style={{ borderColor: "#cdbfa6", color: "#2b3a47" }}>
-            <summary className="flex min-h-[44px] cursor-pointer items-center text-sm font-semibold">Is something here wrong, or would the family like it removed?</summary>
-            <div className="pb-3 pt-2"><ChangeRequestForm id={id} signedIn={!!account} nextPath={`/notices/funeral/${id}`} /></div>
-          </details>
+          <section className="mt-6 rounded-sm border bg-white/60 px-5 py-4" style={{ borderColor: "#cdbfa6", color: "#2b3a47" }}>
+            <h2 className="text-sm font-semibold">Is something here wrong, or would the family like it removed?</h2>
+            <p className="mt-1 text-sm">You do not need an account. We check every request before anything changes.</p>
+            <p className="mt-3"><Link href={`/notices/funeral/${id}/contact`} className="inline-flex min-h-[44px] items-center rounded-pill border border-line-strong bg-paper px-5 text-sm font-semibold underline">Contact us about this announcement</Link></p>
+            {account && <details className="mt-3"><summary className="flex min-h-[44px] cursor-pointer items-center text-sm font-semibold">Signed in? Send a request from your account</summary><div className="pb-3 pt-2"><ChangeRequestForm id={id} signedIn nextPath={`/notices/funeral/${id}`} /></div></details>}
+          </section>
         )}
       </div>
     </div>

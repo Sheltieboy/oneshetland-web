@@ -24,6 +24,8 @@ export const WRITE_RPCS: Record<string, readonly string[]> = {
   update_my_funeral_submission: ["p_id", "p"],
   withdraw_my_funeral_notice: ["p_id"],
   request_funeral_notice_change: ["p_id", "p_kind", "p_message", "p_contact"],
+  // no account needed: a correction / takedown / enquiry about a published announcement (staff verify before anything changes)
+  submit_funeral_enquiry: ["p_id", "p_kind", "p_message", "p_contact", "p_contact_name", "p_relationship"],
   // verified organisations
   official_publish_notice: ["p_publisher", "p_title", "p_body", "p_category", "p_area_ids", "p_expires_at", "p_starts_at", "p_link_url", "p_action_text", "p_is_essential", "p_review_at"],
   official_update_notice: ["p_notice", "p_title", "p_body", "p_category", "p_area_ids", "p_expires_at", "p_link_url", "p_action_text", "p_is_essential", "p_review_at"],
@@ -35,9 +37,13 @@ export const WRITE_RPCS: Record<string, readonly string[]> = {
   admin_set_official_publisher_member: ["p_publisher", "p_user", "p_role", "p_active"],
   admin_grant_essential_alert: ["p_publisher", "p_reason"],
   admin_revoke_essential_alert: ["p_publisher", "p_reason"],
-  admin_funeral_review: ["p_id", "p_action", "p_note", "p_verification_method"],
+  admin_funeral_review: ["p_id", "p_action", "p_note", "p_verification_method", "p_verification_outcome", "p_followup", "p_rejection_code"],
   admin_funeral_takedown: ["p_id", "p_reason"],
-  admin_funeral_resolve_change: ["p_request", "p_outcome", "p_note", "p_correction"],
+  admin_funeral_resolve_change: ["p_request", "p_outcome", "p_note", "p_correction", "p_authority_check"],
+  admin_log_funeral_enquiry: ["p_id", "p_kind", "p_message", "p_contact", "p_contact_name", "p_relationship"],
+  admin_set_funeral_retention_hold: ["p_id", "p_hold", "p_reason"],
+  admin_set_funeral_retention_enabled: ["p_enabled", "p_note"],
+  admin_redact_audit_text: ["p_audit_id", "p_keys", "p_reason"],
   admin_set_import_source_enabled: ["p_id", "p_enabled", "p_reuse_note"],
   manage_set_notice_status: ["p_notice", "p_status"],
 };
@@ -46,6 +52,9 @@ export const WRITE_RPCS: Record<string, readonly string[]> = {
 export const READ_RPCS: Record<string, readonly string[]> = {
   admin_list_official_publisher_members: ["p_publisher"],
   admin_notice_dispatch_history: ["p_notice"],
+  admin_funeral_retention_report: [],
+  admin_audit_redaction_candidates: ["p_months"],
+  admin_audit_redactions: ["p_limit"],
 };
 
 export function isAllowedWrite(fn: string, args: Record<string, unknown>): string | null {
@@ -73,12 +82,34 @@ export async function revokeEssential(sb: RpcClient, publisher: string, reason: 
   return runWrite(sb, "admin_revoke_essential_alert", { p_publisher: publisher, p_reason: reason.trim() });
 }
 
-/** Approve needs BOTH how it was verified and a note (the database insists too). */
-export async function approveFuneral(sb: RpcClient, id: string, method: string, note: string): Promise<RpcResult> {
+/**
+ * A note is SUPPLEMENTARY: it must not carry a telephone number or email address (the database refuses it too). How the announcement was verified is recorded
+ * in structured fields (method, outcome, reviewer, date); the family's contact details stay in the restricted submission, not in free text.
+ */
+export function noteHasContact(text: string | null | undefined): boolean {
+  const t = text ?? "";
+  return /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/.test(t) || /(\+?[0-9][0-9 ().-]{7,}[0-9])/.test(t);
+}
+export const NOTE_CONTACT_MESSAGE = "Please don't put telephone numbers or email addresses in a note: record how it was verified using the options above.";
+
+/** Approve needs HOW it was verified (a structured method); the outcome is "confirmed" by approving; a short note is optional. */
+export async function approveFuneral(sb: RpcClient, id: string, method: string, note: string, followup = "none"): Promise<RpcResult> {
   if (!method) return { ok: false, error: "Record how the announcement was verified before approving." };
-  const e = requireText(note, "A verification note");
-  if (e) return { ok: false, error: e };
-  return runWrite(sb, "admin_funeral_review", { p_id: id, p_action: "approve", p_note: note.trim(), p_verification_method: method });
+  if (noteHasContact(note)) return { ok: false, error: NOTE_CONTACT_MESSAGE };
+  return runWrite(sb, "admin_funeral_review", { p_id: id, p_action: "approve", p_note: note.trim() || null, p_verification_method: method, p_verification_outcome: "confirmed", p_followup: followup });
+}
+
+/** A no-account request must say what is wanted and how to reach the person; nothing is sent otherwise. */
+export function enquiryProblem(message: string, contact: string): string | null {
+  if (message.trim().length < 5) return "Please say what you need (at least five characters).";
+  if (message.trim().length > 1000) return "Please keep your message under 1000 characters.";
+  if (contact.trim().length < 5) return "Please give a telephone number or email address so we can reach you.";
+  return null;
+}
+export async function sendFuneralEnquiry(sb: RpcClient, a: { id: string; kind: string; message: string; contact: string; name?: string; relationship?: string }): Promise<RpcResult> {
+  const problem = enquiryProblem(a.message, a.contact);
+  if (problem) return { ok: false, error: problem };
+  return runWrite(sb, "submit_funeral_enquiry", { p_id: a.id, p_kind: a.kind, p_message: a.message.trim(), p_contact: a.contact.trim(), p_contact_name: a.name?.trim() || null, p_relationship: a.relationship?.trim() || null });
 }
 
 /** Turning an import source on is a deliberate act that needs a reuse note (what permits republishing this feed). */

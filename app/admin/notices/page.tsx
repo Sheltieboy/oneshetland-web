@@ -4,14 +4,14 @@ import { callRpc } from "@/lib/notices-rpc";
 import { AdminHeader } from "@/components/admin/AdminUI";
 import { Notice } from "@/components/notices/NoticesShell";
 import {
-  AuditTab, DispatchTab, FuneralTab, ImportsTab, OrganisationsTab, StatusTab,
-  type AuditRow, type ChangeReq, type FuneralRowAdmin, type ImportRow, type NoticeRowAdmin, type OrgRow,
+  AuditTab, DispatchTab, FuneralTab, ImportsTab, OrganisationsTab, PrivacyTab, StatusTab,
+  type AuditRow, type ChangeReq, type FuneralRowAdmin, type ImportRow, type NoticeRowAdmin, type OrgRow, type RedactionCandidate, type RetentionRow,
 } from "@/components/admin/NoticesAdmin";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Notices & alerts" };
 
-const TABS = [["orgs", "Organisations"], ["funeral", "Funeral moderation"], ["status", "Notice status"], ["imports", "Imports"], ["audit", "Audit log"], ["dispatch", "Dispatch history"]] as const;
+const TABS = [["orgs", "Organisations"], ["funeral", "Funeral moderation"], ["status", "Notice status"], ["imports", "Imports"], ["audit", "Audit log"], ["privacy", "Privacy"], ["dispatch", "Dispatch history"]] as const;
 type Tab = (typeof TABS)[number][0];
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 
@@ -43,13 +43,16 @@ export default async function AdminNotices({ searchParams }: { searchParams: Pro
     const r = await callRpc<AuditRow[]>(sb, "admin_notice_audit", { p_limit: 100, p_before: before || null });
     const rows = r.ok && Array.isArray(r.data) ? r.data : [];
     body = r.ok ? <AuditTab rows={rows} nextBefore={rows.length === 100 ? rows[rows.length - 1].at : null} /> : <Notice tone="error">{r.error}</Notice>;
+  } else if (tab === "privacy") {
+    const [ret, cand] = await Promise.all([callRpc<RetentionRow[]>(sb, "admin_funeral_retention_report"), callRpc<RedactionCandidate[]>(sb, "admin_audit_redaction_candidates", { p_months: 12 })]);
+    body = !ret.ok ? <Notice tone="error">{ret.error}</Notice> : <PrivacyTab retention={Array.isArray(ret.data) ? ret.data : []} candidates={cand.ok && Array.isArray(cand.data) ? cand.data : []} />;
   } else {
     body = <DispatchTab initialId={one(sp.notice)} />;
   }
 
   return (
     <>
-      <AdminHeader title="Notices & alerts" sub="Organisations and entitlement, funeral moderation, notice status, imports, audit and notification history." />
+      <AdminHeader title="Notices & alerts" sub="Organisations and entitlement, funeral moderation, notice status, imports, audit, privacy and notification history." />
       <nav aria-label="Sections" className="-mx-1 mb-6 flex gap-2 overflow-x-auto px-1 pb-1">
         {TABS.map(([k, label]) => <Link key={k} href={`/admin/notices?tab=${k}`} aria-current={tab === k ? "page" : undefined} className={"inline-flex min-h-[44px] shrink-0 items-center rounded-pill px-4 text-sm font-semibold " + (tab === k ? "bg-rose-600 text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{label}</Link>)}
       </nav>

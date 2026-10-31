@@ -70,6 +70,13 @@ export default function PrivacyPage() {
         <p><strong>Deleting your account.</strong> You don&rsquo;t need to email us for this: in the app or on the website, go to Account → Delete account. It asks you to confirm twice, then deletes your account immediately and permanently. We don&rsquo;t sell your data, and we don&rsquo;t keep it once you&rsquo;ve asked us not to — beyond what we&rsquo;re legally required to retain (see Retention).</p>
       </L>
 
+      <L h="Funeral announcements" id="funeral-announcements">
+        <p><strong>What we hold and why.</strong> When someone submits a funeral announcement we hold the submitter&rsquo;s name, relationship, and telephone number or email address so that we can check the announcement with the family or the funeral director and contact them about it. We also keep a short record of how and when it was checked, and by whom, so that we can show the family&rsquo;s authority for it. Submitters&rsquo; details are never shown publicly and are never used for marketing.</p>
+        <p><strong>If you delete your account.</strong> Your name, relationship, telephone number, email address and the link to your account are removed from everything you submitted. An announcement that has already been published stays up for its display period, because the family asked us to publish it, and is then deleted. Announcements that were never published are reduced to the minimum we need in case of a dispute and then deleted.</p>
+        <p><strong>How long we keep things.</strong> These periods are ours, not set by law, and we review them: a published announcement is deleted about 90 days after its display period ends; a withdrawn or unfinished submission 30 days after it was withdrawn or your account was closed; a declined or removed submission 90 days after the decision. If you contact us about an announcement without an account, we keep your contact details only until we have dealt with your request.</p>
+        <p><strong>Our activity log.</strong> We keep an activity log of who published, changed or removed notices, so that we can be accountable for it. Free text in that log is reviewed after 12 months and can be redacted on request; the record that something happened is kept.</p>
+      </L>
+
       <L h="Children">
         <p>OneShetland is for users aged 18 and over; we don&rsquo;t knowingly collect data from children.</p>
       </L>
