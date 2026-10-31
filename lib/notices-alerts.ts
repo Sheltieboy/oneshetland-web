@@ -550,3 +550,93 @@ export function prefsArgs(p: NoticePrefs): Record<string, unknown> {
     p_categories: all ? null : p.community_categories, p_all_community_categories: all,
   };
 }
+
+/* ── Essential slot plan (several concurrent alerts) ───────────────────────── */
+
+/**
+ * One alert shown in full (the most recent; ties keep the database's order) and the rest as compact rows, so three concurrent alerts never stack
+ * three full red cards on a phone. `heading` carries the count when there are several.
+ */
+export function planEssentialSlot<T extends { id: string; publishedAt: string | null }>(alerts: readonly T[]): { lead: T | null; others: T[]; count: number; heading: string } {
+  const t = (a: T) => (a.publishedAt ? Date.parse(a.publishedAt) || 0 : 0);
+  const sorted = alerts.map((a, i) => ({ a, i })).sort((x, y) => t(y.a) - t(x.a) || x.i - y.i).map((x) => x.a);
+  const count = sorted.length;
+  return { lead: sorted[0] ?? null, others: sorted.slice(1), count, heading: count > 1 ? `${count} essential alerts` : "Essential alert" };
+}
+
+/* ── An organisation's own notices (my_official_notices) ───────────────────── */
+
+export type OfficialNoticeRow = {
+  id: string; title: string; body: string; status: string; severity?: string | null; is_essential: boolean; category: string | null;
+  starts_at: string | null; expires_at: string | null; review_at: string | null; published_at: string | null; action_text: string | null; link_url: string | null;
+  area_ids: string[] | null; announced: boolean;
+};
+export type OfficialNoticeState = "live" | "scheduled" | "expired" | "resolved" | "withdrawn" | "pending";
+export function officialNoticeState(n: Pick<OfficialNoticeRow, "status" | "starts_at" | "expires_at">, now: Date = new Date()): OfficialNoticeState {
+  if (n.status === "resolved" || n.status === "withdrawn" || n.status === "pending") return n.status;
+  if (n.starts_at && Date.parse(n.starts_at) > now.getTime()) return "scheduled";
+  if (n.expires_at && Date.parse(n.expires_at) <= now.getTime()) return "expired";
+  return "live";
+}
+/** The notify button is offered only for a notice that is live right now and has not already been announced. */
+export function canOfferNotify(n: OfficialNoticeRow, now: Date = new Date()): boolean {
+  return officialNoticeState(n, now) === "live" && n.announced !== true;
+}
+/** Only a published notice (live or scheduled) can still be corrected, resolved or withdrawn. */
+export const canManageOfficial = (n: Pick<OfficialNoticeRow, "status">) => n.status === "published" || n.status === "pending";
+
+/* ── Funeral submission editing (my_funeral_submission) ────────────────────── */
+
+export type MyFuneralSubmission = Record<string, unknown> & { id: string; status: string; review_message?: string | null };
+const str = (v: unknown) => (typeof v === "string" ? v : "");
+const localInput = (iso: unknown): string => {
+  if (typeof iso !== "string") return "";
+  const d = new Date(iso); if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+export function formFromSubmission(r: MyFuneralSubmission): FuneralFormInput {
+  const arrangements = r.service_public === true;
+  return {
+    ...EMPTY_FUNERAL_FORM,
+    fullName: str(r.full_name), preferredName: str(r.preferred_name), photoUrl: str(r.photo_url), bornOn: str(r.born_on).slice(0, 10), diedOn: str(r.died_on).slice(0, 10),
+    announcement: str(r.announcement), areaId: str(r.area_id), publishArrangements: arrangements,
+    serviceKind: str(r.service_kind), serviceVenue: str(r.service_venue), serviceAt: localInput(r.service_at), serviceNotes: str(r.service_notes),
+    familyRequests: str(r.family_requests), donationInfo: str(r.donation_info), donationUrl: str(r.donation_url),
+    announceInNotifications: r.announce_in_notifications === true, announceNameInPreview: r.announce_name_in_preview === true,
+    submitterName: str(r.submitter_name), submitterRelationship: str(r.submitter_relationship), submitterPhone: str(r.submitter_phone), submitterEmail: str(r.submitter_email),
+    familyAuthorised: true,
+  };
+}
+/** Only these may be edited (update_my_funeral_submission); a blank is sent as "" so it CLEARS the stored value (a missing key leaves it alone). */
+export function buildFuneralUpdatePayload(f: FuneralFormInput): Record<string, unknown> {
+  const arr = f.publishArrangements === true;
+  const at = arr && t(f.serviceAt) ? new Date(f.serviceAt) : null;
+  return {
+    full_name: t(f.fullName), preferred_name: t(f.preferredName), photo_url: t(f.photoUrl), born_on: t(f.bornOn), died_on: t(f.diedOn), announcement: t(f.announcement),
+    service_public: arr, service_kind: arr ? t(f.serviceKind) : "", service_venue: arr ? t(f.serviceVenue) : "", service_notes: arr ? t(f.serviceNotes) : "",
+    service_at: at && !Number.isNaN(at.getTime()) ? at.toISOString() : "",
+    family_requests: t(f.familyRequests), donation_info: t(f.donationInfo), donation_url: t(f.donationUrl),
+    announce_in_notifications: f.announceInNotifications === true, announce_name_in_preview: f.announceInNotifications === true && f.announceNameInPreview === true,
+  };
+}
+/** Edit-mode validation: the contact and authorisation were given at submission and cannot be changed here. */
+export function validateFuneralEdit(f: FuneralFormInput, now: Date = new Date()): FieldErrors {
+  const e = validateFuneralForm({ ...f, submitterName: "Kept", submitterPhone: "kept", familyAuthorised: true }, now);
+  delete e.submitterName; delete e.contact; delete e.familyAuthorised; return e;
+}
+
+/* ── Staff correction fields (admin_funeral_resolve_change) ────────────────── */
+export const CORRECTION_FIELDS: [string, string][] = [
+  ["preferred_name", "Known as"], ["announcement", "Announcement"], ["service_venue", "Service place"], ["service_at", "Service date and time"],
+  ["service_notes", "Service notes"], ["family_requests", "Family requests"], ["donation_info", "Donations"],
+];
+/** Only fields staff actually filled in; null when none (the server then records the outcome without changing text). service_at is sent as an instant. */
+export function buildCorrection(values: Record<string, string>): Record<string, string> | null {
+  const out: Record<string, string> = {};
+  for (const [k] of CORRECTION_FIELDS) {
+    const v = (values[k] ?? "").trim(); if (!v) continue;
+    if (k === "service_at") { const d = new Date(v); if (Number.isNaN(d.getTime())) continue; out[k] = d.toISOString(); } else out[k] = v;
+  }
+  return Object.keys(out).length ? out : null;
+}

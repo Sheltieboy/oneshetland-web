@@ -35,17 +35,11 @@ export async function getNoticesPage(opts: { level: "all" | "essential" | "offic
   return { ok: true, data: sliceForPage(all, opts.page, PAGE_SIZE) };
 }
 
-/** A single public notice by id: the RPC has no by-id form, so look through the first 150 public notices. null = not public (404). */
+/** A single PUBLIC notice by id (get_public_notice). null = not public or unknown (404). */
 export async function getPublicNotice(id: string): Promise<RpcResult<NoticeCardModel | null>> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return { ok: true, data: null };
-  for (let offset = 0; offset < 150; offset += 50) {
-    const r = await getPublicNotices({ level: "all", limit: 50, offset });
-    if (!r.ok) return r;
-    const hit = r.data.find((n) => n.id === id);
-    if (hit) return { ok: true, data: hit };
-    if (r.data.length < 50) break;
-  }
-  return { ok: true, data: null };
+  const r = await callRpc(publicClient(), "get_public_notice", { p_id: id });
+  return r.ok ? { ok: true, data: toNoticeCards(r.data)[0] ?? null } : r;
 }
 
 export async function getFuneralNotices(opts: { areaIds?: string[] | null; page?: number }): Promise<RpcResult<{ rows: FuneralView[]; hasMore: boolean }>> {
@@ -71,7 +65,7 @@ export async function getFuneralNotice(id: string): Promise<RpcResult<FuneralVie
 export async function getAreaOptions(fallbackFrom: NoticeCardModel[] = []): Promise<AreaOption[]> {
   try {
     const { data, error } = await publicClient().from("areas").select("id, name_display, type, parent_id, sort_order, is_physical").eq("is_active", true).eq("is_physical", true).order("sort_order", { ascending: true });
-    if (!error && Array.isArray(data) && data.length) {
+    if (!error && Array.isArray(data)) {
       return (data as { id: string; name_display: string; type: string; parent_id: string | null }[]).map((a) => ({ id: a.id, name: a.name_display, type: a.type, parent_id: a.parent_id }));
     }
   } catch { /* fall through to derived */ }
