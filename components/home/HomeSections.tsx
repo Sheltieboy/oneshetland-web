@@ -240,13 +240,22 @@ export function IslandAndCommunity({
           })}
           {visibleNotices.map((n) => (
             <li key={n.id}>
-              <Link href={n.href} className="block px-4 py-3.5 transition hover:bg-sand">
-                <span className="block truncate text-[11px] font-bold uppercase tracking-wide text-ink-faint">{n.attribution.is_official_source ? n.attribution.byline : n.attribution.label}</span>
-                <span className="block truncate font-semibold text-ink">{n.title}</span>
-                <span className="line-clamp-1 text-sm text-ink-muted">{n.body}</span>
-              </Link>
+              {n.href ? (
+                <Link href={n.href} className="block px-4 py-3.5 transition hover:bg-sand">
+                  <span className="block truncate text-[11px] font-bold uppercase tracking-wide text-ink-faint">{n.attribution.byline}</span>
+                  <span className="block truncate font-semibold text-ink">{n.title}</span>
+                  <span className="line-clamp-1 text-sm text-ink-muted">{n.body}</span>
+                </Link>
+              ) : (
+                // Nowhere to go (person / OneShetland / official source): a plain block that shows the whole notice - no link, no hover affordance.
+                <div className="block px-4 py-3.5">
+                  <span className="block text-[11px] font-bold uppercase tracking-wide text-ink-faint">{n.attribution.byline}</span>
+                  <span className="block break-words font-semibold text-ink">{n.title}</span>
+                  <span className="mt-0.5 block whitespace-pre-line break-words text-sm text-ink-muted">{n.body}</span>
+                </div>
+              )}
               {n.attribution.source_url && (
-                <a href={n.attribution.source_url} target="_blank" rel="noopener noreferrer" className="block px-4 pb-3 text-xs font-bold text-ink-muted underline">
+                <a href={n.attribution.source_url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center px-4 text-xs font-bold text-ink-muted underline">
                   View at source
                 </a>
               )}

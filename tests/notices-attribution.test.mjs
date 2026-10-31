@@ -22,7 +22,7 @@ const sha = (p) => createHash("sha256").update(rd(p)).digest("hex");
 // The shared helper files are byte-pinned: the app repo (and the edge copy) hold the identical files, and its tests pin the same hashes.
 const PINNED = {
   "lib/notice-publisher.ts": "21ce1afc4438948ce6e529b161180871ccee74f51e12afe5a5d9904b3376120c",
-  "lib/notice-feed.ts": "40859ef8e8a0d0b326652efa189cb3364e11f28e4c00cda4d31d3e9b4d9388f7",
+  "lib/notice-feed.ts": "f113f53c6647a9c863341f311d63a3b177f2c081b94fc7b2d88f6908264fc5da",
 };
 
 const HUB = { id: "hub-1", name: "Voe Hall", logo_url: "https://img/hub.png", brand_color: "#336699", slug: "voe-hall" };
@@ -148,8 +148,8 @@ describe("hub page notices (getHubNotices)", () => {
 describe("contract: screens use the attribution; nothing falls back to Member", () => {
   test("home, local feed and sections use the shared attribution", () => {
     assert.match(rd("lib/home-data.ts"), /attributionFor\(/); assert.match(rd("lib/local-data.ts"), /attributionFor\(/);
-    assert.match(rd("components/home/HomeSections.tsx"), /n\.attribution\.is_official_source \? n\.attribution\.byline : n\.attribution\.label/);
-    assert.match(rd("components/home/HomeSections.tsx"), /View at source/); assert.match(rd("app/local/page.tsx"), /n\.attribution\.is_official_source/);
+    assert.match(rd("components/home/HomeSections.tsx"), /\{n\.attribution\.byline\}/);
+    assert.match(rd("components/home/HomeSections.tsx"), /View at source/); assert.match(rd("app/local/page.tsx"), /URGENT · \{n\.attribution\.byline\}/);
   });
   test("no notice code uses the literal \"Member\" or the old join-derived chain", () => {
     for (const f of ["lib/home-data.ts", "lib/local-data.ts", "lib/notice-publisher.ts", "lib/notice-feed.ts"]) {
@@ -164,5 +164,47 @@ describe("contract: screens use the attribution; nothing falls back to Member", 
   });
   test("publishing and deleting from the website are untouched", () => {
     const c = rd("lib/hubs-client.ts"); assert.match(c, /publisher_hub_id: hubId,\n    severity: "community",/); assert.match(c, /from\("notices"\)\.delete\(\)\.eq\("id", id\)/);
+  });
+});
+
+describe("navigation: a notice goes to its own destination or nowhere (Stage 3A.2 review)", () => {
+  let notices;
+  before(async () => { setDb({ notices: ALL }); notices = (await home.getHomeData()).notices; });
+  test("hub -> its hub page, business -> its business page, event -> the event", () => {
+    const by = Object.fromEntries(notices.map((x) => [x.id, x]));
+    assert.equal(by[E.hub.id].href, "/hubs/voe-hall"); assert.equal(by[E.biz.id].href, "/directory/bea-bakery");
+    assert.equal(by[E.event.id]?.href ?? "/whats-on/ev1", "/whats-on/ev1");
+  });
+  test("person, OneShetland and official-source notices have NO destination - never /hubs or any generic section", () => {
+    const by = Object.fromEntries(notices.map((x) => [x.id, x]));
+    for (const id of [E.person.id, E.noname.id, E.former.id, E.plat.id, E.nhs.id]) assert.equal(by[id]?.href, null, id);
+    assert.ok(!notices.some((x) => x.href === "/hubs" || x.href === "/local" || x.href === "/whats-on"), "no unrelated section as a fallback");
+  });
+  test("noticeHref has no generic fallback", async () => {
+    const { noticeHref } = await import("../lib/home-curation.ts");
+    assert.equal(noticeHref({}), null); assert.equal(noticeHref({ hub: null, business: null }), null);
+    assert.equal(noticeHref({ campaign_id: "c1" }), "/hubs/campaign/c1"); assert.equal(noticeHref({ event_id: "e1" }), "/whats-on/e1");
+    assert.equal(noticeHref({ hub: { slug: "s" } }), "/hubs/s"); assert.equal(noticeHref({ business: { id: "b" } }), "/directory/b");
+    assert.doesNotMatch(rd("lib/home-curation.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""), /"\/hubs"/);
+  });
+  test("components: a notice without an href is a plain block (no link) that shows the whole notice; with one it is a link", () => {
+    for (const f of ["components/home/HomeSections.tsx", "components/preview/v2/HomeV2.tsx"]) {
+      const src = rd(f); assert.match(src, /n\.href \?/, f); assert.match(src, /whitespace-pre-line/, f + " non-link branch shows the full text");
+    }
+    assert.match(rd("components/preview/v2/HomeV2.tsx"), /const header = n\.attribution\.byline;/);
+  });
+  test("an official notice shows 'View at source' only when the database gave a valid link", () => {
+    for (const f of ["components/home/HomeSections.tsx", "components/preview/v2/HomeV2.tsx"]) assert.match(rd(f), /n\.attribution\.source_url &&/);
+  });
+});
+
+describe("person-name lookups (website): one request per distinct author, none for other kinds", () => {
+  test("the home page asked about each distinct person-notice author at most once", async () => {
+    rpcCalls.length = 0; const { clearPersonNameCache } = await import("../lib/notice-feed.ts"); clearPersonNameCache();
+    setDb({ notices: [...ALL, n("Second by Ann", { publisher_kind: "person", is_person_notice: true, publisher_hub_id: null, publisher_user_id: "u-ann", hub: null, published_at: "2026-10-31T09:00:00Z" })] });
+    await home.getHomeData();
+    const mine = rpcCalls.filter((c) => c.fn === "notice_publisher_display");
+    assert.ok(mine.length > 0 && mine.length <= 2, `${mine.length} lookups for 2 distinct authors`);
+    setDb({ notices: ALL });
   });
 });

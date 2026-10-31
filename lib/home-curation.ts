@@ -5,23 +5,23 @@ import type { TodaySnapshot } from "./shetland-today";
 import { describeWeather } from "./shetland-today";
 
 /**
- * Where a notice should take you. It used to be "/local" for everything, which landed on a page that no longer
- * shows notices. The most specific destination wins: the fundraiser, the event, the publishing hub, the
- * publishing business, and only then the hubs list.
+ * Where a notice should take you. The most specific destination wins: the fundraiser, the event, the publishing hub,
+ * the publishing business. A notice with none of those (a person's, OneShetland's, or an official source's) goes NOWHERE:
+ * null, never a generic section - the page then shows the notice itself rather than a link to an unrelated list.
  */
 export function noticeHref(n: {
   campaign_id?: string | null;
   event_id?: string | null;
   hub?: { id?: string | null; slug?: string | null } | null;
   business?: { id?: string | null; slug?: string | null } | null;
-}): string {
+}): string | null {
   if (n.campaign_id) return `/hubs/campaign/${n.campaign_id}`;
   if (n.event_id) return `/whats-on/${n.event_id}`;
   const hub = n.hub?.slug || n.hub?.id;
   if (hub) return `/hubs/${hub}`;
   const biz = n.business?.slug || n.business?.id;
   if (biz) return `/directory/${biz}`;
-  return "/hubs";
+  return null;
 }
 
 /** Ship content belongs on Home only while it is useful: in port today, or arriving within three days. */

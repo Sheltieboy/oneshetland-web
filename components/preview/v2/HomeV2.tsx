@@ -336,13 +336,28 @@ export function CommunityV2({ notices, campaigns }: { notices: HomeNotice[]; cam
     <Band>
       <Heading eyebrow="Community" title="From the community" color="#6b47bf" cta={{ label: "Hubs", href: "/hubs" }} />
       <div className={"grid grid-cols-1 gap-4 " + (notices.length + campaigns.length > 1 ? "md:grid-cols-2" : "")}>
-        {n && (
-          <Link href={n.href} className="group relative flex flex-col justify-center overflow-hidden rounded-3xl p-6 shadow-soft transition hover:shadow-lift sm:p-9" style={{ background: "linear-gradient(135deg,#ede9fe,#ddd6fe)" }}>
-            <span className="text-[11px] font-black uppercase tracking-widest text-violet-700">{n.publisher}</span>
-            <p className="mt-2 max-w-2xl font-display text-2xl font-bold leading-tight text-violet-950 sm:text-4xl">{n.title}</p>
-            <p className="mt-3 line-clamp-3 max-w-2xl text-base text-violet-900/80">{n.body}</p>
-          </Link>
-        )}
+        {n && (() => {
+          const header = n.attribution.byline;   // "Posted by <publisher>" or "Source: <official source>"
+          const card = "group relative flex flex-col justify-center overflow-hidden rounded-3xl p-6 shadow-soft sm:p-9";
+          const style = { background: "linear-gradient(135deg,#ede9fe,#ddd6fe)" };
+          // A notice with a destination (fundraiser, event, hub, business) is a link; one without (person / OneShetland / official source) is a plain card that shows the whole notice.
+          return n.href ? (
+            <Link href={n.href} className={card + " transition hover:shadow-lift"} style={style}>
+              <span className="text-[11px] font-black uppercase tracking-widest text-violet-700">{header}</span>
+              <p className="mt-2 max-w-2xl font-display text-2xl font-bold leading-tight text-violet-950 sm:text-4xl">{n.title}</p>
+              <p className="mt-3 line-clamp-3 max-w-2xl text-base text-violet-900/80">{n.body}</p>
+            </Link>
+          ) : (
+            <div className={card} style={style}>
+              <span className="text-[11px] font-black uppercase tracking-widest text-violet-700">{header}</span>
+              <p className="mt-2 max-w-2xl break-words font-display text-2xl font-bold leading-tight text-violet-950 sm:text-4xl">{n.title}</p>
+              <p className="mt-3 max-w-2xl whitespace-pre-line break-words text-base text-violet-900/80">{n.body}</p>
+              {n.attribution.source_url && (
+                <a href={n.attribution.source_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-[44px] items-center self-start text-sm font-bold text-violet-800 underline">View at source</a>
+              )}
+            </div>
+          );
+        })()}
         {campaigns.slice(0, 2).map((c) => {
           const pct = Math.min(100, Math.round((c.raised_pence / Math.max(1, c.goal_pence)) * 100));
           return (

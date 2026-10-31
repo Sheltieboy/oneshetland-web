@@ -54,8 +54,8 @@ export type HomeNotice = {
   attribution: NoticePublisher;
   logo_url: string | null;
   brand_color: string | null;
-  /** Where tapping the notice goes: its fundraiser, event, hub or business — never a generic page. */
-  href: string;
+  /** Where tapping the notice goes: its fundraiser, event, hub or business. null = nowhere (never a generic page): show the notice itself. */
+  href: string | null;
 };
 
 export type HomeJob = {
