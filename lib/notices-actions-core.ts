@@ -24,8 +24,7 @@ export const WRITE_RPCS: Record<string, readonly string[]> = {
   update_my_funeral_submission: ["p_id", "p"],
   withdraw_my_funeral_notice: ["p_id"],
   request_funeral_notice_change: ["p_id", "p_kind", "p_message", "p_contact"],
-  // no account needed: a correction / takedown / enquiry about a published announcement (staff verify before anything changes)
-  submit_funeral_enquiry: ["p_id", "p_kind", "p_message", "p_contact", "p_contact_name", "p_relationship"],
+  // NOTE: submit_funeral_enquiry is deliberately NOT here. It is service-role only; visitors use the submit-funeral-enquiry Edge Function (lib/funeral-enquiry-client.ts).
   // verified organisations
   official_publish_notice: ["p_publisher", "p_title", "p_body", "p_category", "p_area_ids", "p_expires_at", "p_starts_at", "p_link_url", "p_action_text", "p_is_essential", "p_review_at"],
   official_update_notice: ["p_notice", "p_title", "p_body", "p_category", "p_area_ids", "p_expires_at", "p_link_url", "p_action_text", "p_is_essential", "p_review_at"],
@@ -97,19 +96,6 @@ export async function approveFuneral(sb: RpcClient, id: string, method: string, 
   if (!method) return { ok: false, error: "Record how the announcement was verified before approving." };
   if (noteHasContact(note)) return { ok: false, error: NOTE_CONTACT_MESSAGE };
   return runWrite(sb, "admin_funeral_review", { p_id: id, p_action: "approve", p_note: note.trim() || null, p_verification_method: method, p_verification_outcome: "confirmed", p_followup: followup });
-}
-
-/** A no-account request must say what is wanted and how to reach the person; nothing is sent otherwise. */
-export function enquiryProblem(message: string, contact: string): string | null {
-  if (message.trim().length < 5) return "Please say what you need (at least five characters).";
-  if (message.trim().length > 1000) return "Please keep your message under 1000 characters.";
-  if (contact.trim().length < 5) return "Please give a telephone number or email address so we can reach you.";
-  return null;
-}
-export async function sendFuneralEnquiry(sb: RpcClient, a: { id: string; kind: string; message: string; contact: string; name?: string; relationship?: string }): Promise<RpcResult> {
-  const problem = enquiryProblem(a.message, a.contact);
-  if (problem) return { ok: false, error: problem };
-  return runWrite(sb, "submit_funeral_enquiry", { p_id: a.id, p_kind: a.kind, p_message: a.message.trim(), p_contact: a.contact.trim(), p_contact_name: a.name?.trim() || null, p_relationship: a.relationship?.trim() || null });
 }
 
 /** Turning an import source on is a deliberate act that needs a reuse note (what permits republishing this feed). */

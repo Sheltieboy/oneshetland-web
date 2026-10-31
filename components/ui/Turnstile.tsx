@@ -49,7 +49,10 @@ export interface TurnstileHandle {
 export const Turnstile = forwardRef<TurnstileHandle, {
   onToken: (token: string | null) => void;
   onError?: () => void;
-}>(function Turnstile({ onToken, onError }, ref) {
+  /** Cloudflare returns these, verified, to the server: the sign-in forms omit them, the funeral enquiry form sets both. */
+  action?: string;
+  cData?: string;
+}>(function Turnstile({ onToken, onError, action, cData }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetId = useRef<string | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "failed">(
@@ -79,6 +82,8 @@ export const Turnstile = forwardRef<TurnstileHandle, {
           appearance: "interaction-only",
           theme: "light",
           size: "flexible",
+          ...(action ? { action } : {}),
+          ...(cData ? { cData } : {}),
           callback: (token) => onToken(token),
           "error-callback": () => {
             onToken(null);

@@ -417,16 +417,46 @@ describe("follow-up: funeral edit flow and staff corrections", () => {
 
 describe("funeral privacy: no-account contact, structured moderation, privacy tab", () => {
   const fake = () => { const calls = []; return { calls, rpc: async (fn, args) => { calls.push({ fn, args }); return { data: "req-1", error: null }; } }; };
-  test("the enquiry needs a message and a way to reply BEFORE anything is sent, and sends only its named parameters", async () => {
-    const sb = fake();
-    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "no", contact: "a@b.example" })).ok, false);
-    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "Please remove this", contact: "" })).ok, false);
-    assert.equal((await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: "x".repeat(1001), contact: "a@b.example" })).ok, false);
-    assert.equal(sb.calls.length, 0);
-    const ok = await C.sendFuneralEnquiry(sb, { id: "f", kind: "takedown", message: " Please remove this ", contact: " rel@family.example ", name: " R ", relationship: "" });
-    assert.equal(ok.ok, true);
-    assert.deepEqual(sb.calls[0], { fn: "submit_funeral_enquiry", args: { p_id: "f", p_kind: "takedown", p_message: "Please remove this", p_contact: "rel@family.example", p_contact_name: "R", p_relationship: null } });
-    assert.equal(C.isAllowedWrite("submit_funeral_enquiry", { p_id: "f", p_user: "someone" }) !== null, true, "an extra argument is refused");
+  test("the enquiry client sends nothing until local checks and a security token are present, then posts ONLY to the Edge Function endpoint (never the database)", async () => {
+    const F = await import("../lib/funeral-enquiry-client.ts");
+    const calls = []; const ok = async (url, init) => { calls.push({ url, init }); return new Response(JSON.stringify({ ok: true }), { status: 200 }); };
+    const base = { id: "f", kind: "takedown", message: " Please remove this ", contact: " rel@family.example ", name: " R ", relationship: "", token: "tok" };
+    assert.equal((await F.sendFuneralEnquiry({ ...base, message: "no" }, ok, "https://x.test/f")).code, "invalid_input");
+    assert.equal((await F.sendFuneralEnquiry({ ...base, contact: "" }, ok, "https://x.test/f")).code, "invalid_input");
+    assert.equal((await F.sendFuneralEnquiry({ ...base, token: null }, ok, "https://x.test/f")).code, "verification_required");
+    assert.equal(calls.length, 0, "no request without a valid form and a token");
+    const r = await F.sendFuneralEnquiry(base, ok, "https://x.test/functions/v1/submit-funeral-enquiry");
+    assert.equal(r.ok, true); assert.equal(calls[0].url, "https://x.test/functions/v1/submit-funeral-enquiry");
+    assert.deepEqual(JSON.parse(calls[0].init.body), { announcement_id: "f", kind: "takedown", message: "Please remove this", contact: "rel@family.example", contact_name: "R", turnstile_token: "tok" });
+    assert.equal(F.enquiryEndpoint("https://abc.supabase.co/"), "https://abc.supabase.co/functions/v1/submit-funeral-enquiry");
+  });
+  test("every server refusal keeps the form, shows a safe message, and asks for the security check to be redone (the token is single use)", async () => {
+    const F = await import("../lib/funeral-enquiry-client.ts");
+    const base = { id: "f", kind: "enquiry", message: "A genuine question here", contact: "rel@family.example", token: "tok" };
+    for (const [status, code] of [[400, "verification_failed"], [400, "verification_expired"], [429, "rate_limited"], [503, "verification_unavailable"], [404, "unknown_notice"]]) {
+      const r = await F.sendFuneralEnquiry(base, async () => new Response(JSON.stringify({ ok: false, error: code, message: "Safe words.", retry_after: 60 }), { status }), "https://x.test/f");
+      assert.deepEqual([r.ok, r.code, r.message, r.resetCheck, r.keepForm], [false, code, "Safe words.", true, true], code);
+    }
+    const net = await F.sendFuneralEnquiry(base, async () => { throw new TypeError("offline"); }, "https://x.test/f");
+    assert.deepEqual([net.ok, net.code, net.resetCheck], [false, "network", true]);
+    const junk = await F.sendFuneralEnquiry(base, async () => new Response("<html>", { status: 502 }), "https://x.test/f");
+    assert.match(junk.message, /try again in a few minutes/);
+  });
+  test("the Turnstile script is Cloudflare's unless a LOOPBACK test address is given; any other override is ignored", async () => {
+    const T = await import("../lib/turnstile.ts");
+    const CF = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    assert.equal(T.turnstileScriptUrl(undefined), CF);
+    for (const bad of ["https://evil.example/api.js", "http://evil.example/api.js", "http://127.0.0.1.evil.example/x.js", "javascript:alert(1)", "not a url", "https://localhost/x.js"]) assert.equal(T.turnstileScriptUrl(bad), CF, bad);
+    assert.equal(T.turnstileScriptUrl("http://127.0.0.1:54800/__mock/turnstile.js"), "http://127.0.0.1:54800/__mock/turnstile.js");
+  });
+  test("the visitor can no longer reach the database function from the website: not in the allow-list, no server action, and the form uses the Edge Function client with Turnstile", () => {
+    assert.ok(!("submit_funeral_enquiry" in C.WRITE_RPCS) && !("admin_log_funeral_enquiry" in C.READ_RPCS));
+    assert.ok(!/sendFuneralEnquiry/.test(rd("app/notices/actions.ts")), "the old server action is gone");
+    assert.ok(!/submit_funeral_enquiry/.test(strip(rd("components/notices/FuneralEnquiryForm.tsx"))) && !/submit_funeral_enquiry/.test(strip(rd("lib/funeral-enquiry-client.ts"))), "no website code names the database function");
+    const form = rd("components/notices/FuneralEnquiryForm.tsx");
+    assert.match(form, /<Turnstile[^>]*action=\{ENQUIRY_ACTION\}[^>]*cData=\{id\}/); assert.match(form, /disabled=\{busy \|\| !!problem \|\| !token\}/);
+    assert.match(form, /check\.current\?\.reset\(\)/); assert.doesNotMatch(form, /setMessage\(""\)|setContact\(""\)/, "failures never clear what was typed");
+    assert.doesNotMatch(strip(rd("lib/funeral-enquiry-client.ts")) + strip(form), /TURNSTILE_SECRET|siteverify/i, "no secret and no verification in the browser");
   });
   test("a moderation note cannot carry a telephone number or email address (mirrors the database)", () => {
     for (const t of ["Rang 01595 123456", "call +44 1595 123456", "email jo@family.example"]) assert.equal(C.noteHasContact(t), true, t);
@@ -444,7 +474,7 @@ describe("funeral privacy: no-account contact, structured moderation, privacy ta
     assert.doesNotMatch(strip(page), /getAccount|sign-in/, "no account is required");
     assert.match(page, /Contact us about this announcement/); assert.match(page, /href="\/support"/); assert.doesNotMatch(strip(page), /@[a-z0-9-]+\.(com|co\.uk)/i, "no new address is invented");
     assert.match(detail, /\/contact`/); assert.match(detail, /Contact us about this announcement/);
-    assert.match(form, /sendFuneralEnquiryAction/); assert.match(form, /honey|Leave this empty/); assert.match(form, /aria-hidden="true"/);
+    assert.match(form, /sendFuneralEnquiry/); assert.match(form, /honey|Leave this empty/); assert.match(form, /aria-hidden="true"/);
     assert.match(form, /Nothing has been changed yet/);
   });
   test("the moderation screen records the structured fields, guards notes, and requires an authority check for no-account requests; the privacy tab is read-only for retention", () => {

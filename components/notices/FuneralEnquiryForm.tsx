@@ -1,23 +1,32 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { sendFuneralEnquiryAction } from "@/app/notices/actions";
-import { enquiryProblem } from "@/lib/notices-actions-core";
-import { Field, Status, btnPrimary, inputCls, useAction } from "@/components/notices/Fields";
+import { Turnstile, type TurnstileHandle } from "@/components/ui/Turnstile";
+import { ENQUIRY_ACTION, enquiryProblem, sendFuneralEnquiry } from "@/lib/funeral-enquiry-client";
+import { Field, btnPrimary, inputCls } from "@/components/notices/Fields";
 
 const KINDS: [string, string][] = [["correction", "Something is wrong and needs correcting"], ["takedown", "Please remove this announcement"], ["enquiry", "I have a question"]];
 
-/** No account needed. A hidden field catches automated submissions; the database rate-limits per announcement, per contact and overall. */
+/**
+ * No account needed. The security check (Cloudflare Turnstile) is verified by OUR server, not trusted from the browser; the form posts to the
+ * submit-funeral-enquiry function, which also limits each visitor so one person cannot use up anyone else's allowance. A hidden field catches simple bots.
+ * Nothing is cleared when sending fails: the visitor can fix the problem and send again (the security check is simply redone).
+ */
 export function FuneralEnquiryForm({ id }: { id: string }) {
   const [kind, setKind] = useState("correction");
   const [message, setMessage] = useState("");
   const [contact, setContact] = useState("");
   const [name, setName] = useState("");
   const [relationship, setRelationship] = useState("");
+  const [token, setToken] = useState<string | null>(null);
+  const [checkFailed, setCheckFailed] = useState(false);
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const trap = useRef<HTMLInputElement>(null);
-  const { state, run } = useAction();
+  const check = useRef<TurnstileHandle>(null);
   const problem = enquiryProblem(message, contact);
+
   if (sent) {
     return (
       <div role="status" className="rounded-xl border border-emerald-300 bg-emerald-50 p-5 text-emerald-950">
@@ -26,12 +35,20 @@ export function FuneralEnquiryForm({ id }: { id: string }) {
       </div>
     );
   }
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy) return;
+    setError(null);
+    if (trap.current?.value) { setSent(true); return; }            // a bot filled the hidden field: appear to succeed, send nothing
+    setBusy(true);
+    const r = await sendFuneralEnquiry({ id, kind, message, contact, name, relationship, token, website: trap.current?.value });
+    setBusy(false);
+    if (r.ok) { setSent(true); return; }
+    setError(r.message);
+    if (r.resetCheck) check.current?.reset();                      // a token is single use; the typed text stays exactly as it was
+  }
   return (
-    <form className="space-y-4" onSubmit={(e) => {
-      e.preventDefault();
-      if (trap.current?.value) { setSent(true); return; }    // a bot filled the hidden field: appear to succeed, send nothing
-      void run(async () => { const r = await sendFuneralEnquiryAction({ id, kind, message, contact, name, relationship }); if (r.ok) setSent(true); return r; }, "Sent.");
-    }}>
+    <form className="space-y-4" onSubmit={submit} noValidate>
       <Field label="What would you like us to do?" htmlFor={`ek${id}`}>
         <select id={`ek${id}`} className={inputCls} value={kind} onChange={(e) => setKind(e.target.value)}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
       </Field>
@@ -46,9 +63,12 @@ export function FuneralEnquiryForm({ id }: { id: string }) {
       <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
         <label>Leave this empty<input ref={trap} tabIndex={-1} autoComplete="off" name="website" defaultValue="" /></label>
       </div>
-      <Status state={state} />
-      <button type="submit" disabled={state.busy || !!problem} className={btnPrimary}>{state.busy ? "Sending…" : "Send"}</button>
+      <Turnstile ref={check} action={ENQUIRY_ACTION} cData={id} onToken={setToken} onError={() => setCheckFailed(true)} />
+      {error && <p role="alert" className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">{error}</p>}
+      <button type="submit" disabled={busy || !!problem || !token} className={btnPrimary}>{busy ? "Sending…" : "Send"}</button>
       {problem && (message || contact) ? <p className="text-sm text-ink-soft">{problem}</p> : null}
+      {!problem && !token && !checkFailed ? <p className="text-sm text-ink-soft">Completing the security check…</p> : null}
+      {checkFailed && <p className="text-sm text-ink-soft">The security check could not load. Please refresh the page, or contact us by telephone (see the support page).</p>}
     </form>
   );
 }
