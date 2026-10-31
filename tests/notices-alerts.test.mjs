@@ -275,20 +275,54 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.equal(p.lead.id, "new"); assert.deepEqual(p.others.map((x) => x.id), ["mid", "old"]); assert.equal(p.heading, "3 essential alerts"); assert.equal(p.count, 3);
     assert.deepEqual(A.planEssentialSlot([al("x", null), al("y", null)]).others.map((o) => o.id), ["y"]);
   });
-  test("component: ONE compact strip linking to the alert (or the essential list when several); no body, what-to-do or source detail", () => {
-    const src = rd("components/notices/EssentialAlertSlot.tsx");
-    assert.match(src, /\/notices\?tab=essential/); assert.match(src, /\/notices\/\$\{a\.id\}/); assert.match(src, /plan\.count\} active/);
-    assert.equal((src.match(/<Link /g) ?? []).length, 1, "a single strip, never a stack");
-    assert.doesNotMatch(src, /a\.body|actionText|attribution|plan\.others\.map/);
+  test("component: ONE LINE always - fixed height, nowrap, truncation, no wrapping utilities, no body / what-to-do / source detail", () => {
+    const src = rd("components/notices/EssentialAlertSlot.tsx"); const code = strip(src);
+    assert.match(code, /className="mx-auto flex h-11 /, "fixed 44px height");
+    assert.match(code, /whitespace-nowrap/); assert.match(code, /min-w-0 flex-1 truncate/, "the headline truncates with an ellipsis");
+    assert.doesNotMatch(code, /line-clamp|flex-col|flex-wrap|whitespace-normal|break-words|whitespace-pre|min-h-\[|\bpy-\d/, "nothing that lets the strip wrap or grow");
+    assert.doesNotMatch(code, /a\.body|actionText|attribution|plan\.others\.map/);
+    assert.match(code, /min-\[360px\]:hidden/, "the label shortens on narrow screens instead of wrapping");
+    assert.match(code, /hidden max-w-\[28%\] shrink truncate[^"]*md:block/, "the area drops out below md");
+    assert.match(code, /\/notices\?tab=essential/); assert.match(code, /\/notices\/\$\{a\.id\}/);
   });
-  test("component: the icon is a SOLID exclamation (not a hairline stroke), and the strip is one accessible link with a built name", () => {
+  test("component: the icon is one self-contained SVG with explicit fills (a red mark inside a white disc), never currentColor or a hairline stroke", () => {
+    const code = strip(rd("components/notices/EssentialAlertSlot.tsx"));
+    const icon = code.match(/<svg aria-hidden focusable="false" width="24"[\s\S]*?<\/svg>/)[0];
+    assert.match(icon, /<circle cx="12" cy="12" r="12" fill="#ffffff"/); assert.match(icon, /<rect [^>]*fill=\{RED\}/); assert.match(icon, /<circle cx="12" cy="18\.2"[^>]*fill=\{RED\}/);
+    assert.doesNotMatch(icon, /currentColor|stroke=/); assert.match(code, /const RED = "#9b1c1c"/);
+  });
+  test("component: link and dismiss are SIBLINGS (the x can never navigate); accessible names; keyboard focus ring", () => {
+    const code = strip(rd("components/notices/EssentialAlertSlot.tsx"));
+    const link = code.slice(code.indexOf("<Link "), code.indexOf("</Link>"));
+    assert.doesNotMatch(link, /<button|onClick=\{dismiss\}/, "no button inside the link");
+    assert.match(code, /<button type="button" onClick=\{dismiss\} aria-label="Dismiss Essential Alert"/); assert.match(code, /h-11 w-11/, "a 44px target");
+    assert.match(code, /aria-label=\{name\}/); assert.match(code, /Opens all essential alerts/); assert.match(code, /Opens the full alert/);
+    assert.ok((code.match(/focus-visible:outline-white/g) ?? []).length >= 2, "link and button both show a focus ring");
+    assert.equal((code.match(/<Link /g) ?? []).length, 1);
+  });
+  test("dismissal: ids, not a global switch; the whole active set is dismissed; a NEW id brings the strip back; dismissed ids never return", async () => {
+    const D = await import("../lib/essential-dismiss.ts");
+    const three = [{ id: "a" }, { id: "b" }, { id: "c" }];
+    assert.deepEqual(D.undismissed(three, []), three);
+    const afterDismiss = D.dismissAll([], three);
+    assert.deepEqual(afterDismiss, ["a", "b", "c"]); assert.deepEqual(D.undismissed(three, afterDismiss), [], "all three leave the strip; the second is NOT promoted");
+    const withNew = [...three, { id: "d" }];
+    assert.deepEqual(D.undismissed(withNew, afterDismiss).map((x) => x.id), ["d"], "only the genuinely new alert shows");
+    const again = D.dismissAll(afterDismiss, [{ id: "d" }]); assert.deepEqual(again, ["a", "b", "c", "d"]); assert.deepEqual(D.undismissed(withNew, again), []);
+    assert.deepEqual(D.undismissed([{ id: "a" }, { id: "e" }], again).map((x) => x.id), ["e"], "a dismissed alert returning later is still dismissed");
+    assert.deepEqual(D.undismissed(null, []), []);
+    assert.deepEqual(D.dismissAll(["x"], [{ id: "x" }, { id: "y" }]), ["x", "y"], "no duplicates");
+    for (const bad of [null, undefined, "", "not json", "{}", "[1,2]", '["ok",""]']) assert.ok(Array.isArray(D.parseDismissed(bad)), String(bad));
+    assert.deepEqual(D.parseDismissed('["ok",""]'), ["ok"]); assert.deepEqual(D.parseDismissed("{}"), []);
+    assert.equal(D.dismissAll([], Array.from({ length: 500 }, (_, i) => ({ id: "n" + i }))).length, 200, "bounded");
+  });
+  test("pre-paint script: hides the strip only when EVERY active id is already dismissed (no flash); safe if storage throws", () => {
     const src = rd("components/notices/EssentialAlertSlot.tsx");
-    assert.match(src, /<svg[^>]*fill="currentColor"[^>]*><rect[^>]*\/><circle[^>]*\/><\/svg>/, "bar + dot, filled");
-    assert.doesNotMatch(src, /M12 5v9M12 19v\.5/, "the old hairline glyph that read as a white disc is gone");
-    assert.match(src, /aria-label=\{name\}/); assert.match(src, /Opens all essential alerts/); assert.match(src, /Opens the full alert/); assert.match(src, /Essential alert, \$\{plan\.count\} active/);
-    assert.equal((src.match(/aria-hidden/g) ?? []).length, 3, "icon, text and chevron are hidden: the name covers them");
-    assert.match(src, /focus-visible:outline-white/); assert.match(src, /line-clamp-2/); assert.doesNotMatch(src.match(/<Link [^>]*>/)[0], /\sh-(\d|\[)/, "no fixed height on the link");
-    assert.match(src, /min-h-\[44px\]/);
+    assert.match(src, /document\.currentScript\.parentElement\.hidden=true/); assert.match(src, /\{!hydrated && <script dangerouslySetInnerHTML/);
+    const mk = (src) => { const m = src.match(/function hideIfDismissedScript\(ids: string\[\]\) \{\s*return `([\s\S]*?)`;/)[1]; return (ids, stored, throws) => { const parent = { hidden: false }; const f = new Function("localStorage", "document", "JSON", m.replace("${JSON.stringify(DISMISSED_KEY)}", JSON.stringify("k")).replace("${JSON.stringify(ids)}", JSON.stringify(ids))); f({ getItem: () => { if (throws) throw new Error("blocked"); return stored; } }, { currentScript: { parentElement: parent } }, JSON); return parent.hidden; }; };
+    const run = mk(src);
+    assert.equal(run(["a", "b"], '["a","b","z"]'), true); assert.equal(run(["a", "b"], '["a"]'), false, "a new alert keeps it visible");
+    assert.equal(run(["a"], null), false); assert.equal(run(["a"], "garbage"), false); assert.equal(run(["a"], "[]", true), false); assert.equal(run([], '["a"]'), false, "no alerts: nothing to hide");
   });
 
 });
