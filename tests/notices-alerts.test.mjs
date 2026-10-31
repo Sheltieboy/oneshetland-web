@@ -55,8 +55,8 @@ describe("destination precedence and card model", () => {
     assert.equal(A.toNoticeCard(row({ publisher: pub("official") })).destination, null);
     assert.equal(A.toNoticeCard(row({ publisher: pub("person"), publisher_hub_id: "h1" })).destination, null, "a stray hub id never links a person notice");
   });
-  test("area names: none = Shetland-wide, two shown, then +N", () => {
-    assert.equal(A.areaSummary([]), "Shetland-wide"); assert.equal(A.areaSummary(["Voe", "Brae"]), "Voe, Brae"); assert.equal(A.areaSummary(["Voe", "Brae", "Delting", "Lerwick"]), "Voe, Brae +2");
+  test("area names: none = NO label (unspecified is never presented as Shetland-wide), an explicit Shetland-wide notice says so, two shown, then +N", () => {
+    assert.equal(A.areaSummary([]), ""); assert.equal(A.toNoticeCard(row({ area_ids: [], area_names: [] })).areaSummary, "", "unspecified: no geography claimed"); assert.equal(A.toNoticeCard(row({ area_ids: ["shetland_wide"], area_names: ["Shetland-wide"] })).areaSummary, "Shetland-wide"); assert.equal(A.areaSummary(["Voe", "Brae"]), "Voe, Brae"); assert.equal(A.areaSummary(["Voe", "Brae", "Delting", "Lerwick"]), "Voe, Brae +2");
     assert.equal(A.toNoticeCard(row({ area_names: ["Voe", "Brae", "Delting"] })).areaSummary, "Voe, Brae +1");
   });
   test("very long titles and bodies are carried whole (clamping is CSS)", () => {
@@ -300,6 +300,42 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.match(code, /aria-label=\{name\}/); assert.match(code, /Opens all essential alerts/); assert.match(code, /Opens the full alert/);
     assert.ok((code.match(/focus-visible:outline-white/g) ?? []).length >= 2, "link and button both show a focus ring");
     assert.equal((code.match(/<Link /g) ?? []).length, 1);
+  });
+  test("members: the form mirrors the server rules (title 5-120, text 10-2000, a listed category, a choice of place, expiry in the future within 90 days) and never offers 'no place'", () => {
+    const now = new Date("2026-11-01T10:00:00Z"); const ok = { title: "Lost: grey cat", body: "A grey tabby has gone missing near the Co-op.", category: "lost_found", scope: "wide", areaIds: [], expires: "" };
+    assert.deepEqual(A.validateMemberNotice(ok, now), {});
+    assert.deepEqual(Object.keys(A.validateMemberNotice(A.EMPTY_MEMBER_NOTICE_FORM, now)).sort(), ["areas", "body", "category", "title"], "everything required is flagged; 'areas' because the default scope is specific places with none chosen");
+    assert.ok(A.validateMemberNotice({ ...ok, title: "Hi" }, now).title); assert.ok(A.validateMemberNotice({ ...ok, body: "x".repeat(2001) }, now).body); assert.ok(A.validateMemberNotice({ ...ok, category: "made_up" }, now).category);
+    assert.ok(A.validateMemberNotice({ ...ok, scope: "areas", areaIds: [] }, now).areas); assert.deepEqual(A.validateMemberNotice({ ...ok, scope: "areas", areaIds: ["voe"] }, now), {});
+    assert.ok(A.validateMemberNotice({ ...ok, scope: "areas", areaIds: Array.from({ length: 9 }, (_, i) => "a" + i) }, now).areas);
+    assert.ok(A.validateMemberNotice({ ...ok, expires: "2026-10-01T10:00" }, now).expires); assert.ok(A.validateMemberNotice({ ...ok, expires: "2027-03-01T10:00" }, now).expires); assert.deepEqual(A.validateMemberNotice({ ...ok, expires: "2026-11-20T10:00" }, now), {});
+  });
+  test("members: the RPC arguments - explicit Shetland-wide is the single 'shetland_wide' area, specific areas are de-duplicated, a blank expiry is null, nothing else (no severity / publisher) is ever sent", () => {
+    const f = { title: "  Title here  ", body: "  The body text here.  ", category: "other", scope: "wide", areaIds: ["voe"], expires: "" };
+    assert.deepEqual(A.buildMemberNoticeArgs(f), { p_title: "Title here", p_body: "The body text here.", p_category: "other", p_area_ids: ["shetland_wide"], p_expires_at: null });
+    assert.deepEqual(A.buildMemberNoticeArgs({ ...f, scope: "areas", areaIds: ["voe", "brae", "voe"], expires: "2026-11-20T10:00" }).p_area_ids, ["voe", "brae"]);
+    assert.match(A.buildMemberNoticeArgs({ ...f, expires: "2026-11-20T10:00" }).p_expires_at, /^2026-11-20T/);
+    assert.deepEqual(Object.keys(A.buildMemberNoticeArgs(f)).sort(), ["p_area_ids", "p_body", "p_category", "p_expires_at", "p_title"]);
+  });
+  test("members: area scope keeps THREE states and the labels never invent a place", () => {
+    assert.equal(A.areaScopeOf([]), "unspecified"); assert.equal(A.areaScopeOf(null), "unspecified"); assert.equal(A.areaScopeOf(["shetland_wide"]), "shetland_wide"); assert.equal(A.areaScopeOf(["voe"]), "specific"); assert.equal(A.areaScopeOf(["shetland_wide", "voe"]), "specific");
+    assert.equal(A.myNoticeAreaLabel({ area_ids: [], area_names: [] }), "", "unspecified: no label at all"); assert.equal(A.myNoticeAreaLabel({ area_ids: ["shetland_wide"], area_names: ["Shetland-wide"] }), "Shetland-wide");
+    assert.equal(A.myNoticeAreaLabel({ area_ids: ["voe", "brae", "delting"], area_names: ["Brae", "Delting", "Voe"] }), "Brae, Delting +1");
+    const wide = A.memberFormFromRow({ id: "1", title: "T title", body: "Body text here", category: "other", category_label: "Other", state: "pending", created_at: "2026-11-01T10:00:00Z", published_at: null, expires_at: "2026-11-20T10:00:00Z", area_ids: ["shetland_wide"], area_names: ["Shetland-wide"], decline_reason: null, can_edit: true, can_withdraw: true });
+    assert.equal(wide.scope, "wide"); assert.deepEqual(wide.areaIds, []); const spec = A.memberFormFromRow({ ...{ id: "1", title: "T title", body: "Body text here", category: null, category_label: null, state: "published", created_at: "", published_at: null, expires_at: null, decline_reason: null, can_edit: true, can_withdraw: true }, area_ids: ["voe"], area_names: ["Voe"] });
+    assert.equal(spec.scope, "areas"); assert.deepEqual(spec.areaIds, ["voe"]); assert.equal(spec.expires, "");
+    for (const st of ["pending", "published", "expired", "withdrawn", "declined", "resolved"]) assert.ok(A.MY_NOTICE_STATE[st].label && A.MY_NOTICE_STATE[st].help, st);
+  });
+  test("members: only the five member actions are allow-listed with their own parameters; the pages and the staff queue exist and are wired to them", async () => {
+    const C = await import("../lib/notices-actions-core.ts");
+    for (const [fn, args] of [["submit_person_notice", ["p_title", "p_body", "p_category", "p_area_ids", "p_expires_at"]], ["edit_my_person_notice", ["p_notice", "p_title"]], ["withdraw_my_person_notice", ["p_notice"]], ["staff_approve_person_notice", ["p_notice"]], ["staff_decline_person_notice", ["p_notice", "p_reason"]]])
+      assert.equal(C.isAllowedWrite(fn, Object.fromEntries(args.map((a) => [a, 1]))), null, fn);
+    assert.ok(C.isAllowedWrite("submit_person_notice", { p_title: "x", severity: "urgent" }), "a smuggled field (severity) is refused"); assert.ok(C.isAllowedWrite("submit_person_notice", { p_publisher: "x" }));
+    const post = rd("app/notices/post/page.tsx"), mine = rd("app/notices/mine/page.tsx"), mod = rd("app/notices/moderate/page.tsx"), list = rd("app/notices/page.tsx"), form = rd("components/notices/MemberNotice.tsx");
+    assert.match(post, /\/sign-in\?next=\$\{encodeURIComponent\(here\)\}/, "signed-out visitors are sent to sign in and brought back"); assert.match(post, /robots: \{ index: false \}/); assert.match(mine, /my_person_notices/);
+    assert.match(mod, /staff_pending_person_notices/); assert.match(list, /href="\/notices\/post"/); assert.match(list, /href="\/notices\/mine"/);
+    assert.doesNotMatch(form, /severity|p_is_essential|publisher_hub_id|publisher_business_id|event_id|is_platform/, "the member form can never send an urgent / essential / publisher / event field");
+    assert.match(form, /submit_person_notice/); assert.match(form, /edit_my_person_notice/); assert.match(form, /withdraw_my_person_notice/); assert.match(form, /window\.confirm\("Withdraw this notice\?/);
   });
   test("admin console: the typed reason / note is cleared after every success (a grant reason must not sit pre-filled in the revoke box)", () => {
     const src = rd("components/admin/NoticesAdmin.tsx"); assert.match(src, /const done = \(ok: boolean\) => \{ if \(ok\) \{ setReason\(""\); setNote\(""\); router\.refresh\(\); \} \};/);

@@ -46,7 +46,7 @@ export function NoticeCard({ n, variant = "compact", now, detail = false }: { n:
         <h3 className="mt-2 line-clamp-2 break-words font-display text-xl font-bold leading-snug text-ink">{n.title}</h3>
         <p className="mt-2 line-clamp-3 break-words text-[15px] leading-relaxed text-ink-soft">{n.body}</p>
         <div className="mt-auto pt-4">
-          <p className="truncate text-xs font-semibold text-ink-muted">{n.areaSummary}{when ? ` · ${when}` : ""}</p>
+          <p className="truncate text-xs font-semibold text-ink-muted">{[n.areaSummary, when].filter(Boolean).join(" · ")}</p>
           {n.destination && <p className="mt-1 text-sm font-bold text-navy-light">{n.destination.label} <span aria-hidden>{"→"}</span></p>}
         </div>
       </>
@@ -72,9 +72,8 @@ export function NoticeCard({ n, variant = "compact", now, detail = false }: { n:
         </div>
       )}
       <p className="mt-4 text-sm text-ink-muted">
-        <span className="font-semibold text-ink-soft">{n.areaSummary}</span>
-        {when ? ` · Posted ${when}` : ""}
-        {n.expiresAt ? ` · Until ${formatNoticeDateTime(n.expiresAt)}` : ""}
+        {n.areaSummary && <span className="font-semibold text-ink-soft">{n.areaSummary}</span>}
+        {[when ? `Posted ${when}` : null, n.expiresAt ? `Until ${formatNoticeDateTime(n.expiresAt)}` : null].filter(Boolean).map((t, i) => <span key={i}>{n.areaSummary || i > 0 ? " · " : ""}{t}</span>)}
       </p>
       <div className="mt-2 flex flex-wrap gap-x-5">
         {n.destination && <ActionLink href={n.destination.href}>{n.destination.label}</ActionLink>}

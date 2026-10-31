@@ -60,7 +60,7 @@ export type NoticeCardModel = {
   attribution: NoticeAttribution;
   areaIds: string[];
   areaNames: string[];
-  /** "Voe, Brae +1", or "Shetland-wide" when the notice names no area. */
+  /** "Voe, Brae +1", "Shetland-wide" for an explicit Shetland-wide notice, or "" when the notice names no area at all. */
   areaSummary: string;
   publishedAt: string | null;
   expiresAt: string | null;
@@ -132,10 +132,10 @@ export function noticeDestination(row: PublicNoticeRow, attribution: NoticeAttri
 
 /* ── Areas ─────────────────────────────────────────────────────────────────── */
 
-/** First two names then "+N"; no names = the notice is not tied to a place = Shetland-wide. */
+/** First two names then "+N". NO names = the notice names no place (unspecified): it gets NO geography label. It is NOT "Shetland-wide": an explicit Shetland-wide notice carries the area named "Shetland-wide". */
 export function areaSummary(names: readonly string[] | null | undefined, max = 2): string {
   const list = (names ?? []).map((n) => n.trim()).filter(Boolean);
-  if (list.length === 0) return "Shetland-wide";
+  if (list.length === 0) return "";
   if (list.length <= max) return list.join(", ");
   return `${list.slice(0, max).join(", ")} +${list.length - max}`;
 }
@@ -639,4 +639,79 @@ export function buildCorrection(values: Record<string, string>): Record<string, 
     if (k === "service_at") { const d = new Date(v); if (Number.isNaN(d.getTime())) continue; out[k] = d.toISOString(); } else out[k] = v;
   }
   return Object.keys(out).length ? out : null;
+}
+
+/* ── Members publishing their own notices (moderated) ─────────────────────── */
+
+/**
+ * The member's choice of place. THREE states exist in the database and are never conflated: specific areas; explicit Shetland-wide (the single area
+ * 'shetland_wide'); and UNSPECIFIED (no area rows - hubs and businesses cannot choose). The member form never produces "unspecified": it requires a choice.
+ */
+export type MemberAreaScope = "wide" | "areas";
+export type MemberNoticeForm = { title: string; body: string; category: string; scope: MemberAreaScope; areaIds: string[]; expires: string };
+export const EMPTY_MEMBER_NOTICE_FORM: MemberNoticeForm = { title: "", body: "", category: "", scope: "areas", areaIds: [], expires: "" };
+export const MEMBER_NOTICE_MAX_AREAS = 8;
+export const MEMBER_NOTICE_MAX_PENDING = 5;
+
+/** What the stored area ids mean: "unspecified" (none), "shetland_wide" (explicit) or "specific". Public labels follow this and never invent a place. */
+export function areaScopeOf(areaIds: readonly string[] | null | undefined): "unspecified" | "shetland_wide" | "specific" {
+  const ids = (areaIds ?? []).filter(Boolean);
+  if (ids.length === 0) return "unspecified";
+  return ids.length === 1 && ids[0] === "shetland_wide" ? "shetland_wide" : "specific";
+}
+
+/** The same checks the database makes (title 5-120, text 10-2000, a listed category, a choice of place, expiry in the future and within 90 days). */
+export function validateMemberNotice(f: MemberNoticeForm, now: Date = new Date()): FieldErrors {
+  const e: FieldErrors = {};
+  const title = f.title.trim(), body = f.body.trim();
+  if (title.length < 5 || title.length > 120) e.title = "Give your notice a title of 5 to 120 characters.";
+  if (body.length < 10 || body.length > 2000) e.body = "Say what this is about in 10 to 2,000 characters.";
+  if (!NOTICE_CATEGORIES.some((c) => c.id === f.category)) e.category = "Choose the category that fits best.";
+  if (f.scope === "areas") {
+    if (f.areaIds.length === 0) e.areas = "Choose at least one place, or choose Shetland-wide.";
+    else if (f.areaIds.length > MEMBER_NOTICE_MAX_AREAS) e.areas = `Choose at most ${MEMBER_NOTICE_MAX_AREAS} places, or choose Shetland-wide.`;
+  }
+  if (f.expires.trim()) {
+    const t = new Date(f.expires).getTime();
+    if (!Number.isFinite(t)) e.expires = "That date is not valid.";
+    else if (t <= now.getTime()) e.expires = "The end date must be in the future.";
+    else if (t > now.getTime() + 90 * 86_400_000) e.expires = "A notice can run for at most 90 days.";
+  }
+  return e;
+}
+
+/** The RPC arguments for submit_person_notice / edit_my_person_notice. A blank expiry is sent as null (the server then uses 30 days). */
+export function buildMemberNoticeArgs(f: MemberNoticeForm): { p_title: string; p_body: string; p_category: string; p_area_ids: string[]; p_expires_at: string | null } {
+  return {
+    p_title: f.title.trim(), p_body: f.body.trim(), p_category: f.category,
+    p_area_ids: f.scope === "wide" ? ["shetland_wide"] : [...new Set(f.areaIds)],
+    p_expires_at: f.expires.trim() ? new Date(f.expires).toISOString() : null,
+  };
+}
+
+/** my_person_notices row. `state` is decided by the database. */
+export type MyNoticeRow = {
+  id: string; title: string; body: string; category: string | null; category_label: string | null; state: "pending" | "published" | "expired" | "withdrawn" | "declined" | "resolved";
+  created_at: string; published_at: string | null; expires_at: string | null; area_ids: string[] | null; area_names: string[] | null; decline_reason: string | null; can_edit: boolean; can_withdraw: boolean;
+};
+export const MY_NOTICE_STATE: Record<MyNoticeRow["state"], { label: string; tone: "amber" | "green" | "gray" | "red"; help: string }> = {
+  pending: { label: "Awaiting approval", tone: "amber", help: "A member of our team will read it before anyone else can see it." },
+  published: { label: "Published", tone: "green", help: "It is on the Notices page now." },
+  expired: { label: "Ended", tone: "gray", help: "It has run its course and is no longer shown." },
+  withdrawn: { label: "Withdrawn", tone: "gray", help: "You withdrew it. It is no longer shown." },
+  declined: { label: "Not approved", tone: "red", help: "It was not published." },
+  resolved: { label: "Closed", tone: "gray", help: "It has been closed and is no longer shown." },
+};
+/** "Shetland-wide", "Voe, Brae +1", or nothing at all for a notice that names no place. */
+export function myNoticeAreaLabel(r: Pick<MyNoticeRow, "area_ids" | "area_names">): string {
+  const scope = areaScopeOf(r.area_ids);
+  return scope === "unspecified" ? "" : scope === "shetland_wide" ? "Shetland-wide" : areaSummary(r.area_names ?? []);
+}
+/** Pre-fills the edit form from a row. */
+export function memberFormFromRow(r: MyNoticeRow): MemberNoticeForm {
+  const wide = areaScopeOf(r.area_ids) === "shetland_wide";
+  const exp = r.expires_at ? new Date(r.expires_at) : null;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return { title: r.title, body: r.body, category: r.category ?? "", scope: wide ? "wide" : "areas", areaIds: wide ? [] : (r.area_ids ?? []).filter((a) => a !== "shetland_wide"),
+    expires: exp ? `${exp.getFullYear()}-${pad(exp.getMonth() + 1)}-${pad(exp.getDate())}T${pad(exp.getHours())}:${pad(exp.getMinutes())}` : "" };
 }

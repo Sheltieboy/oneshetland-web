@@ -11,6 +11,13 @@ import { callRpc, type RpcClient, type RpcResult } from "./notices-rpc";
 export const WRITE_RPCS: Record<string, readonly string[]> = {
   // member
   set_my_notice_areas: ["p_areas"],
+  // members' own notices (moderated)
+  submit_person_notice: ["p_title", "p_body", "p_category", "p_area_ids", "p_expires_at"],
+  edit_my_person_notice: ["p_notice", "p_title", "p_body", "p_category", "p_area_ids", "p_expires_at"],
+  withdraw_my_person_notice: ["p_notice"],
+  // staff moderation of members' notices
+  staff_approve_person_notice: ["p_notice"],
+  staff_decline_person_notice: ["p_notice", "p_reason"],
   set_my_notice_prefs: ["p_essential", "p_official", "p_community", "p_categories", "p_funeral", "p_all_community_categories"],
   // funeral (family / funeral director)
   submit_funeral_notice: ["p"],

@@ -58,6 +58,7 @@ export default async function NoticesPage({ searchParams }: { searchParams: SP }
         </nav>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Link href="/notices/post" className="inline-flex min-h-[44px] items-center rounded-pill bg-navy px-5 text-sm font-bold text-paper shadow-soft hover:bg-navy-light">Post a notice</Link>
           <AreaFilter options={options} query={q} hasMyAreas={hasMyAreas} />
           {activeFilters.map((f) => (
             <Link key={f.label} href={f.href} className="inline-flex min-h-[44px] items-center gap-2 rounded-pill bg-sand px-4 text-sm font-semibold text-ink-soft hover:bg-line">{f.label}<span aria-hidden>{"×"}</span><span className="sr-only">Remove filter</span></Link>
@@ -96,6 +97,8 @@ export default async function NoticesPage({ searchParams }: { searchParams: SP }
         </div>
 
         <div className="mt-10 flex flex-wrap gap-x-6 border-t border-line pt-4 text-sm">
+          <Link href="/notices/post" className="inline-flex min-h-[44px] items-center font-semibold text-navy-light underline">Post a notice</Link>
+          {account && <Link href="/notices/mine" className="inline-flex min-h-[44px] items-center font-semibold text-navy-light underline">My notices</Link>}
           <Link href="/notices/funeral/submit" className="inline-flex min-h-[44px] items-center font-semibold text-navy-light underline">Submit a funeral announcement</Link>
           {account && <Link href="/account/notifications" className="inline-flex min-h-[44px] items-center font-semibold text-navy-light underline">Choose which notices you hear about</Link>}
           {canPublish && <Link href="/notices/publish" className="inline-flex min-h-[44px] items-center font-semibold text-navy-light underline">Publish as your organisation</Link>}
