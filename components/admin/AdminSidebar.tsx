@@ -21,6 +21,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/reports", label: "Reports", badgeKey: "openReports" },
     { href: "/admin/vessel-photos", label: "Vessel photos", badgeKey: "pendingVesselPhotos" },
     { href: "/admin/alerts", label: "Alerts", badgeKey: "pendingAlerts" },
+    { href: "/admin/notices", label: "Notices & alerts" },
     { href: "/admin/spik", label: "Spik suggestions", badgeKey: "pendingSpik" },
   ] },
   { group: "Content", items: [
