@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { approveFuneralNotice, enableNoticeImportSource, noticeRead, noticeWrite, revokeEssentialAlert } from "@/app/notices/actions";
 import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
 import { Field, Status, btnDanger, btnPrimary, btnQuiet, inputCls, useAction } from "@/components/notices/Fields";
-import { formatNoticeDateTime } from "@/lib/notices-alerts";
+import { CORRECTION_FIELDS, buildCorrection, formatNoticeDateTime } from "@/lib/notices-alerts";
 
 /* Every control here calls a server action that runs on the signed-in admin's OWN session: the database authorises and its refusal is shown. */
 
@@ -155,14 +155,26 @@ function ChangeItem({ c }: { c: ChangeReq }) {
   const router = useRouter();
   const act = useAction();
   const [note, setNote] = useState("");
-  const resolve = async (outcome: "actioned" | "declined") => { const x = await act.run(() => noticeWrite("admin_funeral_resolve_change", { p_request: c.id, p_outcome: outcome, p_note: note || null, p_correction: null }), outcome === "actioned" ? "Actioned." : "Declined."); if (x.ok) router.refresh(); };
+  const [corr, setCorr] = useState<Record<string, string>>({});
+  const resolve = async (outcome: "actioned" | "declined") => { const x = await act.run(() => noticeWrite("admin_funeral_resolve_change", { p_request: c.id, p_outcome: outcome, p_note: note || null, p_correction: outcome === "actioned" && c.kind === "correction" ? buildCorrection(corr) : null }), outcome === "actioned" ? "Actioned." : "Declined."); if (x.ok) router.refresh(); };
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2"><StatusPill label={c.kind === "takedown" ? "Takedown request" : "Correction request"} tone={c.kind === "takedown" ? "red" : "amber"} /><span className="text-xs text-ink-muted">{when(c.created_at)}</span></div>
       <p className="mt-2 whitespace-pre-line break-words text-sm text-ink">{c.message}</p>
       <p className="mt-1 text-xs text-ink-muted">Notice {c.funeral_id}{c.contact ? ` · contact: ${c.contact}` : ""}</p>
       <div className="mt-3"><Field label="Outcome note" htmlFor={`cn${c.id}`}><input id={`cn${c.id}`} className={inputCls} value={note} onChange={(e) => setNote(e.target.value)} /></Field></div>
-      <p className="mt-1 text-xs text-ink-muted">Actioning a takedown removes the announcement. For a correction, make the change and then record it here (field edits go through the database function directly).</p>
+      {c.kind === "correction" && (
+        <fieldset className="mt-3 space-y-2 rounded-lg border border-line p-3">
+          <legend className="px-1 text-sm font-semibold text-ink">Correction (fill in only what changes)</legend>
+          {CORRECTION_FIELDS.map(([k, label]) => (
+            <Field key={k} label={label} htmlFor={`cf${c.id}${k}`}>
+              {k === "service_at" ? <input id={`cf${c.id}${k}`} type="datetime-local" className={inputCls} value={corr[k] ?? ""} onChange={(e) => setCorr({ ...corr, [k]: e.target.value })} />
+                : <textarea id={`cf${c.id}${k}`} rows={k === "announcement" ? 3 : 1} className={inputCls} value={corr[k] ?? ""} onChange={(e) => setCorr({ ...corr, [k]: e.target.value })} />}
+            </Field>
+          ))}
+        </fieldset>
+      )}
+      <p className="mt-1 text-xs text-ink-muted">Actioning a takedown removes the announcement. Fields left blank are not changed; "Mark actioned" applies any you filled in.</p>
       <div className="mt-2 flex gap-2"><button type="button" className={btnPrimary} disabled={act.state.busy} onClick={() => resolve("actioned")}>Mark actioned</button><button type="button" className={btnQuiet} disabled={act.state.busy} onClick={() => resolve("declined")}>Decline</button></div>
       <div className="mt-2"><Status state={act.state} /></div>
     </Card>

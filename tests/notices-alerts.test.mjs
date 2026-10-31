@@ -80,7 +80,7 @@ describe("homepage composition", () => {
     assert.equal(A.homeTopOfPage({ essentialCount: 1, partnerAlertCount: 0 }).showEssentialSlot, true);
   });
   test("components: slot collapses to null, red only in the slot, partner strip is calm, old banner gone", () => {
-    assert.match(rd("components/notices/EssentialAlertSlot.tsx"), /if \(alerts\.length === 0\) return null/);
+    assert.match(rd("components/notices/EssentialAlertSlot.tsx"), /if \(!plan\.lead\) return null/);
     assert.match(rd("components/notices/PartnerUpdateStrip.tsx"), /if \(!alerts\.length\) return null/);
     for (const f of ["components/notices/PartnerUpdateStrip.tsx", "components/notices/NoticeCard.tsx", "components/preview/v2/HomeV2.tsx"]) assert.doesNotMatch(strip(rd(f)), /9b1c1c|c53b2f|rose-600|role="alert"/, f);
     const page = rd("app/page.tsx");
@@ -248,7 +248,7 @@ describe("server-action authorisation paths", () => {
     assert.equal((await C.enableImportSource(sb, "s", "Open Government Licence confirmed")).ok, true);
   });
   test("every write the UI uses is on the allow-list and no service role is referenced", () => {
-    const used = new Set(); for (const f of ["components/notices/FuneralForms.tsx", "components/notices/PublisherConsole.tsx", "components/notices/NoticePrefsPanel.tsx", "components/admin/NoticesAdmin.tsx"]) for (const m of rd(f).matchAll(/noticeWrite\("([a-z_]+)"/g)) used.add(m[1]);
+    const used = new Set(); for (const f of ["components/notices/FuneralForms.tsx", "components/notices/PublisherConsole.tsx", "components/notices/NoticePrefsPanel.tsx", "components/admin/NoticesAdmin.tsx", "components/notices/FuneralForms.tsx"]) for (const m of rd(f).matchAll(/noticeWrite\("([a-z_]+)"/g)) used.add(m[1]);
     assert.ok(used.size >= 10); for (const fn of used) assert.ok(C.WRITE_RPCS[fn], fn);
     for (const f of ["app/notices/actions.ts", "lib/notices-actions-core.ts", "lib/notices-rpc.ts", "lib/notices-data.ts"]) assert.doesNotMatch(strip(rd(f)), /service_role|SERVICE_ROLE|service_key/i, f);
     assert.match(rd("app/notices/actions.ts"), /^"use server"/);
@@ -261,5 +261,69 @@ describe("server-action authorisation paths", () => {
     const net = await R.callNotifyAudience({ baseUrl: "https://x", accessToken: "t", noticeId: id, kind: "official", fetchImpl: async () => { throw new Error("x"); } }); assert.equal(net.ok, false);
     assert.equal((await R.callNotifyAudience({ baseUrl: "https://x", accessToken: null, noticeId: id, kind: "official" })).ok, false);
     assert.equal((await R.callNotifyAudience({ baseUrl: "https://x", accessToken: "t", noticeId: "bad", kind: "official" })).ok, false);
+  });
+});
+
+describe("follow-up: essential slot with several alerts (pure plan)", () => {
+  const al = (id, at) => ({ id, publishedAt: at });
+  test("none -> no lead; one -> singular heading", () => {
+    assert.deepEqual(A.planEssentialSlot([]), { lead: null, others: [], count: 0, heading: "Essential alert" });
+    const one = A.planEssentialSlot([al("a", "2026-10-31T09:00:00Z")]); assert.deepEqual([one.lead.id, one.others.length, one.heading], ["a", 0, "Essential alert"]);
+  });
+  test("three: most recent in full, the others compact, count heading, stable order on ties", () => {
+    const p = A.planEssentialSlot([al("old", "2026-10-31T08:00:00Z"), al("new", "2026-10-31T10:00:00Z"), al("mid", "2026-10-31T09:00:00Z")]);
+    assert.equal(p.lead.id, "new"); assert.deepEqual(p.others.map((x) => x.id), ["mid", "old"]); assert.equal(p.heading, "3 essential alerts"); assert.equal(p.count, 3);
+    assert.deepEqual(A.planEssentialSlot([al("x", null), al("y", null)]).others.map((o) => o.id), ["y"]);
+  });
+  test("component: compact rows are buttons with aria-expanded; no full-card stack", () => {
+    const src = rd("components/notices/EssentialAlertSlot.tsx"); assert.match(src, /aria-expanded=\{isOpen\}/); assert.match(src, /plan\.others\.map/); assert.match(src, /<button type="button"/);
+  });
+});
+
+describe("follow-up: single-notice read, areas, publisher notices", () => {
+  test("getPublicNotice uses get_public_notice; empty = not public; bad id never calls", async () => {
+    const calls = []; globalThis.__FAKE_RPC__ = async (fn, a) => { calls.push([fn, a]); return { data: a.p_id.startsWith("1") ? [row({ id: a.p_id })] : [], error: null }; };
+    const D = await import("../lib/notices-data.ts"); const id = "11111111-1111-1111-1111-111111111111";
+    assert.equal((await D.getPublicNotice(id)).data.id, id); assert.equal((await D.getPublicNotice("22222222-2222-2222-2222-222222222222")).data, null); assert.equal((await D.getPublicNotice("x")).data, null);
+    assert.deepEqual(calls.map((c) => c[0]), ["get_public_notice", "get_public_notice"]); delete globalThis.__FAKE_RPC__;
+  });
+  test("areas: the table is used (even when it has rows), the derived list is only for a failed read", async () => {
+    const { setDb } = await import("./support/fake-supabase.mjs"); const D = await import("../lib/notices-data.ts");
+    setDb({ areas: [{ id: "voe", name_display: "Voe", type: "settlement", parent_id: "x", sort_order: 1, is_active: true, is_physical: true }] });
+    const o = await D.getAreaOptions([A.toNoticeCard(row({ area_ids: ["brae"], area_names: ["Brae"] }))]); assert.deepEqual(o.map((x) => x.id), ["voe"]); setDb({});
+  });
+  test("official notice states and the notify rule", () => {
+    const now = new Date("2026-11-01T12:00:00Z"); const n = (o) => ({ id: "n", title: "t", body: "b", status: "published", is_essential: true, category: "other", starts_at: null, expires_at: "2026-11-02T00:00:00Z", review_at: null, published_at: null, action_text: null, link_url: null, area_ids: [], announced: false, ...o });
+    assert.equal(A.officialNoticeState(n({}), now), "live"); assert.equal(A.officialNoticeState(n({ starts_at: "2026-11-01T18:00:00Z" }), now), "scheduled");
+    assert.equal(A.officialNoticeState(n({ expires_at: "2026-11-01T12:00:00Z" }), now), "expired"); for (const st of ["resolved", "withdrawn"]) assert.equal(A.officialNoticeState(n({ status: st }), now), st);
+    assert.equal(A.canOfferNotify(n({}), now), true); assert.equal(A.canOfferNotify(n({ announced: true }), now), false); assert.equal(A.canOfferNotify(n({ starts_at: "2026-11-01T18:00:00Z" }), now), false); assert.equal(A.canOfferNotify(n({ status: "withdrawn" }), now), false);
+    assert.equal(A.canManageOfficial(n({})), true); assert.equal(A.canManageOfficial(n({ status: "resolved" })), false);
+    assert.match(rd("app/notices/publish/page.tsx"), /my_official_notices/); assert.match(rd("components/notices/PublisherConsole.tsx"), /canOfferNotify\(n\)/);
+  });
+});
+
+describe("follow-up: funeral edit flow and staff corrections", () => {
+  const sub = { id: "f", status: "needs_info", review_message: "Please confirm the date", full_name: "Isobel", preferred_name: null, photo_url: null, born_on: "1941-02-14", died_on: "2026-10-27", announcement: "Peacefully", service_public: false,
+    service_kind: "funeral", service_venue: "Kirk", service_at: null, service_notes: null, family_requests: null, donation_info: null, donation_url: null, area_id: "voe", announce_in_notifications: false, announce_name_in_preview: false,
+    submitter_name: "Ann", submitter_relationship: null, submitter_phone: "07", submitter_email: null };
+  test("pre-fill maps every editable field; blanks are empty strings", () => {
+    const f = A.formFromSubmission(sub); assert.deepEqual([f.fullName, f.bornOn, f.diedOn, f.serviceVenue, f.publishArrangements, f.areaId, f.preferredName], ["Isobel", "1941-02-14", "2026-10-27", "Kirk", false, "voe", ""]);
+    assert.deepEqual(A.validateFuneralEdit(f), {});
+  });
+  test("update payload clears blanks (\"\" not omitted) and drops arrangements unless published", () => {
+    const f = A.formFromSubmission(sub); const p = A.buildFuneralUpdatePayload(f);
+    assert.equal(p.preferred_name, ""); assert.equal(p.service_public, false); assert.equal(p.service_venue, "", "unpublished arrangements are cleared, not retained"); assert.equal(p.announce_name_in_preview, false);
+    assert.ok(!("submitter_name" in p) && !("area_id" in p) && !("submitter_phone" in p));
+    const on = A.buildFuneralUpdatePayload({ ...f, publishArrangements: true }); assert.equal(on.service_venue, "Kirk");
+  });
+  test("edit validation still enforces the rules that apply", () => { assert.ok(A.validateFuneralEdit({ ...A.formFromSubmission(sub), fullName: "" }).fullName); });
+  test("pages and components: edit route, message for rejected, uses the RPCs", () => {
+    assert.match(rd("app/notices/funeral/mine/[id]/page.tsx"), /my_funeral_submission/); assert.match(rd("components/notices/FuneralForms.tsx"), /update_my_funeral_submission/);
+    assert.match(rd("components/notices/FuneralForms.tsx"), /needs_info" \|\| s\.status === "rejected"/); assert.ok(C.WRITE_RPCS.update_my_funeral_submission);
+  });
+  test("staff correction: only filled fields, service_at as an instant, null when empty", () => {
+    assert.equal(A.buildCorrection({}), null); assert.equal(A.buildCorrection({ announcement: "  " }), null);
+    const c = A.buildCorrection({ announcement: " New ", service_at: "2026-11-05T11:00", junk: "x", donation_info: "" }); assert.deepEqual(Object.keys(c).sort(), ["announcement", "service_at"]); assert.equal(c.announcement, "New"); assert.match(c.service_at, /^2026-11-05T/);
+    assert.match(rd("components/admin/NoticesAdmin.tsx"), /p_correction: outcome === "actioned" && c\.kind === "correction" \? buildCorrection\(corr\)/);
   });
 });

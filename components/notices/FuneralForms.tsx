@@ -3,14 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { noticeWrite } from "@/app/notices/actions";
-import { EMPTY_FUNERAL_FORM, buildFuneralPayload, validateFuneralForm, type FieldErrors, type FuneralFormInput } from "@/lib/notices-alerts";
+import { EMPTY_FUNERAL_FORM, buildFuneralPayload, buildFuneralUpdatePayload, validateFuneralEdit, validateFuneralForm, type FieldErrors, type FuneralFormInput } from "@/lib/notices-alerts";
 import { Check, Field, Status, btnDanger, btnPrimary, btnQuiet, inputCls, useAction } from "@/components/notices/Fields";
 
 const KINDS = [["funeral", "Funeral service"], ["burial", "Burial"], ["cremation", "Cremation"], ["memorial", "Memorial service"], ["private", "Private service"]];
 
 /** The considerate submission form. Everything beyond the essentials is genuinely optional; arrangements are sent only on the explicit choice. */
-export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string }[] }) {
-  const [f, setF] = useState<FuneralFormInput>(EMPTY_FUNERAL_FORM);
+export type FuneralEdit = { id: string; initial: FuneralFormInput; reviewMessage: string | null };
+export function FuneralSubmitForm({ areas, edit }: { areas: { id: string; name: string }[]; edit?: FuneralEdit }) {
+  const [f, setF] = useState<FuneralFormInput>(edit?.initial ?? EMPTY_FUNERAL_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [done, setDone] = useState(false);
   const { state, run } = useAction();
@@ -19,17 +20,17 @@ export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    const errs = validateFuneralForm(f);
+    const errs = edit ? validateFuneralEdit(f) : validateFuneralForm(f);
     setErrors(errs);
     if (Object.keys(errs).length) return;
-    const r = await run(() => noticeWrite("submit_funeral_notice", { p: buildFuneralPayload(f) }), "");
+    const r = await run(() => edit ? noticeWrite("update_my_funeral_submission", { p_id: edit.id, p: buildFuneralUpdatePayload(f) }) : noticeWrite("submit_funeral_notice", { p: buildFuneralPayload(f) }), "");
     if (r.ok) setDone(true);
   }
 
   if (done) {
     return (
       <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
-        <h2 className="font-display text-2xl font-bold text-ink">Thank you. We have your announcement.</h2>
+        <h2 className="font-display text-2xl font-bold text-ink">{edit ? "Thank you. Your changes are saved." : "Thank you. We have your announcement."}</h2>
         <p className="mt-3 text-ink-soft">Nothing is published yet. We check every announcement before it appears, and we may telephone you (or the funeral director) to confirm the details. If anything is unclear we will say so on your submissions page.</p>
         <p className="mt-4"><Link href="/notices/funeral/mine" className={btnPrimary}>See my submissions</Link></p>
       </div>
@@ -38,8 +39,11 @@ export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string
 
   return (
     <form onSubmit={submit} noValidate className="space-y-8">
+      {edit?.reviewMessage && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950"><p className="font-bold">A message from our team</p><p className="mt-1 whitespace-pre-line">{edit.reviewMessage}</p></div>
+      )}
       <div className="rounded-xl border border-line bg-sand/60 p-4 text-sm text-ink-soft">
-        <p className="font-semibold text-ink">Before you begin</p>
+        <p className="font-semibold text-ink">{edit ? "Changing your announcement" : "Before you begin"}</p>
         <p className="mt-1">Notices are checked before they are published, and we may telephone you to confirm them. Nothing appears on the website until we have done that. Your phone number or email address is only used for that check and is never published.</p>
       </div>
 
@@ -52,9 +56,9 @@ export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string
           <Field label="Date of death" optional error={errors.diedOn} htmlFor="do"><input id="do" type="date" {...txt("diedOn")} /></Field>
         </div>
         <Field label="Announcement" optional hint="A few words, up to 1,500 characters. Please leave web addresses out." error={errors.announcement} htmlFor="an"><textarea id="an" rows={5} {...txt("announcement")} /></Field>
-        <Field label="Area" optional hint="Where the family would like this to appear. Leave blank to show it in every area." htmlFor="ar">
+        {!edit && <Field label="Area" optional hint="Where the family would like this to appear. Leave blank to show it in every area." htmlFor="ar">
           <select id="ar" {...txt("areaId")}><option value="">No particular area</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select>
-        </Field>
+        </Field>}
         <Field label="Photograph web address" optional hint="A link starting https://. It is shown as a small oval portrait." error={errors.photoUrl} htmlFor="ph"><input id="ph" type="url" inputMode="url" {...txt("photoUrl")} /></Field>
       </fieldset>
 
@@ -86,7 +90,7 @@ export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string
         <Check checked={f.announceNameInPreview} disabled={!f.announceInNotifications} onChange={(v) => set("announceNameInPreview", v)}>The notification may show the name</Check>
       </fieldset>
 
-      <fieldset className="space-y-4">
+      {!edit && <fieldset className="space-y-4">
         <legend className="font-display text-xl font-bold text-ink">About you</legend>
         <p className="text-sm text-ink-muted">So that we can check the details. This is private and never published.</p>
         <Field label="I am submitting this as" htmlFor="sr"><select id="sr" {...txt("submitterRole")}><option value="family">Family or a friend</option><option value="funeral_director">A funeral director</option></select></Field>
@@ -99,7 +103,8 @@ export function FuneralSubmitForm({ areas }: { areas: { id: string; name: string
         {errors.contact && <p role="alert" className="text-sm font-medium text-rose-700">{errors.contact}</p>}
         <Check checked={f.familyAuthorised} onChange={(v) => set("familyAuthorised", v)}>I am authorised by the family to make this announcement</Check>
         {errors.familyAuthorised && <p role="alert" className="text-sm font-medium text-rose-700">{errors.familyAuthorised}</p>}
-      </fieldset>
+      </fieldset>}
+      {edit && <p className="text-sm text-ink-muted">Your contact details and the area stay as you first gave them. Saving sends the announcement back to us for checking.</p>}
 
       <Status state={state} />
       <button type="submit" disabled={state.busy} className={btnPrimary}>{state.busy ? "Sending…" : "Send for checking"}</button>
@@ -154,10 +159,11 @@ export function MySubmissions({ rows }: { rows: Submission[] }) {
             <li key={s.id} className="rounded-xl border border-line bg-paper p-5 shadow-soft">
               <p className="font-display text-xl font-bold text-ink">{s.full_name}</p>
               <p className="mt-1 text-sm font-semibold text-ink-soft">{STATUS_TEXT[s.status] ?? s.status}</p>
-              {s.status === "needs_info" && s.review_message && (
-                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-bold">A message from our team</p><p className="mt-1 whitespace-pre-line">{s.review_message}</p><p className="mt-2 text-amber-900">We will also try to telephone you. To change details, withdraw this and send it again.</p></div>
+              {(s.status === "needs_info" || s.status === "rejected") && s.review_message && (
+                <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950"><p className="font-bold">A message from our team</p><p className="mt-1 whitespace-pre-line">{s.review_message}</p>{s.status === "needs_info" && <p className="mt-2 text-amber-900">Please update the announcement below. We may also telephone you.</p>}</div>
               )}
               <div className="mt-3 flex flex-wrap gap-2">
+                {(s.status === "submitted" || s.status === "needs_info") && <Link href={`/notices/funeral/mine/${s.id}`} className={btnPrimary}>Edit</Link>}
                 {s.status === "approved" && <Link href={`/notices/funeral/${s.id}`} className={btnQuiet}>View the announcement</Link>}
                 {s.status === "approved" && <button type="button" className={btnQuiet} onClick={() => setOpen(open === s.id ? null : s.id)}>{open === s.id ? "Close" : "Ask for a correction"}</button>}
                 {live && <button type="button" className={btnDanger} disabled={state.busy} onClick={async () => {
