@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { noticeWrite } from "@/app/notices/actions";
+import { noticeRead, noticeWrite, notifyNoticeAudience } from "@/app/notices/actions";
 import {
   EMPTY_MEMBER_NOTICE_FORM, MEMBER_NOTICE_MAX_AREAS, NOTICE_CATEGORIES, buildMemberNoticeArgs, validateMemberNotice,
   type FieldErrors, type MemberNoticeForm,
@@ -130,9 +130,10 @@ export function PersonNoticeQueueRow({ r }: { r: PendingRow }) {
       <p className="mt-1 whitespace-pre-line text-sm text-ink-soft">{r.body}</p>
       <p className="mt-2 text-xs text-ink-muted">From {r.author_name} ({r.author_pending} awaiting) · sent {new Date(r.created_at).toLocaleString("en-GB")}{r.expires_at ? ` · ends ${new Date(r.expires_at).toLocaleDateString("en-GB")}` : ""}</p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" className={btnPrimary} disabled={state.busy} onClick={async () => { const x = await run(() => noticeWrite("staff_approve_person_notice", { p_notice: r.id }), "Approved."); if (x.ok) router.refresh(); }}>Approve</button>
+        <button type="button" className={btnPrimary} disabled={state.busy} onClick={async () => { const x = await run(() => noticeWrite("staff_approve_person_notice", { p_notice: r.id }), "Approved and published. No notification was sent: you can notify opted-in members from \u201cPublished member notices\u201d below."); if (x.ok) router.refresh(); }}>Approve</button>
         {!declining && <button type="button" className={btnDanger} onClick={() => setDeclining(true)}>Decline…</button>}
       </div>
+      <p className="mt-2 text-xs text-ink-muted">Approving publishes the notice. It never sends a notification: that is a separate choice you can make afterwards.</p>
       {declining && (
         <div className="mt-3 space-y-2">
           <Field label="Why is it not being published?" hint="The member is shown this." htmlFor={`dr-${r.id}`}><textarea id={`dr-${r.id}`} rows={2} className={inputCls} value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
@@ -143,6 +144,65 @@ export function PersonNoticeQueueRow({ r }: { r: PendingRow }) {
         </div>
       )}
       <div className="mt-2"><Status state={state} /></div>
+    </li>
+  );
+}
+
+
+/** Staff: a PUBLISHED member notice, and the separate, deliberate "Notify opted-in members" action with a preview and a confirmation. */
+export type PublishedRow = {
+  id: string; title: string; category_label: string | null; area_ids: string[]; area_names: string[]; area_state: "specific" | "shetland_wide" | "none";
+  published_at: string | null; expires_at: string | null; can_notify: boolean; reason: string | null; dispatch_status: string | null;
+  delivery: { sent: number; held_quiet: number; skipped: number; failed: number };
+};
+type Preview = { notice_id: string; title: string; publisher: string; area_state: string; areas: string[]; push_title: string; push_body: string; can_notify: boolean; reason: string | null; estimate: number; only_opted_in: boolean; daily_limit: number };
+
+export function PublishedNoticeRow({ r }: { r: PublishedRow }) {
+  const router = useRouter();
+  const load = useAction();
+  const send = useAction();
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const where = r.area_state === "none" ? "No place chosen" : r.area_state === "shetland_wide" ? "Shetland-wide" : r.area_names.join(", ");
+  const d = r.delivery;
+  const notified = r.dispatch_status === "completed";
+  return (
+    <li className="rounded-xl border border-line bg-paper p-4 shadow-soft" data-testid={`published-${r.id}`}>
+      <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{r.category_label ?? "No category"} · {where}{r.expires_at ? ` · ends ${new Date(r.expires_at).toLocaleDateString("en-GB")}` : ""}</p>
+      <h3 className="mt-1 font-display text-lg font-bold text-ink">{r.title}</h3>
+      <p className="mt-1 text-sm text-ink-soft" data-testid="notified-state">
+        {notified ? `Members were notified: ${d.sent} sent, ${d.held_quiet} held for quiet hours, ${d.skipped} skipped, ${d.failed} failed.`
+          : r.dispatch_status === "claimed" ? "A notification is in progress."
+          : r.dispatch_status === "failed" ? "A notification was interrupted and can be resumed."
+          : "No notification has been sent for this notice."}
+      </p>
+      {!preview && (
+        <div className="mt-3">
+          <button type="button" className={btnQuiet} disabled={!r.can_notify || load.state.busy} onClick={async () => { const x = await load.run(() => noticeRead("staff_member_notice_preview", { p_notice: r.id }), "Preview ready."); if (x.ok) setPreview(x.data as Preview); }}>Notify opted-in members…</button>
+          {!r.can_notify && r.reason && <p className="mt-1 text-xs text-ink-muted">{r.reason}.</p>}
+        </div>
+      )}
+      {preview && (
+        <section aria-label="Notification preview" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
+          <h4 className="font-bold">Check before sending</h4>
+          <dl className="mt-2 space-y-1">
+            <div><dt className="inline font-semibold">Notice: </dt><dd className="inline">{preview.title}</dd></div>
+            <div><dt className="inline font-semibold">Posted by: </dt><dd className="inline">{preview.publisher}</dd></div>
+            <div><dt className="inline font-semibold">Area: </dt><dd className="inline">{preview.area_state === "shetland_wide" ? "Shetland-wide" : preview.areas.join(", ")}</dd></div>
+            <div><dt className="font-semibold">The notification will say:</dt><dd className="mt-1 rounded border border-amber-300 bg-white p-2"><span className="block font-semibold">{preview.push_title}</span><span className="block">{preview.push_body}</span></dd></div>
+            <div><dt className="inline font-semibold">Estimated recipients: </dt><dd className="inline" data-testid="estimate">{preview.estimate} opted-in member{preview.estimate === 1 ? "" : "s"}</dd></div>
+          </dl>
+          <p className="mt-2">Only members who opted in to Community Notices, follow a matching area, have notifications on and are not in quiet hours will receive it. Each member receives at most {preview.daily_limit} member notices in 24 hours. Members&rsquo; names and settings are not shown to you, and this cannot be sent again.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" className={btnPrimary} disabled={send.state.busy || !preview.can_notify || preview.estimate < 1}
+              onClick={async () => { const x = await send.run(() => notifyNoticeAudience(r.id, "member"), "The notification run has finished. Its result is shown at the top of this notice."); if (x.ok) { setPreview(null); router.refresh(); } }}>
+              {send.state.busy ? "Sending…" : `Send to about ${preview.estimate} member${preview.estimate === 1 ? "" : "s"}`}
+            </button>
+            <button type="button" className={btnQuiet} disabled={send.state.busy} onClick={() => { setPreview(null); send.reset(); }}>Cancel</button>
+          </div>
+          {preview.estimate < 1 && <p className="mt-2 text-xs">Nobody is currently eligible, so there is nothing to send.</p>}
+        </section>
+      )}
+      <div className="mt-2"><Status state={load.state} /><Status state={send.state} /></div>
     </li>
   );
 }

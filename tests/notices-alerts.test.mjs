@@ -491,3 +491,37 @@ describe("funeral privacy: no-account contact, structured moderation, privacy ta
     assert.match(rd("components/notices/FuneralForms.tsx"), /\/privacy#funeral-announcements/);
   });
 });
+
+describe("moderator-controlled member notice notifications (website)", () => {
+  test("the notify call accepts the member kind, sends only the notice id and kind with the staff member's OWN token, and reports each outcome honestly", async () => {
+    const calls = [];
+    const f = (body, status = 200) => async (url, init) => { calls.push({ url, init }); return new Response(JSON.stringify(body), { status }); };
+    const ok = await R.callNotifyAudience({ baseUrl: "https://x.test/", accessToken: "tok", noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({ ok: true, sent: 5, held: 1, skipped: 2, failed: 1 }) });
+    assert.equal(ok.ok, true); assert.match(ok.data.message, /5 sent, 1 held for quiet hours, 2 skipped.*1 failed/);
+    assert.equal(calls[0].url, "https://x.test/functions/v1/notify-notice-audience"); assert.equal(calls[0].init.headers.authorization, "Bearer tok");
+    assert.deepEqual(JSON.parse(calls[0].init.body), { notice_id: "11111111-2222-4333-8444-555555555555", kind: "member" }, "no recipient list, no text, no urgency is ever sent");
+    assert.equal((await R.callNotifyAudience({ baseUrl: "https://x.test", accessToken: null, noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({}) })).ok, false);
+    assert.equal((await R.callNotifyAudience({ baseUrl: "https://x.test", accessToken: "t", noticeId: "11111111-2222-4333-8444-555555555555", kind: "bogus", fetchImpl: f({}) })).ok, false);
+    const forbidden = await R.callNotifyAudience({ baseUrl: "https://x.test", accessToken: "t", noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({ error: "Not allowed" }, 403) });
+    assert.deepEqual([forbidden.ok, forbidden.error], [false, "Not allowed"]);
+    const conflict = await R.callNotifyAudience({ baseUrl: "https://x.test", accessToken: "t", noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({ error: "Already announced" }, 409) });
+    assert.equal(conflict.error, "Already announced");
+  });
+  test("approving and notifying are separate in the interface: approve never calls the notify action; notifying always goes through a preview with an explicit confirmation", () => {
+    const ui = strip(rd("components/notices/MemberNotice.tsx"));
+    const approve = ui.slice(ui.indexOf("export function PersonNoticeQueueRow"), ui.indexOf("export type PublishedRow"));
+    assert.ok(!/notifyNoticeAudience/.test(approve), "the approve/decline row has no notify call");
+    const pub = ui.slice(ui.indexOf("export function PublishedNoticeRow"));
+    assert.match(pub, /noticeRead\("staff_member_notice_preview"/); assert.match(pub, /Check before sending/); assert.match(pub, /Estimated recipients/); assert.match(pub, /Only members who opted in to Community Notices/);
+    assert.equal((pub.match(/notifyNoticeAudience\(/g) ?? []).length, 1, "exactly one call site: the confirm button");
+    assert.match(pub, /disabled=\{send\.state\.busy \|\| !preview\.can_notify \|\| preview\.estimate < 1\}/); assert.match(pub, /Cancel/);
+    assert.match(pub, /disabled=\{!r\.can_notify \|\| load\.state\.busy\}/, "the entry button is disabled for ineligible notices");
+    assert.doesNotMatch(pub, /display_name|author|ExponentPushToken|user_id/, "no recipient or personal data is rendered");
+    assert.match(rd("components/notices/MemberNotice.tsx"), /It never sends a notification/);
+    assert.ok(C.READ_RPCS.staff_member_notice_preview && !("notify_notice_member" in C.WRITE_RPCS) && !Object.keys(C.WRITE_RPCS).some((k) => /notice_claim_dispatch|notice_member_reserve|notice_push_gate|notice_record_delivery/.test(k)), "no privileged dispatch function is reachable from the browser");
+  });
+  test("the moderation page lists published member notices from the staff-only database function", () => {
+    const page = rd("app/notices/moderate/page.tsx");
+    assert.match(page, /staff_published_person_notices/); assert.match(page, /Publishing never notifies anyone/); assert.match(page, /PublishedNoticeRow/);
+  });
+});

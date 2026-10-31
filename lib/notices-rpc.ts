@@ -27,11 +27,11 @@ export async function callRpc<T = unknown>(sb: RpcClient, fn: string, args: Reco
 
 /** Calls the not-yet-deployed notify edge function with the user's own access token; any failure is a plain message, never a thrown error. */
 export async function callNotifyAudience(
-  opts: { baseUrl: string; accessToken: string | null | undefined; noticeId: string; kind: "essential" | "official"; fetchImpl?: typeof fetch },
+  opts: { baseUrl: string; accessToken: string | null | undefined; noticeId: string; kind: "essential" | "official" | "member"; fetchImpl?: typeof fetch },
 ): Promise<RpcResult<{ message: string }>> {
   if (!opts.accessToken) return { ok: false, error: "Please sign in again to send notifications." };
   if (!/^[0-9a-f-]{36}$/i.test(opts.noticeId)) return { ok: false, error: "That notice could not be found." };
-  if (opts.kind !== "essential" && opts.kind !== "official") return { ok: false, error: "Unknown notification kind." };
+  if (opts.kind !== "essential" && opts.kind !== "official" && opts.kind !== "member") return { ok: false, error: "Unknown notification kind." };
   try {
     const res = await (opts.fetchImpl ?? fetch)(`${opts.baseUrl.replace(/\/$/, "")}/functions/v1/notify-notice-audience`, {
       method: "POST",
@@ -45,7 +45,13 @@ export async function callNotifyAudience(
       if (res.status === 404) return { ok: false, error: "Notifications for notices are not switched on yet, so nothing was sent. The notice itself is live." };
       return { ok: false, error: typeof m === "string" && m ? m : `Notifications could not be sent (error ${res.status}). Nothing was sent.` };
     }
-    const msg = body && typeof body === "object" && typeof (body as { message?: unknown }).message === "string" ? (body as { message: string }).message : "Notification request accepted.";
+    const b = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const n = (k: string) => (typeof b[k] === "number" ? (b[k] as number) : null);
+    // the function reports what each member's outcome was: say exactly that, never "delivered to everyone"
+    const msg = typeof b.message === "string" ? b.message
+      : b.ok === true && n("sent") !== null
+        ? `Notification run finished: ${n("sent")} sent, ${n("held") ?? 0} held for quiet hours, ${n("skipped") ?? 0} skipped (not eligible at that moment), ${n("failed") ?? 0} failed.`
+        : "Notification request accepted.";
     return { ok: true, data: { message: msg } };
   } catch {
     return { ok: false, error: "Notifications could not be reached just now. Nothing was sent. Please try again in a moment." };

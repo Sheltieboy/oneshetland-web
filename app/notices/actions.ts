@@ -28,7 +28,7 @@ export async function enableNoticeImportSource(id: string, note: string): Promis
 }
 
 /** A SEPARATE, explicit, once-only request to notify opted-in members (edge function notify-notice-audience; not deployed yet). */
-export async function notifyNoticeAudience(noticeId: string, kind: "essential" | "official"): Promise<RpcResult<{ message: string }>> {
+export async function notifyNoticeAudience(noticeId: string, kind: "essential" | "official" | "member"): Promise<RpcResult<{ message: string }>> {
   const sb = await sessionClient();
   const { data: { session } } = await sb.auth.getSession();
   return callNotifyAudience({ baseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", accessToken: session?.access_token, noticeId, kind });

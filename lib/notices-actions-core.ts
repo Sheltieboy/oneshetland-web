@@ -51,6 +51,7 @@ export const WRITE_RPCS: Record<string, readonly string[]> = {
 export const READ_RPCS: Record<string, readonly string[]> = {
   admin_list_official_publisher_members: ["p_publisher"],
   admin_notice_dispatch_history: ["p_notice"],
+  staff_member_notice_preview: ["p_notice"],            // staff-only in the database; counts and text, never a recipient
   admin_funeral_retention_report: [],
   admin_audit_redaction_candidates: ["p_months"],
   admin_audit_redactions: ["p_limit"],
