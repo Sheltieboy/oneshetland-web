@@ -6,7 +6,7 @@ import { planEssentialSlot, type NoticeCardModel } from "@/lib/notices-alerts";
 import { DISMISSED_KEY, parseDismissed, undismissed, dismissAll } from "@/lib/essential-dismiss";
 
 /**
- * The reserved Essential Alert slot at the top of the homepage: ONE single-line red strip  [!]  ESSENTIAL ALERT  headline  (area)  count  [×].
+ * The reserved Essential Alert slot at the top of the homepage: ONE single-line red strip  [!]  headline  (area)  count  [×]. There is no visible label: the red strip and the icon say what it is, and "Essential alert" is in the accessible name.
  * It is one horizontal line at every width (fixed height, nothing wraps: the headline truncates with an ellipsis, the area and the long
  * count drop out on narrow screens). The full title, areas, instructions and source are in the accessible name and on the page it opens.
  * One undismissed alert links to it; several link to the essential list. The × is a separate button: it hides the strip on this device only
@@ -59,9 +59,6 @@ export function EssentialAlertSlot({ alerts, scopedToMyAreas = false }: { alerts
             <rect x="10.5" y="4.8" width="3" height="9.6" rx="1.5" fill={RED} />
             <circle cx="12" cy="18.2" r="1.9" fill={RED} />
           </svg>
-          <span aria-hidden className="shrink-0 text-[11px] font-black uppercase tracking-wider text-white/90">
-            <span className="min-[360px]:hidden">Alert</span><span className="hidden min-[360px]:inline">Essential alert</span>
-          </span>
           <span aria-hidden className="min-w-0 flex-1 truncate text-sm font-bold sm:text-[15px]">{a.title}</span>
           {a.areaSummary && <span aria-hidden className="hidden max-w-[28%] shrink truncate text-[13px] text-white/90 md:block">{a.areaSummary}</span>}
           {many && <span aria-hidden className="shrink-0 text-xs font-bold text-white/90"><span className="min-[480px]:hidden">{plan.count}</span><span className="hidden min-[480px]:inline">{plan.count} active</span></span>}

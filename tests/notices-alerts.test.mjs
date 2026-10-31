@@ -281,7 +281,8 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.match(code, /whitespace-nowrap/); assert.match(code, /min-w-0 flex-1 truncate/, "the headline truncates with an ellipsis");
     assert.doesNotMatch(code, /line-clamp|flex-col|flex-wrap|whitespace-normal|break-words|whitespace-pre|min-h-\[|\bpy-\d/, "nothing that lets the strip wrap or grow");
     assert.doesNotMatch(code, /a\.body|actionText|attribution|plan\.others\.map/);
-    assert.match(code, /min-\[360px\]:hidden/, "the label shortens on narrow screens instead of wrapping");
+    assert.doesNotMatch(code, /Essential alert<|>Alert<|uppercase|tracking-wider/, "no visible label text: the headline gets the space");
+    assert.match(code, /many \? `Essential alert, \$\{plan\.count\} active` : "Essential alert"/, "'Essential alert' stays in the accessible name");
     assert.match(code, /hidden max-w-\[28%\] shrink truncate[^"]*md:block/, "the area drops out below md");
     assert.match(code, /\/notices\?tab=essential/); assert.match(code, /\/notices\/\$\{a\.id\}/);
   });
