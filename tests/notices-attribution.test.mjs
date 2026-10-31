@@ -188,13 +188,14 @@ describe("navigation: a notice goes to its own destination or nowhere (Stage 3A.
     assert.doesNotMatch(rd("lib/home-curation.ts").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""), /"\/hubs"/);
   });
   test("components: a notice without an href is a plain block (no link) that shows the whole notice; with one it is a link", () => {
-    for (const f of ["components/home/HomeSections.tsx", "components/preview/v2/HomeV2.tsx"]) {
-      const src = rd(f); assert.match(src, /n\.href \?/, f); assert.match(src, /whitespace-pre-line/, f + " non-link branch shows the full text");
+    // Notices & Alerts: the homepage community cards moved from HomeV2 to components/notices/NoticeCard.tsx (compact = linked only with a destination; full shows the whole text).
+    for (const f of ["components/home/HomeSections.tsx", "components/notices/NoticeCard.tsx"]) {
+      const src = rd(f); assert.match(src, /n\.href \?|n\.destination\s*\?/, f); assert.match(src, /whitespace-pre-line/, f + " non-link branch shows the full text");
     }
-    assert.match(rd("components/preview/v2/HomeV2.tsx"), /const header = n\.attribution\.byline;/);
+    assert.match(rd("components/notices/NoticeCard.tsx"), /n\.attribution\.byline/);
   });
   test("an official notice shows 'View at source' only when the database gave a valid link", () => {
-    for (const f of ["components/home/HomeSections.tsx", "components/preview/v2/HomeV2.tsx"]) assert.match(rd(f), /n\.attribution\.source_url &&/);
+    { assert.match(rd("components/home/HomeSections.tsx"), /n\.attribution\.source_url &&/); assert.match(rd("components/notices/NoticeCard.tsx"), /n\.attribution\.sourceUrl &&/); }
   });
 });
 

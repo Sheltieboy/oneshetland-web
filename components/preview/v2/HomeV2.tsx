@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { type HomeEvent, type HomeNotice, type HomeCampaign } from "@/lib/home-data";
+import { type HomeEvent, type HomeCampaign, type HomeAlert } from "@/lib/home-data";
+import type { NoticeCardModel } from "@/lib/notices-alerts";
+import { NoticeCard } from "@/components/notices/NoticeCard";
+import { PartnerUpdateStrip } from "@/components/notices/PartnerUpdateStrip";
 import type { ShelfBoat, ShelfStory, ShelfSpik } from "@/lib/home-shelves";
 import type { CuratedBusiness } from "@/lib/curated-businesses";
 import type { CruiseHomeCard } from "@/lib/cruise-data";
@@ -329,47 +332,34 @@ export function IslandMosaic({ boat, story, spik, game }: { boat: ShelfBoat; sto
 
 /* ── Community ─────────────────────────────────────────────────────────────── */
 
-export function CommunityV2({ notices, campaigns }: { notices: HomeNotice[]; campaigns: HomeCampaign[] }) {
-  if (notices.length === 0 && campaigns.length === 0) return null;
-  const n = notices[0];
+export function CommunityV2({ notices, campaigns, partnerAlerts = [] }: { notices: NoticeCardModel[]; campaigns: HomeCampaign[]; partnerAlerts?: HomeAlert[] }) {
+  if (notices.length === 0 && campaigns.length === 0 && partnerAlerts.length === 0) return null;
   return (
     <Band>
-      <Heading eyebrow="Community" title="From the community" color="#6b47bf" cta={{ label: "Hubs", href: "/hubs" }} />
-      <div className={"grid grid-cols-1 gap-4 " + (notices.length + campaigns.length > 1 ? "md:grid-cols-2" : "")}>
-        {n && (() => {
-          const header = n.attribution.byline;   // "Posted by <publisher>" or "Source: <official source>"
-          const card = "group relative flex flex-col justify-center overflow-hidden rounded-3xl p-6 shadow-soft sm:p-9";
-          const style = { background: "linear-gradient(135deg,#ede9fe,#ddd6fe)" };
-          // A notice with a destination (fundraiser, event, hub, business) is a link; one without (person / OneShetland / official source) is a plain card that shows the whole notice.
-          return n.href ? (
-            <Link href={n.href} className={card + " transition hover:shadow-lift"} style={style}>
-              <span className="text-[11px] font-black uppercase tracking-widest text-violet-700">{header}</span>
-              <p className="mt-2 max-w-2xl font-display text-2xl font-bold leading-tight text-violet-950 sm:text-4xl">{n.title}</p>
-              <p className="mt-3 line-clamp-3 max-w-2xl text-base text-violet-900/80">{n.body}</p>
-            </Link>
-          ) : (
-            <div className={card} style={style}>
-              <span className="text-[11px] font-black uppercase tracking-widest text-violet-700">{header}</span>
-              <p className="mt-2 max-w-2xl break-words font-display text-2xl font-bold leading-tight text-violet-950 sm:text-4xl">{n.title}</p>
-              <p className="mt-3 max-w-2xl whitespace-pre-line break-words text-base text-violet-900/80">{n.body}</p>
-              {n.attribution.source_url && (
-                <a href={n.attribution.source_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-[44px] items-center self-start text-sm font-bold text-violet-800 underline">View at source</a>
-              )}
-            </div>
-          );
-        })()}
-        {campaigns.slice(0, 2).map((c) => {
-          const pct = Math.min(100, Math.round((c.raised_pence / Math.max(1, c.goal_pence)) * 100));
-          return (
-            <Link key={c.id} href={`/hubs/campaign/${c.id}`} className="group rounded-3xl border border-line bg-white p-6 shadow-soft transition hover:shadow-lift">
-              <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Fundraiser · {c.hub}</span>
-              <p className="mt-2 font-display text-2xl font-bold leading-tight text-ink">{c.title}</p>
-              <span className="mt-4 block h-2 overflow-hidden rounded-full bg-sand"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></span>
-              <span className="mt-1.5 block text-xs font-bold text-ink-muted">{pct}% raised</span>
-            </Link>
-          );
-        })}
-      </div>
+      <Heading eyebrow="Community" title="Notices and community" color="#6b47bf" cta={{ label: "View all notices", href: "/notices" }} />
+      {/* Precedence on the homepage: the Essential Alert slot is the ONLY urgent position (very top). Business partner alerts are a calm strip here. */}
+      <PartnerUpdateStrip alerts={partnerAlerts} />
+      {/* Equal-sized notice cards (max six; the grid rows share one height): one column on phones, two on tablets, three on desktop. */}
+      {notices.length > 0 && (
+        <ul aria-label="Latest notices" className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {notices.map((n) => <li key={n.id} className="min-w-0"><NoticeCard n={n} variant="compact" /></li>)}
+        </ul>
+      )}
+      {campaigns.length > 0 && (
+        <div className={"grid grid-cols-1 gap-4 sm:grid-cols-2 " + (notices.length > 0 ? "mt-6" : "")}>
+          {campaigns.slice(0, 2).map((c) => {
+            const pct = Math.min(100, Math.round((c.raised_pence / Math.max(1, c.goal_pence)) * 100));
+            return (
+              <Link key={c.id} href={`/hubs/campaign/${c.id}`} className="group rounded-3xl border border-line bg-white p-6 shadow-soft transition hover:shadow-lift">
+                <span className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Fundraiser · {c.hub}</span>
+                <p className="mt-2 font-display text-2xl font-bold leading-tight text-ink">{c.title}</p>
+                <span className="mt-4 block h-2 overflow-hidden rounded-full bg-sand"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></span>
+                <span className="mt-1.5 block text-xs font-bold text-ink-muted">{pct}% raised</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
     </Band>
   );
 }

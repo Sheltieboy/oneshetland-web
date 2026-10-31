@@ -111,7 +111,7 @@ export type HomeData = {
 };
 
 /** One round-trip's worth of homepage content, fetched in parallel. */
-export async function getHomeData(): Promise<HomeData> {
+export async function getHomeData(opts: { legacyNotices?: boolean } = {}): Promise<HomeData> {
   const sb = publicClient();
   const now = new Date().toISOString();
 
@@ -127,7 +127,8 @@ export async function getHomeData(): Promise<HomeData> {
     safe(fetchEvents(sb, now), []),
     safe(fetchBusinesses(sb), []),
     safe(fetchOffers(sb, now), []),
-    safe(fetchNotices(sb, now), []),
+    // The homepage no longer renders this (it reads get_public_notices via lib/home-notices.ts); callers that do pass nothing and keep the old behaviour.
+    opts.legacyNotices === false ? Promise.resolve([] as HomeNotice[]) : safe(fetchNotices(sb, now), []),
     safe(fetchCampaigns(sb), []),
     safe(fetchJobs(sb, now), []),
     safe(fetchShifts(sb, now), []),

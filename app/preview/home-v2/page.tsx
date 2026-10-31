@@ -12,7 +12,8 @@ import { getCuratedBusinesses } from "@/lib/curated-businesses";
 import { getActiveLocalPasses, getBookableServices } from "@/lib/local-data";
 import { cruiseWorthShowing } from "@/lib/home-curation";
 import { buildCommerce, mapLiveCommerce, parsePreview } from "@/lib/preview-v2";
-import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
+import { EssentialAlertSlot } from "@/components/notices/EssentialAlertSlot";
+import { getHomeNoticeBundle } from "@/lib/home-notices";
 import { AudienceChip } from "@/components/home/AudienceChip";
 import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
@@ -33,8 +34,9 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
   const sp = await searchParams;
   const { state, viewer } = parsePreview(sp);
   const now = new Date();
+  const noticeBundle = await getHomeNoticeBundle(false);
   const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience] = await Promise.all([
-    getHomeData(),
+    getHomeData({ legacyNotices: false }),
     getHeroImage(),
     getTodaySnapshot().catch(() => null),
     getHomeShelves(),
@@ -59,7 +61,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <PreviewBar route="/preview/home-v2" state={state} viewer={viewer} other={{ label: "Local V2", href: "/preview/local-v2" }} />
-      <UrgentAlertBanner alerts={data.alerts} />
+      <EssentialAlertSlot alerts={noticeBundle.essential} />
 
       {/* 2 · HERO — the product, understood at once, with real actions on the first phone screen */}
       <section className="relative isolate overflow-hidden bg-navy text-white">
@@ -96,7 +98,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
       <IslandMosaic boat={shelves.boat} story={shelves.story} spik={shelves.spik} game={getTodaysGame()} />
 
       {/* 8 · COMMUNITY */}
-      <CommunityV2 notices={data.notices} campaigns={data.campaigns} />
+      <CommunityV2 notices={noticeBundle.notices} campaigns={data.campaigns} partnerAlerts={data.alerts} />
 
       {/* 9 · EXPLORE */}
       <ExploreV2 />

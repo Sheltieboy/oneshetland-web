@@ -11,7 +11,8 @@ import { getCuratedBusinesses } from "@/lib/curated-businesses";
 import { getActiveLocalPasses, getBookableServices } from "@/lib/local-data";
 import { cruiseWorthShowing } from "@/lib/home-curation";
 import { mapLiveCommerce } from "@/lib/preview-v2";
-import { UrgentAlertBanner } from "@/components/home/UrgentAlertBanner";
+import { EssentialAlertSlot } from "@/components/notices/EssentialAlertSlot";
+import { getHomeNoticeBundle } from "@/lib/home-notices";
 import { AudienceChip } from "@/components/home/AudienceChip";
 import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
@@ -36,7 +37,7 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const now = new Date();
   const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account] = await Promise.all([
-    getHomeData(),
+    getHomeData({ legacyNotices: false }),
     getHeroImage(),
     getTodaySnapshot().catch(() => null),
     getHomeShelves(),
@@ -49,6 +50,7 @@ export default async function Home() {
   ]);
   const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: await loadLiveShifts() }, now);
   // For you — personal, signed-in only, and only when there is something genuine to say.
+  const noticeBundle = await getHomeNoticeBundle(!!account);
   const forYou = account ? await getForYou(account.id).catch(() => []) : [];
   const visiting = audience === "visiting";
   const showCruise = cruiseWorthShowing(cruise, now);
@@ -63,7 +65,9 @@ export default async function Home() {
 
   return (
     <>
-      <UrgentAlertBanner alerts={data.alerts} />
+      {/* 1 · ESSENTIAL ALERT — the one reserved, urgent position (get_essential_alerts only; collapses completely when there are none).
+          Precedence: this slot first; business partner_alerts are demoted to a calm strip inside the community band below. */}
+      <EssentialAlertSlot alerts={noticeBundle.essential} scopedToMyAreas={noticeBundle.scopedToMyAreas} />
 
       {/* 2 · HERO — the product, understood at once, with real actions on the first phone screen */}
       <section className="relative isolate overflow-hidden bg-navy text-white">
@@ -102,7 +106,7 @@ export default async function Home() {
       <IslandMosaic boat={shelves.boat} story={shelves.story} spik={shelves.spik} game={getTodaysGame()} />
 
       {/* 8 · COMMUNITY */}
-      <CommunityV2 notices={data.notices} campaigns={data.campaigns} />
+      <CommunityV2 notices={noticeBundle.notices} campaigns={data.campaigns} partnerAlerts={data.alerts} />
 
       {/* 9 · EXPLORE */}
       <ExploreV2 />
