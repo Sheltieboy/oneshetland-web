@@ -275,9 +275,13 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.equal(p.lead.id, "new"); assert.deepEqual(p.others.map((x) => x.id), ["mid", "old"]); assert.equal(p.heading, "3 essential alerts"); assert.equal(p.count, 3);
     assert.deepEqual(A.planEssentialSlot([al("x", null), al("y", null)]).others.map((o) => o.id), ["y"]);
   });
-  test("component: compact rows are buttons with aria-expanded; no full-card stack", () => {
-    const src = rd("components/notices/EssentialAlertSlot.tsx"); assert.match(src, /aria-expanded=\{isOpen\}/); assert.match(src, /plan\.others\.map/); assert.match(src, /<button type="button"/);
+  test("component: ONE compact strip linking to the alert (or the essential list when several); no body, what-to-do or source detail", () => {
+    const src = rd("components/notices/EssentialAlertSlot.tsx");
+    assert.match(src, /\/notices\?tab=essential/); assert.match(src, /\/notices\/\$\{a\.id\}/); assert.match(src, /plan\.count\} active/);
+    assert.equal((src.match(/<Link /g) ?? []).length, 1, "a single strip, never a stack");
+    assert.doesNotMatch(src, /a\.body|actionText|attribution|plan\.others\.map/);
   });
+
 });
 
 describe("follow-up: single-notice read, areas, publisher notices", () => {
