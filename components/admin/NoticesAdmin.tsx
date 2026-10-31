@@ -25,7 +25,8 @@ function OrgCard({ o }: { o: OrgRow }) {
   const [members, setMembers] = useState<Member[] | null>(null);
   const [uid, setUid] = useState("");
   const [role, setRole] = useState("publisher");
-  const done = (ok: boolean) => { if (ok) router.refresh(); };
+  // clear the typed reason / note after any success: the same box is the grant reason and then the revoke reason, so a stale grant reason must never sit pre-filled in the revoke box
+  const done = (ok: boolean) => { if (ok) { setReason(""); setNote(""); router.refresh(); } };
   const loadMembers = async () => {
     const r = await act.run(() => noticeRead("admin_list_official_publisher_members", { p_publisher: o.id }), "");
     if (r.ok) setMembers(Array.isArray(r.data) ? (r.data as Member[]) : []);

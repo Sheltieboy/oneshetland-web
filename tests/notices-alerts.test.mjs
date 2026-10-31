@@ -301,6 +301,9 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.ok((code.match(/focus-visible:outline-white/g) ?? []).length >= 2, "link and button both show a focus ring");
     assert.equal((code.match(/<Link /g) ?? []).length, 1);
   });
+  test("admin console: the typed reason / note is cleared after every success (a grant reason must not sit pre-filled in the revoke box)", () => {
+    const src = rd("components/admin/NoticesAdmin.tsx"); assert.match(src, /const done = \(ok: boolean\) => \{ if \(ok\) \{ setReason\(""\); setNote\(""\); router\.refresh\(\); \} \};/);
+  });
   test("dismissal: ids, not a global switch; the whole active set is dismissed; a NEW id brings the strip back; dismissed ids never return", async () => {
     const D = await import("../lib/essential-dismiss.ts");
     const three = [{ id: "a" }, { id: "b" }, { id: "c" }];
