@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { noticeWrite, notifyNoticeAudience } from "@/app/notices/actions";
 import {
   NOTICE_CATEGORIES, SHETLAND_WIDE, formatNoticeDateTime, officialPublishArgs, validateOfficialNotice,
-  type FieldErrors, type NoticeCardModel, type OfficialNoticeInput,
+  canManageOfficial, canOfferNotify, officialNoticeState,
+  type FieldErrors, type OfficialNoticeInput, type OfficialNoticeRow,
 } from "@/lib/notices-alerts";
 import { Check, Field, Status, btnDanger, btnPrimary, btnQuiet, inputCls, localToDate, useAction } from "@/components/notices/Fields";
 
@@ -29,7 +30,7 @@ const asInput = (f: Form): OfficialNoticeInput => ({ title: f.title, body: f.bod
  * Publishing as a verified organisation. The form mirrors the server's rules to guide people, but the DATABASE enforces them all and its message
  * is shown verbatim if it disagrees. Editing a notice never notifies anyone; notifying is a separate, explicit, once-only button.
  */
-export function PublisherConsole({ publishers, areas, live }: { publishers: MyPublisher[]; areas: Area[]; live: NoticeCardModel[] }) {
+export function PublisherConsole({ publishers, areas, mine: mineAll, listError }: { publishers: MyPublisher[]; areas: Area[]; mine: Record<string, OfficialNoticeRow[]>; listError: string | null }) {
   const router = useRouter();
   const [pubId, setPubId] = useState(publishers[0]?.publisher_id ?? "");
   const pub = publishers.find((p) => p.publisher_id === pubId) ?? publishers[0];
@@ -41,7 +42,7 @@ export function PublisherConsole({ publishers, areas, live }: { publishers: MyPu
   const manage = useAction();
   const notify = useAction();
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((p) => ({ ...p, [k]: v }));
-  const mine = live.filter((n) => n.attribution.kind === "official" && n.attribution.label === pub.name);
+  const mine = mineAll[pub.publisher_id] ?? [];
 
   const toggleArea = (id: string) => setF((p) => {
     if (id === SHETLAND_WIDE) return { ...p, areaIds: p.areaIds.includes(id) ? [] : [id] };
@@ -68,22 +69,22 @@ export function PublisherConsole({ publishers, areas, live }: { publishers: MyPu
     }
   }
 
-  function edit(n: NoticeCardModel) {
+  function edit(n: OfficialNoticeRow) {
     setEditing(n.id); save.reset();
     setErrors({});
-    setF({ title: n.title, body: n.body, actionText: n.actionText ?? "", category: n.categoryId ?? "", areaIds: n.areaIds, startsAt: "", expiresAt: toLocalInput(n.expiresAt), reviewAt: toLocalInput(n.reviewAt), linkUrl: n.linkUrl ?? "", essential: n.isEssential });
+    setF({ title: n.title, body: n.body, actionText: n.action_text ?? "", category: n.category ?? "", areaIds: n.area_ids ?? [], startsAt: "", expiresAt: toLocalInput(n.expires_at), reviewAt: toLocalInput(n.review_at), linkUrl: n.link_url ?? "", essential: n.is_essential });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function setStatus(n: NoticeCardModel, status: "resolved" | "withdrawn") {
+  async function setStatus(n: OfficialNoticeRow, status: "resolved" | "withdrawn") {
     if (!window.confirm(status === "resolved" ? "Mark this as resolved? It will stop showing." : "Withdraw this notice? It will stop showing.")) return;
     const r = await manage.run(() => noticeWrite("official_set_notice_status", { p_notice: n.id, p_status: status }), status === "resolved" ? "Marked as resolved." : "Withdrawn.");
     if (r.ok) router.refresh();
   }
 
-  async function sendNotify(n: NoticeCardModel) {
+  async function sendNotify(n: OfficialNoticeRow) {
     if (!window.confirm("Send a notification about this notice to members who have opted in? This can only be done once for a notice.")) return;
-    const r = await notify.run(() => notifyNoticeAudience(n.id, n.isEssential ? "essential" : "official"), "Notification request sent.");
+    const r = await notify.run(() => notifyNoticeAudience(n.id, n.is_essential ? "essential" : "official"), "Notification request sent.");
     if (r.ok) setNotified((m) => ({ ...m, [n.id]: true }));
   }
 
@@ -132,25 +133,30 @@ export function PublisherConsole({ publishers, areas, live }: { publishers: MyPu
       </form>
 
       <section aria-labelledby="live-h">
-        <h2 id="live-h" className="font-display text-2xl font-bold text-ink">Live notices from {pub.name}</h2>
+        <h2 id="live-h" className="font-display text-2xl font-bold text-ink">Notices from {pub.name}</h2>
         <div className="mt-3 space-y-3"><Status state={manage.state} /><Status state={notify.state} /></div>
-        {mine.length === 0 ? <p className="mt-3 text-sm text-ink-muted">No live notices from this organisation.</p> : (
+        {listError && <p role="alert" className="mt-3 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">Your notices could not be loaded ({listError}).</p>}
+        {mine.length === 0 ? <p className="mt-3 text-sm text-ink-muted">No notices from this organisation yet.</p> : (
           <ul className="mt-3 space-y-3">
-            {mine.map((n) => (
+            {mine.map((n) => {
+              const st = officialNoticeState(n);
+              const tone = st === "live" ? "bg-emerald-100 text-emerald-800" : st === "scheduled" ? "bg-blue-100 text-blue-800" : "bg-sand text-ink-muted";
+              return (
               <li key={n.id} className="rounded-xl border border-line bg-paper p-4 shadow-soft">
-                <p className="text-xs font-black uppercase tracking-widest text-ink-muted">{n.isEssential ? "Essential alert" : "Official notice"} {"·"} {n.areaSummary}</p>
+                <p className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-widest text-ink-muted"><span className={"rounded-pill px-2.5 py-0.5 normal-case tracking-normal text-xs font-bold " + tone}>{st[0].toUpperCase() + st.slice(1)}</span>{n.is_essential ? "Essential alert" : "Official notice"}{n.announced ? " \u00b7 notification sent" : ""}</p>
                 <p className="mt-1 break-words font-display text-lg font-bold text-ink">{n.title}</p>
-                <p className="mt-1 text-sm text-ink-muted">{n.expiresAt ? `Until ${formatNoticeDateTime(n.expiresAt)}` : ""}{n.reviewAt ? ` · review by ${formatNoticeDateTime(n.reviewAt)}` : ""}</p>
+                <p className="mt-1 text-sm text-ink-muted">{n.starts_at && st === "scheduled" ? `Starts ${formatNoticeDateTime(n.starts_at)} \u00b7 ` : ""}{n.expires_at ? `Until ${formatNoticeDateTime(n.expires_at)}` : ""}{n.review_at ? ` \u00b7 review by ${formatNoticeDateTime(n.review_at)}` : ""}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className={btnQuiet} onClick={() => edit(n)}>Correct</button>
-                  <button type="button" className={btnQuiet} disabled={manage.state.busy} onClick={() => setStatus(n, "resolved")}>Resolve</button>
-                  <button type="button" className={btnDanger} disabled={manage.state.busy} onClick={() => setStatus(n, "withdrawn")}>Withdraw</button>
-                  {(n.isEssential || pub.can_publish) && (
-                    <button type="button" className={btnPrimary} disabled={notify.state.busy || notified[n.id]} onClick={() => sendNotify(n)}>{notified[n.id] ? "Notification requested" : "Notify opted-in members"}</button>
-                  )}
+                  {canManageOfficial(n) && <>
+                    <button type="button" className={btnQuiet} onClick={() => edit(n)}>Correct</button>
+                    <button type="button" className={btnQuiet} disabled={manage.state.busy} onClick={() => setStatus(n, "resolved")}>Resolve</button>
+                    <button type="button" className={btnDanger} disabled={manage.state.busy} onClick={() => setStatus(n, "withdrawn")}>Withdraw</button>
+                  </>}
+                  {canOfferNotify(n) && !notified[n.id] && pub.can_publish && <button type="button" className={btnPrimary} disabled={notify.state.busy} onClick={() => sendNotify(n)}>Notify opted-in members</button>}
+                  {notified[n.id] && <span className="inline-flex min-h-[44px] items-center text-sm font-semibold text-emerald-800">Notification requested</span>}
                 </div>
-              </li>
-            ))}
+              </li>);
+            })}
           </ul>
         )}
         <p className="mt-3 text-sm text-ink-muted">Notifying is separate from publishing, goes only to members who opted in, and can be done once per notice. Editing a notice never notifies anyone.</p>
