@@ -23,6 +23,7 @@ const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequen
   { path: "/memories", freq: "weekly", priority: 0.7 },
   { path: "/hubs", freq: "weekly", priority: 0.7 },
   { path: "/jobs", freq: "daily", priority: 0.7 },
+  { path: "/notices", freq: "daily", priority: 0.7 },
   { path: "/games", freq: "weekly", priority: 0.6 },
   { path: "/almanac", freq: "daily", priority: 0.8 },
   { path: "/business", freq: "monthly", priority: 0.6 },

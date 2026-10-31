@@ -101,6 +101,14 @@ export const SECTIONS: Section[] = [
     blurb: "Community delivery — get things brought to your door, the island way.",
   },
   {
+    key: "notices",
+    label: "Notices",
+    href: "/notices",
+    color: "#0a4a70",
+    token: "navy",
+    blurb: "Essential alerts, health and official notices, community notices and funeral announcements.",
+  },
+  {
     key: "games",
     label: "Games",
     href: "/games",
@@ -126,7 +134,7 @@ export const PRIMARY_NAV = PRIMARY_NAV_ORDER
   .filter((s): s is Section => Boolean(s));
 
 /** Secondary sections tucked behind the "More" menu in the header. */
-const MORE_NAV_ORDER = ["get-it-done", "spik", "boats", "memories", "fetch"];
+const MORE_NAV_ORDER = ["notices", "get-it-done", "spik", "boats", "memories", "fetch"];
 export const MORE_NAV = MORE_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
