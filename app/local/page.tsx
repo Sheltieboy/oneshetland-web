@@ -51,7 +51,7 @@ export default async function LocalPage({ searchParams }: { searchParams: Promis
           <div className="space-y-3">
             {urgent.map((n) => (
               <div key={n.id} className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-                <p className="text-[10px] font-black tracking-wide text-rose-600">URGENT{n.hub ? ` · ${n.hub.name}` : ""}</p>
+                <p className="text-[10px] font-black tracking-wide text-rose-600">URGENT · {n.attribution.is_official_source ? n.attribution.byline : n.attribution.label}</p>
                 <p className="mt-1 font-display font-bold leading-snug text-ink">{n.title}</p>
                 {n.body && <p className="mt-1.5 line-clamp-3 text-sm text-ink-soft">{n.body}</p>}
                 {isAdmin && <NoticeBroadcast noticeId={n.id} title={n.title} broadcastAt={broadcastState[n.id] ?? null} />}

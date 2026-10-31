@@ -3,6 +3,8 @@ import { upcomingSurfaceFilter } from "./event-state";
 import { publicClient } from "./supabase/public";
 import { unwrapPublic } from "./public-read";
 import { noticeHref } from "./home-curation";
+import type { NoticePublisher } from "./notice-publisher";
+import { NOTICE_PUBLISHER_COLUMNS, applyPublicNoticeFilters, attributionFor, loadPersonNames } from "./notice-feed";
 
 /* ── Types (the slim shapes the homepage renders) ─────────────────────────── */
 export type HomeEvent = {
@@ -48,6 +50,8 @@ export type HomeNotice = {
   locality: string | null;
   published_at: string;
   publisher: string;
+  /** Who posted it and how to show that (label, byline, mark, official source) - see lib/notice-publisher.ts. `publisher` is its label. */
+  attribution: NoticePublisher;
   logo_url: string | null;
   brand_color: string | null;
   /** Where tapping the notice goes: its fundraiser, event, hub or business — never a generic page. */
@@ -262,24 +266,32 @@ async function fetchOffers(sb: SB, now: string): Promise<HomeOffer[]> {
 }
 
 async function fetchNotices(sb: SB, now: string): Promise<HomeNotice[]> {
-  const { data } = await sb
-    .from("notices")
-    .select(
-      `id, severity, title, body, locality, published_at,
+  // Published, started and unexpired are asked for explicitly (lib/notice-feed.ts) on top of row-level security.
+  const { data } = await applyPublicNoticeFilters(
+    sb
+      .from("notices")
+      .select(
+        `id, severity, title, body, locality, published_at,
        publisher_business_id, publisher_user_id, publisher_hub_id, campaign_id, event_id,
+       ${NOTICE_PUBLISHER_COLUMNS},
        hub:hubs ( id, slug, name, logo_url, brand_color ),
        business:local_businesses ( id, slug, name, logo_url, brand_color )`,
-    )
-    .eq("is_hidden", false)
-    .eq("visibility", "public")
-    .or(`expires_at.is.null,expires_at.gt.${now}`)
+      )
+      .eq("is_hidden", false)
+      .eq("visibility", "public"),
+    now,
+  )
     .order("is_pinned", { ascending: false })
     .order("published_at", { ascending: false })
     .limit(8);
 
-  return ((data ?? []) as Record<string, unknown>[]).map((r) => {
-    const hub = r.hub as { id?: string; slug?: string; name?: string; logo_url?: string; brand_color?: string } | null;
-    const business = r.business as { id?: string; slug?: string; name?: string; logo_url?: string; brand_color?: string } | null;
+  const rows = (data ?? []) as Record<string, unknown>[];
+  // A person's name comes only from the authorised attribution RPC - never from profiles.
+  const personNames = await loadPersonNames((fn, args) => sb.rpc(fn, args), rows as never);
+  return rows.map((r) => {
+    const a = attributionFor(r as never, personNames);
+    // The link follows the publisher the DATABASE names, not whichever join happened to return a row.
+    const dest = a.destination;
     return {
       id: r.id as string,
       severity: (r.severity as string) ?? null,
@@ -287,13 +299,16 @@ async function fetchNotices(sb: SB, now: string): Promise<HomeNotice[]> {
       body: (r.body as string) ?? "",
       locality: (r.locality as string) ?? null,
       published_at: r.published_at as string,
-      publisher:
-        hub?.name ??
-        business?.name ??
-        (r.publisher_hub_id ? "Community hub" : r.publisher_business_id ? "Local business" : "Member"),
-      logo_url: hub?.logo_url ?? business?.logo_url ?? null,
-      brand_color: hub?.brand_color ?? business?.brand_color ?? null,
-      href: noticeHref({ campaign_id: r.campaign_id as string | null, event_id: r.event_id as string | null, hub, business }),
+      publisher: a.label,
+      attribution: a,
+      logo_url: a.logo_url,
+      brand_color: a.brand_color,
+      href: noticeHref({
+        campaign_id: r.campaign_id as string | null,
+        event_id: r.event_id as string | null,
+        hub: dest?.type === "hub" ? { id: dest.id, slug: dest.slug } : null,
+        business: dest?.type === "business" ? { id: dest.id, slug: dest.slug } : null,
+      }),
     };
   });
 }

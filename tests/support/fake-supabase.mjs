@@ -88,7 +88,8 @@ class Query {
     }).then(res, rej);
   }
 }
-const client = { from: (t) => new Query(t), rpc: async () => ({ data: null, error: null }), auth: { getUser: async () => ({ data: { user: null } }) } };
+// A test may install globalThis.__FAKE_RPC__ = async (fn, args) => ({ data, error }) to stand in for a database function.
+const client = { from: (t) => new Query(t), rpc: async (fn, args) => (globalThis.__FAKE_RPC__ ? globalThis.__FAKE_RPC__(fn, args) : { data: null, error: null }), auth: { getUser: async () => ({ data: { user: null } }) } };
 export const publicClient = () => client;
 export const createClient = async () => client;
 export const createBrowserClient = () => client;

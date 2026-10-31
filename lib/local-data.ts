@@ -2,6 +2,8 @@ import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
 import { unwrapPublic } from "./public-read";
+import type { NoticePublisher } from "./notice-publisher";
+import { NOTICE_PUBLISHER_COLUMNS, applyPublicNoticeFilters, attributionFor, loadPersonNames } from "./notice-feed";
 
 export const SHETLAND_AREAS = [
   { key: "lerwick",        label: "Lerwick" },
@@ -664,6 +666,8 @@ export type FeedNotice = {
   id: string; title: string; body: string | null; published_at: string;
   severity: string;
   hub: { id: string; name: string; logo_url: string | null; slug: string | null } | null;
+  /** Who posted it (hub / business / person / OneShetland / official source) - see lib/notice-publisher.ts. */
+  attribution: NoticePublisher;
 };
 
 /**
@@ -751,18 +755,22 @@ export async function getLocalFeed(area?: string): Promise<{
     ),
     safe(
       (async () => {
-        let q = sb.from("notices")
+        // Published, started and unexpired are asked for explicitly (lib/notice-feed.ts) on top of row-level security.
+        const q = applyPublicNoticeFilters(sb.from("notices")
           // NOT selecting broadcast_at here on purpose: this query feeds the
           // public notices list, and PostgREST fails the whole request on an
           // unknown column. Selecting it would blank the notices section for
           // everyone in the window between the web deploy and the migration.
           // Admins get that column from getNoticeBroadcastState() instead.
-          .select("id, title, body, published_at, severity, hub:hubs(id, name, logo_url, slug)")
-          .eq("visibility", "public")
+          .select(`id, title, body, published_at, severity, ${NOTICE_PUBLISHER_COLUMNS}, hub:hubs(id, name, logo_url, slug, brand_color), business:local_businesses(id, name, logo_url, slug, brand_color)`)
+          .eq("is_hidden", false)
+          .eq("visibility", "public"), now)
           .order("published_at", { ascending: false })
           .limit(4);
         const { data } = await q;
-        const rows = (data ?? []) as unknown as FeedNotice[];
+        const raw = (data ?? []) as unknown as Array<Record<string, unknown> & { id: string }>;
+        const personNames = await loadPersonNames((fn, args) => sb.rpc(fn, args), raw as never);
+        const rows = raw.map((r) => ({ ...r, attribution: attributionFor(r as never, personNames) })) as unknown as FeedNotice[];
         if (!area) return rows;
         // Filter by hub area after fetch (hubs have an `area` field)
         const hubIds = rows.map(r => r.hub?.id).filter(Boolean) as string[];

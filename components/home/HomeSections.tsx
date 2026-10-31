@@ -241,10 +241,15 @@ export function IslandAndCommunity({
           {visibleNotices.map((n) => (
             <li key={n.id}>
               <Link href={n.href} className="block px-4 py-3.5 transition hover:bg-sand">
-                <span className="block truncate text-[11px] font-bold uppercase tracking-wide text-ink-faint">{n.publisher}</span>
+                <span className="block truncate text-[11px] font-bold uppercase tracking-wide text-ink-faint">{n.attribution.is_official_source ? n.attribution.byline : n.attribution.label}</span>
                 <span className="block truncate font-semibold text-ink">{n.title}</span>
                 <span className="line-clamp-1 text-sm text-ink-muted">{n.body}</span>
               </Link>
+              {n.attribution.source_url && (
+                <a href={n.attribution.source_url} target="_blank" rel="noopener noreferrer" className="block px-4 pb-3 text-xs font-bold text-ink-muted underline">
+                  View at source
+                </a>
+              )}
             </li>
           ))}
         </ul>

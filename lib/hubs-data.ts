@@ -1,6 +1,7 @@
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
+import { applyPublicNoticeFilters } from "./notice-feed";
 
 /* ── Types (mirror the app's lib/hubs-api.ts) ──────────────────────────────── */
 
@@ -304,10 +305,12 @@ export async function getMembershipTypes(hubId: string): Promise<HubMembershipTy
 export async function getHubNotices(hubId: string, limit = 20): Promise<HubNotice[]> {
   const sb = publicClient();
   try {
-    const { data } = await sb
+    // Published, started and unexpired explicitly (lib/notice-feed.ts); visibility is left to RLS so members still see members-only notices.
+    const { data } = await applyPublicNoticeFilters(sb
       .from("notices")
       .select("id, publisher_hub_id, title, body, severity, visibility, image_url, is_pinned, expires_at, published_at")
       .eq("publisher_hub_id", hubId)
+      .eq("is_hidden", false))
       .order("is_pinned", { ascending: false })
       .order("published_at", { ascending: false })
       .limit(limit);
