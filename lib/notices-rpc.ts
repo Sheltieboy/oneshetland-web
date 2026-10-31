@@ -50,7 +50,7 @@ export async function callNotifyAudience(
     // the function reports what each member's outcome was: say exactly that, never "delivered to everyone"
     const msg = typeof b.message === "string" ? b.message
       : b.ok === true && n("sent") !== null
-        ? `Notification run finished: ${n("sent")} sent, ${n("held") ?? 0} held for quiet hours, ${n("skipped") ?? 0} skipped (not eligible at that moment), ${n("failed") ?? 0} failed.`
+        ? `Notification run finished: ${n("sent")} accepted by the push service, ${n("quiet") ?? 0} not sent because the member was in quiet hours (they are not notified later), ${n("skipped") ?? 0} skipped (not eligible at that moment), ${n("failed") ?? 0} failed.`
         : "Notification request accepted.";
     return { ok: true, data: { message: msg } };
   } catch {

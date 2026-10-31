@@ -496,8 +496,8 @@ describe("moderator-controlled member notice notifications (website)", () => {
   test("the notify call accepts the member kind, sends only the notice id and kind with the staff member's OWN token, and reports each outcome honestly", async () => {
     const calls = [];
     const f = (body, status = 200) => async (url, init) => { calls.push({ url, init }); return new Response(JSON.stringify(body), { status }); };
-    const ok = await R.callNotifyAudience({ baseUrl: "https://x.test/", accessToken: "tok", noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({ ok: true, sent: 5, held: 1, skipped: 2, failed: 1 }) });
-    assert.equal(ok.ok, true); assert.match(ok.data.message, /5 sent, 1 held for quiet hours, 2 skipped.*1 failed/);
+    const ok = await R.callNotifyAudience({ baseUrl: "https://x.test/", accessToken: "tok", noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({ ok: true, sent: 5, held: 0, quiet: 1, skipped: 2, failed: 1 }) });
+    assert.equal(ok.ok, true); assert.match(ok.data.message, /5 accepted by the push service, 1 not sent because the member was in quiet hours \(they are not notified later\), 2 skipped.*1 failed/);
     assert.equal(calls[0].url, "https://x.test/functions/v1/notify-notice-audience"); assert.equal(calls[0].init.headers.authorization, "Bearer tok");
     assert.deepEqual(JSON.parse(calls[0].init.body), { notice_id: "11111111-2222-4333-8444-555555555555", kind: "member" }, "no recipient list, no text, no urgency is ever sent");
     assert.equal((await R.callNotifyAudience({ baseUrl: "https://x.test", accessToken: null, noticeId: "11111111-2222-4333-8444-555555555555", kind: "member", fetchImpl: f({}) })).ok, false);

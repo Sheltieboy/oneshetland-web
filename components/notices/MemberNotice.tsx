@@ -153,7 +153,7 @@ export function PersonNoticeQueueRow({ r }: { r: PendingRow }) {
 export type PublishedRow = {
   id: string; title: string; category_label: string | null; area_ids: string[]; area_names: string[]; area_state: "specific" | "shetland_wide" | "none";
   published_at: string | null; expires_at: string | null; can_notify: boolean; reason: string | null; dispatch_status: string | null;
-  delivery: { sent: number; held_quiet: number; skipped: number; failed: number };
+  delivery: { sent: number; quiet_hours: number; skipped: number; failed: number };
 };
 type Preview = { notice_id: string; title: string; publisher: string; area_state: string; areas: string[]; push_title: string; push_body: string; can_notify: boolean; reason: string | null; estimate: number; only_opted_in: boolean; daily_limit: number };
 
@@ -170,7 +170,7 @@ export function PublishedNoticeRow({ r }: { r: PublishedRow }) {
       <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">{r.category_label ?? "No category"} · {where}{r.expires_at ? ` · ends ${new Date(r.expires_at).toLocaleDateString("en-GB")}` : ""}</p>
       <h3 className="mt-1 font-display text-lg font-bold text-ink">{r.title}</h3>
       <p className="mt-1 text-sm text-ink-soft" data-testid="notified-state">
-        {notified ? `Members were notified: ${d.sent} sent, ${d.held_quiet} held for quiet hours, ${d.skipped} skipped, ${d.failed} failed.`
+        {notified ? `Notification run finished: ${d.sent} accepted by the push service, ${d.quiet_hours} not sent because the member was in quiet hours (they are not notified later), ${d.skipped} skipped, ${d.failed} failed.`
           : r.dispatch_status === "claimed" ? "A notification is in progress."
           : r.dispatch_status === "failed" ? "A notification was interrupted and can be resumed."
           : "No notification has been sent for this notice."}
