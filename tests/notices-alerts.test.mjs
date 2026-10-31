@@ -281,6 +281,15 @@ describe("follow-up: essential slot with several alerts (pure plan)", () => {
     assert.equal((src.match(/<Link /g) ?? []).length, 1, "a single strip, never a stack");
     assert.doesNotMatch(src, /a\.body|actionText|attribution|plan\.others\.map/);
   });
+  test("component: the icon is a SOLID exclamation (not a hairline stroke), and the strip is one accessible link with a built name", () => {
+    const src = rd("components/notices/EssentialAlertSlot.tsx");
+    assert.match(src, /<svg[^>]*fill="currentColor"[^>]*><rect[^>]*\/><circle[^>]*\/><\/svg>/, "bar + dot, filled");
+    assert.doesNotMatch(src, /M12 5v9M12 19v\.5/, "the old hairline glyph that read as a white disc is gone");
+    assert.match(src, /aria-label=\{name\}/); assert.match(src, /Opens all essential alerts/); assert.match(src, /Opens the full alert/); assert.match(src, /Essential alert, \$\{plan\.count\} active/);
+    assert.equal((src.match(/aria-hidden/g) ?? []).length, 3, "icon, text and chevron are hidden: the name covers them");
+    assert.match(src, /focus-visible:outline-white/); assert.match(src, /line-clamp-2/); assert.doesNotMatch(src.match(/<Link [^>]*>/)[0], /\sh-(\d|\[)/, "no fixed height on the link");
+    assert.match(src, /min-h-\[44px\]/);
+  });
 
 });
 
