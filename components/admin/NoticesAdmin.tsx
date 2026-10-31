@@ -330,6 +330,8 @@ export function DispatchTab({ initialId }: { initialId: string }) {
   );
 }
 
+const whenY = (v: unknown) => (typeof v === "string" && v ? new Date(v).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—");   // the year matters for entries over a year old
+
 /* ── Privacy: retention schedule (read-only report) and audit redaction ────── */
 export type RetentionRow = { funeral_id: string; status: string; retain_until: string; eligible: boolean; reason: string; blocked_by: string | null };
 export type RedactionCandidate = { audit_id: number; at: string; event: string; keys: string[] };
@@ -346,7 +348,7 @@ export function PrivacyTab({ retention, candidates }: { retention: RetentionRow[
         <p className="text-sm text-ink-soft">Read-only. Funeral records are deleted by a scheduled job only after release approval; until then nothing is deleted. {eligible} record{eligible === 1 ? " is" : "s are"} past the end of {eligible === 1 ? "its" : "their"} period; {retention.length - eligible} {retention.length - eligible === 1 ? "is" : "are"} scheduled or held.</p>
         {retention.length === 0 ? <Empty>Nothing is scheduled.</Empty> : (
           <div className="overflow-x-auto rounded-lg border border-line"><table className="w-full text-left text-sm"><thead className="bg-sand text-xs uppercase text-ink-soft"><tr><th className="px-3 py-2">Reference</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Delete after</th><th className="px-3 py-2">Why</th><th className="px-3 py-2">Held back</th></tr></thead>
-            <tbody>{retention.map((r) => <tr key={r.funeral_id} className="border-t border-line align-top"><td className="px-3 py-2 font-mono text-xs break-all">{r.funeral_id}</td><td className="px-3 py-2">{r.status.replace("_", " ")}</td><td className="whitespace-nowrap px-3 py-2">{when(r.retain_until)}</td><td className="px-3 py-2">{r.reason}</td><td className="px-3 py-2">{r.blocked_by ? r.blocked_by.replace("_", " ") : r.eligible ? "Due" : "—"}</td></tr>)}</tbody></table></div>
+            <tbody>{retention.map((r) => <tr key={r.funeral_id} className="border-t border-line align-top"><td className="px-3 py-2 font-mono text-xs break-all">{r.funeral_id}</td><td className="px-3 py-2">{r.status.replace("_", " ")}</td><td className="whitespace-nowrap px-3 py-2">{whenY(r.retain_until)}</td><td className="px-3 py-2">{r.reason}</td><td className="px-3 py-2">{r.blocked_by ? r.blocked_by.replace("_", " ") : r.eligible ? "Due" : "—"}</td></tr>)}</tbody></table></div>
         )}
       </section>
       <section aria-label="Audit redaction" className="space-y-3">
@@ -356,7 +358,7 @@ export function PrivacyTab({ retention, candidates }: { retention: RetentionRow[
         <Status state={act.state} />
         {candidates.length === 0 ? <Empty>No entries are due for review.</Empty> : (
           <ul className="space-y-2">{candidates.map((c) => (
-            <li key={c.audit_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-paper p-3 text-sm"><span>{when(c.at)} · {c.event.replace(/_/g, " ")} · text in: {c.keys.join(", ")}</span>
+            <li key={c.audit_id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-paper p-3 text-sm"><span>{whenY(c.at)} · {c.event.replace(/_/g, " ")} · text in: {c.keys.join(", ")}</span>
               <button type="button" className={btnQuiet} disabled={act.state.busy || reason.trim().length < 10 || noteHasContact(reason)} onClick={async () => { if (!window.confirm("Replace this free text with [redacted]? This cannot be undone.")) return; const x = await act.run(() => noticeWrite("admin_redact_audit_text", { p_audit_id: c.audit_id, p_keys: c.keys, p_reason: reason.trim() }), "Redacted."); if (x.ok) router.refresh(); }}>Redact</button></li>
           ))}</ul>
         )}
