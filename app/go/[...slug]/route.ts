@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { publicClient } from "@/lib/supabase/public";
+import { socialDestination } from "@/lib/social-links";
 
 /**
  * /go/* — clean short links for social posts.
@@ -14,6 +15,16 @@ import { publicClient } from "@/lib/supabase/public";
  *   /go/whats-on     → /whats-on  (campaign whats_on_roundup)
  *   /go/jobs         → /jobs      (campaign jobs_roundup)
  *   /go/event/<id>   → /whats-on/<id> (campaign event_spotlight)
+ *
+ *   Social Studio's newer recipes:
+ *   /go/notice/<id>      → /notices/<id>       (notice_update / essential_alert)
+ *   /go/memory/<id>      → /memories/<id>      (aald_memory)
+ *   /go/business/<id>    → /directory/<id>     (business_spotlight)
+ *   /go/hub/<id>         → /hubs/<id>          (hub_community)
+ *   /go/games/<game>     → /games/<game>       (game_challenge; allow-listed games only)
+ *   /go/cruise/<date>    → /cruise/<date>      (cruise_visit; YYYY-MM-DD only)
+ *   An id that isn't a plain identifier, or a game/date that doesn't match, falls back to the home page
+ *   rather than being spliced into a path.
  */
 
 export const dynamic = "force-dynamic";
@@ -31,7 +42,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   let path = "/";
   let campaign = "unknown";
   let objectId: string | undefined;
-  if (head === "event" && id) {
+  let objectType = "";
+  const social = socialDestination(slug ?? []);
+  if (social) {
+    path = social.path;
+    campaign = social.campaign;
+    objectId = social.objectId;
+    objectType = social.objectType;
+  } else if (head === "event" && id) {
     path = `/whats-on/${id}`;
     campaign = "event_spotlight";
     objectId = id;
@@ -54,7 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
         session_id: "social-redirect",
         platform: "web",
         user_type: "visitor",
-        object_type: objectId ? "event" : "page",
+        object_type: objectType || (objectId ? "event" : "page"),
         object_id: objectId ?? path,
         props: { campaign, channel: "facebook", slug: (slug ?? []).join("/") },
         consent: true,

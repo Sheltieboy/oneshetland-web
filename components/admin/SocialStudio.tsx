@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from "react";
 import type { SocialPost, SocialRecipe } from "@/lib/social-admin.server";
-import { kindMeta } from "@/lib/social-meta";
+import { kindMeta, recipeSchedule } from "@/lib/social-meta";
 import {
   approveSocialPost, createCustomPost, deleteSocialPost, revertSocialPost,
   saveSocialPost, skipSocialPost, toggleSocialRecipe, toggleSocialRecipeAutopilot,
@@ -242,6 +242,13 @@ function QueueCard({ post }: { post: SocialPost }) {
           <StatusPill status={post.status} />
           <span className="text-xs text-ink-muted">created {fmt(post.created_at)}</span>
         </div>
+        {NEEDS_CHECK.has(post.kind) && (
+          <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900">
+            {post.kind === "essential_alert"
+              ? "Essential alert: only you can approve it, and it is checked again at the moment of posting. If the alert has ended or been withdrawn by then, it is skipped, not posted."
+              : "Checked again at the moment of posting. If this is no longer current or permitted by then, it is skipped, not posted."}
+          </p>
+        )}
         <textarea
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
@@ -363,19 +370,36 @@ function MiniSwitch({
   );
 }
 
+/** Recipes whose posts always need a person. Mirrors the database rule (CHECK + trigger) so the switch can't even be tried. */
+const ALWAYS_APPROVE = new Set(["essential_alert"]);
+/** Kinds the publisher re-validates against live data just before sending. */
+const NEEDS_CHECK = new Set(["notice_update", "essential_alert", "aald_memory", "business_spotlight", "hub_community", "cruise_visit"]);
+
 function RecipeRow({ recipe }: { recipe: SocialRecipe }) {
   const [enabled, setEnabled] = useState(recipe.enabled);
   const [autopilot, setAutopilot] = useState(recipe.autopilot);
   const [pendingEnabled, startEnabled] = useTransition();
   const [pendingAutopilot, startAutopilot] = useTransition();
+  const locked = ALWAYS_APPROVE.has(recipe.key);
+  const note = typeof recipe.config.note === "string" ? recipe.config.note : null;
+  const schedule = recipeSchedule(recipe.config);
+  const cap = typeof recipe.config.max_pending === "number" ? recipe.config.max_pending : null;
   return (
     <li className="flex items-center gap-4 rounded-card border border-line bg-white p-4 shadow-soft">
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold text-ink">{recipe.label}</p>
         <p className="text-xs text-ink-muted">last ran {fmt(recipe.last_run_at)}</p>
+        {note && <p className="mt-1 text-xs text-ink-soft">{note}</p>}
+        {(schedule || cap) && (
+          <p className="mt-1 text-xs text-ink-muted">
+            {schedule && <>Schedule: {schedule}. </>}{cap ? <>Drafting pauses while {cap} are waiting. </> : null}
+          </p>
+        )}
         {enabled && (
           <p className="mt-1 text-xs text-ink-muted">
-            {autopilot
+            {locked
+              ? "Every post needs your approval — autopilot is locked off for alerts."
+              : autopilot
               ? "Posts automatically on schedule — no approval needed."
               : "Drafts land in the queue for manual approval."}
           </p>
@@ -397,8 +421,10 @@ function RecipeRow({ recipe }: { recipe: SocialRecipe }) {
       <MiniSwitch
         label="Autopilot"
         checked={autopilot}
-        disabled={pendingAutopilot || !enabled}
-        title={enabled
+        disabled={pendingAutopilot || !enabled || locked}
+        title={locked
+          ? "Locked off: Essential alert posts always need your explicit approval."
+          : enabled
           ? "On: what this recipe drafts is publisher-eligible immediately (still respects its own schedule). Off: drafts wait for manual approval."
           : "Enable the recipe first."}
         onChange={(next) => {

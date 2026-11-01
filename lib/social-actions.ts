@@ -90,6 +90,8 @@ export async function toggleSocialRecipe(key: string, enabled: boolean): Promise
  */
 export async function toggleSocialRecipeAutopilot(key: string, autopilot: boolean): Promise<Result> {
   await requireAdmin();
+  // Essential alerts always need a human. The database refuses this too (trigger + CHECK); this just says so before the round trip.
+  if (key === "essential_alert" && autopilot) return { ok: false, error: "Essential alert posts always need your approval; autopilot can't be turned on." };
   const sb = await createClient();
   const { error } = await sb.from("social_recipes").update({ autopilot }).eq("key", key);
   if (error) return { ok: false, error: error.message };
