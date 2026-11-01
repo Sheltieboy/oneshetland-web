@@ -42,8 +42,8 @@ type Showcase = {
 
 const SHOWCASE: Showcase[] = [
   {
-    title: "Local — offers, cashback & bookable",
-    benefit: "Show up in Local when people browse shops, makers and services, and filter for offers, cashback or businesses they can book. Offers, cashback and online booking are on Pro and above.",
+    title: "Local — offers & bookable",
+    benefit: "Show up in Local when people browse shops, makers and services, and filter for offers or businesses they can book. Offers and online booking are on Pro and above.",
     device: "phone",
     src: "/business/local-phone.png",
     accent: LOCAL,
@@ -80,7 +80,20 @@ const ALSO: { title: string; body: string; accent: string }[] = [
 ];
 
 /** A few plan rows are worded for the shared tier model; say exactly what the website gives. */
-const ROW_LABEL: Record<string, string> = { "Featured homepage spot": "★ Featured badge and priority placement" };
+const ROW_LABEL: Record<string, string> = {
+  "Featured homepage spot": "★ Featured badge and priority placement",
+  // Built, but not yet in everyday use with island businesses (no genuine merchant has taken a Wallet payment; no tile has been posted), so they are
+  // not advertised as live. The plan permissions themselves are unchanged — only what this page says.
+  "Local Wallet payments": "Local Wallet payments (coming soon)",
+  "Tap-to-stamp NFC tile": "Tap-to-stamp NFC tile (coming soon)",
+};
+
+/** The shared plan blurbs name the same two features; say "coming soon" here too. */
+const SOON = "Tap-to-stamp tiles and Local Wallet payments are coming soon.";
+const blurbFor = (tier: SubscriptionTier) => {
+  const b = TIER_PITCH[tier].blurb;
+  return tier === "pro" ? `${b.replace("tap-to-stamp, Local Wallet payments, ", "")} ${SOON}` : b;
+};
 
 /* ── Plans ──────────────────────────────────────────────────────────────────── */
 const PLAN_ORDER: SubscriptionTier[] = ["free", "pro", "premium"];
@@ -242,7 +255,7 @@ export default function BusinessLandingPage() {
 
                   <div className="mt-5 rounded-xl bg-sand/50 p-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">What you get</p>
-                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{TIER_PITCH[tier].blurb}</p>
+                    <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{blurbFor(tier)}</p>
                   </div>
 
                   <ul className="mt-5 flex-1 space-y-2.5">
@@ -263,7 +276,7 @@ export default function BusinessLandingPage() {
 
                   <PlanButton plan={tier} featured={featured} accent={LOCAL} />
                   {tier === "premium" && (
-                    <p className="mt-1 text-center text-xs text-ink-muted">Or £290 a year — ten months for twelve, and we post you a tap-to-stamp tile.</p>
+                    <p className="mt-1 text-center text-xs text-ink-muted">Or £290 a year — ten months for twelve.</p>
                   )}
                 </div>
               );

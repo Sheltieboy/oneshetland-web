@@ -10,7 +10,8 @@ import { normaliseName, matchKind, searchTerm, distinctiveWord, rankMatches, lik
 import { planCta, billingHref, FINDER_ANCHOR } from "../lib/plan-cta.ts";
 import { submitClaim } from "../lib/claim-submit.ts";
 import { countLabel } from "../lib/directory-count.ts";
-import { TIER_PRICE, TIER_PRICE_PENCE, PREMIUM_ANNUAL_PENCE, PLAN_COMPARISON, TIER_FEATURES } from "../lib/listing-tiers.ts";
+import { TIER_PRICE, TIER_PRICE_PENCE, PREMIUM_ANNUAL_PENCE, PLAN_COMPARISON, TIER_FEATURES, TIER_PITCH } from "../lib/listing-tiers.ts";
+const TIER_PITCH_PRO_HAS_FEATURES = TIER_PITCH.pro.blurb.includes("tap-to-stamp, Local Wallet payments, ");
 import { safeNext } from "../lib/redirect.ts";
 
 const read = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
@@ -208,6 +209,19 @@ describe("/business copy", () => {
     assert.doesNotMatch(page, /Harry|Hood Wink|Burra/);
   });
   test("the page does not promise an approval timescale", () => { assert.doesNotMatch(page, /within \d|\d+\s*(hours|working days)|shortly/i); assert.match(page, /We check every claim by hand/); });
+});
+
+describe("features that are built but not yet in everyday use are not advertised as live", () => {
+  const page = read("app/business/page.tsx");
+  test("Wallet payments and the NFC tile are marked coming soon, in the plan rows and the Pro blurb", () => {
+    assert.match(page, /"Local Wallet payments": "Local Wallet payments \(coming soon\)"/); assert.match(page, /"Tap-to-stamp NFC tile": "Tap-to-stamp NFC tile \(coming soon\)"/);
+    assert.match(page, /Tap-to-stamp tiles and Local Wallet payments are coming soon\./);
+    assert.ok(TIER_PITCH_PRO_HAS_FEATURES, "the override targets the exact phrase in the shared blurb");
+  });
+  test("no promise that a tile will be posted, and no cashback claim", () => { assert.doesNotMatch(page, /we post you|posted? you a tap|tile is included/i); assert.doesNotMatch(page, /cashback/i); });
+  test("the rows still exist in the shared model unchanged (permissions are not edited)", () => {
+    assert.equal(TIER_FEATURES.wallet, "pro"); assert.equal(TIER_FEATURES.nfc, "pro"); assert.ok(PLAN_COMPARISON.some((r) => r.label === "Local Wallet payments" && r.tier === "pro")); assert.ok(PLAN_COMPARISON.some((r) => r.label === "Tap-to-stamp NFC tile" && r.tier === "pro"));
+  });
 });
 
 describe("directory count", () => {
