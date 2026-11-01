@@ -29,6 +29,19 @@ export async function hubPayoutReady(hubId: string): Promise<boolean> {
   return data === true;
 }
 
+/**
+ * Can this campaign's hub currently be paid? campaign_payout_ready(): hub_payout_ready() of the campaign's hub,
+ * callable signed-out because campaign pages are public. DISPLAY ONLY — card and wallet donations keep their own
+ * server-side checks. `null` means the answer could not be read (not "no"), so a transient failure never hides a
+ * working campaign.
+ */
+export async function campaignPayoutReady(campaignId: string): Promise<boolean | null> {
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("campaign_payout_ready", { p_campaign: campaignId });
+  if (error || typeof data !== "boolean") return null;
+  return data;
+}
+
 /** The signed-in user's membership in a hub (any status), or null. */
 export async function getMyMembership(hubId: string): Promise<HubMember | null> {
   const sb = await createClient();

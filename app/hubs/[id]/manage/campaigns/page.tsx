@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { requireHubAdmin } from "@/lib/hubs-server";
+import { requireHubAdmin, hubPayoutReady } from "@/lib/hubs-server";
+import { hubPayoutHref } from "@/lib/hub-payout-notice";
 import { getHubCampaigns } from "@/lib/hubs-data";
 import { CampaignsManager } from "@/components/hubs/admin/CampaignsManager";
 
@@ -9,7 +10,7 @@ export const metadata = { title: "Fundraising" };
 export default async function CampaignsAdminPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { hub, accent } = await requireHubAdmin(id);
-  const campaigns = await getHubCampaigns(hub.id);
+  const [campaigns, payoutReady] = await Promise.all([getHubCampaigns(hub.id), hubPayoutReady(hub.id)]);
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
@@ -23,7 +24,7 @@ export default async function CampaignsAdminPage({ params }: { params: Promise<{
           Donations
         </Link>
       </div>
-      <div className="mt-8"><CampaignsManager hubId={hub.id} campaigns={campaigns} accent={accent} /></div>
+      <div className="mt-8"><CampaignsManager hubId={hub.id} campaigns={campaigns} accent={accent} payoutReady={payoutReady} payoutHref={hubPayoutHref(hub.slug || hub.id, "campaigns")} /></div>
     </div>
   );
 }

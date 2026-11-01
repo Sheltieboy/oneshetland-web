@@ -36,7 +36,7 @@ export function hubPayoutNotice(ready: boolean): HubPayoutNotice {
 }
 
 /** The hub's payouts page, told where to send the admin back to. */
-export function hubPayoutHref(hubIdOrSlug: string, next?: "tiers"): string {
+export function hubPayoutHref(hubIdOrSlug: string, next?: "tiers" | "campaigns"): string {
   const base = `/hubs/${hubIdOrSlug}/manage/payouts`;
   return next ? `${base}?next=${next}` : base;
 }

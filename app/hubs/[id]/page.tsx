@@ -17,7 +17,7 @@ import {
 import { getAccount } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentState } from "@/lib/payment-state";
-import { getMyMembership, isHubAdmin, getHubDirectory } from "@/lib/hubs-server";
+import { getMyMembership, isHubAdmin, getHubDirectory, campaignPayoutReady } from "@/lib/hubs-server";
 import { HubMembershipPanel } from "@/components/hubs/HubMembershipPanel";
 import { DirectoryButton, CampaignSidebar } from "@/components/hubs/HubSidebarActions";
 import { TrackView } from "@/components/analytics/TrackView";
@@ -52,7 +52,10 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
     getMyMembership(hub.id),
     isHubAdmin(hub.id),
   ]);
-  const donors = campaign ? await getCampaignDonors(campaign.id) : [];
+  const [donors, campaignPayout] = await Promise.all([
+    campaign ? getCampaignDonors(campaign.id) : Promise.resolve([]),
+    campaign ? campaignPayoutReady(campaign.id) : Promise.resolve(null),
+  ]);
   // Card state is resolved on the server — the browser never holds those
   // columns. It only decides which payment method the checkout defaults to.
   const hasSavedCard = account
@@ -243,6 +246,7 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
               isCharity={hub.is_charity && !!hub.charity_number}
               isLoggedIn={!!account}
               signInHref={`/sign-in?next=/hubs/${hub.slug || hub.id}`}
+              payoutReady={campaignPayout}
             />
           )}
 

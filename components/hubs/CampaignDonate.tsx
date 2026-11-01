@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DonateModal } from "./DonateModal";
+import { DONATIONS_UNAVAILABLE, donationActionAvailable } from "@/lib/campaign-payout-state";
 
 export function CampaignDonate({
   campaignId,
@@ -12,6 +13,7 @@ export function CampaignDonate({
   signInHref,
   closed,
   ended = false,
+  payoutReady = null,
 }: {
   campaignId: string;
   hubName: string;
@@ -21,6 +23,8 @@ export function CampaignDonate({
   signInHref: string;
   closed: boolean;
   ended?: boolean;
+  /** campaign_payout_ready(): false withdraws the Donate action; null (unknown) keeps it — the server still decides. */
+  payoutReady?: boolean | null;
 }) {
   const [open, setOpen] = useState(false);
   // A campaign past its end date is no longer accepting money — the backend
@@ -29,6 +33,14 @@ export function CampaignDonate({
     return (
       <div className="rounded-pill border border-line-strong px-5 py-3 text-center font-semibold text-ink-muted">
         {closed ? "This campaign is closed" : "This campaign has ended"}
+      </div>
+    );
+  }
+  if (!donationActionAvailable(true, payoutReady)) {
+    return (
+      <div role="status" className="rounded-xl border border-line-strong bg-sand px-5 py-4 text-center">
+        <p className="font-semibold text-ink">{DONATIONS_UNAVAILABLE.title}</p>
+        <p className="mt-1 text-sm text-ink-soft">{DONATIONS_UNAVAILABLE.body}</p>
       </div>
     );
   }

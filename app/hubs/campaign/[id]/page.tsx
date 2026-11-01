@@ -4,6 +4,7 @@ import { getCampaign, getHub, getCampaignDonors, hubAccent, campaignAcceptsDonat
 import { getAccount } from "@/lib/auth";
 import { gbp } from "@/lib/currency";
 import { CampaignDonate } from "@/components/hubs/CampaignDonate";
+import { campaignPayoutReady } from "@/lib/hubs-server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +19,11 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
   const campaign = await getCampaign(id);
   if (!campaign) notFound();
 
-  const [hub, donors, account] = await Promise.all([
+  const [hub, donors, account, payoutReady] = await Promise.all([
     getHub(campaign.hub_id),
     getCampaignDonors(campaign.id),
     getAccount(),
+    campaignPayoutReady(campaign.id),
   ]);
   if (!hub) notFound();
 
@@ -95,6 +97,7 @@ export default async function CampaignPage({ params }: { params: Promise<{ id: s
                 signInHref={`/sign-in?next=/hubs/campaign/${campaign.id}`}
                 closed={campaign.status === "closed"}
               ended={!campaignAcceptsDonations(campaign)}
+                payoutReady={payoutReady}
               />
             </div>
             {hub.is_charity && !!hub.charity_number && (

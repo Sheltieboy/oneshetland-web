@@ -17,12 +17,12 @@ export default async function PayoutsPage(
   const { hub, accent } = await requireHubAdmin(id);
   // Arrived from membership tiers? Go back there rather than dropping the admin
   // at the management index to find their way again.
-  const backToTiers = next === "tiers";
-  const backHref = `/hubs/${hub.slug || hub.id}/manage${backToTiers ? "/tiers" : ""}`;
+  const backTo = next === "tiers" ? { path: "/tiers", label: "membership tiers" } : next === "campaigns" ? { path: "/campaigns", label: "fundraising" } : null;
+  const backHref = `/hubs/${hub.slug || hub.id}/manage${backTo?.path ?? ""}`;
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
-      <Link href={backHref} className="text-sm font-semibold hover:underline" style={{ color: accent }}>← Back to {backToTiers ? "membership tiers" : "management"}</Link>
+      <Link href={backHref} className="text-sm font-semibold hover:underline" style={{ color: accent }}>← Back to {backTo?.label ?? "management"}</Link>
       <h1 className="mt-3 font-display text-3xl font-bold">Payouts</h1>
       <p className="mt-2 text-ink-soft">
         To take paid memberships or donations, connect a payout account with Stripe.

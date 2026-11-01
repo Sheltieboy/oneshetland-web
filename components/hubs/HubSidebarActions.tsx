@@ -6,6 +6,7 @@ import { SlideOver } from "@/components/ui/SlideOver";
 import { DonateModal } from "@/components/hubs/DonateModal";
 import { gbp } from "@/lib/currency";
 import { campaignAcceptsDonations } from "@/lib/hubs-data";
+import { DONATIONS_UNAVAILABLE, donationActionAvailable } from "@/lib/campaign-payout-state";
 
 type DirectoryEntry = { user_id: string; name: string; role: string; tier?: string | null };
 type Donor = { name: string | null; amount_pence: number; is_anonymous: boolean };
@@ -86,6 +87,7 @@ export function CampaignSidebar({
   isCharity,
   isLoggedIn,
   signInHref,
+  payoutReady = null,
 }: {
   campaign: Campaign;
   donors: Donor[];
@@ -94,6 +96,8 @@ export function CampaignSidebar({
   isCharity: boolean;
   isLoggedIn: boolean;
   signInHref: string;
+  /** campaign_payout_ready(): false withdraws Donate; null (unknown) keeps it — the server still decides. */
+  payoutReady?: boolean | null;
 }) {
   const [donateOpen, setDonateOpen] = useState(false);
 
@@ -113,14 +117,20 @@ export function CampaignSidebar({
           {campaign.donor_count > 0 ? ` · ${campaign.donor_count} supporter${campaign.donor_count === 1 ? "" : "s"}` : ""}
         </p>
 
+        {campaignAcceptsDonations(campaign) && payoutReady === false && (
+          <p role="status" className="mt-3 text-sm text-ink-soft"><span className="font-semibold text-ink">{DONATIONS_UNAVAILABLE.title}.</span> {DONATIONS_UNAVAILABLE.body}</p>
+        )}
+
         <div className="mt-4 flex gap-2">
           <button
             onClick={() => setDonateOpen(true)}
-            disabled={!campaignAcceptsDonations(campaign)}
+            disabled={!donationActionAvailable(campaignAcceptsDonations(campaign), payoutReady)}
             className="flex-1 rounded-pill px-4 py-2.5 text-center text-sm font-semibold text-paper transition hover:brightness-95 disabled:opacity-50"
             style={{ background: accent }}
           >
-            {campaignAcceptsDonations(campaign) ? "Donate" : campaign.status === "closed" ? "Closed" : "Ended"}
+            {!campaignAcceptsDonations(campaign)
+              ? campaign.status === "closed" ? "Closed" : "Ended"
+              : payoutReady === false ? "Unavailable" : "Donate"}
           </button>
           <Link
             href={`/hubs/campaign/${campaign.id}`}
