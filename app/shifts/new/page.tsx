@@ -12,7 +12,7 @@ export default async function NewShiftPage() {
   const businesses = account ? await getMyBusinesses(account.id) : [];
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-ink-soft hover:text-ink">← Shifts</Link>
+      <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-ink-soft hover:text-ink">← Work · Shifts</Link>
       <div className="mt-6">
         <p className="text-xs font-bold uppercase tracking-widest" style={{ color: SHIFTS }}>OneShetland · Shifts</p>
         <h1 className="mt-1 font-display text-4xl font-bold">Post a shift</h1>

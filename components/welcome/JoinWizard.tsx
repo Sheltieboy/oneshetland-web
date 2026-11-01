@@ -716,7 +716,7 @@ function Done({ state }: { state: OnboardingState }) {
     { href: "/whats-on", label: "See what's on", blurb: "Events across the isles" },
     { href: "/directory", label: "Browse the directory", blurb: "Every Shetland business" },
     { href: "/games/guess-da-wird", label: "Play Guess Da Wird", blurb: "Today's dialect word" },
-    { href: "/jobs", label: "Look at jobs", blurb: "Work across Shetland" },
+    { href: "/jobs", label: "Look for work", blurb: "Jobs and short shifts across Shetland" },
   ];
 
   return (

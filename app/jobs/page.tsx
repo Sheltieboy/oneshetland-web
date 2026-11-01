@@ -14,7 +14,13 @@ import { getAccount } from "@/lib/auth";
 import { getMyPostingCounts } from "@/lib/jobs-data.server";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Work" };
+// "Work" is the section's name (matching the app); the title keeps "jobs" and "shifts" in it, and the canonical stays /jobs, so what the URL
+// has earned in search is kept while the name changes.
+export const metadata = {
+  title: "Work — jobs & shifts in Shetland",
+  description: "Find jobs and short-notice shifts across Shetland — permanent, part-time and seasonal roles, and casual same-day work, from island employers.",
+  alternates: { canonical: "/jobs" },
+};
 
 const isShiftsTab = (t?: string) => t === "shifts";
 
@@ -101,7 +107,7 @@ export default async function WorkHubPage({
         <Image src="/heroes/jobs.webp" alt="" fill priority className="object-cover opacity-20" />
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${accent}e6 30%,${accent}b0)` }} />
         <div className="relative mx-auto max-w-6xl px-5 py-10 sm:py-12">
-          <p className="text-xs font-bold uppercase tracking-widest text-white/75">OneShetland · Work</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-white/75">OneShetland · Work · Jobs &amp; short shifts</p>
           <h1 className="mt-1 font-display text-4xl font-bold text-white sm:text-5xl">Find work in Shetland</h1>
           <p className="mt-2 max-w-xl text-base text-white/85 sm:text-lg">
             {isShifts

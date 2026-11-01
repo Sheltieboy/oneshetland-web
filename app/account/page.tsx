@@ -37,7 +37,7 @@ export default async function AccountOverview() {
     { href: "/account/memberships", title: "Memberships", desc: "Your digital hub membership cards" },
     { href: "/account/following", title: "Following", desc: "Businesses you follow" },
     { href: "/account/hubs", title: "Hubs I manage", desc: "Groups and committees you own or help run" },
-    { href: "/work", title: "Work", desc: "Your work profile, applications, and the jobs & shifts you've posted" },
+    { href: "/work", title: "My work", desc: "Your work profile, applications, and the jobs & shifts you've posted" },
     { href: "/games/stats", title: "Game stats", desc: "Your XP, streaks and leaderboard places" },
   ];
 

@@ -17,7 +17,7 @@ export default async function NewJobPage({ searchParams }: { searchParams: Promi
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-14">
-      <Link href="/jobs" className="text-sm font-semibold text-ink-soft hover:text-ink">← Work</Link>
+      <Link href="/jobs" className="text-sm font-semibold text-ink-soft hover:text-ink">← Work · Jobs</Link>
       <div className="mt-6">
         <p className="text-xs font-bold uppercase tracking-widest" style={{ color: JOBS }}>OneShetland · Jobs</p>
         <h1 className="mt-1 font-display text-4xl font-bold">{canEdit ? "Edit job" : "Post a job"}</h1>

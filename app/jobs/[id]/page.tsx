@@ -51,7 +51,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <section className="relative isolate overflow-hidden" style={{ background: JOBS }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${JOBS}f0 30%,${JOBS}c0)` }} />
         <div className="relative mx-auto max-w-4xl px-5 py-10 sm:py-12">
-          <Link href="/jobs" className="text-sm font-semibold text-white/80 hover:text-white">← Jobs</Link>
+          <Link href="/jobs" className="text-sm font-semibold text-white/80 hover:text-white">← Work · Jobs</Link>
           <div className="mt-4 flex items-start gap-4">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/30 bg-white/10">
               {disp.logo_url

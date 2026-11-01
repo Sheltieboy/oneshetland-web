@@ -52,7 +52,7 @@ export default async function ShiftDetailPage({ params }: { params: Promise<{ id
       <section className="relative isolate overflow-hidden" style={{ background: SHIFTS }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${SHIFTS}f0 30%,${SHIFTS}c0)` }} />
         <div className="relative mx-auto max-w-4xl px-5 py-10 sm:py-12">
-          <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-white/85 hover:text-white">← Shifts</Link>
+          <Link href="/jobs?tab=shifts" className="text-sm font-semibold text-white/85 hover:text-white">← Work · Shifts</Link>
           <div className="mt-4 flex items-start gap-4">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/30 bg-white/10">
               {biz.logo_url

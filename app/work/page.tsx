@@ -34,13 +34,15 @@ const GROUPS: { title: string; items: { href: string; title: string; desc: strin
 
 export default async function MyWorkPage() {
   const account = await getAccount();
-  if (!account) redirect("/sign-in?next=/work");
+  // "Work" is the public section's name now (it lives at /jobs). Somebody who is not signed in and lands on /work has nothing of their own to
+  // see here yet, so show them the public Work page rather than a sign-in wall; signed-in people get their own area, as before.
+  if (!account) redirect("/jobs");
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-10 sm:py-14">
       <Link href="/account" className="text-sm font-semibold text-ink-soft hover:text-ink">← My account</Link>
       <h1 className="mt-3 font-display text-4xl font-bold">My work</h1>
-      <p className="mt-2 text-ink-soft">Everything that's yours — your work profile, what you've applied for, and what you've posted. To browse and apply, use <Link href="/jobs" className="font-semibold underline">Work</Link>.</p>
+      <p className="mt-2 text-ink-soft">Everything that's yours — your work profile, what you've applied for, and what you've posted. To browse and apply, use <Link href="/jobs" className="font-semibold underline">Work</Link> (jobs and shifts).</p>
 
       {GROUPS.map((g) => (
         <section key={g.title} className="mt-9">

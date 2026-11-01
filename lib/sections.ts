@@ -77,12 +77,12 @@ export const SECTIONS: Section[] = [
     blurb: "A branded home for every club, charity and community group — notices, members, fundraising.",
   },
   {
-    key: "jobs",
-    label: "Jobs",
+    key: "jobs",          // the key, and the /jobs URL, stay as they were: links, SEO and analytics all depend on them
+    label: "Work",        // what it is called everywhere a person reads it, matching the app's Work tab
     href: "/jobs",
     color: "#2a8b5c",
     token: "jobs",
-    blurb: "Work across Shetland — permanent roles, seasonal posts and short-notice shifts.",
+    blurb: "Jobs and short-notice shifts across Shetland — permanent roles, seasonal posts and same-day work.",
   },
   {
     key: "get-it-done",
