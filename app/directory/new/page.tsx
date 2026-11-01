@@ -11,10 +11,11 @@ const DIR = "#4f46e5";
 export default async function NewBusinessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ plan?: string }>;
+  searchParams: Promise<{ plan?: string; name?: string }>;
 }) {
   const account = await getAccount();
-  const { plan: planRaw } = await searchParams;
+  const { plan: planRaw, name: nameRaw } = await searchParams;
+  const initialName = (nameRaw ?? "").slice(0, 80);
   // Carried from a paid CTA on /business so we can send them to checkout after.
   const plan = planRaw === "pro" || planRaw === "premium" ? planRaw : null;
 
@@ -35,7 +36,7 @@ export default async function NewBusinessPage({
           <HelpTip topic="add-business" />
         </h1>
         <p className="mt-3 text-lg text-ink-soft">
-          Free to list. Reach everyone in Shetland with your business, offers, events and services.
+          Free to list. Already in the Directory? <Link href="/business#find-your-business" className="font-semibold underline">Find it and claim it</Link> instead.
         </p>
         {plan && (
           <p className="mt-4 rounded-lg border px-4 py-3 text-sm font-medium" style={{ borderColor: DIR + "40", background: DIR + "10", color: DIR }}>
@@ -45,7 +46,7 @@ export default async function NewBusinessPage({
       </div>
 
       <div className="mt-8">
-        <BusinessCreateForm isLoggedIn={!!account} plan={plan} />
+        <BusinessCreateForm isLoggedIn={!!account} plan={plan} initialName={initialName} />
       </div>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-3 text-center">

@@ -4,16 +4,25 @@ import {
   TIER_PRICE,
   TIER_PITCH,
   PLAN_COMPARISON,
-  tierFor,
+  BOOKING_FEE_PENCE,
+  BOOKING_CAP_UNITS,
+  BOOKING_CAP_PENCE,
+  FREE_GALLERY_LIMIT,
   tierMeets,
   type SubscriptionTier,
 } from "@/lib/business-data";
 import { PhoneFrame, LaptopFrame } from "@/components/business/DeviceFrame";
+import { OwnerProvider, OwnerStrip } from "@/components/business/OwnerProvider";
+import { BusinessFinder } from "@/components/business/BusinessFinder";
+import { PlanButton } from "@/components/business/PlanButton";
+import { FINDER_ANCHOR } from "@/lib/plan-cta";
+
+const gbp = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 
 export const metadata = {
   title: "For businesses",
   description:
-    "List your Shetland business on OneShetland — free to start. Offers, loyalty, bookings, jobs and a featured spot across the islands' community app.",
+    "Claim your free business listing on OneShetland — the community app and website for Shetland. Add offers, loyalty, bookings, jobs and events when you're ready.",
 };
 
 /* Section accents: Local violet + Directory indigo. */
@@ -33,36 +42,15 @@ type Showcase = {
 
 const SHOWCASE: Showcase[] = [
   {
-    title: "Your Directory listing",
-    benefit: "A proper home for your business — hours, contacts, map and story, found by anyone searching Shetland.",
-    device: "phone",
-    src: "/business/listing-phone.png",
-    accent: DIR,
-  },
-  {
     title: "Local — offers, cashback & bookable",
-    benefit: "Turn up in Local when folk browse shops and makers, filter for offers, cashback or businesses they can book.",
+    benefit: "Show up in Local when people browse shops, makers and services, and filter for offers, cashback or businesses they can book. Offers, cashback and online booking are on Pro and above.",
     device: "phone",
     src: "/business/local-phone.png",
     accent: LOCAL,
   },
   {
-    title: "The homepage “Shop & eat local” spot",
-    benefit: "Premium businesses get a featured placement right on the OneShetland home screen.",
-    device: "laptop",
-    src: "/business/home-desktop.png",
-    accent: LOCAL,
-  },
-  {
-    title: "Offers, stamps & loyalty",
-    benefit: "Run time-limited offers and a digital stamp card — customers collect and redeem straight from their phone.",
-    device: "phone",
-    src: "/business/loyalty-phone.png",
-    accent: LOCAL,
-  },
-  {
     title: "In-app bookings",
-    benefit: "Take appointments and reservations without a separate system — bookings land in your dashboard. On Pro they’re 95p each, capped monthly; on Premium there’s no fee at all.",
+    benefit: `Take appointments and reservations without a separate system — bookings land in your dashboard. On Pro it's ${BOOKING_FEE_PENCE}p per booking, capped at ${BOOKING_CAP_UNITS} a month (${gbp(BOOKING_CAP_PENCE)}), so Pro never costs more than Premium. On Premium there's no booking fee at all.`,
     device: "phone",
     src: "/business/bookings-phone.png",
     accent: LOCAL,
@@ -76,42 +64,26 @@ const SHOWCASE: Showcase[] = [
   },
   {
     title: "Events & tickets",
-    benefit: "List what you’ve got on and sell tickets across What’s On and your own listing — free, with a small fee per ticket sold.",
+    benefit: "List what you’ve got on and sell tickets across What’s On and your own listing — free to list, with a small fee per ticket sold.",
     device: "phone",
     src: "/business/events-phone.png",
     accent: "#d4921a",
   },
-  {
-    title: "Fetch community delivery",
-    benefit: "Let customers get your goods brought to their door the island way, through Fetch.",
-    device: "phone",
-    src: "/business/fetch-phone.png",
-    accent: "#e0722a",
-  },
-  {
-    title: "Community hubs",
-    benefit: "Clubs, charities and groups get a branded hub — notices, members and fundraising in one place.",
-    device: "laptop",
-    src: "/business/hubs-desktop.png",
-    accent: "#6b47bf",
-  },
-  {
-    title: "Analytics dashboard",
-    benefit: "See views, searches and redemptions so you know what’s working — included from Pro upwards.",
-    device: "laptop",
-    src: "/business/dashboard-desktop.png",
-    accent: DIR,
-  },
 ];
+
+/** The rest of what a listing can do. No screenshots: the old ones showed real, named businesses and invented figures. */
+const ALSO: { title: string; body: string; accent: string }[] = [
+  { title: "Your Directory listing", body: "Your story, photos, hours, contacts and map pin, found by anyone searching the Directory. Free.", accent: DIR },
+  { title: "Offers, stamps & loyalty", body: "Run time-limited offers and a digital stamp card that customers collect and redeem from their phone. Pro and above.", accent: LOCAL },
+  { title: "Analytics", body: "See views, searches and redemptions so you know what’s working. Pro and above.", accent: DIR },
+  { title: "Community hubs", body: "Clubs, charities and groups get a branded hub — notices, members and fundraising in one place.", accent: "#6b47bf" },
+];
+
+/** A few plan rows are worded for the shared tier model; say exactly what the website gives. */
+const ROW_LABEL: Record<string, string> = { "Featured homepage spot": "★ Featured badge and priority placement" };
 
 /* ── Plans ──────────────────────────────────────────────────────────────────── */
 const PLAN_ORDER: SubscriptionTier[] = ["free", "pro", "premium"];
-
-const PLAN_CTA: Record<SubscriptionTier, string> = {
-  free: "Start free",
-  pro: "Choose Pro",
-  premium: "Choose Premium",
-};
 
 /** What this tier includes — derived, so it can't under-describe a plan again. */
 function includedThrough(tier: SubscriptionTier) {
@@ -120,88 +92,69 @@ function includedThrough(tier: SubscriptionTier) {
 
 export default function BusinessLandingPage() {
   return (
-    <>
+    <OwnerProvider>
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="relative isolate overflow-hidden bg-navy text-paper">
         <div
           className="absolute inset-0 opacity-90"
           style={{ background: `radial-gradient(120% 90% at 15% 0%, ${LOCAL}55, transparent 55%), radial-gradient(120% 90% at 90% 20%, ${DIR}44, transparent 60%)` }}
         />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-[1.1fr_0.9fr] lg:py-24">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-5 py-16 md:grid-cols-[1.1fr_0.9fr] lg:py-20">
           <div>
             <p className="eyebrow text-paper/80">OneShetland for businesses</p>
             <h1 className="mt-4 font-display text-[2.6rem] font-bold leading-[1.03] sm:text-5xl lg:text-6xl">
               Grow your business across Shetland, in one place.
             </h1>
             <p className="mt-5 max-w-xl text-lg leading-relaxed text-paper/85">
-              Reach the customers already in the app the whole island uses. A free listing
-              gets you found; add offers, loyalty, bookings and a featured spot to turn that
-              reach into repeat custom. Made locally — cancel anytime.
+              Hundreds of Shetland businesses are already listed on OneShetland. Find yours, claim it <strong className="text-paper">free</strong>, and
+              add offers, loyalty and bookings when you&apos;re ready. Made in Shetland — cancel a paid plan any time.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link
-                href="/directory/new"
-                className="rounded-pill px-6 py-3 text-base font-bold text-paper shadow-lift transition hover:brightness-110"
-                style={{ background: LOCAL }}
-              >
-                Create your free listing
-              </Link>
-              <Link
-                href="/directory"
-                className="rounded-pill border border-paper/30 bg-paper/10 px-5 py-3 text-base font-semibold text-paper backdrop-blur-sm transition hover:bg-paper/20"
-              >
-                Already listed? Claim it
-              </Link>
-              <a
-                href="#plans"
-                className="rounded-pill px-4 py-3 text-base font-semibold text-paper/80 underline-offset-4 transition hover:text-paper hover:underline"
-              >
-                See plans
-              </a>
+            <div className="mt-7 max-w-xl" id="find-your-business">
+              <OwnerStrip />
+              <BusinessFinder />
             </div>
-            <p className="mt-4 text-sm text-paper/60">Free to start · {TIER_PRICE.free} for a Directory listing.</p>
+            <p className="mt-4 text-sm text-paper/70">
+              Claiming costs nothing. We check every claim by hand to keep the Directory trustworthy, and email you the outcome.{" "}
+              <a href="#plans" className="font-semibold text-paper underline underline-offset-4">See plans</a>
+            </p>
           </div>
           <div className="hidden md:block">
-            <PhoneFrame src="/business/listing-phone.png" alt="A OneShetland business listing on a phone" accent={LOCAL} className="max-w-[240px]" />
+            <PhoneFrame src="/business/local-phone.png" alt="OneShetland Local, showing offers and bookable businesses" accent={LOCAL} className="max-w-[240px]" />
           </div>
         </div>
       </section>
 
-      {/* ── The reach — a captured local market already in the app ─────────── */}
+      {/* ── What a listing gives you ───────────────────────────────────────── */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:py-20">
         <div className="grid items-center gap-10 md:grid-cols-2 md:gap-14">
           <div>
-            <p className="eyebrow" style={{ color: DIR }}>A market that&apos;s already here</p>
-            <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Get in front of the folk already looking.</h2>
+            <p className="eyebrow" style={{ color: DIR }}>One listing, found in many places</p>
+            <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Be easy to find across Shetland.</h2>
             <p className="mt-4 text-lg leading-relaxed text-ink-soft">
-              People in and around Shetland open OneShetland every day to see what&apos;s on, shop
-              local and find who to hire. That&apos;s a local audience you can&apos;t buy on social —
-              already in one place, already looking. Put your business where their attention is,
-              then turn it into custom with offers, a loyalty card, bookings and a featured spot
-              on the home screen.
+              OneShetland is the community app and website for the islands — what&apos;s on, shopping, jobs, notices and more. Your listing is in the
+              Directory and in Local, and your offers, events and jobs appear alongside it. You decide how much to add, and the basics are free.
             </p>
-            <Link
-              href="/directory"
+            <a
+              href={FINDER_ANCHOR}
               className="mt-8 inline-flex rounded-pill px-6 py-3 text-base font-bold text-paper shadow-soft transition hover:brightness-110"
               style={{ background: DIR }}
             >
-              Claim or add your business
-            </Link>
+              Find your business
+            </a>
           </div>
 
           <div
             className="rounded-2xl border p-8 shadow-soft sm:p-10"
             style={{ borderColor: `color-mix(in srgb, ${DIR} 25%, transparent)`, background: `color-mix(in srgb, ${DIR} 6%, white)` }}
           >
-            <p className="eyebrow" style={{ color: DIR }}>Your customers are already here</p>
-            <p className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">The whole community, in one app.</p>
+            <p className="eyebrow" style={{ color: DIR }}>Free to claim</p>
+            <p className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">Your listing, in your hands.</p>
             <p className="mt-3 leading-relaxed text-ink-soft">
-              One island, one app — what&apos;s on, shopping, jobs, delivery and more, all under the
-              same roof. Your listing shows up across every part of it, so a customer who finds
-              your café can just as easily book you, spend at you and come back.
+              Claim the listing that&apos;s already there and update your details, photos and hours. Add offers, loyalty, bookings and tickets when
+              they make sense for you — upgrade, downgrade or cancel from your dashboard.
             </p>
             <div className="mt-7 grid grid-cols-3 gap-3 text-center">
-              {[["One", "island"], ["Every day", "engaged"], ["No", "ad spend"]].map(([big, small]) => (
+              {[["Free", "to claim"], ["Yours", "to manage"], ["Any time", "cancel a paid plan"]].map(([big, small]) => (
                 <div key={small} className="rounded-xl bg-paper/70 px-2 py-4">
                   <p className="font-display text-2xl font-bold text-ink">{big}</p>
                   <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">{small}</p>
@@ -219,7 +172,7 @@ export default function BusinessLandingPage() {
           <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Everywhere your business shows up</h2>
           <p className="mt-3 text-lg text-ink-soft">
             OneShetland is where the islands go for what&apos;s on, where to shop and who to hire.
-            Your listing works across all of it.
+            Your listing works across it.
           </p>
         </div>
 
@@ -244,6 +197,15 @@ export default function BusinessLandingPage() {
             </div>
           ))}
         </div>
+        <div className="mt-14 grid gap-4 sm:grid-cols-2">
+          {ALSO.map((a) => (
+            <div key={a.title} className="rounded-2xl border border-line bg-paper p-6 shadow-soft">
+              <span className="inline-block h-1.5 w-10 rounded-full" style={{ background: a.accent }} />
+              <h3 className="mt-3 font-display text-xl font-bold text-ink">{a.title}</h3>
+              <p className="mt-2 text-ink-soft">{a.body}</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── Plans ──────────────────────────────────────────────────────────── */}
@@ -253,7 +215,7 @@ export default function BusinessLandingPage() {
             <p className="eyebrow" style={{ color: DIR }}>Plans</p>
             <h2 className="mt-2 font-display text-3xl font-bold text-ink sm:text-4xl">Start free. Upgrade when you&apos;re ready.</h2>
             <p className="mt-3 text-lg text-ink-soft">
-              Every plan includes a public listing. Higher tiers unlock a richer listing and more ways to sell.
+              Claiming a listing is free, and every plan includes a public listing. Paid plans add ways to sell. The price shown is the price charged.
             </p>
           </div>
 
@@ -289,34 +251,28 @@ export default function BusinessLandingPage() {
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accent} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
-                        {f.label}
+                        {ROW_LABEL[f.label] ?? f.label}
                       </li>
                     ))}
                     {tier === "free" && (
                       <li className="flex items-start gap-2.5 text-sm text-ink-faint">
-                        <span className="mt-0.5">·</span> Verified badge & claim your listing
+                        <span className="mt-0.5">·</span> Verified badge once your claim is approved
                       </li>
                     )}
                   </ul>
 
-                  <Link
-                    href={tier === "free" ? "/directory/new" : `/directory/new?plan=${tier}`}
-                    className={`mt-6 rounded-pill px-5 py-3 text-center text-base font-bold transition ${featured ? "text-paper hover:brightness-110" : "border text-ink hover:bg-sand"}`}
-                    style={featured ? { background: LOCAL } : { borderColor: "var(--color-line-strong)" }}
-                  >
-                    {PLAN_CTA[tier]}
-                  </Link>
-                  <p className="mt-2 text-center text-xs text-ink-muted">
-                    {tier === "free"
-                      ? "Upgrade anytime from your dashboard."
-                      : tier === "premium"
-                        ? "Or £290 a year — ten months for twelve, and we post you a tap-to-stamp tile."
-                        : "Create your listing, then pay — cancel anytime."}
-                  </p>
+                  <PlanButton plan={tier} featured={featured} accent={LOCAL} />
+                  {tier === "premium" && (
+                    <p className="mt-1 text-center text-xs text-ink-muted">Or £290 a year — ten months for twelve, and we post you a tap-to-stamp tile.</p>
+                  )}
                 </div>
               );
             })}
           </div>
+          <p className="mt-6 max-w-3xl text-sm text-ink-soft">
+            Bookings on Pro cost {BOOKING_FEE_PENCE}p each, capped at {BOOKING_CAP_UNITS} a month ({gbp(BOOKING_CAP_PENCE)}), so a Pro month never costs more than
+            Premium. Selling tickets has a small per-ticket fee on every plan. Free listings include a cover photo and up to {FREE_GALLERY_LIMIT} gallery photos.
+          </p>
         </div>
       </section>
 
@@ -329,9 +285,9 @@ export default function BusinessLandingPage() {
           </div>
           <div className="mt-10 grid gap-6 md:grid-cols-3">
             {[
-              { n: "1", t: "Claim or create your listing", d: "Search the Directory and claim your business, or add a new one. Free, no upfront cost." },
-              { n: "2", t: "Fill it in", d: "Add your hours, story and photos, then switch on offers, loyalty and bookings." },
-              { n: "3", t: "Upgrade when you’re ready", d: "Move up to Pro or Premium from your dashboard to unlock a richer listing and a featured spot." },
+              { n: "1", t: "Find and claim your listing", d: "Search for your business and claim it — free. We check each claim by hand. Not listed? Add it instead." },
+              { n: "2", t: "Fill it in", d: "Add your hours, story and photos. Offers, loyalty and bookings are there when you upgrade." },
+              { n: "3", t: "Upgrade when you’re ready", d: "Move up to Pro or Premium from your dashboard. You see the price and confirm before anything is charged." },
             ].map((step) => (
               <div key={step.n} className="rounded-2xl border border-line bg-paper p-7 shadow-soft">
                 <span className="grid h-11 w-11 place-items-center rounded-pill font-display text-lg font-bold text-paper" style={{ background: LOCAL }}>
@@ -356,7 +312,7 @@ export default function BusinessLandingPage() {
                 "Payments handled securely by Stripe.",
                 "Built and run in Shetland.",
                 "Cancel anytime — no contracts.",
-                "Prices shown exclude VAT where applicable.",
+                "You see the full price and confirm it before any payment.",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-2.5">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={LOCAL} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" className="mt-1 shrink-0">
@@ -369,9 +325,10 @@ export default function BusinessLandingPage() {
           </div>
           <div className="space-y-4">
             {[
-              { q: "What’s free?", a: "A public Directory listing — your name, category, area, logo, opening hours, one contact, a verified badge and the ability to post jobs — is free forever." },
-              { q: "Can I cancel?", a: "Yes. Upgrade, downgrade or cancel anytime from your business dashboard. You keep your free listing." },
-              { q: "How do customers find me?", a: "Through the Directory and Local search, category and area filters, the homepage, and — on Premium — a featured spot on the OneShetland home screen." },
+              { q: "Is claiming my listing really free?", a: "Yes. Claiming costs nothing and you can stay on the free plan for as long as you like. We check each claim by hand to keep the Directory trustworthy, and email you when there’s an outcome." },
+              { q: "What’s free?", a: `A public listing — your story, a cover photo and up to ${FREE_GALLERY_LIMIT} gallery photos, hours, contacts and a map pin, and a verified badge once your claim is approved. You can also post jobs and shifts and list events (ticket sales carry a small per-ticket fee) at no monthly cost.` },
+              { q: "Can I cancel?", a: "Yes. Upgrade, downgrade or cancel a paid plan any time from your business dashboard. You keep your free listing." },
+              { q: "How do customers find me?", a: "Through the Directory and Local search, category and area filters and your own listing page. Premium listings also carry a ★ Featured badge and are shown first in places like the Directory’s featured row." },
               { q: "Why can I only pay here on the web?", a: "Subscriptions and add-ons are managed on the website. The app is for running your listing day to day." },
             ].map((f) => (
               <div key={f.q} className="rounded-2xl border border-line bg-paper p-6 shadow-soft">
@@ -405,13 +362,13 @@ export default function BusinessLandingPage() {
               </ul>
             </div>
             <div className="flex flex-col items-start gap-3 md:items-end">
-              <Link
-                href="/directory/new"
+              <a
+                href={FINDER_ANCHOR}
                 className="inline-flex rounded-pill px-6 py-3 text-base font-bold text-paper shadow-soft transition hover:brightness-110"
                 style={{ background: LOCAL }}
               >
-                Start free — no upfront cost
-              </Link>
+                Find or add your business — free
+              </a>
             </div>
           </div>
         </div>
@@ -425,25 +382,25 @@ export default function BusinessLandingPage() {
         />
         <div className="relative mx-auto max-w-2xl text-center">
           <h2 className="font-display text-3xl font-bold sm:text-4xl">Put your business on the island&apos;s map.</h2>
-          <p className="mt-4 text-lg text-paper/85">Free to start. Add offers, loyalty and bookings whenever you like.</p>
+          <p className="mt-4 text-lg text-paper/85">Claiming is free. Add offers, loyalty and bookings whenever you like.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/directory/new"
+            <a
+              href={FINDER_ANCHOR}
               className="rounded-pill px-6 py-3 text-base font-bold text-paper shadow-lift transition hover:brightness-110"
               style={{ background: LOCAL }}
             >
-              Create your free listing
-            </Link>
+              Find and claim your listing
+            </a>
             <Link
-              href="/directory"
+              href="/directory/new"
               className="rounded-pill border border-paper/30 bg-paper/10 px-5 py-3 text-base font-semibold text-paper transition hover:bg-paper/20"
             >
-              Claim an existing one
+              Add a business that isn&apos;t listed
             </Link>
           </div>
         </div>
       </section>
-    </>
+    </OwnerProvider>
   );
 }
 

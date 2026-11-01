@@ -1,21 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { CATEGORIES } from "@/lib/local-data";
+import { findListed, likelyDuplicate, createDecision, claimHref, listingHref, type ListedBusiness, type MatchKind } from "@/lib/business-match";
 
 const DIR = "#4f46e5";
 
 export function BusinessCreateForm({
   isLoggedIn,
   plan = null,
+  initialName = "",
 }: {
   isLoggedIn: boolean;
   plan?: "pro" | "premium" | null;
+  /** Carried over from the /business finder when nothing matched what was typed. */
+  initialName?: string;
 }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
+  // Is this business already in the Directory? Checked as the name is typed, and again on submit.
+  const [similar, setSimilar] = useState<(ListedBusiness & { kind: MatchKind })[]>([]);
+  const [differentBusiness, setDifferentBusiness] = useState(false);
+  const seq = useRef(0);
+  const duplicate = likelyDuplicate(name, similar);
+  useEffect(() => {
+    const term = name.trim();
+    setDifferentBusiness(false);
+    if (term.length < 3) { setSimilar([]); return; }
+    const mine = ++seq.current;
+    const t = setTimeout(async () => {
+      try { const found = await findListed(createClient(), term); if (mine === seq.current) setSimilar(found); }
+      catch { if (mine === seq.current) setSimilar([]); }   // a failed lookup never blocks someone adding their business
+    }, 350);
+    return () => clearTimeout(t);
+  }, [name]);
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
@@ -32,7 +53,7 @@ export function BusinessCreateForm({
         <p className="font-display text-xl font-bold">Sign in to add your business</p>
         <p className="mt-2 text-ink-soft">You need a free OneShetland account to create a listing.</p>
         <a
-          href={`/sign-in?next=${encodeURIComponent(`/directory/new${plan ? `?plan=${plan}` : ""}`)}`}
+          href={`/sign-in?next=${encodeURIComponent(`/directory/new${(() => { const q = new URLSearchParams(); if (plan) q.set("plan", plan); if (initialName) q.set("name", initialName); const s = q.toString(); return s ? `?${s}` : ""; })()}`)}`}
           className="mt-5 inline-block rounded-pill px-6 py-3 font-semibold text-paper transition hover:brightness-95"
           style={{ background: DIR }}
         >
@@ -49,6 +70,12 @@ export function BusinessCreateForm({
     setBusy(true);
     try {
       const sb = createClient();
+      // Re-check at the moment of creating, so a listing that appeared while the form was open (or a lookup that was still in flight) is not missed.
+      if (!differentBusiness) {
+        const found = await findListed(sb, name.trim()).catch(() => []);
+        setSimilar(found);
+        if (!createDecision(name, found, false).allowed) { setBusy(false); return setError("This looks like a business that is already listed. Claiming it is free — or tick the box below if yours is a different business."); }
+      }
       const { data: { user } } = await sb.auth.getUser();
       if (!user) throw new Error("Please sign in.");
       const { data, error: dbErr } = await sb.from("local_businesses").insert({
@@ -170,9 +197,30 @@ export function BusinessCreateForm({
         Your listing goes live immediately. You can add photos, offers, loyalty and more from the OneShetland app.
       </p>
 
+      {duplicate && (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert" data-testid="duplicate-warning">
+          <p className="font-semibold text-amber-900">Is it one of these? It may already be listed.</p>
+          <p className="mt-0.5 text-sm text-amber-900/80">Claiming an existing listing is free and keeps the Directory free of duplicates.</p>
+          <ul className="mt-3 space-y-2">
+            {similar.filter((m) => m.kind !== "possible").map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 rounded-lg bg-paper px-3 py-2">
+                <span className="min-w-0 truncate text-sm font-semibold text-ink">{m.name}{m.address ? <span className="font-normal text-ink-muted"> · {m.address}</span> : null}</span>
+                {m.is_claimed
+                  ? <Link href={listingHref(m)} className="shrink-0 text-sm font-semibold text-ink-soft underline">Already claimed</Link>
+                  : <Link href={claimHref(m)} className="shrink-0 rounded-pill bg-[#7c3aed] px-3 py-1.5 text-sm font-bold text-paper">Claim it free</Link>}
+              </li>
+            ))}
+          </ul>
+          <label className="mt-3 flex items-start gap-2 text-sm text-amber-900">
+            <input type="checkbox" checked={differentBusiness} onChange={(e) => setDifferentBusiness(e.target.checked)} className="mt-0.5" />
+            <span>None of these is my business — create a new listing.</span>
+          </label>
+        </div>
+      )}
+
       <button
         type="submit"
-        disabled={busy || !name.trim() || !category}
+        disabled={busy || !name.trim() || !category || (duplicate && !differentBusiness)}
         className="w-full rounded-pill py-3 font-semibold text-paper transition hover:brightness-95 disabled:opacity-40"
         style={{ background: DIR }}
       >

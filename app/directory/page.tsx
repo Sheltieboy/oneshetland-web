@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getAllBusinesses, getDirectoryFeatured, searchHubs, CATEGORIES, CATEGORY_LABEL, SHETLAND_AREAS } from "@/lib/local-data";
+import { getAllBusinesses, getDirectoryFeatured, searchHubs, countBusinesses, CATEGORIES, CATEGORY_LABEL, SHETLAND_AREAS } from "@/lib/local-data";
+import { DIRECTORY_LIST_LIMIT, countLabel } from "@/lib/directory-count";
 import { BusinessCard } from "@/components/local/LocalUI";
 import { getProductThumbs } from "@/lib/shop-data";
 import { HUB_TYPE_LABELS } from "@/lib/hubs-data";
@@ -26,6 +27,8 @@ export default async function DirectoryPage({
   // Exclude featured from the main grid so they aren't shown twice.
   const businesses = featured.length ? all.filter((b) => !featuredIds.has(b.id)) : all;
   const hubs = q && all.length === 0 ? await searchHubs(q) : [];
+  // The list is capped (DIRECTORY_LIST_LIMIT), so "200 listings" was the cap, not the number. Say how many there really are.
+  const total = all.length >= DIRECTORY_LIST_LIMIT ? await countBusinesses({ category, area, bookableOnly, q }) : null;
   // Peerie product strips — one batched query for every card on the page.
   const productThumbs = await getProductThumbs([...featured, ...businesses].map((b) => b.id));
 
@@ -141,7 +144,7 @@ export default async function DirectoryPage({
           </h2>
           <div className="flex items-center gap-4">
             <p className="text-sm text-ink-muted">
-              {all.length} listing{all.length === 1 ? "" : "s"}
+              {countLabel(all.length, total)}
             </p>
             <Link
               href="/directory/bookable"

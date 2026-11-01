@@ -1,3 +1,4 @@
+import { DIRECTORY_LIST_LIMIT } from "./directory-count";
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
@@ -410,6 +411,20 @@ export async function getCategoryCounts(): Promise<Record<string, number>> {
 }
 
 /* ── Directory ────────────────────────────────────────────────────────────── */
+/** How many active listings match the same filters. A free-text search is applied by the list itself, so for a search that overflows we report the shown count. */
+export async function countBusinesses(opts: { category?: string; area?: string; bookableOnly?: boolean; q?: string } = {}): Promise<number | null> {
+  if (opts.q) return null;
+  const sb = publicClient();
+  try {
+    let q = sb.from(PUBLIC_BUSINESS).select("id", { count: "exact", head: true }).eq("is_active", true);
+    if (opts.category) q = q.eq("category", opts.category);
+    if (opts.bookableOnly) q = q.eq("accepts_bookings", true);
+    if (opts.area) { const a = sanitizeOrTerm(opts.area); if (a) q = q.ilike("address", `%${a}%`); }
+    const { count, error } = await q;
+    return error ? null : count ?? null;
+  } catch { return null; }
+}
+
 export async function getAllBusinesses(
   opts: { category?: string; q?: string; area?: string; bookableOnly?: boolean } = {},
 ): Promise<Business[]> {
@@ -421,7 +436,7 @@ export async function getAllBusinesses(
       .eq("is_active", true)
       .order("is_verified", { ascending: false })
       .order("name", { ascending: true })
-      .limit(200);
+      .limit(DIRECTORY_LIST_LIMIT);
     if (opts.category) q = q.eq("category", opts.category);
     if (opts.bookableOnly) q = q.eq("accepts_bookings", true);
     // Area filter — match locality first, falling back to address text (mirrors the app feed).

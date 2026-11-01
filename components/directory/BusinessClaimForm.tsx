@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { submitClaim } from "@/lib/claim-submit";
 
 const LOCAL = "#7c3aed";
 
@@ -47,7 +48,7 @@ export function BusinessClaimForm({
     return (
       <StateCard
         title="Claim under review"
-        body={`Your claim for ${businessName} is being verified. We'll be in touch soon.`}
+        body={`Your claim for ${businessName} is being checked. We check every claim by hand, and we'll email you the outcome.`}
       />
     );
   }
@@ -56,42 +57,20 @@ export function BusinessClaimForm({
   if (submitted) {
     return (
       <StateCard
-        title="Claim submitted — we'll review it"
-        body={`Thanks! We'll verify your connection to ${businessName} and get back to you. Once approved you can manage your listing and unlock Pro features.`}
+        title="Claim received — thank you"
+        body={`We've got your claim for ${businessName} and sent you a confirmation email. We check every claim by hand, and we'll email you as soon as there's an outcome. Once it's approved you can manage your listing — claiming is free, and you can stay on the free plan as long as you like.`}
       />
     );
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!contactName.trim() || !contactEmail.trim()) {
-      return setError("Please give your name and a contact email so we can verify you.");
-    }
     setError(null);
     setBusy(true);
     try {
-      const sb = createClient();
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) throw new Error("Please sign in.");
-      const { error: dbErr } = await sb.from("business_claims").insert({
-        user_id: user.id,
-        business_id: businessId,
-        status: "pending",
-        contact_name: contactName.trim(),
-        contact_email: contactEmail.trim(),
-        contact_phone: contactPhone.trim() || null,
-        role: role.trim() || null,
-        evidence: evidence.trim() || null,
-      });
-      if (dbErr) {
-        // Duplicate claim (unique constraint) — treat as already-submitted, not an error.
-        if (dbErr.code === "23505" || /duplicate/i.test(dbErr.message)) {
-          setSubmitted(true);
-          return;
-        }
-        throw dbErr;
-      }
-      setSubmitted(true);
+      const r = await submitClaim(createClient(), { businessId, contactName, contactEmail, contactPhone, role, evidence });
+      if (r.status === "error") { setError(r.message); setBusy(false); return; }
+      setSubmitted(true);     // "submitted" and "duplicate" both mean: your claim is in
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not submit your claim. Please try again.");
       setBusy(false);
@@ -106,9 +85,8 @@ export function BusinessClaimForm({
       </div>
 
       <p className="text-sm leading-relaxed text-ink-soft">
-        Tell us a little about your connection to this business. We verify each claim by hand to keep
-        the directory trustworthy — once approved, the listing is yours to manage and you can upgrade
-        to Pro or Premium.
+        Claiming is <strong>free</strong>. Tell us a little about your connection to this business. We check each claim by hand to keep
+        the Directory trustworthy and email you the outcome — once it&apos;s approved the listing is yours to manage, and you can upgrade later if you want to.
       </p>
 
       <div>
