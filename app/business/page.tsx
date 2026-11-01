@@ -285,6 +285,10 @@ export default function BusinessLandingPage() {
             Bookings on Pro cost {BOOKING_FEE_PENCE}p each, capped at {BOOKING_CAP_UNITS} a month ({gbp(BOOKING_CAP_PENCE)}), so a Pro month never costs more than
             Premium. Selling tickets has a small per-ticket fee on every plan. Free listings include a cover photo and up to {FREE_GALLERY_LIMIT} gallery photos.
           </p>
+          <p className="mt-3 max-w-3xl text-sm text-ink-soft" data-testid="wallet-eligibility">
+            <strong className="font-semibold text-ink">Local Wallet payments</strong> let customers pay you from their OneShetland Wallet. They&apos;re available to Pro and
+            Premium businesses once you&apos;ve completed payout setup and switched Wallet payments on in your dashboard. A small fee comes off each payment.
+          </p>
         </div>
       </section>
 
@@ -341,6 +345,7 @@ export default function BusinessLandingPage() {
               { q: "What’s free?", a: `A public listing — your story, a cover photo and up to ${FREE_GALLERY_LIMIT} gallery photos, hours, contacts and a map pin, and a verified badge once your claim is approved. You can also post jobs and shifts and list events (ticket sales carry a small per-ticket fee) at no monthly cost.` },
               { q: "Can I cancel?", a: "Yes. Upgrade, downgrade or cancel a paid plan any time from your business dashboard. You keep your free listing." },
               { q: "How do customers find me?", a: "Through the Directory and Local search, category and area filters and your own listing page. Premium listings also carry a ★ Featured badge and are shown first in places like the Directory’s featured row." },
+              { q: "How do Local Wallet payments work?", a: "Customers top up their OneShetland Wallet and pay you from it at the counter. They’re available to Pro and Premium businesses once you’ve completed payout setup (so we know where to send your money) and switched Wallet payments on in your dashboard. A small fee comes off each payment." },
               { q: "Why can I only pay here on the web?", a: "Subscriptions and add-ons are managed on the website. The app is for running your listing day to day." },
             ].map((f) => (
               <div key={f.q} className="rounded-2xl border border-line bg-paper p-6 shadow-soft">

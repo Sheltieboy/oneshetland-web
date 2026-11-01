@@ -217,6 +217,11 @@ describe("what is and is not advertised as live", () => {
     assert.match(page, /"Tap-to-stamp NFC tile": "Tap-to-stamp NFC tile \(coming soon\)"/); assert.match(page, /Tap-to-stamp tiles are coming soon\./);
     assert.ok(TIER_PITCH.pro.blurb.includes("tap-to-stamp, Local Wallet payments, "), "the override targets the exact phrase in the shared blurb");
   });
+  test("who can take Wallet payments, and what they must do first, is stated plainly (and only that: no prices or plan rules changed)", () => {
+    assert.match(page, /available to Pro and\s+Premium businesses once you&apos;ve completed payout setup and switched Wallet payments on in your dashboard/);
+    assert.match(page, /q: "How do Local Wallet payments work\?"/); assert.match(page, /Pro and Premium businesses once you’ve completed payout setup/); assert.match(page, /A small fee comes off each payment/);
+    assert.doesNotMatch(page, /Wallet[^<]{0,80}\b(free for all|everyone|every business|instantly)\b/i);
+  });
   test("the Pro blurb keeps Local Wallet payments in the list of what Pro includes", () => {
     const blurb = TIER_PITCH.pro.blurb.replace("tap-to-stamp, ", ""); assert.match(blurb, /Local Wallet payments/); assert.doesNotMatch(blurb, /tap-to-stamp/);
   });
