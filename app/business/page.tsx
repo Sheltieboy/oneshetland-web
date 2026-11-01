@@ -82,17 +82,16 @@ const ALSO: { title: string; body: string; accent: string }[] = [
 /** A few plan rows are worded for the shared tier model; say exactly what the website gives. */
 const ROW_LABEL: Record<string, string> = {
   "Featured homepage spot": "★ Featured badge and priority placement",
-  // Built, but not yet in everyday use with island businesses (no genuine merchant has taken a Wallet payment; no tile has been posted), so they are
-  // not advertised as live. The plan permissions themselves are unchanged — only what this page says.
-  "Local Wallet payments": "Local Wallet payments (coming soon)",
+  // The tile is built but not yet being produced or posted, so it is not advertised as live. (Wallet payments are live: a business with an active
+  // plan and completed payout setup can take them.) The plan permissions themselves are unchanged — only what this page says.
   "Tap-to-stamp NFC tile": "Tap-to-stamp NFC tile (coming soon)",
 };
 
-/** The shared plan blurbs name the same two features; say "coming soon" here too. */
-const SOON = "Tap-to-stamp tiles and Local Wallet payments are coming soon.";
+/** The shared Pro blurb names the tile too; say "coming soon" here as well. */
+const SOON = "Tap-to-stamp tiles are coming soon.";
 const blurbFor = (tier: SubscriptionTier) => {
   const b = TIER_PITCH[tier].blurb;
-  return tier === "pro" ? `${b.replace("tap-to-stamp, Local Wallet payments, ", "")} ${SOON}` : b;
+  return tier === "pro" ? `${b.replace("tap-to-stamp, ", "")} ${SOON}` : b;
 };
 
 /* ── Plans ──────────────────────────────────────────────────────────────────── */
