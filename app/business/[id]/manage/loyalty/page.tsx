@@ -69,7 +69,7 @@ export default async function LoyaltyPage({
           what="A stamp or points card customers collect on their phone, so there is a reason to come back."
           gets={[
             "Stamps or points, with rewards you choose",
-            "Customers collect at the counter or by tapping a tile",
+            "Customers collect at the counter with your till code (tap-to-stamp tiles are coming soon)",
             "Their card lives in the app — no bits of cardboard",
           ]}
           billingHref={`${base}/billing`}

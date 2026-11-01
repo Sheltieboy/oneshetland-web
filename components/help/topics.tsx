@@ -269,7 +269,7 @@ export const HELP_TOPICS: Record<HelpTopicId, Topic> = {
         </P>
         <P>
           A customer collects a stamp at your counter: either they type your till code into their
-          app, or they tap an NFC tile if you have one.
+          app. (Tap-to-stamp tiles are coming soon.)
         </P>
         <P>
           When a card fills up, their app shows the reward. You confirm it here, the card resets,
@@ -492,15 +492,15 @@ export const HELP_TOPICS: Record<HelpTopicId, Topic> = {
   },
 
   "nfc-tile": {
-    title: "The tap-to-stamp tile",
-    subtitle: "A wee sticker for your counter",
+    title: "The tap-to-stamp tile (coming soon)",
+    subtitle: "A wee sticker for your counter — not available yet",
     accent: NAVY,
     diagram: (
-      <Figure caption="Once it's stuck down and activated, that's it — no screens, no typing.">
-        <svg viewBox="0 0 420 88" className="w-full" role="img" aria-label="Three steps: request the tile, it arrives in the post and you stick it on the counter, then customers tap it with their phone.">
+      <Figure caption="Tiles aren't being posted yet. Once they are, it'll work like this.">
+        <svg viewBox="0 0 420 88" className="w-full" role="img" aria-label="Three steps, once tiles are available: join the waiting list, the tile arrives and you stick it on the counter, then customers tap it with their phone.">
           {[
-            { n: "1", t: "You request it", t2: "here — it's free" },
-            { n: "2", t: "It arrives, you", t2: "stick it down" },
+            { n: "1", t: "You join the", t2: "waiting list" },
+            { n: "2", t: "We post it, you", t2: "stick it down" },
             { n: "3", t: "Customers tap", t2: "it with a phone" },
           ].map((s, i) => (
             <g key={s.n} transform={`translate(${i * 145} 0)`}>
@@ -527,13 +527,15 @@ export const HELP_TOPICS: Record<HelpTopicId, Topic> = {
           and collects a stamp — no code to read out, nothing to type.
         </P>
         <P>
-          It&apos;s included with your subscription and we post it within three working days. When
-          it turns up, stick it somewhere folk can reach it and tap it once yourself with the app
-          to switch it on.
+          <strong className="font-semibold text-ink">Tiles are coming soon.</strong> We&apos;re not posting
+          them yet and can&apos;t give a delivery date. You can join the waiting list from your Billing
+          page, and we&apos;ll email you when they&apos;re ready. Until then, customers collect stamps
+          with your till code.
         </P>
         <P>
-          You&apos;ll need your address and map location filled in on your Profile before you can
-          request one — otherwise we&apos;ve nowhere to send it.
+          When tiles are available you&apos;ll stick one somewhere folk can reach it and tap it once
+          yourself with the app to switch it on. You&apos;ll need your address and map location filled
+          in on your Profile so we know where to send it.
         </P>
       </>
     ),
@@ -624,7 +626,7 @@ export const HELP_TOPICS: Record<HelpTopicId, Topic> = {
         </P>
         <P>
          {" "}<strong className="font-semibold text-ink">Pro</strong>{" "}adds the counter tools — offers, a
-          loyalty card, tap-to-stamp, wallet payments, enquiries and your own numbers.
+          loyalty card, tap-to-stamp tiles (coming soon), wallet payments, enquiries and your own numbers.
         </P>
         <P>
          {" "}<strong className="font-semibold text-ink">Premium</strong>{" "}adds your own shop: products

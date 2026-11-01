@@ -1,5 +1,6 @@
 "use client";
 
+import { nfcPitch, nfcRowLabel, nfcCardText, NFC_SOON, NFC_NEEDS_ADDRESS } from "@/lib/nfc-wording";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -320,7 +321,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
   }
 
   async function requestNfc() {
-    if (b.lat == null || b.lng == null) { setError("Add your address (with a map location) in Profile before requesting an NFC tile."); return; }
+    if (b.lat == null || b.lng == null) { setError(NFC_NEEDS_ADDRESS); return; }
     setBusy("nfc"); setError(null);
     try { await requestNfcTile(b.id); router.refresh(); } catch (e) { fail(e); } finally { setBusy(null); }
   }
@@ -450,13 +451,13 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
         )}
 
 
-        <p className="mt-2 text-sm text-ink-soft">{TIER_PITCH[tier].blurb}</p>
+        <p className="mt-2 text-sm text-ink-soft">{nfcPitch(TIER_PITCH[tier].blurb)}</p>
 
         <ul className="mt-3 space-y-1.5">
           {PLAN_COMPARISON.map((f) => {
             const req = f.tier;
             const ok = tierMeets(tier, req);
-            return <li key={f.label} className={"flex items-center gap-2 text-sm " + (ok ? "text-ink" : "text-ink-faint")}>{ok ? "✅" : "🔒"} {f.label}{!ok && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{TIER_LABELS[req]}</span>}</li>;
+            return <li key={f.label} className={"flex items-center gap-2 text-sm " + (ok ? "text-ink" : "text-ink-faint")}>{ok ? "✅" : "🔒"} {nfcRowLabel(f.label)}{!ok && <span className="rounded-pill bg-sand px-2 py-0.5 text-[11px] font-semibold text-ink-muted">{TIER_LABELS[req]}</span>}</li>;
           })}
         </ul>
 
@@ -512,7 +513,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
             <>
               <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full" + (highlightTier === "pro" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className={"w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand" + (highlightTier === "premium" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")}>{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
-              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline">{busy === "premium-annual" ? "…" : `Premium yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
+              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 hover:text-ink hover:underline">{busy === "premium-annual" ? "…" : `Premium yearly · ${PREMIUM_ANNUAL_PRICE} — two months free`}</button>
 
             </>
           )}
@@ -551,7 +552,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
           {tier === "pro" && (
             <>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>
-              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium-annual" ? "…" : `Or yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}</button>
+              <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium-annual" ? "…" : `Or yearly · ${PREMIUM_ANNUAL_PRICE} — two months free`}</button>
             </>
           )}
           {tier === "premium" && (
@@ -559,12 +560,12 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">👑 All features unlocked.</p>
               {!annualSubscriber && (
                 <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
-                  {busy === "premium-annual" ? "…" : `Switch to yearly · ${PREMIUM_ANNUAL_PRICE} — two months free, plus an NFC tile`}
+                  {busy === "premium-annual" ? "…" : `Switch to yearly · ${PREMIUM_ANNUAL_PRICE} — two months free`}
                 </button>
               )}
               {annualSubscriber && (
                 <>
-                  <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free, and your NFC tile is included.</p>
+                  <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free.</p>
                   <button onClick={() => upgrade("premium", "monthly")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
                     {busy === "premium" ? "…" : `Switch to monthly · ${TIER_PRICE.premium}`}
                   </button>
@@ -681,16 +682,12 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
         <section className={card}>
           <h2 className="flex items-center gap-2.5 font-display text-xl font-bold text-ink">
             NFC tap-to-stamp tile
+            <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-bold text-ink-soft">{NFC_SOON}</span>
             <HelpTip topic="nfc-tile" />
           </h2>
-          <p className="mt-1 text-sm text-ink-muted">
-            {b.nfc_status === "active" ? "✓ Active — customers can tap to collect a stamp."
-              : b.nfc_status === "dispatched" ? "Posted — stick it on the counter and tap it once with the app to activate."
-              : b.nfc_status === "requested" ? "Requested · we'll ship within 3 working days."
-              : "A branded tap-to-stamp tile, included with your subscription."}
-          </p>
+          <p className="mt-1 text-sm text-ink-muted">{nfcCardText(b.nfc_status).line}</p>
           {b.nfc_token && <p className="mt-2 break-all rounded-lg bg-sand/60 px-3 py-2 text-xs text-ink-soft">{NFC_TILE_URL_PREFIX}{b.nfc_token}</p>}
-          {b.nfc_status === "none" && <button onClick={requestNfc} disabled={busy === "nfc"} className={"mt-3 " + btn} style={{ background: BIZ }}>{busy === "nfc" ? "…" : "Request my NFC tile"}</button>}
+          {nfcCardText(b.nfc_status).button && b.nfc_status === "none" && <button onClick={requestNfc} disabled={busy === "nfc"} className={"mt-3 " + btn} style={{ background: BIZ }}>{busy === "nfc" ? "…" : nfcCardText(b.nfc_status).button}</button>}
         </section>
       )}
     </div>
