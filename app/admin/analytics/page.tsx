@@ -3,12 +3,9 @@ import {
   getAnalyticsOverview, getAnalyticsRevenue, getAnalyticsTopSearches,
 } from "@/lib/analytics-admin.server";
 import { AdminHeader, StatCard, Card } from "@/components/admin/AdminUI";
+import { gbp, num, salesTotals, streamNet, isWalletFloat, KPI_DEFINITIONS, excludedTotal } from "@/lib/analytics-format";
 
 export const dynamic = "force-dynamic";
-
-const gbp = (pence: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format((pence ?? 0) / 100);
-const num = (n: number) => new Intl.NumberFormat("en-GB").format(n ?? 0);
 
 export default async function AnalyticsDashboard() {
   await requireAdmin();
@@ -20,27 +17,35 @@ export default async function AnalyticsDashboard() {
 
   const t = overview?.totals;
   const maxDay = Math.max(1, ...(overview?.by_day ?? []).map((d) => d.events));
-  const grossTotal = (revenue?.streams ?? []).reduce((s, r) => s + (r.gross_pence ?? 0), 0);
-  const feesTotal = (revenue?.streams ?? []).reduce((s, r) => s + (r.fees_pence ?? 0), 0);
+  // Sales only: wallet top-ups are customer funds, never revenue (an older database may still return them as a stream).
+  const salesStreams = (revenue?.streams ?? []).filter((r) => !isWalletFloat(r));
+  const sales = salesTotals(salesStreams);
+  const excluded = excludedTotal(overview?.excluded);
   const maxEvent = Math.max(1, ...(overview?.top_events ?? []).map((e) => e.count));
 
   return (
     <>
-      <AdminHeader title="Analytics" sub="Behaviour, conversions and revenue across OneShetland — last 30 days." />
+      <AdminHeader title="Analytics" sub="Behaviour, conversions and revenue across OneShetland — last 30 days. Administrator and test activity is excluded; nothing is deleted." />
 
       {!overview ? (
         <Card><p className="text-sm text-ink/60">No analytics data yet, or the analytics RPCs aren&apos;t deployed. Use the app to generate events, then refresh.</p></Card>
       ) : (
         <>
-          {/* Headline numbers */}
+          {/* Headline numbers (each one is defined under "How these figures are measured" at the foot of the page) */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <StatCard label="Events" value={t?.events ?? 0} />
             <StatCard label="Conversions" value={t?.conversions ?? 0} />
-            <StatCard label="Sign-ups" value={t?.signups ?? 0} />
-            <StatCard label="Visitors" value={t?.unique_visitors ?? 0} />
-            <StatCard label="Signed-in users" value={t?.unique_users ?? 0} />
-            <StatCard label="Revenue (gross)" value={Math.round(grossTotal / 100)} />
+            <StatCard label="New registrations" value={t?.signups ?? 0} hint={t?.signups_confirmed !== undefined ? `${num(t.signups_confirmed)} confirmed` : undefined} />
+            <StatCard label="Signed-in members" value={t?.unique_users ?? 0} hint="opted in to analytics" />
+            <StatCard label="Anonymous visitors" value={t?.unique_visitors ?? 0} hint="opted in, never signed in" />
+            <StatCard label="Gross sales" value={Math.round(sales.gross / 100)} display={gbp(sales.gross)} hint={`${gbp(sales.net)} after refunds`} />
           </div>
+          {excluded > 0 && (
+            <p className="mt-2 text-xs text-ink/50">
+              {num(excluded)} of {num(overview.excluded?.raw_events ?? 0)} recorded events are left out of these figures: {num(overview.excluded?.internal_or_test ?? 0)} internal/test activity,{" "}
+              {num(overview.excluded?.unmatched_ledger ?? 0)} purchase records whose order no longer exists, {num(overview.excluded?.duplicate_ledger ?? 0)} repeats. They remain stored.
+            </p>
+          )}
 
           {/* Activity by day */}
           <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Activity by day</h2>
@@ -112,37 +117,78 @@ export default async function AnalyticsDashboard() {
             <p className="mt-2 text-xs text-ink/50">Green ● = conversion event</p>
           </Card>
 
-          {/* Revenue by stream (from ledgers) */}
-          <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Revenue by stream <span className="text-sm font-normal text-ink/50">(from order ledgers)</span></h2>
+          {/* Sales by stream (from the order ledgers) */}
+          <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Sales by stream <span className="text-sm font-normal text-ink/50">(from the order records, internal/test purchases excluded)</span></h2>
           <Card>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink/10 text-left text-xs uppercase text-ink/50">
-                  <th className="pb-2">Stream</th>
-                  <th className="pb-2 text-right">Orders</th>
-                  <th className="pb-2 text-right">Gross</th>
-                  <th className="pb-2 text-right">Platform fees</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(revenue?.streams ?? []).map((r) => (
-                  <tr key={r.stream} className="border-b border-ink/5">
-                    <td className="py-2 text-ink/80">{r.stream}</td>
-                    <td className="py-2 text-right text-ink">{num(r.orders)}</td>
-                    <td className="py-2 text-right font-medium text-ink">{gbp(r.gross_pence)}</td>
-                    <td className="py-2 text-right text-ink/70">{r.fees_pence ? gbp(r.fees_pence) : "—"}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-ink/10 text-left text-xs uppercase text-ink/50">
+                    <th className="pb-2">Stream</th>
+                    <th className="pb-2 text-right">Orders</th>
+                    <th className="pb-2 text-right">Gross</th>
+                    <th className="pb-2 text-right">Refunded</th>
+                    <th className="pb-2 text-right">Net</th>
+                    <th className="pb-2 text-right">OneShetland keeps</th>
                   </tr>
-                ))}
-                <tr className="font-bold text-ink">
-                  <td className="py-2">Total</td>
-                  <td className="py-2 text-right">{num((revenue?.streams ?? []).reduce((s, r) => s + r.orders, 0))}</td>
-                  <td className="py-2 text-right">{gbp(grossTotal)}</td>
-                  <td className="py-2 text-right">{gbp(feesTotal)}</td>
-                </tr>
-              </tbody>
-            </table>
-            <p className="mt-2 text-xs text-ink/50">Wallet top-ups are stored float, not platform revenue. Donations/ticket gross flow to hubs/organisers minus platform fees.</p>
+                </thead>
+                <tbody>
+                  {salesStreams.map((r) => (
+                    <tr key={r.stream} className="border-b border-ink/5">
+                      <td className="py-2 text-ink/80">{r.stream}</td>
+                      <td className="py-2 text-right text-ink">{num(r.orders)}</td>
+                      <td className="py-2 text-right font-medium text-ink">{gbp(r.gross_pence)}</td>
+                      <td className="py-2 text-right text-ink/70">{r.refunded_pence ? gbp(r.refunded_pence) : "—"}</td>
+                      <td className="py-2 text-right font-medium text-ink">{gbp(streamNet(r))}</td>
+                      <td className="py-2 text-right text-ink/70">{r.platform_pence === null || r.platform_pence === undefined ? "—" : gbp(r.platform_pence)}</td>
+                    </tr>
+                  ))}
+                  <tr className="font-bold text-ink">
+                    <td className="py-2">Total</td>
+                    <td className="py-2 text-right">{num(sales.orders)}</td>
+                    <td className="py-2 text-right">{gbp(sales.gross)}</td>
+                    <td className="py-2 text-right">{sales.refunded ? gbp(sales.refunded) : "—"}</td>
+                    <td className="py-2 text-right">{gbp(sales.net)}</td>
+                    <td className="py-2 text-right">{gbp(sales.platform)}{sales.platformUnknown ? "*" : ""}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            {sales.platformUnknown && <p className="mt-2 text-xs text-ink/50">* A dash means that stream does not record OneShetland&apos;s share, so the total shows only what is recorded.</p>}
+            {revenue?.totals && revenue.totals.excluded_internal_orders > 0 && (
+              <p className="mt-1 text-xs text-ink/50">Left out: {num(revenue.totals.excluded_internal_orders)} administrator/test purchases worth {gbp(revenue.totals.excluded_internal_gross_pence)}.</p>
+            )}
           </Card>
+
+          {/* Wallet funds: customer money, not sales */}
+          {revenue?.wallet && (
+            <>
+              <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Wallet funds <span className="text-sm font-normal text-ink/50">(customer money — not sales, not revenue)</span></h2>
+              <Card>
+                <ul className="grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <li><span className="block text-ink/50">Topped up</span><span className="font-semibold text-ink">{gbp(revenue.wallet.topups_pence)}</span> <span className="text-ink/50">({num(revenue.wallet.topups)})</span></li>
+                  <li><span className="block text-ink/50">Spent</span><span className="font-semibold text-ink">{gbp(revenue.wallet.spent_pence)}</span> <span className="text-ink/50">({num(revenue.wallet.spends)})</span></li>
+                  <li><span className="block text-ink/50">Refunded to wallets</span><span className="font-semibold text-ink">{gbp(revenue.wallet.refunded_to_wallet_pence)}</span></li>
+                  <li><span className="block text-ink/50">Administrator adjustments</span><span className="font-semibold text-ink">{gbp(revenue.wallet.adjustments_pence)}</span></li>
+                </ul>
+                <p className="mt-2 text-xs text-ink/50">{KPI_DEFINITIONS.wallet}</p>
+              </Card>
+            </>
+          )}
+
+          {/* Subscriptions: plan state, not invoices */}
+          {revenue?.subscriptions && (
+            <>
+              <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Business subscriptions <span className="text-sm font-normal text-ink/50">(estimate from plan state)</span></h2>
+              <Card>
+                <p className="text-sm text-ink/80">
+                  <span className="font-semibold text-ink">{num(revenue.subscriptions.paying)}</span> paying ({num(revenue.subscriptions.paying_pro)} Pro, {num(revenue.subscriptions.paying_premium)} Premium) — estimated{" "}
+                  <span className="font-semibold text-ink">{gbp(revenue.subscriptions.est_mrr_pence)}</span> a month. {num(revenue.subscriptions.complimentary)} on complimentary launch access (no income).
+                </p>
+                <p className="mt-2 text-xs text-ink/50">{KPI_DEFINITIONS.subscriptions}</p>
+              </Card>
+            </>
+          )}
 
           {/* Top searches */}
           <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Top searches <span className="text-sm font-normal text-ink/50">(demand signal)</span></h2>
@@ -159,6 +205,15 @@ export default async function AnalyticsDashboard() {
                 ))}
               </ul>
             )}
+          </Card>
+
+          <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">How these figures are measured</h2>
+          <Card>
+            <dl className="space-y-2 text-sm">
+              {([["Events", "events"], ["Conversions", "conversions"], ["New registrations", "registrations"], ["Confirmed", "confirmed"], ["Signed-in members", "signedIn"], ["Anonymous visitors", "anonymous"], ["Gross sales", "gross"], ["Net sales", "net"], ["OneShetland keeps", "platform"]] as const).map(([name, key]) => (
+                <div key={key}><dt className="inline font-semibold text-ink">{name}.</dt> <dd className="inline text-ink/70">{KPI_DEFINITIONS[key]}</dd></div>
+              ))}
+            </dl>
           </Card>
 
           <p className="mt-8 text-xs text-ink/40">Generated {overview.generated_at ? new Date(overview.generated_at).toLocaleString("en-GB") : ""}.</p>

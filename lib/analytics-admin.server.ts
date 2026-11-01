@@ -14,15 +14,28 @@ const safe = async <T>(p: Promise<T>, fallback: T, label: string): Promise<T> =>
 export interface AnalyticsOverview {
   range_days: number;
   generated_at: string;
-  totals: { events: number; conversions: number; signups: number; unique_users: number; unique_visitors: number };
+  totals: {
+    events: number; conversions: number; signups: number; unique_users: number; unique_visitors: number;
+    /** present once migration 20261130000000 is applied */
+    signups_confirmed?: number; sessions?: number; events_signed_in?: number; events_anonymous?: number;
+  };
+  excluded?: { raw_events: number; internal_or_test: number; unmatched_ledger: number; duplicate_ledger: number };
   by_category: { category: string; events: number; conversions: number }[];
   by_day: { day: string; events: number; conversions: number }[];
   top_events: { event_name: string; count: number; is_conversion: boolean }[];
   top_content: { object_type: string; count: number; distinct_items: number }[];
 }
 
-export interface RevenueStream { stream: string; orders: number; gross_pence: number; fees_pence: number }
-export interface AnalyticsRevenue { range_days: number; streams: RevenueStream[] }
+export interface RevenueStream {
+  stream: string; orders: number; gross_pence: number; fees_pence: number;
+  refunded_pence?: number; net_pence?: number; platform_pence?: number | null;
+}
+export interface AnalyticsRevenue {
+  range_days: number; streams: RevenueStream[];
+  totals?: { orders: number; gross_pence: number; refunded_pence: number; net_pence: number; platform_pence: number; excluded_internal_orders: number; excluded_internal_gross_pence: number };
+  wallet?: { topups_pence: number; topups: number; spent_pence: number; spends: number; refunded_to_wallet_pence: number; adjustments_pence: number };
+  subscriptions?: { paying: number; paying_pro: number; paying_premium: number; complimentary: number; est_mrr_pence: number };
+}
 export interface SearchRow { query: string; section: string | null; searches: number; zero_result: number }
 
 async function rpc<T>(fn: string, args: Record<string, unknown>, fallback: T, label: string): Promise<T> {

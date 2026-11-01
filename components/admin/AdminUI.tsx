@@ -7,11 +7,12 @@ export function AdminHeader({ title, sub }: { title: string; sub?: string }) {
   );
 }
 
-export function StatCard({ label, value, alert }: { label: string; value: number; alert?: boolean }) {
+export function StatCard({ label, value, alert, display, hint }: { label: string; value: number; alert?: boolean; display?: string; hint?: string }) {
   return (
     <div className={"rounded-card border bg-paper p-4 shadow-soft " + (alert && value > 0 ? "border-rose-300" : "border-line")}>
-      <p className={"font-display text-3xl font-bold " + (alert && value > 0 ? "text-rose-600" : "text-ink")}>{value.toLocaleString()}</p>
+      <p className={"font-display text-3xl font-bold " + (alert && value > 0 ? "text-rose-600" : "text-ink")}>{display ?? value.toLocaleString()}</p>
       <p className="mt-0.5 text-sm text-ink-muted">{label}</p>
+      {hint && <p className="mt-0.5 text-xs text-ink/50">{hint}</p>}
     </div>
   );
 }
