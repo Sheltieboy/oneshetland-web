@@ -55,6 +55,11 @@ describe("the existing page, corrected", () => {
     assert.deepEqual([...loader.matchAll(/rpc<[^>]*>\("([a-z_]+)"/g)].map((m) => m[1]).sort(), ["analytics_overview", "analytics_revenue", "analytics_top_searches"]);
     assert.ok(!/\.from\(/.test(loader));
   });
+  test("browser-verified fixes: the activity chart bars are anchored to the baseline and have a height to fill; the sales table scrolls rather than collides on a phone; zero-order streams are hidden", () => {
+    assert.match(page, /className="group relative h-full flex-1"/);
+    assert.match(page, /className="absolute bottom-0 w-full rounded-t bg-navy\/15"/);
+    assert.match(page, /min-w-\[36rem\]/); assert.match(page, /\(r\.orders \?\? 0\) > 0/);
+  });
   test("StatCard stays backward compatible: the new props are optional", () => {
     const ui = readFileSync("components/admin/AdminUI.tsx", "utf8"); assert.match(ui, /display\?: string; hint\?: string/);
   });

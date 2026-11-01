@@ -18,7 +18,7 @@ export default async function AnalyticsDashboard() {
   const t = overview?.totals;
   const maxDay = Math.max(1, ...(overview?.by_day ?? []).map((d) => d.events));
   // Sales only: wallet top-ups are customer funds, never revenue (an older database may still return them as a stream).
-  const salesStreams = (revenue?.streams ?? []).filter((r) => !isWalletFloat(r));
+  const salesStreams = (revenue?.streams ?? []).filter((r) => !isWalletFloat(r) && (r.orders ?? 0) > 0);   // a stream whose only orders were internal/test would otherwise show as a confusing £0.00 row
   const sales = salesTotals(salesStreams);
   const excluded = excludedTotal(overview?.excluded);
   const maxEvent = Math.max(1, ...(overview?.top_events ?? []).map((e) => e.count));
@@ -52,8 +52,8 @@ export default async function AnalyticsDashboard() {
           <Card>
             <div className="flex h-40 items-end gap-1">
               {(overview.by_day ?? []).map((d) => (
-                <div key={d.day} className="group relative flex-1" title={`${d.day}: ${d.events} events, ${d.conversions} conversions`}>
-                  <div className="w-full rounded-t bg-navy/15" style={{ height: `${(d.events / maxDay) * 100}%` }} />
+                <div key={d.day} className="group relative h-full flex-1" title={`${d.day}: ${d.events} events, ${d.conversions} conversions`}>
+                  <div className="absolute bottom-0 w-full rounded-t bg-navy/15" style={{ height: `${(d.events / maxDay) * 100}%` }} />
                   <div className="absolute bottom-0 w-full rounded-t bg-navy" style={{ height: `${(d.conversions / maxDay) * 100}%` }} />
                 </div>
               ))}
@@ -121,35 +121,35 @@ export default async function AnalyticsDashboard() {
           <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Sales by stream <span className="text-sm font-normal text-ink/50">(from the order records, internal/test purchases excluded)</span></h2>
           <Card>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[36rem] text-sm">
                 <thead>
                   <tr className="border-b border-ink/10 text-left text-xs uppercase text-ink/50">
                     <th className="pb-2">Stream</th>
-                    <th className="pb-2 text-right">Orders</th>
-                    <th className="pb-2 text-right">Gross</th>
-                    <th className="pb-2 text-right">Refunded</th>
-                    <th className="pb-2 text-right">Net</th>
-                    <th className="pb-2 text-right">OneShetland keeps</th>
+                    <th className="whitespace-nowrap pb-2 pl-4 text-right">Orders</th>
+                    <th className="whitespace-nowrap pb-2 pl-4 text-right">Gross</th>
+                    <th className="whitespace-nowrap pb-2 pl-4 text-right">Refunded</th>
+                    <th className="whitespace-nowrap pb-2 pl-4 text-right">Net</th>
+                    <th className="whitespace-nowrap pb-2 pl-4 text-right">OneShetland keeps</th>
                   </tr>
                 </thead>
                 <tbody>
                   {salesStreams.map((r) => (
                     <tr key={r.stream} className="border-b border-ink/5">
                       <td className="py-2 text-ink/80">{r.stream}</td>
-                      <td className="py-2 text-right text-ink">{num(r.orders)}</td>
-                      <td className="py-2 text-right font-medium text-ink">{gbp(r.gross_pence)}</td>
-                      <td className="py-2 text-right text-ink/70">{r.refunded_pence ? gbp(r.refunded_pence) : "—"}</td>
-                      <td className="py-2 text-right font-medium text-ink">{gbp(streamNet(r))}</td>
-                      <td className="py-2 text-right text-ink/70">{r.platform_pence === null || r.platform_pence === undefined ? "—" : gbp(r.platform_pence)}</td>
+                      <td className="whitespace-nowrap py-2 pl-4 text-right text-ink">{num(r.orders)}</td>
+                      <td className="whitespace-nowrap py-2 pl-4 text-right font-medium text-ink">{gbp(r.gross_pence)}</td>
+                      <td className="whitespace-nowrap py-2 pl-4 text-right text-ink/70">{r.refunded_pence ? gbp(r.refunded_pence) : "—"}</td>
+                      <td className="whitespace-nowrap py-2 pl-4 text-right font-medium text-ink">{gbp(streamNet(r))}</td>
+                      <td className="whitespace-nowrap py-2 pl-4 text-right text-ink/70">{r.platform_pence === null || r.platform_pence === undefined ? "—" : gbp(r.platform_pence)}</td>
                     </tr>
                   ))}
                   <tr className="font-bold text-ink">
                     <td className="py-2">Total</td>
-                    <td className="py-2 text-right">{num(sales.orders)}</td>
-                    <td className="py-2 text-right">{gbp(sales.gross)}</td>
-                    <td className="py-2 text-right">{sales.refunded ? gbp(sales.refunded) : "—"}</td>
-                    <td className="py-2 text-right">{gbp(sales.net)}</td>
-                    <td className="py-2 text-right">{gbp(sales.platform)}{sales.platformUnknown ? "*" : ""}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{num(sales.orders)}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{gbp(sales.gross)}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{sales.refunded ? gbp(sales.refunded) : "—"}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{gbp(sales.net)}</td>
+                    <td className="whitespace-nowrap py-2 pl-4 text-right">{gbp(sales.platform)}{sales.platformUnknown ? "*" : ""}</td>
                   </tr>
                 </tbody>
               </table>
