@@ -3,9 +3,17 @@ import { notFound } from "next/navigation";
 import { getPublicNotice } from "@/lib/notices-data";
 import { NoticeCard } from "@/components/notices/NoticeCard";
 import { Notice } from "@/components/notices/NoticesShell";
+import { noticeMetadata } from "@/lib/notice-share-image";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Notice" };
+
+/** Link-preview metadata: the notice's own title and its category image, with og:url on the notice itself. Non-public / unknown = plain title, no preview. */
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const r = await getPublicNotice(id);
+  if (!r.ok || !r.data) return { title: "Notice" };
+  return noticeMetadata({ id: r.data.id, title: r.data.title, body: r.data.body, categoryId: r.data.categoryId });
+}
 
 /** One notice, in full. Read through the public RPC, so a notice that is not public (pending, withdrawn, resolved, expired, scheduled) is a 404. */
 export default async function NoticeDetail({ params }: { params: Promise<{ id: string }> }) {
