@@ -233,7 +233,7 @@ function QueueCard({ post }: { post: SocialPost }) {
         // eslint-disable-next-line @next/next/no-img-element
         <a href={post.image_url} target="_blank" rel="noreferrer" className="shrink-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.image_url} alt="Post card preview" className="h-36 w-36 rounded-xl border border-line object-cover" />
+          <img src={post.image_url} alt="Post card preview" className="h-36 w-36 rounded-xl border border-line bg-white object-contain" />
         </a>
       ) : null}
       <div className="min-w-0 flex-1">
