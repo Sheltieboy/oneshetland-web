@@ -154,7 +154,7 @@ test("every search box is the shared component, with the right scope", () => {
   assert.match(read("app/jobs/page.tsx"), /scope="job"/);
   assert.match(read("app/spik/page.tsx"), /scope="spik"/);
   assert.match(read("components/boats/BoatsSearchBar.tsx"), /scope="boat"/);
-  assert.match(read("app/whats-on/page.tsx"), /scope="event"/);
+  assert.match(read("components/events/EventsListing.tsx"), /scope="event"/); assert.doesNotMatch(read("app/whats-on/page.tsx"), /SiteSearch/); /* one box only, in its original place */
   assert.match(read("components/home/HomeSections.tsx"), /scope="all"/);
   assert.match(read("components/site/SiteHeader.tsx"), /<SiteSearch autoFocus/);
   for (const f of ["app/directory/page.tsx", "app/jobs/page.tsx", "app/spik/page.tsx"]) assert.doesNotMatch(read(f), /<form action="\/(directory|jobs|spik)" method="get" className="mb-3/);
@@ -177,4 +177,10 @@ test("the Jobs Shifts tab keeps its plain search: no live job suggestions there"
   assert.match(jobs, /scope="job" suggest=\{!isShifts\}/);
   const c = readFileSync(new URL("../components/search/SiteSearch.tsx", import.meta.url), "utf8");
   assert.match(c, /showPanel = suggest && open/); assert.match(c, /if \(suggest\) suggester\.current\?\.input/);
+});
+
+test("What's On has ONE search box: the shared one in the listing, with the old in-list filter gone", () => {
+  const l = readFileSync(new URL("../components/events/EventsListing.tsx", import.meta.url), "utf8");
+  assert.equal((l.match(/<SiteSearch/g) || []).length, 1); assert.doesNotMatch(l, /type="search"|setQuery|filtered/);
+  assert.match(l, /<DateGroupedList events=\{events\}/); assert.match(l, /\{hasMore && \(/);
 });

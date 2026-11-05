@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { SiteSearch } from "@/components/search/SiteSearch";
 import { normaliseCategory, sameCategory } from "@/lib/event-categories";
 import Link from "next/link";
 import {
@@ -87,8 +86,6 @@ export default async function WhatsOnPage({
       {/* Sticky filters */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl space-y-2.5 px-5 py-3">
-          {/* The shared live search, covering events only; Enter opens the events results (/search?scope=event). */}
-          <SiteSearch scope="event" variant="bar" accent={EVENTS} label="Search events" placeholder="Search events — a name, a place, a band…" />
           {/* List ↔ calendar toggle + date range + free */}
           <div className="flex flex-wrap items-center gap-2">
             <ViewToggle calendar={calendar} sp={sp} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SiteSearch } from "@/components/search/SiteSearch";
 import { normaliseCategory } from "@/lib/event-categories";
 import { rowMeta, whenText } from "@/lib/event-display";
 import { splitByState } from "@/lib/event-state";
@@ -617,20 +618,6 @@ function ListWithLoadMore({
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(initial.length);
-  const [query, setQuery] = useState("");
-
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? events.filter(
-        (e) =>
-          e.title?.toLowerCase().includes(q) ||
-          e.venue?.toLowerCase().includes(q) ||
-          e.locality?.toLowerCase().includes(q) ||
-          e.business?.name?.toLowerCase().includes(q) ||
-          e.hub?.name?.toLowerCase().includes(q),
-      )
-    : events;
-
   async function loadMore() {
     setLoading(true);
     const q = new URLSearchParams();
@@ -653,58 +640,14 @@ function ListWithLoadMore({
 
   return (
     <>
-      {/* Keyword search — filters the loaded events client-side. */}
-      <div className="mb-8">
-        <div className="relative max-w-md">
-          <svg
-            aria-hidden
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="11" cy="11" r="7" />
-            <path d="m21 21-4.3-4.3" />
-          </svg>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search events by name, venue or organiser…"
-            aria-label="Search events"
-            className="w-full rounded-pill border border-line-strong bg-paper py-2.5 pl-10 pr-10 text-sm text-ink shadow-soft outline-none transition placeholder:text-ink-muted focus:border-events"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery("")}
-              aria-label="Clear search"
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-muted transition hover:text-ink"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="m15 9-6 6M9 9l6 6" />
-              </svg>
-            </button>
-          )}
-        </div>
+      {/* Keyword search: the shared live search, covering events only (suggestions from 2 characters; Enter opens /search?scope=event). */}
+      <div className="mb-8 max-w-md">
+        <SiteSearch scope="event" label="Search events" placeholder="Search events by name, venue or organiser…" />
       </div>
 
-      {q && filtered.length === 0 ? (
-        <div className="rounded-xl border border-line bg-paper p-12 text-center shadow-soft">
-          <h2 className="font-display text-2xl font-bold">No events match “{query.trim()}”</h2>
-          <p className="mx-auto mt-2 max-w-md text-ink-soft">
-            Try a different keyword, or clear the search to see everything in this view.
-          </p>
-        </div>
-      ) : (
-        <DateGroupedList events={filtered} nowIso={nowIso} />
-      )}
+      <DateGroupedList events={events} nowIso={nowIso} />
 
-      {hasMore && !q && (
+      {hasMore && (
         <div className="mt-12 text-center">
           <button
             onClick={loadMore}
