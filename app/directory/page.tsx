@@ -6,6 +6,9 @@ import { BusinessCard } from "@/components/local/LocalUI";
 import { getProductThumbs } from "@/lib/shop-data";
 import { HUB_TYPE_LABELS } from "@/lib/hubs-data";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
+import { SiteSearch } from "@/components/search/SiteSearch";
+import { searchSite } from "@/lib/search-server";
+import { RESULTS_LIMIT, hrefFor } from "@/lib/search";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Directory" };
@@ -27,6 +30,10 @@ export default async function DirectoryPage({
   // Exclude featured from the main grid so they aren't shown twice.
   const businesses = featured.length ? all.filter((b) => !featuredIds.has(b.id)) : all;
   const hubs = q && all.length === 0 ? await searchHubs(q) : [];
+  // The Directory's own substring match is strict ("harrys" does not find "Harry's"). When it finds nothing, offer the forgiving site search's
+  // closest businesses (one bounded, briefly-kept call; never delays the page beyond its 2.5 s deadline).
+  const closest = q && all.length === 0 && !category && !area && !bookableOnly ? await searchSite(q, RESULTS_LIMIT) : null;
+  const closeBusinesses = closest && closest.ok ? closest.hits.filter((h) => h.kind === "business").slice(0, 6) : [];
   // The list is capped (DIRECTORY_LIST_LIMIT), so "200 listings" was the cap, not the number. Say how many there really are.
   const total = all.length >= DIRECTORY_LIST_LIMIT ? await countBusinesses({ category, area, bookableOnly, q }) : null;
   // Peerie product strips — one batched query for every card on the page.
@@ -86,20 +93,11 @@ export default async function DirectoryPage({
       {/* Sticky search + filter */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
-          <form action="/directory" method="get" className="mb-3 flex flex-wrap gap-2">
-            {category ? <input type="hidden" name="category" value={category} /> : null}
-            {area ? <input type="hidden" name="area" value={area} /> : null}
-            {bookableOnly ? <input type="hidden" name="bookable" value="1" /> : null}
-            <input
-              name="q"
-              defaultValue={q ?? ""}
+          <div className="mb-3">
+            <SiteSearch scope="business" variant="bar" accent={DIR} initial={q ?? ""} label="Search the Directory"
               placeholder="Search by name, type, place or tag…"
-              className="min-w-0 flex-1 rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint focus:border-local"
-            />
-            <button type="submit" className="rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: DIR }}>
-              Search
-            </button>
-          </form>
+              submit={{ path: "/directory", params: { category, area, bookable: bookableOnly ? "1" : undefined } }} />
+          </div>
           <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {chip("All", buildHref({ category: null }), !category)}
             {CATEGORIES.map((c) => chip(c.label, buildHref({ category: c.key }), category === c.key))}
@@ -191,6 +189,16 @@ export default async function DirectoryPage({
             </div>
 
             {/* Hub fallback */}
+            {closeBusinesses.length > 0 && (
+              <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
+                <p className="text-sm font-semibold text-ink-soft">Did you mean…</p>
+                <ul className="mt-3 divide-y divide-line">
+                  {closeBusinesses.map((h) => (
+                    <li key={h.ref}><Link href={hrefFor("business", h.ref)} className="flex min-h-[44px] items-center justify-between gap-3 py-2 font-semibold text-ink hover:text-navy">{h.title}<span className="text-xs font-normal text-ink-soft">{h.subtitle.replace(/_/g, " ")}</span></Link></li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {hubs.length > 0 && (
               <div>
                 <p className="mb-4 text-sm font-semibold text-ink-muted">

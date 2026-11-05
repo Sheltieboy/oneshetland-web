@@ -10,6 +10,7 @@ import {
 } from "@/lib/job-filters";
 import { JobFiltersPanel } from "@/components/jobs/JobFiltersPanel";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
+import { SiteSearch } from "@/components/search/SiteSearch";
 import { getAccount } from "@/lib/auth";
 import { getMyPostingCounts } from "@/lib/jobs-data.server";
 
@@ -127,25 +128,17 @@ export default async function WorkHubPage({
 
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
-          <form action="/jobs" method="get" className="mb-3 flex gap-2">
-            {isShifts && <input type="hidden" name="tab" value="shifts" />}
-            {!isShifts && filters.category && <input type="hidden" name="category" value={filters.category} />}
-            {!isShifts && filters.locations.map((v) => <input key={`l${v}`} type="hidden" name="loc" value={v} />)}
-            {!isShifts && filters.employment.map((v) => <input key={`e${v}`} type="hidden" name="emp" value={v} />)}
-            {!isShifts && filters.workplace.map((v) => <input key={`w${v}`} type="hidden" name="work" value={v} />)}
-            {!isShifts && filters.salary.map((v) => <input key={`s${v}`} type="hidden" name="sal" value={v} />)}
-            {!isShifts && filters.employers.map((v) => <input key={`m${v}`} type="hidden" name="employer" value={v} />)}
-            {!isShifts && filters.sort !== "newest" && <input type="hidden" name="sort" value={filters.sort} />}
-            <input
-              name="q"
-              defaultValue={q ?? ""}
+          <div className="mb-3">
+            <SiteSearch scope="job" variant="bar" accent={accent} initial={q ?? ""} label={isShifts ? "Search shifts" : "Search jobs"}
               placeholder={isShifts ? "Search shifts — title, place…" : "Search jobs — title, employer, keyword…"}
-              className="w-full rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint"
-            />
-            <button type="submit" className="rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: accent }}>
-              Search
-            </button>
-          </form>
+              submit={{ path: "/jobs", params: {
+                tab: isShifts ? "shifts" : undefined,
+                category: !isShifts ? filters.category ?? undefined : undefined,
+                loc: !isShifts ? filters.locations : undefined, emp: !isShifts ? filters.employment : undefined,
+                work: !isShifts ? filters.workplace : undefined, sal: !isShifts ? filters.salary : undefined,
+                employer: !isShifts ? filters.employers : undefined, sort: !isShifts && filters.sort !== "newest" ? filters.sort : undefined,
+              } }} />
+          </div>
           <div className="flex items-center gap-2">
           {cats.length > 0 && <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <Link href={chipHref()} className={"shrink-0 rounded-pill px-4 py-2 text-sm font-semibold transition " + (!category ? "text-paper shadow-soft" : "border border-line-strong text-ink-soft hover:bg-sand")} style={!category ? { background: accent } : undefined}>

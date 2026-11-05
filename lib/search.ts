@@ -66,3 +66,37 @@ export function groupHits(hits: SearchHit[]): { kind: SearchKind; heading: strin
 }
 
 export const searchHref = (q: string) => `/search?q=${encodeURIComponent(q)}`;
+
+/* ── scope: which sources a search box covers ───────────────────────────────────────────────────────────────────────────── */
+export type SearchScope = "all" | SearchKind;
+export const SCOPES: SearchScope[] = ["all", "business", "event", "job", "boat", "spik", "hub"];
+export const parseScope = (v: unknown): SearchScope => (typeof v === "string" && (SCOPES as string[]).includes(v) ? (v as SearchScope) : "all");
+/** "Businesses", "Events"… for headings and the "see all" row. */
+export const SCOPE_NOUN: Record<SearchScope, string> = { all: "OneShetland", business: "businesses", event: "events", job: "jobs", boat: "boats", spik: "Spik words", hub: "hubs" };
+
+/** Where Enter goes in a contextual box: the section's own results page, keeping every filter the page already had. */
+export type SearchSubmit = { path: string; params?: Record<string, string | string[] | undefined>; param?: string };
+export function submitHref(s: SearchSubmit, q: string): string {
+  const u = new URLSearchParams();
+  for (const [k, v] of Object.entries(s.params ?? {})) for (const x of Array.isArray(v) ? v : v == null ? [] : [v]) if (x !== "") u.append(k, x);
+  u.set(s.param ?? "q", q);
+  return `${s.path}?${u.toString()}`;
+}
+/** The site-wide results page, optionally narrowed to one source. */
+export const searchHrefScoped = (q: string, scope: SearchScope = "all") => `/search?q=${encodeURIComponent(q)}${scope === "all" ? "" : `&scope=${scope}`}`;
+
+/**
+ * Suggestions should be tidy: when there are real name matches, drop the weak ones (a word that only appears inside a description, or a
+ * Spik meaning). They stay on the full results page. If ALL matches are weak (e.g. "chippy" found only through descriptions) they are kept,
+ * so a search never comes back empty when something relevant exists.
+ */
+export function trimWeak(hits: SearchHit[]): SearchHit[] {
+  const strong = hits.some((h) => !h.close && h.score >= 50);
+  return strong ? hits.filter((h) => h.close || h.score >= 50) : hits;
+}
+
+/** A mixed (all-OneShetland) dropdown shows at most `n` of each kind, so one chatty source (Spik words) cannot crowd out the rest. */
+export function capPerKind(hits: SearchHit[], n = 3): SearchHit[] {
+  const seen: Record<string, number> = {};
+  return hits.filter((h) => (seen[h.kind] = (seen[h.kind] ?? 0) + 1) <= n);
+}

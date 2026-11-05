@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SiteSearch } from "@/components/search/SiteSearch";
 import { londonDayNumber, londonMonthShort } from "@/lib/event-state";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { CruiseTodayCard } from "@/components/cruise/CruiseTodayCard";
@@ -59,18 +60,8 @@ export function HeroActions() {
           Find a business
         </Link>
       </div>
-      {/* The Directory's own search: a plain GET to /directory?q=…, nothing new behind it. */}
-      <form action="/directory" method="get" role="search" className="flex max-w-md overflow-hidden rounded-pill bg-paper shadow-soft">
-        <label htmlFor="home-search" className="sr-only">Search Shetland businesses</label>
-        <input
-          id="home-search"
-          name="q"
-          type="search"
-          placeholder="Search businesses…"
-          className="min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm text-ink placeholder:text-ink-faint focus:outline-none"
-        />
-        <button type="submit" className="px-4 text-sm font-bold text-navy hover:bg-sand">Search</button>
-      </form>
+      {/* The shared live search, covering all of OneShetland (the same box as the header). */}
+      <div className="max-w-md"><SiteSearch scope="all" variant="hero" accent="#0b3a5c" id="home-search" label="Search OneShetland" placeholder="Search businesses, events, jobs…" /></div>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { DEBOUNCE_MS, cleanQuery, type SearchHit } from "./search.ts";
+import { DEBOUNCE_MS, cleanQuery, type SearchHit, type SearchScope } from "./search.ts";
 
 /**
  * The browser side of live suggestions, with no React in it so it can be tested directly.
@@ -15,11 +15,13 @@ export type SuggestState =
   | { status: "empty"; q: string }
   | { status: "unavailable"; q: string };
 
-export function createSuggester(opts: { onState: (s: SuggestState) => void; fetchImpl?: typeof fetch; debounceMs?: number; endpoint?: string; now?: () => number }) {
+export function createSuggester(opts: { onState: (s: SuggestState) => void; fetchImpl?: typeof fetch; debounceMs?: number; endpoint?: string; now?: () => number; scope?: SearchScope }) {
   const { onState } = opts;
   const debounceMs = opts.debounceMs ?? DEBOUNCE_MS;
   const endpoint = opts.endpoint ?? "/api/search/suggest";
   const now = opts.now ?? Date.now;
+  const scope = opts.scope ?? "all";
+  const sq = scope === "all" ? "" : `&scope=${scope}`;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let ctrl: AbortController | undefined;
   let latest = "";
@@ -32,7 +34,7 @@ export function createSuggester(opts: { onState: (s: SuggestState) => void; fetc
     const c = new AbortController(); ctrl = c;
     onState({ status: "loading", q });
     try {
-      const res = await (opts.fetchImpl ?? fetch)(`${endpoint}?q=${encodeURIComponent(q)}`, { signal: c.signal, headers: { accept: "application/json" } });
+      const res = await (opts.fetchImpl ?? fetch)(`${endpoint}?q=${encodeURIComponent(q)}${sq}`, { signal: c.signal, headers: { accept: "application/json" } });
       if (!res.ok) throw new Error(String(res.status));
       const j = (await res.json()) as { results?: SearchHit[]; unavailable?: boolean };
       if (latest !== q || c.signal.aborted) return; // outdated answer

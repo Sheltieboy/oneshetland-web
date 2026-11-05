@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cleanQuery, groupHits, hrefFor, subtitleFor, KIND_LABEL, RESULTS_LIMIT } from "@/lib/search";
+import { cleanQuery, groupHits, hrefFor, subtitleFor, parseScope, searchHrefScoped, SCOPE_NOUN, KIND_LABEL, RESULTS_LIMIT } from "@/lib/search";
 import { searchSite } from "@/lib/search-server";
 import { SiteSearch } from "@/components/search/SiteSearch";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
@@ -14,18 +14,21 @@ const BROWSE = [
 ];
 
 /** Full results for the site search: every source in one bounded query, grouped, with close matches when nothing matches exactly. */
-export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
-  const raw = (await searchParams).q ?? "";
+export default async function SearchPage({ searchParams }: { searchParams: Promise<{ q?: string; scope?: string }> }) {
+  const sp = await searchParams;
+  const raw = sp.q ?? "";
+  const scope = parseScope(sp.scope);
   const q = cleanQuery(raw);
   const out = q ? await searchSite(q, RESULTS_LIMIT) : null;
-  const hits = out && out.ok ? out.hits : [];
+  const hits = out && out.ok ? (scope === "all" ? out.hits : out.hits.filter((h) => h.kind === scope)) : [];
   const exact = hits.filter((h) => !h.close);
   const close = hits.filter((h) => h.close);
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-8 sm:py-12">
       <h1 className="font-display text-3xl font-semibold text-navy sm:text-4xl">Search OneShetland</h1>
-      <div className="mt-5"><SiteSearch initial={q} placeholder="Search businesses, events, jobs, boats, Spik…" /></div>
+      <div className="mt-5"><SiteSearch scope={scope} initial={q} placeholder="Search businesses, events, jobs, boats, Spik…" /></div>
+      {scope !== "all" && q && <p className="mt-3 text-sm text-ink-soft">Showing {SCOPE_NOUN[scope]} only. <Link href={searchHrefScoped(q, "all")} className="font-semibold text-navy underline underline-offset-2">Search all OneShetland</Link></p>}
       {q && out && out.ok && <TrackSearch section="site" query={q} resultsCount={exact.length} />}
 
       {!q && (

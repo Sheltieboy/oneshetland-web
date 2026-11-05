@@ -13,6 +13,7 @@ import {
   type SpikStats,
 } from "@/lib/spik-data";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
+import { SiteSearch } from "@/components/search/SiteSearch";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -99,17 +100,9 @@ export default async function SpikPage({
       {/* Sticky search + A–Z rail */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
-          <form action="/spik" method="get" className="mb-3 flex gap-2">
-            <input
-              name="q"
-              defaultValue={query}
-              placeholder="Search wirds…"
-              className="w-full rounded-pill border border-line bg-paper px-5 py-2.5 text-ink shadow-soft outline-none placeholder:text-ink-faint focus:border-spik"
-            />
-            <button type="submit" className="rounded-pill px-5 py-2.5 font-semibold text-paper" style={{ background: SPIK_COLOR }}>
-              Search
-            </button>
-          </form>
+          <div className="mb-3">
+            <SiteSearch scope="spik" variant="bar" accent={SPIK_COLOR} initial={query} label="Search Spik" placeholder="Search wirds…" submit={{ path: "/spik" }} />
+          </div>
           <div className="-mx-5 flex gap-1 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {ALPHABET.map((l) => {
               const has = letters.has(l);

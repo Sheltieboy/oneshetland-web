@@ -31,7 +31,7 @@ describe("the Work hub page", () => {
   const hub = read("app/jobs/page.tsx");
   test("keeps its URL, its Jobs and Shifts tabs and its search", () => {
     assert.match(hub, /href="\/jobs"[\s\S]{0,260}Jobs\s*\n\s*<\/Link>/); assert.match(hub, /href="\/jobs\?tab=shifts"/);
-    assert.match(hub, /action="\/jobs"/); assert.match(hub, /getActiveJobs/); assert.match(hub, /getOpenShifts/);
+    assert.match(hub, /submit=\{\{ path: "\/jobs"/); /* the search form is now the shared SiteSearch, still submitting to /jobs */ assert.match(hub, /getActiveJobs/); assert.match(hub, /getOpenShifts/);
   });
   test("is titled and described as Work — jobs & shifts, and its canonical is still /jobs", () => {
     assert.match(hub, /title: "Work — jobs & shifts in Shetland"/); assert.match(hub, /description: "Find jobs and short-notice shifts/); assert.match(hub, /alternates: \{ canonical: "\/jobs" \}/);
