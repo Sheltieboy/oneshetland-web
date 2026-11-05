@@ -129,7 +129,7 @@ export default async function WorkHubPage({
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl px-5 py-3">
           <div className="mb-3">
-            <SiteSearch scope="job" variant="bar" accent={accent} initial={q ?? ""} label={isShifts ? "Search shifts" : "Search jobs"}
+            <SiteSearch scope="job" suggest={!isShifts} variant="bar" accent={accent} initial={q ?? ""} label={isShifts ? "Search shifts" : "Search jobs"}
               placeholder={isShifts ? "Search shifts — title, place…" : "Search jobs — title, employer, keyword…"}
               submit={{ path: "/jobs", params: {
                 tab: isShifts ? "shifts" : undefined,

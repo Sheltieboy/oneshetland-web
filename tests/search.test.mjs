@@ -171,3 +171,10 @@ test("capPerKind keeps order and limits each kind", () => {
   const hs = [..."aaaaa"].map((c, i) => hit("spik", c + i, c)).concat([hit("business", "b", "B")]);
   assert.deepEqual(capPerKind(hs, 3).map((h) => h.ref), ["a0", "a1", "a2", "b"]);
 });
+
+test("the Jobs Shifts tab keeps its plain search: no live job suggestions there", () => {
+  const jobs = readFileSync(new URL("../app/jobs/page.tsx", import.meta.url), "utf8");
+  assert.match(jobs, /scope="job" suggest=\{!isShifts\}/);
+  const c = readFileSync(new URL("../components/search/SiteSearch.tsx", import.meta.url), "utf8");
+  assert.match(c, /showPanel = suggest && open/); assert.match(c, /if \(suggest\) suggester\.current\?\.input/);
+});

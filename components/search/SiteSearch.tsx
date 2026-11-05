@@ -31,9 +31,11 @@ export type SiteSearchProps = {
   /** Accessible name of the input. */
   label?: string;
   id?: string;
+  /** false = no live suggestions (a plain, filter-keeping search form), e.g. the Jobs page's Shifts tab until shifts have suggestions of their own. */
+  suggest?: boolean;
 };
 
-export function SiteSearch({ scope = "all", submit, variant = "plain", accent, autoFocus = false, onNavigate, placeholder = "Search businesses, events, jobs, boats…", initial = "", label = "Search OneShetland", id }: SiteSearchProps) {
+export function SiteSearch({ scope = "all", submit, variant = "plain", accent, autoFocus = false, onNavigate, placeholder = "Search businesses, events, jobs, boats…", initial = "", label = "Search OneShetland", id, suggest = true }: SiteSearchProps) {
   const router = useRouter();
   const uid = useId();
   const inputId = id ?? `${uid}-input`;
@@ -70,7 +72,7 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
     ...(q ? [{ type: "section" as const }] : []),
     ...(q && contextual ? [{ type: "all" as const }] : []),
   ], [hits, q, contextual]);
-  const showPanel = open && q.length > 0;
+  const showPanel = suggest && open && q.length > 0;
 
   const go = (href: string) => { setOpen(false); onNavigate?.(); router.push(href); };
   const choose = (i: number) => {
@@ -124,7 +126,7 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
             enterKeyHint="search"
             value={text}
             placeholder={placeholder}
-            onChange={(e) => { setText(e.target.value); setOpen(true); suggester.current?.input(e.target.value); }}
+            onChange={(e) => { setText(e.target.value); setOpen(true); if (suggest) suggester.current?.input(e.target.value); }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKey}
             className="min-h-[44px] w-full min-w-0 bg-transparent text-base text-ink outline-none placeholder:text-ink-soft/70"
