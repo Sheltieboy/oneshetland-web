@@ -7,6 +7,7 @@ import { getProductThumbs } from "@/lib/shop-data";
 import { HUB_TYPE_LABELS } from "@/lib/hubs-data";
 import { TrackSearch } from "@/components/analytics/TrackSearch";
 import { SiteSearch } from "@/components/search/SiteSearch";
+import { JoinBusinessCta } from "@/components/business/JoinBusinessCta";
 import { searchSite } from "@/lib/search-server";
 import { RESULTS_LIMIT, hrefFor } from "@/lib/search";
 
@@ -117,6 +118,9 @@ export default async function DirectoryPage({
         </div>
       </div>
 
+      {/* Invitation for business owners (claim an existing listing, or add one — free). Hidden when the zero-results card carries its own. */}
+      {!(q && all.length === 0) && <JoinBusinessCta variant="banner" />}
+
       {/* Results */}
       <div className="mx-auto max-w-6xl px-5 py-12 sm:py-14">
         {/* Featured row — promoted (pro/premium) businesses on the default view */}
@@ -182,10 +186,9 @@ export default async function DirectoryPage({
                 <Link href="/directory" className="rounded-pill border border-line-strong px-5 py-2.5 font-semibold text-ink transition hover:bg-sand">
                   Show all
                 </Link>
-                <Link href="/directory/new" className="rounded-pill px-5 py-2.5 font-semibold text-paper transition hover:brightness-95" style={{ background: DIR }}>
-                  Add your business
-                </Link>
               </div>
+              {/* The owner's two ways in: claim an existing listing (no duplicates), or add it free. Pre-fills what they searched for. */}
+              <JoinBusinessCta variant="empty" name={q} />
             </div>
 
             {/* Hub fallback */}

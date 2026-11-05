@@ -20,6 +20,7 @@ import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
 import { buildWork } from "@/lib/preview-work";
 import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
+import { JoinBusinessCta } from "@/components/business/JoinBusinessCta";
 import { HomeWork } from "@/components/preview/v2/WorkV2";
 import { ForYou } from "@/components/home/ForYou";
 import { getAccount, accountName } from "@/lib/auth";
@@ -106,6 +107,7 @@ export default async function Home() {
 
       {/* 4 · DISCOVER SOMETHING LOCAL */}
       <DiscoverLocal businesses={businesses} />
+      <JoinBusinessCta variant="compact" />
 
       {/* 5 · SHOP · OFFERS · BOOK · EXPERIENCES */}
       <CommerceGateway commerce={commerce} />
