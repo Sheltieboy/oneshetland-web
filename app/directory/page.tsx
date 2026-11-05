@@ -176,6 +176,11 @@ export default async function DirectoryPage({
                 {q ? "Try a different search or browse by category." : "Try a different category."}
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
+                {q && (
+                  <Link href={`/search?q=${encodeURIComponent(q)}`} className="rounded-pill border border-line-strong px-5 py-2.5 font-semibold text-navy transition hover:bg-sand">
+                    Search all of OneShetland
+                  </Link>
+                )}
                 <Link href="/directory" className="rounded-pill border border-line-strong px-5 py-2.5 font-semibold text-ink transition hover:bg-sand">
                   Show all
                 </Link>

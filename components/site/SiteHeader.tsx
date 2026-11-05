@@ -8,6 +8,7 @@ import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { BasketPill } from "@/components/shop/BasketPill";
+import { SiteSearch } from "@/components/search/SiteSearch";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
@@ -16,6 +17,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
   const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
+  const [search, setSearch] = useState(false);
   const pathname = usePathname();
 
   return (
@@ -79,6 +81,10 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
         <div className="flex items-center gap-2">
           {/* Sits outside the signed-in cluster below (which is hidden on small
               screens) so the way back to the basket survives at every width. */}
+          <button type="button" aria-label="Search" aria-expanded={search} onClick={() => setSearch((v) => !v)}
+            className="grid h-11 w-11 place-items-center rounded-pill text-ink-soft transition-colors hover:bg-sand hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-navy">
+            <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+          </button>
           <BasketPill />
           <Link
             href="/business"
@@ -216,6 +222,11 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             )}
           </div>
         </nav>
+      )}
+      {search && (
+        <div className="border-t border-line/70 bg-cream" onKeyDown={(e) => { if (e.key === "Escape") setSearch(false); }}>
+          <div className="mx-auto max-w-3xl px-5 py-3"><SiteSearch autoFocus onNavigate={() => setSearch(false)} /></div>
+        </div>
       )}
     </header>
   );

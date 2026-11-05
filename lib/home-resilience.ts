@@ -28,6 +28,10 @@ type Entry = { value: unknown; at: number };
 const store = new Map<string, Entry>();
 const inflight = new Map<string, Promise<unknown>>();
 
+/** Keys are bounded (callers such as search key by typed text): beyond this the oldest copies are dropped. */
+const MAX_ENTRIES = 600;
+function trim() { while (store.size > MAX_ENTRIES) { const k = store.keys().next().value; if (k === undefined) break; store.delete(k); } }
+
 export function __resetHomeResilience() { store.clear(); inflight.clear(); }
 
 const defaultEmpty = (v: unknown) => v == null || (Array.isArray(v) && v.length === 0);
@@ -44,7 +48,7 @@ export async function resilient<T>(key: string, opts: ResilientOpts<T>, loader: 
       const isEmpty = opts.isEmpty ?? defaultEmpty;
       const prev = store.get(key);
       const guard = opts.emptyGuardMs ?? 5 * 60_000;
-      if (!(prev && !isEmpty(prev.value as T) && isEmpty(v) && now() - prev.at < guard)) store.set(key, { value: v, at: now() });
+      if (!(prev && !isEmpty(prev.value as T) && isEmpty(v) && now() - prev.at < guard)) { store.delete(key); store.set(key, { value: v, at: now() }); trim(); }
       else return prev.value as T;
       return v;
     })();
