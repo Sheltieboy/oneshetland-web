@@ -72,3 +72,11 @@ test("HOME_RESILIENCE=off bypasses the copy but keeps deadline + fallback", asyn
     assert.deepEqual(await resilient("z", O(), () => new Promise(() => {})), ["FB"]);
   } finally { delete process.env.HOME_RESILIENCE; }
 });
+
+test("a stuck load does not pin the key: the next caller starts a fresh load", async () => {
+  let calls = 0;
+  const f = () => (++calls === 1 ? new Promise(() => {}) : Promise.resolve(["fresh"]));
+  assert.deepEqual(await resilient("k", O(), f), ["FB"]);
+  assert.deepEqual(await resilient("k", O(), f), ["fresh"]);
+  assert.equal(calls, 2);
+});

@@ -12,7 +12,8 @@ import { getCuratedBusinesses } from "@/lib/curated-businesses";
 import { getActiveLocalPasses, getBookableServices } from "@/lib/local-data";
 import { cruiseWorthShowing } from "@/lib/home-curation";
 import { mapLiveCommerce } from "@/lib/preview-v2";
-import { EssentialAlertSlot } from "@/components/notices/EssentialAlertSlot";
+import { Suspense } from "react";
+import { HomeEssentialAlerts } from "@/components/notices/HomeEssentialAlerts";
 import { getHomeNoticeBundle } from "@/lib/home-notices";
 import { AudienceChip } from "@/components/home/AudienceChip";
 import { HeroActions } from "@/components/home/HomeSections";
@@ -57,7 +58,7 @@ export default async function Home() {
     getAudience(),
     accountP,
     resilient("home:shifts", { ...R(60_000, 5000, 10 * 60_000), fallback: [] }, () => loadLiveShifts()),
-    accountP.then((a) => getHomeNoticeBundle(!!a)).catch(() => ({ essential: [], notices: [], scopedToMyAreas: false })),
+    accountP.then((a) => getHomeNoticeBundle(!!a)).catch(() => ({ notices: [], scopedToMyAreas: false })),
     accountP.then((a) => (a ? getForYou(a.id).catch(() => []) : [])).catch(() => []),
   ]);
   const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: liveShifts }, now);
@@ -77,7 +78,7 @@ export default async function Home() {
     <>
       {/* 1 · ESSENTIAL ALERT — the one reserved, urgent position (get_essential_alerts only; collapses completely when there are none).
           Precedence: this slot first; business partner_alerts are demoted to a calm strip inside the community band below. */}
-      <EssentialAlertSlot alerts={noticeBundle.essential} scopedToMyAreas={noticeBundle.scopedToMyAreas} />
+      <Suspense fallback={null}><HomeEssentialAlerts account={accountP} /></Suspense>
 
       {/* 2 · HERO — the product, understood at once, with real actions on the first phone screen */}
       <section className="relative isolate overflow-hidden bg-navy text-white">

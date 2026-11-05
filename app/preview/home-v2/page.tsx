@@ -13,7 +13,7 @@ import { getActiveLocalPasses, getBookableServices } from "@/lib/local-data";
 import { cruiseWorthShowing } from "@/lib/home-curation";
 import { buildCommerce, mapLiveCommerce, parsePreview } from "@/lib/preview-v2";
 import { EssentialAlertSlot } from "@/components/notices/EssentialAlertSlot";
-import { getHomeNoticeBundle } from "@/lib/home-notices";
+import { getHomeNoticeBundle, getHomeEssential } from "@/lib/home-notices";
 import { AudienceChip } from "@/components/home/AudienceChip";
 import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
@@ -35,6 +35,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
   const { state, viewer } = parsePreview(sp);
   const now = new Date();
   const noticeBundle = await getHomeNoticeBundle(false);
+  const essential = await getHomeEssential(false);
   const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience] = await Promise.all([
     getHomeData({ legacyNotices: false }),
     getHeroImage(),
@@ -61,7 +62,7 @@ export default async function HomeV2({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <PreviewBar route="/preview/home-v2" state={state} viewer={viewer} other={{ label: "Local V2", href: "/preview/local-v2" }} />
-      <EssentialAlertSlot alerts={noticeBundle.essential} />
+      <EssentialAlertSlot alerts={essential.state === "alerts" ? essential.alerts : []} />
 
       {/* 2 · HERO — the product, understood at once, with real actions on the first phone screen */}
       <section className="relative isolate overflow-hidden bg-navy text-white">

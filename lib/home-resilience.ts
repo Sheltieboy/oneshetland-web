@@ -61,6 +61,8 @@ export async function resilient<T>(key: string, opts: ResilientOpts<T>, loader: 
     ]);
   } catch {
     p.catch(() => {}); // a late failure must not become an unhandled rejection
+    // A load that missed its deadline must not pin the key: the next visitor starts a fresh one (the late one may still refresh the copy).
+    if (inflight.get(key) === p) inflight.delete(key);
     const stale = store.get(key);
     if (!off && stale && now() - stale.at < opts.staleMs) return stale.value as T;
     return opts.fallback;
