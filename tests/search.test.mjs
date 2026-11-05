@@ -113,7 +113,8 @@ test("SiteSearch is a labelled ARIA combobox with a listbox, active descendant, 
 });
 test("the header opens search and the route + page exist; the directory dead-end links to site search", () => {
   assert.match(readFileSync(new URL("../components/site/SiteHeader.tsx", import.meta.url), "utf8"), /<SiteSearch autoFocus/);
-  assert.match(readFileSync(new URL("../app/api/search/suggest/route.ts", import.meta.url), "utf8"), /s-maxage=30/);
+  const route = readFileSync(new URL("../app/api/search/suggest/route.ts", import.meta.url), "utf8");
+  assert.match(route, /private, max-age=30/); assert.doesNotMatch(route, /s-maxage|public/); // shared caches ignore ?q= on Netlify
   assert.match(readFileSync(new URL("../app/api/search/suggest/route.ts", import.meta.url), "utf8"), /no-store/);
   assert.match(readFileSync(new URL("../app/search/page.tsx", import.meta.url), "utf8"), /TrackSearch section="site"/);
   assert.match(readFileSync(new URL("../app/directory/page.tsx", import.meta.url), "utf8"), /Search all of OneShetland/);
