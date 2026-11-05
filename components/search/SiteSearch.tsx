@@ -33,9 +33,16 @@ export type SiteSearchProps = {
   id?: string;
   /** false = no live suggestions (a plain, filter-keeping search form), e.g. the Jobs page's Shifts tab until shifts have suggestions of their own. */
   suggest?: boolean;
+  /** Called on EVERY change of the text (no debounce), e.g. to filter a list already on the page. Cleared text is "". */
+  onTextChange?: (text: string) => void;
+  /**
+   * In-page search (What's On): Enter, and the "show matches" row, apply the text to the list already on the page instead of
+   * navigating away, so the page's filters and context are kept. Receives the cleaned text. Suggestions still open events directly.
+   */
+  onApply?: (text: string) => void;
 };
 
-export function SiteSearch({ scope = "all", submit, variant = "plain", accent, autoFocus = false, onNavigate, placeholder = "Search businesses, events, jobs, boats…", initial = "", label = "Search OneShetland", id, suggest = true }: SiteSearchProps) {
+export function SiteSearch({ scope = "all", submit, variant = "plain", accent, autoFocus = false, onNavigate, placeholder = "Search businesses, events, jobs, boats…", initial = "", label = "Search OneShetland", id, suggest = true, onTextChange, onApply }: SiteSearchProps) {
   const router = useRouter();
   const uid = useId();
   const inputId = id ?? `${uid}-input`;
@@ -75,14 +82,17 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
   const showPanel = suggest && open && q.length > 0;
 
   const go = (href: string) => { setOpen(false); onNavigate?.(); router.push(href); };
+  const apply = (term: string) => { setOpen(false); onApply?.(term); };
+  const mainAction = (term: string) => (onApply ? apply(term) : go(mainHref(term)));
   const choose = (i: number) => {
     const r = rows[i];
-    if (!r) return go(mainHref(q));
+    if (!r) return mainAction(q);
     if (r.type === "hit") return go(hrefFor(r.hit.kind, r.hit.ref));
     if (r.type === "all") return go(searchHrefScoped(q, "all"));
-    go(mainHref(q));
+    mainAction(q);
   };
-  const enter = () => { if (active >= 0) choose(active); else if (q) go(mainHref(q)); };
+  const enter = () => { if (active >= 0) choose(active); else if (q) mainAction(q); };
+  const clear = () => { setText(""); onTextChange?.(""); suggester.current?.input(""); setOpen(false); inputRef.current?.focus(); };
 
   const onKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); setActive((a) => (rows.length ? (a + 1) % rows.length : -1)); }
@@ -90,7 +100,7 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
     else if (e.key === "Home" && showPanel && active >= 0) { e.preventDefault(); setActive(0); }
     else if (e.key === "End" && showPanel && active >= 0) { e.preventDefault(); setActive(rows.length - 1); }
     else if (e.key === "Enter") { e.preventDefault(); enter(); }
-    else if (e.key === "Escape") { if (showPanel) { e.preventDefault(); setOpen(false); } else setText(""); }
+    else if (e.key === "Escape") { if (showPanel) { e.preventDefault(); setOpen(false); } else clear(); }
   };
 
   const noun = SCOPE_NOUN[scope];
@@ -126,11 +136,16 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
             enterKeyHint="search"
             value={text}
             placeholder={placeholder}
-            onChange={(e) => { setText(e.target.value); setOpen(true); if (suggest) suggester.current?.input(e.target.value); }}
+            onChange={(e) => { setText(e.target.value); onTextChange?.(e.target.value); setOpen(true); if (suggest) suggester.current?.input(e.target.value); }}
             onFocus={() => setOpen(true)}
             onKeyDown={onKey}
             className="min-h-[44px] w-full min-w-0 bg-transparent text-base text-ink outline-none placeholder:text-ink-soft/70"
           />
+          {onTextChange && text && (
+            <button type="button" onClick={clear} aria-label="Clear search" className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-ink-soft transition hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-navy">
+              <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6M9 9l6 6" /></svg>
+            </button>
+          )}
           {state.status === "loading" && <span aria-hidden className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-line-strong border-t-navy" />}
           {(variant === "bar" || variant === "hero") && (
             <button type="submit" className="min-h-[40px] shrink-0 rounded-pill px-4 text-sm font-bold text-paper transition hover:brightness-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
@@ -158,7 +173,7 @@ export function SiteSearch({ scope = "all", submit, variant = "plain", accent, a
                     {scope === "all" && <span className="shrink-0 rounded-pill border border-line-strong px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide text-ink-soft">{KIND_LABEL[r.hit.kind]}</span>}
                   </>
                 ) : r.type === "section" ? (
-                  <span className="text-sm font-semibold">{contextual ? `See all ${noun} results for` : "See all results for"} &ldquo;{q}&rdquo;</span>
+                  <span className="text-sm font-semibold">{onApply ? "Show matching events below for" : contextual ? `See all ${noun} results for` : "See all results for"} &ldquo;{q}&rdquo;</span>
                 ) : (
                   <span className="text-sm">Search all OneShetland for &ldquo;{q}&rdquo;</span>
                 )}

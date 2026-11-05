@@ -582,6 +582,7 @@ type BrowserProps =
       pageSize: number;
       initialHasMore: boolean;
       nowIso?: string;
+      initialQuery?: string;
     }
   | {
       mode: "calendar";
@@ -605,6 +606,7 @@ function ListWithLoadMore({
   pageSize,
   initialHasMore,
   nowIso,
+  initialQuery = "",
 }: {
   initial: EventListItem[];
   category?: string;
@@ -613,8 +615,30 @@ function ListWithLoadMore({
   pageSize: number;
   initialHasMore: boolean;
   nowIso?: string;
+  initialQuery?: string;
 }) {
   const [events, setEvents] = useState(initial);
+  // The keyword filter, applied to the events already loaded (no database call), together with the page's category / date / free filters.
+  const [query, setQuery] = useState(initialQuery);
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? events.filter(
+        (e) =>
+          e.title?.toLowerCase().includes(q) ||
+          e.venue?.toLowerCase().includes(q) ||
+          e.locality?.toLowerCase().includes(q) ||
+          e.business?.name?.toLowerCase().includes(q) ||
+          e.hub?.name?.toLowerCase().includes(q),
+      )
+    : events;
+  // Keep the search in the address (shareable, survives a reload) WITHOUT a navigation or a server call.
+  const remember = (text: string) => {
+    try {
+      const u = new URL(window.location.href);
+      if (text.trim()) u.searchParams.set("q", text.trim()); else u.searchParams.delete("q");
+      window.history.replaceState(window.history.state, "", u.toString());
+    } catch { /* the filter still works without it */ }
+  };
   const [hasMore, setHasMore] = useState(initialHasMore);
   const [loading, setLoading] = useState(false);
   const [offset, setOffset] = useState(initial.length);
@@ -640,14 +664,25 @@ function ListWithLoadMore({
 
   return (
     <>
-      {/* Keyword search: the shared live search, covering events only (suggestions from 2 characters; Enter opens /search?scope=event). */}
+      {/* Keyword search: the shared live search, covering events only. Typing filters the list below as before AND shows suggestions
+          (from 2 characters) that open an event; Enter keeps you here with every filter intact. */}
       <div className="mb-8 max-w-md">
-        <SiteSearch scope="event" label="Search events" placeholder="Search events by name, venue or organiser…" />
+        <SiteSearch scope="event" label="Search events" placeholder="Search events by name, venue or organiser…" initial={initialQuery}
+          onTextChange={(t) => { setQuery(t); if (!t.trim()) remember(""); }} onApply={(t) => { setQuery(t); remember(t); }} />
       </div>
 
-      <DateGroupedList events={events} nowIso={nowIso} />
+      {q && filtered.length === 0 ? (
+        <div className="rounded-xl border border-line bg-paper p-12 text-center shadow-soft">
+          <h2 className="font-display text-2xl font-bold">No events match “{query.trim()}”</h2>
+          <p className="mx-auto mt-2 max-w-md text-ink-soft">
+            Try a different keyword, or clear the search to see everything in this view.
+          </p>
+        </div>
+      ) : (
+        <DateGroupedList events={filtered} nowIso={nowIso} />
+      )}
 
-      {hasMore && (
+      {hasMore && !q && (
         <div className="mt-12 text-center">
           <button
             onClick={loadMore}

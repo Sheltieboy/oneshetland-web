@@ -179,8 +179,22 @@ test("the Jobs Shifts tab keeps its plain search: no live job suggestions there"
   assert.match(c, /showPanel = suggest && open/); assert.match(c, /if \(suggest\) suggester\.current\?\.input/);
 });
 
-test("What's On has ONE search box: the shared one in the listing, with the old in-list filter gone", () => {
+test("What's On: ONE shared search box that ALSO filters the list below, together with the page filters", () => {
   const l = readFileSync(new URL("../components/events/EventsListing.tsx", import.meta.url), "utf8");
-  assert.equal((l.match(/<SiteSearch/g) || []).length, 1); assert.doesNotMatch(l, /type="search"|setQuery|filtered/);
-  assert.match(l, /<DateGroupedList events=\{events\}/); assert.match(l, /\{hasMore && \(/);
+  assert.equal((l.match(/<SiteSearch/g) || []).length, 1); assert.doesNotMatch(l, /type="search"/);
+  assert.match(l, /onTextChange=\{\(t\) => \{ setQuery\(t\)/);          // typing filters live, no database call
+  assert.match(l, /const filtered = q/); assert.match(l, /<DateGroupedList events=\{filtered\}/);
+  assert.match(l, /No events match/);                                       // the original empty state is back
+  assert.match(l, /\{hasMore && !q && \(/);                                  // original pagination rule: no "load more" mid-search
+  assert.match(l, /onApply=/);                                              // Enter keeps you on the page (no navigation)
+  assert.match(l, /history\.replaceState/); assert.doesNotMatch(l, /router\.push|\/search\?/); // address updated without a server call
+  const p = readFileSync(new URL("../app/whats-on/page.tsx", import.meta.url), "utf8");
+  assert.match(p, /initialQuery=\{/);
+  assert.match(p, /key=\{`\$\{category \?\? "all"\}\|\$\{range\}\|\$\{freeOnly/); // a filter change still remounts the list (as before)
+});
+test("SiteSearch: in-page mode applies instead of navigating, and has a clear button", () => {
+  const c = readFileSync(new URL("../components/search/SiteSearch.tsx", import.meta.url), "utf8");
+  assert.match(c, /const mainAction = \(term: string\) => \(onApply \? apply\(term\) : go\(mainHref\(term\)\)\)/);
+  assert.match(c, /aria-label="Clear search"/); assert.match(c, /Show matching events below for/);
+  assert.match(c, /if \(r\.type === "hit"\) return go\(hrefFor/);        // a suggestion still opens its event
 });

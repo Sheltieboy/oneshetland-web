@@ -33,7 +33,7 @@ function parseRange(v: string | undefined): DateRange {
 export default async function WhatsOnPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; date?: string; free?: string; view?: string }>;
+  searchParams: Promise<{ category?: string; date?: string; free?: string; view?: string; q?: string }>;
 }) {
   const sp = await searchParams;
   // A legacy name in an old link (?category=Music%20%26%20Gigs) resolves to its current category.
@@ -169,6 +169,7 @@ export default async function WhatsOnPage({
                   pageSize={PAGE_SIZE}
                   initialHasMore={hasMore}
                   nowIso={nowIso}
+                  initialQuery={typeof sp.q === "string" ? sp.q.slice(0, 60) : ""}
                 />
               </>
             )}
