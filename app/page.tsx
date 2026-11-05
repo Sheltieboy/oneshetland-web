@@ -90,7 +90,7 @@ export default async function Home() {
           <h1 className="mt-3 max-w-3xl font-display text-[2.6rem] font-bold leading-[0.98] [text-shadow:_0_2px_24px_rgb(0_0_0_/_45%)] sm:text-6xl lg:text-7xl">
             Shop Shetland.<br />Discover Shetland.<br /><span className="text-amber-200">OneShetland.</span>
           </h1>
-          <p className="mt-4 max-w-xl text-base leading-relaxed text-white/90 sm:text-xl">What&apos;s on, who&apos;s open, what&apos;s hiring — and the best of the isles, in one place.</p>
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-white/90 sm:text-xl">What&apos;s on, who&apos;s open, who&apos;s hiring — and everything Shetland, all in one place.</p>
           <HeroActions />
           <LivePills items={pills} />
           <div className="mt-4"><AudienceChip audience={audience} compact /></div>
