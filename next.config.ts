@@ -38,13 +38,13 @@ const nextConfig: NextConfig = {
       // Turnstile is TWO scripts, not one: lib/turnstile.ts injects
       // /turnstile/v0/api.js, which then pulls in a versioned
       // /turnstile/v0/g/<build>/api.js of its own. Both are on the same host.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://*.supabase.co https://challenges.cloudflare.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://maps.googleapis.com https://*.supabase.co https://challenges.cloudflare.com https://www.googletagmanager.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' data: https://fonts.gstatic.com",
       // Supabase storage serves signed media; Maps serves tiles.
-      "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://static.wixstatic.com",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.googleapis.com https://*.gstatic.com https://*.ggpht.com https://static.wixstatic.com https://www.googletagmanager.com https://*.google-analytics.com",
       "media-src 'self' blob: https://*.supabase.co",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.stripe.com https://maps.googleapis.com https://www.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com https://*.g.doubleclick.net",
       // Stripe's checkout/3DS frames, and the Turnstile challenge widget — the
       // sign-in and create-account forms cannot produce a token without it.
       "frame-src https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",

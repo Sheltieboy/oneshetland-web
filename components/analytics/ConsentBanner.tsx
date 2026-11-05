@@ -42,8 +42,10 @@ export function ConsentBanner() {
     >
       <div className="w-full max-w-2xl rounded-card border border-line-strong bg-paper p-4 shadow-2xl sm:flex sm:items-center sm:gap-5">
         <p className="text-sm leading-relaxed text-ink-soft">
-          We use privacy-friendly, first-party analytics to improve OneShetland.
-          No ads, no third-party tracking, never sold.{" "}
+          If you accept, we use our own analytics and Google Analytics to see
+          how OneShetland is used and improve it. No ads, no advertising
+          profiles, never sold. Declining changes nothing about how the site
+          works.{" "}
           <Link
             href="/privacy"
             className="font-medium text-navy underline underline-offset-2 hover:text-navy-dark"

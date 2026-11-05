@@ -29,6 +29,8 @@ interface TrackContext {
 
 const ANON_KEY = "os_analytics_anon_id";
 const CONSENT_KEY = "os_analytics_consent";
+/** Fired on window whenever the visitor changes their analytics choice. */
+export const CONSENT_EVENT = "os:analytics-consent";
 const FLUSH_MS = 4000;
 const MAX_BATCH = 25;
 
@@ -69,6 +71,7 @@ export function setAnalyticsConsent(on: boolean): void {
   if (!isBrowser) return;
   localStorage.setItem(CONSENT_KEY, String(on));
   if (!on) queue = [];
+  window.dispatchEvent(new Event(CONSENT_EVENT));
 }
 
 export function identifyAnalytics(type: UserType): void { userType = type; }

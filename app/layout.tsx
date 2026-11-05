@@ -8,6 +8,7 @@ import { getFetchStatusSummary } from "@/lib/fetch-data.server";
 import { AnalyticsProvider } from "@/components/analytics/AnalyticsProvider";
 import { ChargeApprovalListener } from "@/components/wallet/ChargeApprovalListener";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
@@ -106,6 +107,7 @@ export default async function RootLayout({
           ]}
         />
         <HideOnPrivateRoutes><AnalyticsProvider /></HideOnPrivateRoutes>
+        <HideOnPrivateRoutes><GoogleAnalytics /></HideOnPrivateRoutes>
         <HideOnPrivateRoutes><ConsentBanner /></HideOnPrivateRoutes>
         {/* The welcome mat (components/site/PrelaunchNotice.tsx) used to mount
             here. Because this is the ROOT layout it greeted every first-time
