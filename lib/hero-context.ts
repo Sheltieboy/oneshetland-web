@@ -67,6 +67,9 @@ function pickHeroKey(weather: { code: number; windKph: number } | null): HeroKey
   return "day-calm";
 }
 
+/** Used when the weather lookup is slow: the neutral daytime image. */
+export const DEFAULT_HERO_IMAGE = HERO_IMAGES["day-calm"];
+
 /** The hero image path to use right now, given live Shetland weather + time. */
 export async function getHeroImage(): Promise<string> {
   const weather = await fetchWeather();

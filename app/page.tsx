@@ -1,10 +1,11 @@
 import Image from "next/image";
 import { isOnToday } from "@/lib/event-currency";
-import { getHomeData } from "@/lib/home-data";
-import { getHeroImage } from "@/lib/hero-context";
+import { getHomeData, type HomeData } from "@/lib/home-data";
+import { getHeroImage, DEFAULT_HERO_IMAGE } from "@/lib/hero-context";
+import { resilient } from "@/lib/home-resilience";
 import { getTodaysGame } from "@/lib/home-extras";
 import { getTodaySnapshot, describeWeather } from "@/lib/shetland-today";
-import { getHomeShelves } from "@/lib/home-shelves";
+import { getHomeShelves, type HomeShelves } from "@/lib/home-shelves";
 import { getAudience } from "@/lib/audience.server";
 import { getCruiseHomeCard } from "@/lib/cruise-data";
 import { getCuratedBusinesses } from "@/lib/curated-businesses";
@@ -36,22 +37,31 @@ export const dynamic = "force-dynamic";
  */
 export default async function Home() {
   const now = new Date();
-  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account] = await Promise.all([
-    getHomeData({ legacyNotices: false }),
-    getHeroImage(),
-    getTodaySnapshot().catch(() => null),
-    getHomeShelves(),
-    getCruiseHomeCard().catch(() => null),
-    getCuratedBusinesses({ limit: 9 }),
-    getActiveLocalPasses(24).catch(() => []),
-    getBookableServices({}).catch(() => []),
+  // Every non-essential, anonymous loader is bounded (hard deadline), kept briefly, and falls back to "nothing to show" so one slow or failed
+  // dependency can no longer stop the whole page. Nothing personal goes through resilient(): account, audience, for-you and a member's
+  // area-scoped notices stay live. The signed-in lookups start at once and the notice bundle / for-you follow the account WITHOUT waiting for the
+  // other loaders, so the old serial chain (batch, then shifts, then notices, then for-you) is now one parallel batch.
+  const R = (ttlMs: number, deadlineMs: number, staleMs: number) => ({ ttlMs, deadlineMs, staleMs });
+  const emptyData: HomeData = { events: [], businesses: [], offers: [], notices: [], campaigns: [], jobs: [], shifts: [], alerts: [], spik: null };
+  const emptyShelves: HomeShelves = { freshProducts: [], hiring: [], boat: null, story: null, spik: null };
+  const accountP = getAccount();
+  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou] = await Promise.all([
+    resilient("home:data", { ...R(60_000, 6000, 10 * 60_000), fallback: emptyData }, () => getHomeData({ legacyNotices: false, homepageOnly: true })),
+    resilient("home:hero", { ...R(5 * 60_000, 3000, 60 * 60_000), fallback: DEFAULT_HERO_IMAGE }, () => getHeroImage()),
+    resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
+    resilient("home:shelves", { ...R(120_000, 6000, 15 * 60_000), fallback: emptyShelves }, () => getHomeShelves()),
+    resilient("home:cruise", { ...R(120_000, 5000, 15 * 60_000), fallback: null }, () => getCruiseHomeCard().catch(() => null)),
+    resilient("home:businesses", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getCuratedBusinesses({ limit: 9 })),
+    resilient("home:passes", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getActiveLocalPasses(24).catch(() => [])),
+    resilient("home:services", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getBookableServices({}).catch(() => [])),
     getAudience(),
-    getAccount(),
+    accountP,
+    resilient("home:shifts", { ...R(60_000, 5000, 10 * 60_000), fallback: [] }, () => loadLiveShifts()),
+    accountP.then((a) => getHomeNoticeBundle(!!a)).catch(() => ({ essential: [], notices: [], scopedToMyAreas: false })),
+    accountP.then((a) => (a ? getForYou(a.id).catch(() => []) : [])).catch(() => []),
   ]);
-  const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: await loadLiveShifts() }, now);
+  const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: liveShifts }, now);
   // For you — personal, signed-in only, and only when there is something genuine to say.
-  const noticeBundle = await getHomeNoticeBundle(!!account);
-  const forYou = account ? await getForYou(account.id).catch(() => []) : [];
   const visiting = audience === "visiting";
   const showCruise = cruiseWorthShowing(cruise, now);
   const commerce = mapLiveCommerce({ products: shelves.freshProducts, offers: data.offers, passes, services });

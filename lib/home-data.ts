@@ -111,7 +111,7 @@ export type HomeData = {
 };
 
 /** One round-trip's worth of homepage content, fetched in parallel. */
-export async function getHomeData(opts: { legacyNotices?: boolean } = {}): Promise<HomeData> {
+export async function getHomeData(opts: { legacyNotices?: boolean; homepageOnly?: boolean } = {}): Promise<HomeData> {
   const sb = publicClient();
   const now = new Date().toISOString();
 
@@ -125,15 +125,17 @@ export async function getHomeData(opts: { legacyNotices?: boolean } = {}): Promi
 
   const [events, businesses, offers, notices, campaigns, jobs, shifts, alerts, spik] = await Promise.all([
     safe(fetchEvents(sb, now), []),
-    safe(fetchBusinesses(sb), []),
+    // homepageOnly: the homepage renders only events, offers, campaigns and partner alerts (businesses come from getCuratedBusinesses,
+    // jobs/shifts from the shelves and live-shifts loaders, spik from the shelves), so the rest are not fetched there.
+    opts.homepageOnly ? Promise.resolve([] as HomeBusiness[]) : safe(fetchBusinesses(sb), []),
     safe(fetchOffers(sb, now), []),
     // The homepage no longer renders this (it reads get_public_notices via lib/home-notices.ts); callers that do pass nothing and keep the old behaviour.
     opts.legacyNotices === false ? Promise.resolve([] as HomeNotice[]) : safe(fetchNotices(sb, now), []),
     safe(fetchCampaigns(sb), []),
-    safe(fetchJobs(sb, now), []),
-    safe(fetchShifts(sb, now), []),
+    opts.homepageOnly ? Promise.resolve([] as HomeJob[]) : safe(fetchJobs(sb, now), []),
+    opts.homepageOnly ? Promise.resolve([] as HomeShift[]) : safe(fetchShifts(sb, now), []),
     safe(fetchAlerts(sb, now), []),
-    safe(fetchSpik(sb), null),
+    opts.homepageOnly ? Promise.resolve(null) : safe(fetchSpik(sb), null),
   ]);
 
   return { events, businesses, offers, notices, campaigns, jobs, shifts, alerts, spik };

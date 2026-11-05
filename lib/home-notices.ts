@@ -9,6 +9,7 @@
  * NOT the empty list, which would mean Shetland-wide only). A failed read hides that block; it never breaks the homepage.
  */
 import { getEssentialAlerts, getMyAreas, getPublicNotices } from "./notices-data";
+import { resilient } from "./home-resilience";
 import { composeHomeNotices, memberBrowseScope, rpcAreaArg, type NoticeCardModel } from "./notices-alerts";
 
 export type HomeNoticeBundle = { essential: NoticeCardModel[]; notices: NoticeCardModel[]; scopedToMyAreas: boolean };
@@ -16,10 +17,14 @@ export type HomeNoticeBundle = { essential: NoticeCardModel[]; notices: NoticeCa
 export async function getHomeNoticeBundle(signedIn: boolean): Promise<HomeNoticeBundle> {
   const scope = memberBrowseScope(signedIn ? await getMyAreas() : null);
   const arg = rpcAreaArg(scope);
+  // Essential alerts are never cached: fresh every time, but bounded so a slow database cannot hold the page (the slot then collapses, as it does for "none").
+  // The ordinary notice list is shared public data, so for a visitor with no chosen areas it is kept for 30 s; a member's area-scoped list is never kept.
+  const publicList = !signedIn || scope.mode !== "areas";
   const [ess, all] = await Promise.all([
-    getEssentialAlerts(arg).catch(() => null),
+    resilient("home:essential:" + JSON.stringify(arg), { ttlMs: 0, staleMs: 0, deadlineMs: 5000, fallback: null }, () => getEssentialAlerts(arg).catch(() => null)),
     // Up to 10 essential alerts sort first; ask for enough that six non-essential cards remain after they are excluded.
-    getPublicNotices({ level: "all", areaIds: arg, limit: 20 }).catch(() => null),
+    resilient("home:notices:" + JSON.stringify(arg), { ttlMs: publicList ? 30_000 : 0, staleMs: publicList ? 5 * 60_000 : 0, deadlineMs: 5000, fallback: null, isEmpty: (v) => !v || !v.ok || v.data.length === 0 },
+      () => getPublicNotices({ level: "all", areaIds: arg, limit: 20 }).catch(() => null)),
   ]);
   const essential = ess && ess.ok ? ess.data : [];
   const notices = all && all.ok ? composeHomeNotices(all.data, essential.map((e) => e.id)) : [];
