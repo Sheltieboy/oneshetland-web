@@ -46,6 +46,7 @@ export default async function ManageHubPage({ params }: { params: Promise<{ id: 
         { href: `${base}/activities`, label: "Regular activities", desc: "Weekly classes & groups, with changes & breaks" },
         { href: `${base}/campaigns`, label: "Fundraising", desc: "Campaigns, donations & Gift Aid" },
         ...(hub.is_charity && hub.charity_number ? [{ href: `${base}/giftaid`, label: "Gift Aid", desc: "Export declarations for HMRC" }] : []),
+        { href: `/accessible/edit/hub/${hub.id}`, label: "Help people plan their visit", desc: "Access and assistance information: free, optional" },
         { href: `${base}/broadcast`, label: "Message members", desc: "Push or email the whole membership" },
       ],
     },

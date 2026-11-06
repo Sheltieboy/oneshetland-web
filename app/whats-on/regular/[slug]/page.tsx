@@ -1,3 +1,4 @@
+import { AccessibilitySection } from "@/components/accessibility/AccessibilitySection";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getActivityDetail } from "@/lib/activities-data";
@@ -24,5 +25,10 @@ export default async function ActivityPage({ params }: { params: Promise<{ slug:
   const manageHref = d.canManage
     ? owner.kind === "hub" ? `/hubs/${owner.slug || owner.id}/manage/activities/${a.id}` : owner.kind === "business" ? `/business/${owner.id}/manage/activities/${a.id}` : "/admin/activities"
     : null;
-  return <ActivityDetailView activity={a} owner={owner} rules={d.rules} sessions={d.sessions} now={now} isPublic={isPublic} canManage={d.canManage} manageHref={manageHref} signedIn={d.signedIn} following={d.following} />;
+  return (
+    <>
+      <ActivityDetailView activity={a} owner={owner} rules={d.rules} sessions={d.sessions} now={now} isPublic={isPublic} canManage={d.canManage} manageHref={manageHref} signedIn={d.signedIn} following={d.following} />
+      {isPublic && <div className="mx-auto max-w-5xl px-5 pb-12"><AccessibilitySection type="activity" id={a.id} heading="Access and assistance at this activity" /></div>}
+    </>
+  );
 }

@@ -1,6 +1,7 @@
 import { formatDay, hoursExpired } from "@/lib/opening-hours";
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @next/next/no-img-element */
+import { AccessibilitySection } from "@/components/accessibility/AccessibilitySection";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -256,6 +257,8 @@ export default async function BusinessPage({
               <p className="mt-4 whitespace-pre-line text-lg leading-relaxed text-ink-soft">{b.description}</p>
             </section>
           )}
+
+          <AccessibilitySection type="business" id={b.id} />
 
           {showOffers && offers.length > 0 && (
             <section>

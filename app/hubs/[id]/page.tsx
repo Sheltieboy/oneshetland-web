@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccessibilitySection } from "@/components/accessibility/AccessibilitySection";
 import { notFound } from "next/navigation";
 import {
   getHub,
@@ -124,6 +125,8 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
               <p className="mt-3 whitespace-pre-line leading-relaxed text-ink-soft">{hub.description}</p>
             </section>
           )}
+
+          <AccessibilitySection type="hub" id={hub.id} />
 
           {/* Membership tiers */}
           {tiers.length > 0 && (

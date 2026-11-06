@@ -22,6 +22,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/vessel-photos", label: "Vessel photos", badgeKey: "pendingVesselPhotos" },
     { href: "/admin/alerts", label: "Alerts", badgeKey: "pendingAlerts" },
     { href: "/admin/notices", label: "Notices & alerts" },
+    { href: "/admin/accessibility", label: "Accessible Shetland" },
     { href: "/admin/spik", label: "Spik suggestions", badgeKey: "pendingSpik" },
   ] },
   { group: "Content", items: [

@@ -103,6 +103,15 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         </div>
       </section>
 
+      <section className="mb-8" aria-labelledby="plan-visit-h">
+        <h2 id="plan-visit-h" className="eyebrow mb-2 text-ink-muted">Welcome everyone</h2>
+        <div className="rounded-card border border-line bg-paper p-5">
+          <p className="font-display text-lg font-bold">Help people plan their visit</p>
+          <p className="mt-1 text-sm text-ink-soft">Tell people about steps, parking, toilets, quiet times and how you can help, so they can decide what works for them. Free on every plan, optional, and you can save a draft.</p>
+          <Link href={`/accessible/edit/business/${business.id}`} className="mt-3 inline-flex min-h-11 items-center rounded-pill bg-ink px-5 text-sm font-bold text-white">Add access information</Link>
+        </div>
+      </section>
+
     </div>
   );
 }

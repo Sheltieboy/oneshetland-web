@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+import { AccessibilitySection } from "@/components/accessibility/AccessibilitySection";
 import Link from "next/link";
 import { eventWhen } from "@/lib/event-display";
 import { eventState } from "@/lib/event-state";
@@ -222,6 +223,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               ? <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={e.starts_at} endsAt={e.ends_at} defaultStop={homeDefaultStop} />
               : <GettingThereLinks />
           ) : null}
+
+          <div className="mt-10"><AccessibilitySection type="event" id={e.id} heading="Access and assistance at this event" /></div>
 
           {/* Photo gallery */}
           {e.gallery_urls?.length ? (
