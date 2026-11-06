@@ -16,8 +16,8 @@ export const EXCLUDE_REASON_MIN = 5;
 /**
  * Homepage showcase — the admin front for admin_set_homepage_exclusion.
  *
- * Keeps ONE named business out of the homepage's promotional showcase ("Discover local businesses" and "Recently joined"). It changes
- * nothing else: the business keeps its plan and every benefit of it, and its Directory position. The rules (administrators only, a
+ * Keeps ONE named business out of the homepage's promotional showcase ("Discover local businesses" and "Recently joined") and nothing else: the
+ * Local page and other discovery surfaces ignore it. It changes nothing else: the business keeps its plan and every benefit of it, and its Directory position. The rules (administrators only, a
  * reason, the audit log) are in the database; this only collects the inputs, asks first, and reports what the database said.
  */
 export function HomepageShowcaseControl({ initial }: { initial: ExclusionRow[] }) {
@@ -46,7 +46,7 @@ export function HomepageShowcaseControl({ initial }: { initial: ExclusionRow[] }
     const ok = await confirm({
       title: excluded ? "Keep this business off the homepage?" : "Allow this business on the homepage again?",
       body: excluded
-        ? `${name}\n\nIt will no longer appear in "Discover local businesses" or "Recently joined" on the homepage. Its plan, benefits and Directory position do not change.`
+        ? `${name}\n\nIt will no longer appear in "Discover local businesses" or "Recently joined" on the homepage. It still appears on the Local page, in the Directory and everywhere else, and its plan and benefits do not change.`
         : `${name}\n\nIt can appear in the homepage showcase again, if it qualifies.`,
       confirmLabel: excluded ? "Keep off homepage" : "Allow again",
       danger: excluded,
@@ -72,7 +72,7 @@ export function HomepageShowcaseControl({ initial }: { initial: ExclusionRow[] }
     <Card className="mt-6">
       <h2 className="font-display text-lg font-bold text-ink">Homepage business showcase</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Keep a specific business out of the homepage&apos;s promotional sections. This does <strong>not</strong> change its plan, its benefits or its Directory position.
+        Keep a specific business out of the homepage&apos;s promotional sections only. This does <strong>not</strong> change its plan, its benefits or its Directory position, and it does not affect the Local page or anywhere else.
       </p>
 
       <h3 className="mt-4 text-xs font-bold uppercase tracking-widest text-ink-muted">Currently kept off the homepage</h3>

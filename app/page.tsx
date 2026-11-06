@@ -54,7 +54,7 @@ export default async function Home() {
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
     resilient("home:shelves", { ...R(120_000, 6000, 15 * 60_000), fallback: emptyShelves }, () => getHomeShelves()),
     resilient("home:cruise", { ...R(120_000, 5000, 15 * 60_000), fallback: null }, () => getCruiseHomeCard().catch(() => null)),
-    resilient<Showcase>("home:businesses", { ...R(120_000, 5000, 15 * 60_000), fallback: { main: [], recent: [] } }, () => getBusinessShowcase()),
+    resilient<Showcase>("home:businesses", { ...R(120_000, 5000, 15 * 60_000), fallback: { main: [], recent: [] } }, () => getBusinessShowcase({ surface: "home" })),
     resilient("home:passes", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getActiveLocalPasses(24).catch(() => [])),
     resilient("home:services", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getBookableServices({}).catch(() => [])),
     getAudience(),

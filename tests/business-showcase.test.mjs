@@ -183,27 +183,53 @@ test("opening hours do not influence the shelf (the read does not even select th
   assert.doesNotMatch(comp, /Who's open for business/);
 });
 test("the homepage uses the showcase and passes the strip; Local keeps the main shelf only", () => {
-  assert.match(read("app/page.tsx"), /getBusinessShowcase\(\)/);
+  assert.match(read("app/page.tsx"), /getBusinessShowcase\(\{ surface: "home" \}\)/);
   assert.match(read("app/page.tsx"), /<DiscoverLocal businesses=\{businesses\.main\} recent=\{businesses\.recent\} \/>/);
   assert.match(read("app/local/page.tsx"), /getCuratedBusinesses\(/);
 });
 
-// ── admin-controlled exclusion from the homepage showcase
-test("an excluded business appears in NEITHER the shelf nor the strip, even as the only Premium and a brand-new owner", () => {
+// ── admin-controlled exclusion applies to the HOMEPAGE surface only
+const HOME = { surface: "home" };
+test("homepage surface: an excluded business appears in NEITHER the shelf nor the strip, even as the only Premium and a brand-new owner", () => {
   const founder = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(2), name: "Founder Ltd", homepage_excluded: true });
   const other = biz({ ...complete, live_tier: "premium", name: "Other Premium" });
-  const { main, recent } = buildShowcase([founder, other, ...strongFiller(8)], NOW);
+  const { main, recent } = buildShowcase([founder, other, ...strongFiller(8)], NOW, HOME);
   assert.ok(!ids(main).includes(founder.id) && !ids(recent).includes(founder.id));
   assert.equal(ids(main)[0], other.id, "the next Premium business takes the first position instead");
   assert.equal(main.length, HOME_SHELF, "the shelf is still full");
 });
-test("excluding one Premium business leaves the rest of the rotation fair (the others share the reserved slots equally)", () => {
+test("homepage surface: Recently joined excludes it too (it would otherwise qualify), and the strip still fills from others", () => {
+  const excluded = joined(2, { name: "Excluded newcomer", homepage_excluded: true });
+  const others = [joined(3, { name: "Newcomer A" }), joined(4, { name: "Newcomer B" })];
+  const withIt = buildShowcase([excluded, ...others, ...strongFiller(8)], NOW);                 // local surface: qualifies
+  assert.ok(ids(withIt.recent).includes(excluded.id));
+  const home = buildShowcase([excluded, ...others, ...strongFiller(8)], NOW, HOME);
+  assert.ok(!ids(home.recent).includes(excluded.id));
+  assert.deepEqual(new Set(ids(home.recent)), new Set(ids(others)));
+});
+test("the LOCAL surface is unaffected: an excluded business is still shown there, with its Premium placement", () => {
+  const founder = biz({ ...complete, live_tier: "premium", is_claimed: true, name: "Founder Ltd", homepage_excluded: true });
+  const local = buildShowcase([founder, ...strongFiller(8)], NOW, { limit: 8 });               // default surface
+  assert.equal(ids(local.main)[0], founder.id, "still first, as a live Premium business");
+  assert.equal(ids(buildShowcase([founder, ...strongFiller(8)], NOW, { limit: 8, surface: "local" }).main)[0], founder.id);
+  assert.ok(!ids(buildShowcase([founder, ...strongFiller(8)], NOW, { limit: 8, surface: "home" }).main).includes(founder.id));
+});
+test("which caller uses which surface: only the homepage opts in; the Local page and previews use getCuratedBusinesses, which never applies it", () => {
+  assert.match(read("app/page.tsx"), /getBusinessShowcase\(\{ surface: "home" \}\)/);
+  assert.match(src, /getBusinessShowcase\(\{ \.\.\.opts, surface: "local" \}\)/);
+  assert.match(read("app/local/page.tsx"), /getCuratedBusinesses\(/);
+  assert.doesNotMatch(read("app/local/page.tsx"), /surface:\s*"home"|getBusinessShowcase/);
+  for (const f of ["app/preview/local-v2/page.tsx", "app/preview/home-v2/page.tsx"]) assert.doesNotMatch(read(f), /surface:\s*"home"/, f);
+  // the default is the safe one: nothing is excluded unless a caller asks for the homepage surface
+  assert.match(src, /opts\.surface \?\? "local"\) === "home"/);
+});
+test("homepage surface: excluding one Premium business leaves the rest of the rotation fair", () => {
   const founder = biz({ live_tier: "premium", homepage_excluded: true });
   const others = Array.from({ length: 4 }, () => biz({ live_tier: "premium" }));
   const base = Math.floor(NOW.getTime() / ROTATION_MS);
   const counts = new Map(others.map((o) => [o.id, 0]));
   for (let t = 0; t < 4; t++) {
-    const { main } = buildShowcase([founder, ...others, ...strongFiller(8)], new Date((base + t) * ROTATION_MS + 1000));
+    const { main } = buildShowcase([founder, ...others, ...strongFiller(8)], new Date((base + t) * ROTATION_MS + 1000), HOME);
     assert.ok(!ids(main).includes(founder.id));
     for (const b of main.slice(0, PREMIUM_RESERVED)) counts.set(b.id, counts.get(b.id) + 1);
   }
@@ -212,21 +238,22 @@ test("excluding one Premium business leaves the rest of the rotation fair (the o
 test("it is a per-business switch, not a rule about who owns a business: an identical, non-excluded owner is unaffected", () => {
   const a = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(1), name: "Same Owner A", homepage_excluded: true });
   const b = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(1), name: "Same Owner B" });
-  const { main } = buildShowcase([a, b], NOW);
-  assert.deepEqual(ids(main), [b.id]);
+  assert.deepEqual(ids(buildShowcase([a, b], NOW, HOME).main), [b.id]);
   assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\//g, ""), /founder|Fullerton|owner_id/i, "no founder rule and no name or owner is hard-coded in the web code");
 });
-test("the exclusion touches only the homepage showcase: Directory ranking and Featured never read it", () => {
-  assert.doesNotMatch(read("lib/local-data.ts"), /homepage_excluded/);
-  assert.doesNotMatch(read("lib/directory-rank.ts"), /homepage_excluded/);
+test("Directory, Featured and paid entitlements never read the exclusion: ranking, tiers and plans are untouched", () => {
+  for (const f of ["lib/local-data.ts", "lib/directory-rank.ts", "lib/listing-tiers.ts", "lib/entitlement.server.ts"]) assert.doesNotMatch(read(f), /homepage_excluded/, f);
   assert.match(src, /homepage_excluded/);
+  // the shelf's paid weight comes from live_tier whether or not the business is excluded; excluding changes who is SHOWN, never what a business is entitled to
+  assert.equal(businessScore(biz({ live_tier: "premium", homepage_excluded: true })), businessScore(biz({ live_tier: "premium" })));
 });
 test("the admin control calls only the two admin database functions, asks before acting, and is on the Homepage admin screen", () => {
   const c = read("components/admin/HomepageShowcaseControl.tsx");
   assert.match(c, /rpc\("admin_set_homepage_exclusion"/);
   assert.match(c, /rpc\("admin_launch_business_lookup"/);
   assert.match(c, /await confirm\(/);
-  assert.match(c, /does <strong>not<\/strong> change its plan, its benefits or its Directory position/);
+  assert.match(c, /does <strong>not<\/strong> change its plan, its benefits or its Directory position, and it does not affect the Local page or anywhere else/);
+  assert.match(c, /homepage&apos;s promotional sections only/);
   assert.doesNotMatch(c, /\.from\(|subscription_tier|launch_plan/, "never writes a table or a plan");
   const page = read("app/admin/homepage/page.tsx");
   assert.match(page, /rpc\("admin_homepage_exclusions"\)/);

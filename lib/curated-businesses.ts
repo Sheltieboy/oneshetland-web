@@ -18,8 +18,10 @@ import { publicClient } from "./supabase/public";
  * phone 5, website 5. Ties go to the newest listing. "Paid" is the entitlement the business HAS (live_tier), never the recorded
  * plan alone.
  *
- * EXCLUDED BY AN ADMINISTRATOR (homepage_excluded): the business appears in neither the shelf nor the strip. That is all it changes: the
- * business keeps its plan and every benefit of it, and its Directory position (those do not read this flag).
+ * EXCLUDED BY AN ADMINISTRATOR (homepage_excluded): on the HOMEPAGE surface only ({ surface: "home" }), the business appears in neither the
+ * shelf nor the strip. The Local landing page and every other caller use the default "local" surface, which ignores the flag, so a
+ * business kept off the homepage is still shown wherever else it qualifies. The flag changes nothing else: the business keeps its plan
+ * and every benefit of it, and its Directory position (those do not read it).
  *
  * OPENING HOURS DO NOT AFFECT THIS SHELF, and the heading no longer implies they do.
  *
@@ -123,9 +125,9 @@ const toCard = (b: CuratedRow): CuratedBusiness => ({
 const isCommercial = (b: CuratedRow) => !!b.name?.trim() && (COMMERCIAL_CATEGORIES as readonly string[]).includes(b.category ?? "");
 
 /** Pure: commercial listings, best first, one per trading name. */
-export function rankBusinesses(rows: CuratedRow[]): CuratedRow[] {
+export function rankBusinesses(rows: CuratedRow[], honourHomepageExclusion = false): CuratedRow[] {
   const scored = rows
-    .filter((b) => isCommercial(b) && !b.homepage_excluded)   // an administrator's exclusion removes it from every homepage section
+    .filter((b) => isCommercial(b) && !(honourHomepageExclusion && b.homepage_excluded))   // an administrator's HOMEPAGE exclusion; other surfaces ignore it
     .map((b) => ({ b, s: businessScore(b) }))
     .sort((x, y) => y.s - x.s || (y.b.created_at ?? "").localeCompare(x.b.created_at ?? "") || x.b.id.localeCompare(y.b.id));
   const seen = new Set<string>();
@@ -175,26 +177,30 @@ export function isRecentlyJoined(b: CuratedRow, now: Date, days = RECENT_DAYS): 
   return Number.isFinite(t) && t <= now.getTime() && now.getTime() - t <= days * 86_400_000;
 }
 
+/** Where the shelf is for. "home" honours an administrator's homepage exclusion; "local" (the default) does not. */
+export type ShowcaseSurface = "home" | "local";
+
 export type Showcase = { main: CuratedBusiness[]; recent: CuratedBusiness[] };
 
 /** Pure: the main shelf (reserved Premium first, then the rest by score) and the Recently joined strip (no overlap, no repeated names). */
 export function buildShowcase(
   rows: CuratedRow[],
   now: Date,
-  opts: { limit?: number; reserved?: number; recentLimit?: number; paidMax?: number } = {},
+  opts: { limit?: number; reserved?: number; recentLimit?: number; paidMax?: number; surface?: ShowcaseSurface } = {},
 ): Showcase {
   const limit = opts.limit ?? HOME_SHELF;
   const reserved = Math.max(0, Math.min(opts.reserved ?? PREMIUM_RESERVED, limit));
   const recentLimit = opts.recentLimit ?? RECENT_LIMIT;
   const paidMax = opts.paidMax ?? PAID_SHELF_MAX;
+  const honour = (opts.surface ?? "local") === "home";
   const bucket = rotationBucket(now);
 
-  const ranked = rankBusinesses(rows);
+  const ranked = rankBusinesses(rows, honour);
   const premium = ranked.filter((b) => b.live_tier === "premium");
   const held = rotate(premium, bucket, Math.min(reserved, premium.length));
   const heldIds = new Set(held.map((b) => b.id));
   // Everyone not holding a reserved slot competes on the shelf on equal paid footing: a Premium business is weighed as Pro here.
-  const contenders = rankBusinesses(ranked.filter((b) => !heldIds.has(b.id)).map((b) => (b.live_tier === "premium" ? { ...b, live_tier: "pro" as const } : b)));
+  const contenders = rankBusinesses(ranked.filter((b) => !heldIds.has(b.id)).map((b) => (b.live_tier === "premium" ? { ...b, live_tier: "pro" as const } : b)), honour);
   const rest = dealCapped(contenders, Math.max(0, limit - held.length), Math.max(0, paidMax - held.length));
   const mainRows = [...held, ...rest];
   const shown = new Set(mainRows.map((b) => b.id));
@@ -208,7 +214,7 @@ export function buildShowcase(
 }
 
 /** `areaLabel`, when given, narrows to businesses whose address names that area (the same rule the Directory uses). */
-export async function getBusinessShowcase(opts: { limit?: number; areaLabel?: string; reserved?: number } = {}): Promise<Showcase> {
+export async function getBusinessShowcase(opts: { limit?: number; areaLabel?: string; reserved?: number; surface?: ShowcaseSurface } = {}): Promise<Showcase> {
   try {
     let q = publicClient()
       .from("local_businesses_public")
@@ -222,15 +228,15 @@ export async function getBusinessShowcase(opts: { limit?: number; areaLabel?: st
     if (error) throw error;
     const rows = (data ?? []) as unknown as CuratedRow[];
     if (rows.length >= READ_CEILING) console.warn("[curated-businesses] read ceiling reached; some listings were not considered");
-    return buildShowcase(rows, new Date(), { limit: opts.limit, reserved: opts.reserved });
+    return buildShowcase(rows, new Date(), { limit: opts.limit, reserved: opts.reserved, surface: opts.surface });
   } catch {
     return { main: [], recent: [] };
   }
 }
 
-/** The main shelf only (the Local page and previews). */
+/** The main shelf only, for the Local page and previews: the "local" surface, which does NOT apply the homepage exclusion. */
 export async function getCuratedBusinesses(opts: { limit?: number; areaLabel?: string } = {}): Promise<CuratedBusiness[]> {
-  return (await getBusinessShowcase(opts)).main;
+  return (await getBusinessShowcase({ ...opts, surface: "local" })).main;
 }
 
 /** How many products are genuinely on sale. Test fixtures are withheld by the database, so this is the public count. */
