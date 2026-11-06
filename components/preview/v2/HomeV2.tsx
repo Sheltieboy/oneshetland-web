@@ -245,6 +245,8 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
 /* ── Shop · Offers · Book · Experiences — the permanent gateway ────────────── */
 
 const NOUN: Record<Pillar, [string, string]> = { shop: ["product", "products"], offers: ["offer", "offers"], book: ["service", "services"], experiences: ["experience", "experiences"] };
+/** Shown while a pillar has nothing published yet. The features are live; they are waiting for businesses to publish. */
+export const AWAITING: Record<Pillar, string> = { shop: "Awaiting first products", offers: "Awaiting first offers", book: "Awaiting first services", experiences: "Awaiting first experiences" };
 
 export function CommerceGateway({ commerce }: { commerce: Record<Pillar, Merch[]> }) {
   const total = PILLAR_ORDER.reduce((n, p) => n + commerce[p].length, 0);
@@ -269,7 +271,7 @@ export function CommerceGateway({ commerce }: { commerce: Record<Pillar, Merch[]
                   <span className="font-display text-3xl font-bold leading-none sm:text-4xl">{pl.label}</span>
                   <span className="mt-1.5 block text-xs font-medium leading-snug text-white/85 sm:text-sm">{pl.short}</span>
                   <span className="mt-3 inline-flex items-center gap-1.5 rounded-pill bg-white/20 px-3 py-1 text-[11px] font-bold backdrop-blur-sm">
-                    {d === "none" ? "Opening soon" : `${n} ${NOUN[p][n === 1 ? 0 : 1]}`}
+                    {d === "none" ? AWAITING[p] : `${n} ${NOUN[p][n === 1 ? 0 : 1]}`}
                     <span aria-hidden>→</span>
                   </span>
                 </div>
