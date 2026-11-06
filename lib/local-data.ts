@@ -1,4 +1,5 @@
 import { DIRECTORY_LIST_LIMIT } from "./directory-count";
+import { DIRECTORY_RANK_COL, compareDirectory } from "./directory-rank";
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
@@ -73,6 +74,8 @@ export type Business = {
   subscription_tier: string;
   slug: string | null;
   is_claimed: boolean;
+  /** Directory tier from the database: 0 featured, 1 owner-managed, 2 unclaimed. Only present on Directory list reads. */
+  directory_rank?: number;
 };
 
 export type Offer = {
@@ -430,10 +433,13 @@ export async function getAllBusinesses(
 ): Promise<Business[]> {
   const sb = publicClient();
   try {
+    // Tier first (featured, owner-managed, unclaimed — see directory-rank.ts), then the existing order within each tier.
+    // The tier is ordered in the database so the 200-row cut keeps the right 200.
     let q = sb
       .from(PUBLIC_BUSINESS)
-      .select(LIST_COLS)
+      .select(`${LIST_COLS}, ${DIRECTORY_RANK_COL}`)
       .eq("is_active", true)
+      .order(DIRECTORY_RANK_COL, { ascending: true })
       .order("is_verified", { ascending: false })
       .order("name", { ascending: true })
       .limit(DIRECTORY_LIST_LIMIT);
@@ -475,8 +481,9 @@ export async function getAllBusinesses(
       const lc = term.toLowerCase();
       let tq = sb
         .from(PUBLIC_BUSINESS)
-        .select(LIST_COLS)
+        .select(`${LIST_COLS}, ${DIRECTORY_RANK_COL}`)
         .eq("is_active", true)
+        .order(DIRECTORY_RANK_COL, { ascending: true })
         .order("name", { ascending: true })
         .limit(200);
       if (opts.category) tq = tq.eq("category", opts.category);
@@ -489,11 +496,8 @@ export async function getAllBusinesses(
           have.add(b.id);
         }
       }
-      // keep verified-first, then alphabetical ordering across the merged set
-      rows = rows.sort(
-        (a, b) =>
-          Number(b.is_verified) - Number(a.is_verified) || a.name.localeCompare(b.name),
-      );
+      // keep the same order across the merged set: tier, then verified-first, then alphabetical
+      rows = rows.sort(compareDirectory);
     }
     return rows;
   } catch (e) {
