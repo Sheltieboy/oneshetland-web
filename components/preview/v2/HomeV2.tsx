@@ -205,7 +205,7 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
           </div>
         </Link>
 
-        <div className="grid grid-cols-2 gap-4 lg:col-span-7 lg:grid-cols-3 lg:grid-rows-2 max-lg:[&>:last-child:nth-child(odd)]:col-span-2">
+        <div className="grid grid-cols-2 gap-4 lg:col-span-7 lg:grid-cols-3 lg:grid-rows-2">
           {rest.map((b, i) => {
             const c = CAT_COLOR[b.category ?? ""] ?? "#4f46e5";
             return (
@@ -213,7 +213,7 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
                 <Logo b={b} size="h-14 w-14" />
                 <span>
                   <span className="block text-[10px] font-bold uppercase tracking-widest text-white/75">{CATEGORY_LABEL[b.category ?? ""] ?? "Business"}</span>
-                  <span className="mt-0.5 block line-clamp-2 break-words font-display text-lg font-bold leading-tight sm:text-xl">{b.name}</span>
+                  <span className="mt-0.5 block line-clamp-2 font-display text-xl font-bold leading-tight">{b.name}</span>
                 </span>
               </Link>
             );
