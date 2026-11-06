@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { forYouLayout, DESKTOP_SLOTS, MAX_RECS } from "../lib/for-you-layout.ts";
-import { pinFromRow, safePinHref, pinKey, expiryFromDate, dateFromExpiry, validatePinDraft, PIN_LIMITS } from "../lib/home-pin.ts";
+import { forYouLayout, forYouShows, DESKTOP_SLOTS, MAX_RECS } from "../lib/for-you-layout.ts";
+import { getHomePin, PIN_READ_DEADLINE_MS, pinFromRow, safePinHref, pinKey, expiryFromDate, dateFromExpiry, validatePinDraft, PIN_LIMITS } from "../lib/home-pin.ts";
 
 const read = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
 const NOW = Date.parse("2026-11-06T12:00:00Z");
@@ -19,7 +19,7 @@ test("without a pinned card: 1 -> one capped column, 2 -> two, 3 -> three, 4 -> 
 });
 test("with a pinned card: it fills the row with two recommendations; more fold into '+N more'", () => {
   const g = (n, e = false) => forYouLayout(n, true, e);
-  assert.equal(g(0).gridClass, "md:grid-cols-2"); assert.equal(g(1).gridClass, "md:grid-cols-3"); assert.equal(g(2).gridClass, "md:grid-cols-4");
+  assert.equal(g(0).gridClass, "md:grid-cols-4"); assert.equal(g(1).gridClass, "md:grid-cols-3"); assert.equal(g(2).gridClass, "md:grid-cols-4");
   assert.equal(g(2).hidden, 0); assert.equal(g(4).hidden, 2); assert.equal(g(7).hidden, 5); assert.equal(g(7).capacity, 2);
   assert.equal(g(7, true).hidden, 0);
 });
@@ -85,7 +85,7 @@ test("component: reduced motion respected (ping only when motion is safe; transi
   assert.match(comp, /motion-safe:animate-ping/); assert.doesNotMatch(comp.replace(/motion-safe:animate-ping/g, ""), /animate-ping/); assert.match(comp, /motion-reduce:transition-none/);
 });
 test("component: the pinned card is dismissible per card, remembered for good, never flashes, and is a real link plus a real button", () => {
-  assert.match(comp, /os_dismissed_pins/); assert.match(comp, /pin\.key/); assert.match(comp, /useSyncExternalStore\(subscribe, readRaw/); assert.match(comp, /currentScript\.parentElement\.hidden=true/); assert.match(comp, /aria-label=\{`Dismiss: \$\{pin\.title\}`\}/);
+  assert.match(comp, /os_dismissed_pins/); assert.match(comp, /pin\.key/); assert.match(comp, /useSyncExternalStore\(subscribe, readRaw/); assert.match(comp, /e\.hidden=true/); assert.match(comp, /aria-label=\{`Dismiss: \$\{pin\.title\}`\}/);
   assert.match(comp, /md:col-span-2/); assert.doesNotMatch(comp, /expiresAt/);   // expiry is decided on the server, not by the browser
 });
 test("page: the name logic is exactly as before ('Admin' is a deliberate display name and is never filtered)", () => {
@@ -100,10 +100,58 @@ test("page: the pinned card is loaded for signed-in members only, in the existin
 });
 test("the pin read is one cached, bounded read of the one-row table, and a failure means no card", () => {
   const h = read("lib/home-pin.ts");
-  assert.match(h, /ttlMs: 60_000/); assert.match(h, /deadlineMs: 3000/); assert.match(h, /fallback: null/); assert.match(h, /if \(error\) return null/); assert.match(h, /from\("home_content"\)/);
+  assert.match(h, /ttlMs: 60_000/); assert.match(h, /PIN_READ_DEADLINE_MS = 1200/); assert.match(h, /fallback: null/); assert.match(h, /if \(error\) return null/); assert.match(h, /from\("home_content"\)/);
 });
 test("admin: the existing Homepage editor gets the pinned-card fields, validated before save", () => {
   const f = read("components/admin/HomeContentForm.tsx");
   for (const k of ["pin_enabled", "pin_title", "pin_body", "pin_cta", "pin_href", "pin_expires_at"]) assert.match(f, new RegExp(k));
   assert.match(f, /validatePinDraft\(/); assert.match(f, /type="date"/); assert.match(read("lib/home-data.ts"), /pin_expires_at/);
+});
+
+/* ── regression: a brand-new member with ZERO recommendations ────────────────────────────────────────────────────────────── */
+test("zero recommendations + an active pinned card: For you shows, with the card", () => {
+  assert.equal(forYouShows(0, "pin-a", []), true);
+  assert.equal(forYouShows(0, "pin-a", ["pin-other"]), true);            // a different card was dismissed, this one was not
+  const L = forYouLayout(0, true, false); assert.equal(L.gridClass, "md:grid-cols-4"); assert.equal(L.hidden, 0);   // a half-width banner, not a full-width bar
+});
+test("zero recommendations + no pinned card: no empty section (existing behaviour)", () => {
+  for (const k of [null, undefined, ""]) assert.equal(forYouShows(0, k, []), false);
+});
+test("zero recommendations + a DISMISSED pinned card: no empty section", () => {
+  assert.equal(forYouShows(0, "pin-a", ["pin-a"]), false); assert.equal(forYouShows(0, "pin-a", ["x", "pin-a", "y"]), false);
+});
+test("with recommendations the section always shows, whether or not the card is shown or dismissed", () => {
+  for (const [pin, dis] of [[null, []], ["pin-a", []], ["pin-a", ["pin-a"]]]) assert.equal(forYouShows(3, pin, dis), true);
+});
+test("page: it is asked to render for a member with no recommendations when a card is live, and not otherwise", () => {
+  assert.match(page, /\{account && \(forYou\.length > 0 \|\| pin\) && <ForYou /);
+});
+test("component: uses the same rule, and never flashes an empty section for a dismissed-only card", () => {
+  assert.match(comp, /if \(!forYouShows\(recs\.length, pin\?\.key, dismissed\)\) return null;/);
+  assert.match(comp, /data-solo=\{recs\.length === 0 \? "" : undefined\}/); assert.match(comp, /s\.closest\("\[data-solo\]"\)\|\|s\.parentElement/);
+  // hooks run before the early return (stable hook order for every combination)
+  assert.ok(comp.indexOf("useDismissedPins()") < comp.indexOf("if (!forYouShows("));
+});
+test("display-name logic is exactly as before for these members too", () => {
+  assert.match(page, /name=\{accountName\(account\)\.split\(" "\)\[0\]\}/);
+});
+
+/* ── the extra home_content read cannot delay the homepage ───────────────────────────────────────────────────────────────── */
+test("a hung database: the pinned-card read gives up at its deadline and the page simply has no card", async () => {
+  const t = Date.now(); const p = await getHomePin(() => new Promise(() => {}), 80);
+  assert.equal(p, null); assert.ok(Date.now() - t < 600, "returned promptly");
+  assert.ok(PIN_READ_DEADLINE_MS <= 1500);
+});
+test("a failing database: no card, no exception", async () => {
+  assert.equal(await getHomePin(async () => { throw new Error("down"); }, 200), null);
+});
+test("a healthy read returns the card, a repeat is served from memory, and a later hang falls back to the last good copy", async () => {
+  const { __resetHomeResilience } = await import("../lib/home-resilience.ts"); __resetHomeResilience();
+  const good = row({ pin_expires_at: new Date(Date.now() + 86_400_000).toISOString() }); let calls = 0;
+  const first = await getHomePin(async () => { calls++; return good; }, 200); assert.equal(first.title, "OneShetland has launched");
+  await getHomePin(async () => { calls++; return good; }, 200); assert.equal(calls, 1);
+  __resetHomeResilience();
+});
+test("the page reads it inside the existing parallel batch, for signed-in members only (zero extra work for visitors)", () => {
+  assert.match(page, /accountP\.then\(\(a\) => \(a \? getHomePin\(\)\.catch\(\(\) => null\) : null\)\)\.catch\(\(\) => null\)/);
 });

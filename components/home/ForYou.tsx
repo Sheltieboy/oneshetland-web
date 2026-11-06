@@ -5,7 +5,7 @@ import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import type { ForYouItem } from "@/lib/for-you.server";
 import type { HomePin } from "@/lib/home-pin";
-import { forYouLayout, MAX_RECS } from "@/lib/for-you-layout";
+import { forYouLayout, forYouShows, MAX_RECS } from "@/lib/for-you-layout";
 
 /**
  * ForYou — the compact, personalised strip near the top of the homepage (signed-in members only).
@@ -23,12 +23,12 @@ export function ForYou({ name, items, pin }: { name: string; items: ForYouItem[]
   const listId = useId();
   const recs = items.slice(0, MAX_RECS);
   const showPin = !!pin && !dismissed.includes(pin.key);
-  if (!recs.length && !showPin) return null;
+  if (!forYouShows(recs.length, pin?.key, dismissed)) return null;
 
   const L = forYouLayout(recs.length, showPin, expanded);
 
   return (
-    <section aria-labelledby={`${listId}-h`} className="mx-auto max-w-6xl px-5 pt-5 sm:pt-6">
+    <section aria-labelledby={`${listId}-h`} data-solo={recs.length === 0 ? "" : undefined} className="mx-auto max-w-6xl px-5 pt-5 sm:pt-6">
       <h2 id={`${listId}-h`} className="mb-2.5 font-display text-[1.05rem] font-bold leading-6 text-navy">
         For you{name ? `, ${name}` : ""}
       </h2>
@@ -163,9 +163,9 @@ function useDismissedPins(): string[] {
 }
 const useHydrated = () => useSyncExternalStore(() => () => {}, () => true, () => false);
 
-/** Runs while the HTML is parsed, before paint: a card already dismissed on this device never flashes. */
+/** Runs while the HTML is parsed, before paint: a card already dismissed on this device never flashes. If the card was the ONLY thing in the section (no recommendations), the whole section is hidden, so no empty heading flashes either. */
 const hideIfDismissedScript = (key: string) =>
-  `(function(){try{var d=JSON.parse(localStorage.getItem(${JSON.stringify(DISMISS_KEY)})||"[]");if(Array.isArray(d)&&d.indexOf(${JSON.stringify(key)})>-1){document.currentScript.parentElement.hidden=true}}catch(e){}})()`;
+  `(function(){try{var d=JSON.parse(localStorage.getItem(${JSON.stringify(DISMISS_KEY)})||"[]");if(Array.isArray(d)&&d.indexOf(${JSON.stringify(key)})>-1){var s=document.currentScript,e=s.closest("[data-solo]")||s.parentElement;e.hidden=true}}catch(e){}})()`;
 
 function PinnedCard({ pin }: { pin: HomePin }) {
   const hydrated = useHydrated();

@@ -31,11 +31,24 @@ export function forYouLayout(recs: number, hasPin: boolean, expanded: boolean): 
   const capacity = DESKTOP_SLOTS - (hasPin ? 2 : 0);
   const onFirstRow = Math.min(n, capacity);
   const slots = hasPin ? onFirstRow + 2 : onFirstRow;
-  const cols = hasPin && slots < 2 ? 2 : Math.min(DESKTOP_SLOTS, Math.max(1, slots));
+  // A pinned card with nothing beside it keeps its two-slot width on the four-slot grid (a half-width banner), not the whole row.
+  const cols = hasPin && n === 0 ? DESKTOP_SLOTS : Math.min(DESKTOP_SLOTS, Math.max(1, slots));
   return {
     capacity,
     hidden: expanded ? 0 : n - onFirstRow,
     gridClass: GRID[cols] ?? GRID[4],
     mobile: n <= 2 ? "stack" : "swipe",
   };
+}
+
+/**
+ * Does the For you section appear at all?
+ *   recommendations, no pinned card          -> yes (as before)
+ *   NO recommendations, active pinned card   -> yes: a brand-new member still sees the launch card
+ *   NO recommendations, no pinned card       -> no empty section (as before)
+ *   NO recommendations, pinned card DISMISSED -> no empty section
+ */
+export function forYouShows(recs: number, pinKey: string | null | undefined, dismissed: readonly string[]): boolean {
+  const pinShown = !!pinKey && !dismissed.includes(pinKey);
+  return recs > 0 || pinShown;
 }

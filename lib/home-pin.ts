@@ -52,14 +52,18 @@ export function pinFromRow(row: PinRow | null | undefined, now: number = Date.no
 
 /**
  * The live pinned card, for a SIGNED-IN member only (the caller decides). One tiny read of the one-row table, kept for 60 s per server instance,
- * bounded at 3 s; a failure (or the columns not existing yet) means "no pinned card" — never an error, never a slow page.
+ * bounded at 1.2 s (the last good copy is used for up to 10 minutes if the database is slow); a failure (or the columns not existing yet) means "no pinned card" — never an error, never a slow page.
  */
-export async function getHomePin(): Promise<HomePin | null> {
-  const row = await resilient<PinRow | null>("home:pin", { ttlMs: 60_000, staleMs: 10 * 60_000, deadlineMs: 3000, fallback: null, isEmpty: () => false }, async () => {
-    const { data, error } = await publicClient().from("home_content").select("pin_enabled, pin_title, pin_body, pin_cta, pin_href, pin_expires_at").limit(1).maybeSingle();
-    if (error) return null;
-    return (data ?? null) as PinRow | null;
-  });
+export const PIN_READ_DEADLINE_MS = 1200;
+
+const defaultLoad = async (): Promise<PinRow | null> => {
+  const { data, error } = await publicClient().from("home_content").select("pin_enabled, pin_title, pin_body, pin_cta, pin_href, pin_expires_at").limit(1).maybeSingle();
+  if (error) return null;
+  return (data ?? null) as PinRow | null;
+};
+
+export async function getHomePin(load: () => Promise<PinRow | null> = defaultLoad, deadlineMs: number = PIN_READ_DEADLINE_MS): Promise<HomePin | null> {
+  const row = await resilient<PinRow | null>("home:pin", { ttlMs: 60_000, staleMs: 10 * 60_000, deadlineMs, fallback: null, isEmpty: () => false }, load);
   return pinFromRow(row);
 }
 
