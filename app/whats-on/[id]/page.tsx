@@ -23,6 +23,8 @@ import { detectEventArea, detectEventStop, defaultStopForArea } from "@/lib/tran
 import { SafeImage } from "@/components/ui/SafeImage";
 import { ScarcityStrip, GoingCount, GettingTherePanel } from "@/components/events/EventInsights";
 import { TravelPlanner } from "@/components/events/TravelPlanner";
+import { GettingThereLinks } from "@/components/events/GettingThereLinks";
+import { TRANSPORT_PLANNER_ENABLED } from "@/lib/transport-flags";
 import { getAccount } from "@/lib/auth";
 import { canScanEvent } from "@/lib/events-server";
 import { TicketButton } from "@/components/events/TicketModal";
@@ -214,8 +216,11 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           {isLive && conditions ? (
             <GettingTherePanel conditions={conditions} eventTime={fmtTime(e.starts_at)} />
           ) : null}
+          {/* The journey planner is OFF while our stored timetables are out of date and unlicensed (lib/transport-flags.ts): official links instead. */}
           {isLive && eventArea ? (
-            <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={e.starts_at} endsAt={e.ends_at} defaultStop={homeDefaultStop} />
+            TRANSPORT_PLANNER_ENABLED
+              ? <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={e.starts_at} endsAt={e.ends_at} defaultStop={homeDefaultStop} />
+              : <GettingThereLinks />
           ) : null}
 
           {/* Photo gallery */}
