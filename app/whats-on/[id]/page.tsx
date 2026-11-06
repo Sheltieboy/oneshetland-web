@@ -3,7 +3,8 @@ import Link from "next/link";
 import { eventWhen } from "@/lib/event-display";
 import { eventState } from "@/lib/event-state";
 import { normaliseCategory } from "@/lib/event-categories";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { legacyEventRedirect } from "@/lib/activities-data";
 import {
   getEvent,
   getEventSocialStats,
@@ -47,6 +48,9 @@ function price(pence: number) {
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  // An event that has become a session of a Regular Activity keeps its old link: it redirects to the activity (one cheap primary-key lookup).
+  const moved = await legacyEventRedirect(id);
+  if (moved) redirect(moved);
   const [e, account] = await Promise.all([getEvent(id), getAccount()]);
   if (!e) notFound();
 

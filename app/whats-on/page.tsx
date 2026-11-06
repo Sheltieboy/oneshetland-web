@@ -18,6 +18,12 @@ import {
   EventsBrowser,
 } from "@/components/events/EventsListing";
 
+import { WhatsOnTabs } from "@/components/activities/WhatsOnTabs";
+import { ActivityStrip } from "@/components/activities/ActivityStrip";
+import { getActivityStrip } from "@/lib/activities-data";
+import { whenForEventsRange } from "@/lib/activities";
+import { resilient } from "@/lib/home-resilience";
+
 export const dynamic = "force-dynamic";
 export const metadata = { title: "What's On" };
 
@@ -46,12 +52,19 @@ export default async function WhatsOnPage({
   // fetched across all upcoming events, like the app's highlights row.
   const now = new Date();
   const nowIso = now.toISOString();
-  const [pageEvents, highlights, monthEvents, categories] = await Promise.all([
+  // Regular activities (classes and groups) are NOT events and never enter the list below. A compact strip points to them, for the same period
+  // as the date chips. It is bounded (2.5 s, kept 60 s) and shows nothing on failure, so it can never delay or break What's On.
+  const stripWhen = whenForEventsRange(range);
+  const showStrip = !calendar && !category && !freeOnly;
+  const [pageEvents, highlights, monthEvents, categories, activityStrip] = await Promise.all([
     getUpcomingEvents({ category, range, limit: PAGE_SIZE }),
     // Featured / On-sale strips are upcoming-only: an exhibition that began weeks ago must not headline them.
     getUpcomingEvents({ limit: 60, upcomingOnly: true }),
     calendar ? getEventsInMonth(now.getFullYear(), now.getMonth()) : Promise.resolve([] as EventListItem[]),
     getEventCategories(),
+    showStrip
+      ? resilient(`whatson:activities:${stripWhen}`, { ttlMs: 60_000, deadlineMs: 2500, staleMs: 10 * 60_000, fallback: [] }, () => getActivityStrip(stripWhen, now))
+      : Promise.resolve([]),
   ]);
 
   const visible = freeOnly ? pageEvents.filter(isFreeListEvent) : pageEvents;
@@ -86,8 +99,10 @@ export default async function WhatsOnPage({
       {/* Sticky filters */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl space-y-2.5 px-5 py-3">
-          {/* List ↔ calendar toggle + date range + free */}
+          {/* Section switch + list ↔ calendar toggle + date range + free */}
           <div className="flex flex-wrap items-center gap-2">
+            <WhatsOnTabs active="events" />
+            <span className="hidden h-5 w-px bg-line-strong sm:block" />
             <ViewToggle calendar={calendar} sp={sp} />
             {!calendar && (
               <>
@@ -121,6 +136,7 @@ export default async function WhatsOnPage({
           />
         ) : (
           <>
+            {showStrip && <ActivityStrip items={activityStrip} when={stripWhen} now={now} />}
             {showHighlights && featured.length > 0 && <FeaturedStrip events={featured} nowIso={nowIso} />}
             {showHighlights && onSale.length > 0 && <OnSaleStrip events={onSale} nowIso={nowIso} />}
 

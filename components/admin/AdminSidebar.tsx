@@ -30,6 +30,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   ] },
   { group: "Platform", items: [
     { href: "/admin/homepage", label: "Homepage" },
+    { href: "/admin/activities", label: "Regular activities" },
     { href: "/admin/compliance", label: "Compliance log" },
     { href: "/admin/email", label: "Email centre" },
     { href: "/admin/nfc", label: "NFC tiles", badgeKey: "nfcToPost" },
