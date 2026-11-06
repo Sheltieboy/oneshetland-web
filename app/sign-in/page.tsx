@@ -166,10 +166,17 @@ function SignInInner() {
           <button
             type="submit"
             disabled={busy || !captchaToken}
-            className="w-full rounded-pill bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:opacity-50"
+            className="flex min-h-[48px] w-full items-center justify-center rounded-pill border border-navy bg-navy px-5 py-3 font-semibold text-paper transition hover:bg-navy-dark disabled:opacity-50"
           >
             {busy ? "Signing in…" : "Sign in"}
           </button>
+          {/* The sign-up route carries the same ?next= the sign-in page was given, so a new account lands where they were going. */}
+          <Link
+            href={params.get("next") ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"}
+            className="flex min-h-[48px] w-full items-center justify-center rounded-pill border border-navy px-5 py-3 font-semibold text-navy transition hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy"
+          >
+            Create an account
+          </Link>
         </form>
 
         <div className="mt-4 text-center">
@@ -178,12 +185,6 @@ function SignInInner() {
           </Link>
         </div>
 
-        <p className="mt-6 border-t border-line pt-5 text-center text-sm text-ink-soft">
-          New to OneShetland?{" "}
-          <Link href={params.get("next") ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"} className="font-semibold text-teal-dark hover:underline">
-            Create an account
-          </Link>
-        </p>
       </div>
       <p className="mt-5 px-4 text-center text-xs text-ink-muted">
         Members must be 18 or over. By signing in you agree to our{" "}
