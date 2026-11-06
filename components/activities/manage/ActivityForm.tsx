@@ -3,19 +3,21 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ACTIVITY_CATEGORIES, BOOKING_MODES, validateActivityDraft, type ActivityDraft } from "@/lib/activities";
-import { createActivity, updateActivity, emptyDraft } from "@/lib/activities-client";
+import { createActivity, updateActivity, emptyDraft, uploadActivityPhoto } from "@/lib/activities-client";
+import { ActivityPhotoField } from "./ActivityPhotoField";
 import { btnPrimary, card, hint, input, label } from "./ui";
 
 /**
  * The activity's details: what it is, where, how people join and what it costs. Free for organisers; booking and payment are never required,
  * drop-in is the default. Used to create (then it opens the editor) and to edit.
  */
-export function ActivityForm({ owner, base, activityId, initial, areas }: { owner: { kind: "business" | "hub" | "platform"; id: string }; base: string; activityId?: string; initial?: ActivityDraft; areas: readonly { key: string; label: string }[] }) {
+export function ActivityForm({ owner, base, activityId, initial, areas, coverUrl }: { coverUrl?: string | null; owner: { kind: "business" | "hub" | "platform"; id: string }; base: string; activityId?: string; initial?: ActivityDraft; areas: readonly { key: string; label: string }[] }) {
   const router = useRouter();
   const [d, setD] = useState<ActivityDraft>(initial ?? emptyDraft());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [showErr, setShowErr] = useState(false);
+  const [photo, setPhoto] = useState<File | null>(null);
   const check = validateActivityDraft(d);
   const set = (k: keyof ActivityDraft) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setD((x) => ({ ...x, [k]: e.target.value }));
   const err = (k: string) => (showErr && check.errors[k] ? <p role="alert" className="mt-1 text-xs font-semibold text-rose-700">{check.errors[k]}</p> : null);
@@ -26,7 +28,12 @@ export function ActivityForm({ owner, base, activityId, initial, areas }: { owne
     setBusy(true);
     try {
       if (activityId) { await updateActivity(activityId, d); setMsg({ tone: "ok", text: "Saved." }); router.refresh(); }
-      else { const a = await createActivity(owner, d); router.push(`${base}/${a.id}`); }
+      else {
+        const a = await createActivity(owner, d);
+        let failed = false;
+        if (photo) { try { await uploadActivityPhoto(a.id, photo); } catch { failed = true; } }
+        router.push(`${base}/${a.id}${failed ? "?photo=failed" : ""}`);
+      }
     } catch (x) { setMsg({ tone: "err", text: (x as Error).message }); } finally { setBusy(false); }
   }
 
@@ -38,6 +45,7 @@ export function ActivityForm({ owner, base, activityId, initial, areas }: { owne
         {err("title")}
         <p className={hint}>One listing per activity. If you run Barre and Tai Chi, make two, each with its own days and times.</p>
       </div>
+      <ActivityPhotoField activityId={activityId} coverUrl={coverUrl} pending={photo} onPending={setPhoto} />
       <div className="grid gap-4 sm:grid-cols-2">
         <div><label className={label} htmlFor="ra-cat">Kind of activity</label>
           <select id="ra-cat" className={input} value={d.category} onChange={set("category")}>{ACTIVITY_CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select>{err("category")}</div>

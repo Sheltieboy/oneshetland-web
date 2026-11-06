@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { CATEGORY_LABEL, activityHref, nextLine, patternText, type ListingRow, type RuleRow } from "@/lib/activities";
-import { REGULAR } from "./tokens";
+import { CATEGORY_LABEL, activityHref, nextLine, patternText, safeHttps, type ListingRow, type RuleRow } from "@/lib/activities";
+import { HERO, REGULAR } from "./tokens";
+import { ActivityImage } from "./ActivityImage";
 
 /** ONE card per activity, however many sessions it runs. */
 export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow[]; now?: Date }) {
@@ -11,8 +12,12 @@ export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow
     <li className="list-none">
       <Link
         href={activityHref(a.slug)}
-        className="group flex h-full flex-col rounded-card border border-line bg-paper p-4 shadow-soft transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
       >
+        {safeHttps(a.cover_url)
+          ? <div className="aspect-[16/9] w-full shrink-0 overflow-hidden bg-sand" data-card-photo><ActivityImage url={a.cover_url} /></div>
+          : <div aria-hidden className="h-1.5 w-full shrink-0" data-card-colour style={{ background: `linear-gradient(90deg, ${(HERO[a.category] ?? HERO.other)[0]}, ${(HERO[a.category] ?? HERO.other)[1]})` }} />}
+        <div className="flex flex-1 flex-col p-4">
         <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest">
           <span style={{ color: REGULAR }}>{CATEGORY_LABEL[a.category] ?? "Activity"}</span>
           {a.audience && <span className="text-ink-muted normal-case tracking-normal">· {a.audience}</span>}
@@ -30,6 +35,7 @@ export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow
           {place && <span>{place}</span>}
           {a.price_text && <span>{a.price_text}</span>}
           <span>{drop ? "Drop in" : a.booking_mode === "contact" ? "Get in touch to join" : "Booking link"}</span>
+        </div>
         </div>
       </Link>
     </li>

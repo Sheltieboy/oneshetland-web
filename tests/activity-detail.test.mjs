@@ -117,9 +117,9 @@ test("accessibility and reduced motion: landmarks and headings, focus rings, and
   assert.match(view, /<svg aria-hidden/);
 });
 test("every kind of activity has a hero colour pair, and a listing with no photo uses it (equally finished)", () => {
-  for (const c of ACTIVITY_CATEGORIES) assert.match(view, new RegExp(`\\b${c.value}: \\["#`), c.value);
+  for (const c of ACTIVITY_CATEGORIES) assert.match(read("components/activities/tokens.ts"), new RegExp(`\\b${c.value}: \\["#`), c.value);
   assert.match(view, /data-hero=\{photo \? "photo" : "colour"\}/);
-  assert.match(view, /SafeImage src=\{photo\}/, "a broken photo falls back to the colour hero");
+  assert.match(view, /SafeImage src=\{photo\}|<SafeImage src=\{photo\}/, "a broken photo falls back to the colour hero");
 });
 test("scheduling, recurrence, cancellation and following are untouched: the view only reads sessions the database computed", () => {
   assert.doesNotMatch(view, /generate_series|setHours|activity_exceptions|activity_breaks|\.from\(|rpc\(/);

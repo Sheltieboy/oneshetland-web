@@ -2,18 +2,12 @@ import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { FollowButton } from "@/components/activities/FollowButton";
 import { WhatsOnTabs } from "@/components/activities/WhatsOnTabs";
-import { REGULAR } from "@/components/activities/tokens";
+import { HERO, REGULAR } from "@/components/activities/tokens";
 import {
   CATEGORY_LABEL, SESSION_STATUS_LABEL, changeLine, changedAhead, dayLabel, dayLong, dayShort, formatPrice, joinSummary, monthGroups, movedFrom,
   nextLiveSession, patternText, safeHttps, stillToCome, timeHM, timeRange, type RuleRow, type SessionRow,
 } from "@/lib/activities";
 import type { ActivityDetail, Owner } from "@/lib/activities-data";
-
-/** A hero colour pair per kind of activity: warm and varied, all with white text at AA contrast. Unknown kinds use the Regular Activities teal. */
-const HERO: Record<string, [string, string]> = {
-  fitness: ["#0f766e", "#134e4a"], kids_family: ["#a15c07", "#6b3a05"], social: ["#0a4a70", "#032f4c"], arts_crafts: ["#6d28d9", "#3b1a85"],
-  sport: ["#15803d", "#14532d"], wellbeing: ["#0e7490", "#134e5c"], music: ["#4338ca", "#2b2573"], learning: ["#1d4ed8", "#1e3a8a"], faith: ["#475569", "#1e293b"], other: ["#0f766e", "#134e4a"],
-};
 
 const Icon = ({ d, className = "h-4 w-4" }: { d: string; className?: string }) => (
   <svg aria-hidden viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
@@ -73,14 +67,14 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
 
       {/* ── Introduction ───────────────────────────────────────────────────────────────────────────────────────────────────── */}
       <section className="relative isolate mt-4 overflow-hidden text-white" style={{ background: c1 }} data-hero={photo ? "photo" : "colour"}>
-        {photo && <SafeImage src={photo} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover" />}
-        <div className="absolute inset-0 -z-10" style={{ background: photo ? `linear-gradient(to top, ${c2}f5 0%, ${c2}d6 38%, ${c1}8a 100%)` : `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)` }} />
+        {photo && <SafeImage src={photo} alt="" loading="eager" className="absolute inset-0 -z-20 h-full w-full object-cover object-center" />}
+        <div className="absolute inset-0 -z-10" style={{ background: photo ? `linear-gradient(to top, ${c2}f2 0%, ${c2}c4 34%, ${c2}7a 70%, ${c2}5c 100%)` : `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)` }} />
         {!photo && (
           <svg aria-hidden className="absolute -right-16 -top-20 -z-10 h-80 w-80 opacity-[0.12]" viewBox="0 0 200 200" fill="none" stroke="#fff" strokeWidth="1.2">
             <circle cx="100" cy="100" r="95" /><circle cx="100" cy="100" r="72" /><circle cx="100" cy="100" r="49" /><circle cx="100" cy="100" r="26" />
           </svg>
         )}
-        <div className="mx-auto max-w-5xl px-5 pb-16 pt-8 sm:pb-20 sm:pt-12">
+        <div className={"mx-auto max-w-5xl px-5 pb-16 pt-8 sm:pb-20 sm:pt-12" + (photo ? " sm:pt-24 [text-shadow:0_1px_14px_rgba(0,0,0,.45)]" : "")}>
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold uppercase tracking-widest">
             <span className="rounded-pill bg-white/20 px-3 py-1 backdrop-blur-sm">{CATEGORY_LABEL[a.category] ?? "Activity"}</span>
             {a.audience && <span className="rounded-pill bg-white/15 px-3 py-1 normal-case tracking-normal backdrop-blur-sm">{a.audience}</span>}

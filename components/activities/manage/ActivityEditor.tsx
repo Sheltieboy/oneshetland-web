@@ -8,7 +8,7 @@ import {
   type SessionRow, type RuleRow,
 } from "@/lib/activities";
 import type { BreakRow, ExceptionRow } from "@/lib/activities-data";
-import { addBreak, addExtraSession, addRules, cancelSession, changeSession, deleteBreak, deleteRule, restoreSession, setActivityStatus, deleteActivity } from "@/lib/activities-client";
+import { removeActivityPhoto, addBreak, addExtraSession, addRules, cancelSession, changeSession, deleteBreak, deleteRule, restoreSession, setActivityStatus, deleteActivity } from "@/lib/activities-client";
 import { btnDanger, btnGhost, btnPrimary, card, hint, input, label } from "./ui";
 
 type Rule = RuleRow & { id: string };
@@ -50,7 +50,7 @@ function PublishPanel(p: Props) {
         {live && <button className={btnGhost} disabled={busy} onClick={() => void run(() => setActivityStatus(p.activityId, "draft"))}>Unpublish (back to draft)</button>}
         {p.status !== "ended" && <button className={btnGhost} disabled={busy} onClick={() => void run(() => setActivityStatus(p.activityId, "ended"))}>Mark as ended</button>}
         <Link href={`/whats-on/regular/${p.slug}`} className={btnGhost}>{live ? "View listing" : "Preview"}</Link>
-        <button className={btnDanger} disabled={busy} onClick={() => { if (window.confirm(`Delete "${p.title}" and its schedule? This cannot be undone.`)) void run(async () => { await deleteActivity(p.activityId); router.push(p.base); }); }}>Delete</button>
+        <button className={btnDanger} disabled={busy} onClick={() => { if (window.confirm(`Delete "${p.title}" and its schedule? This cannot be undone.`)) void run(async () => { await removeActivityPhoto(p.activityId).catch(() => null); await deleteActivity(p.activityId); router.push(p.base); }); }}>Delete</button>
       </div>
       {p.rules.length === 0 && !live && <p className={hint}>Add at least one day and time before publishing.</p>}
       {p.followerCount != null && <p className={hint}>{p.followerCount} {p.followerCount === 1 ? "person follows" : "people follow"} this for changes. You can see how many, never who.</p>}

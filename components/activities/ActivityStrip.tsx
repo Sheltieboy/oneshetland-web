@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { activityHref, dayLabel, REGULAR_HREF, regularHref, timeRange, type ListingRow, type When } from "@/lib/activities";
+import { activityHref, dayLabel, REGULAR_HREF, regularHref, timeRange, safeHttps, type ListingRow, type When } from "@/lib/activities";
 import { REGULAR } from "./tokens";
+import { ActivityImage } from "./ActivityImage";
 
 const TITLE: Record<When, string> = { today: "Regular activities today", tomorrow: "Regular activities tomorrow", week: "Regular activities this week", fortnight: "Regular activities", month: "Regular activities this month" };
 
@@ -26,11 +27,14 @@ export function ActivityStrip({ items, when, now }: { items: ListingRow[]; when:
       <ul className="-mx-3 mt-2.5 flex scroll-pl-3 snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-0 sm:mt-3 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
         {shown.map((a) => (
           <li key={a.id} className="w-[15.5rem] shrink-0 snap-start sm:w-auto">
-            <Link href={activityHref(a.slug)} className="flex min-h-[64px] flex-col justify-center rounded-xl border border-line bg-cream px-3 py-2 transition hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
-              <span className="truncate font-display text-base font-bold leading-tight text-ink">{a.title}</span>
-              <span className="truncate text-xs text-ink-soft">
-                {a.next_starts_at && a.next_ends_at ? `${dayLabel(a.next_starts_at, now)} ${timeRange(a.next_starts_at, a.next_ends_at)}` : "Cancelled in this period"}
-                {a.locality ? ` · ${a.locality}` : ""}
+            <Link href={activityHref(a.slug)} className="flex min-h-[64px] items-center gap-3 rounded-xl border border-line bg-cream px-3 py-2 transition hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              {safeHttps(a.cover_url) && <span className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-sand" data-strip-photo><ActivityImage url={a.cover_url} /></span>}
+              <span className="flex min-w-0 flex-col justify-center">
+                <span className="truncate font-display text-base font-bold leading-tight text-ink">{a.title}</span>
+                <span className="truncate text-xs text-ink-soft">
+                  {a.next_starts_at && a.next_ends_at ? `${dayLabel(a.next_starts_at, now)} ${timeRange(a.next_starts_at, a.next_ends_at)}` : "Cancelled in this period"}
+                  {a.locality ? ` · ${a.locality}` : ""}
+                </span>
               </span>
             </Link>
           </li>

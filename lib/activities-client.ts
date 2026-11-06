@@ -87,3 +87,44 @@ export async function deleteBreak(id: string) {
   const { error } = await createClient().from("activity_breaks").delete().eq("id", id);
   if (error) fail(error);
 }
+
+/* ── Main photograph ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
+export const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+/** Quick checks for the person choosing a file (the server repeats them on the bytes). Returns a plain-English problem, or null. */
+export function photoProblem(f: File): string | null {
+  if (!PHOTO_TYPES.includes(f.type)) return "Use a JPEG, PNG or WebP photo.";
+  return null;
+}
+
+/**
+ * Phone photos are often 4 to 10 MB. Shrink big ones in the browser first (longest side 2000px, WebP) so the upload is fast and stays under the
+ * 5 MB request limit. If the browser can't do it, the original goes up unchanged and the server decides.
+ */
+export async function prepareActivityPhoto(file: File): Promise<File> {
+  try {
+    if (file.size <= 1.5 * 1024 * 1024 && file.type === "image/webp") return file;
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+    if (scale === 1 && file.size <= 3 * 1024 * 1024) { bmp.close(); return file; }
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+    c.getContext("2d")!.drawImage(bmp, 0, 0, c.width, c.height); bmp.close();
+    const blob: Blob | null = await new Promise((r) => c.toBlob(r, "image/webp", 0.85));
+    return blob && blob.size < file.size ? new File([blob], "photo.webp", { type: "image/webp" }) : file;
+  } catch { return file; }
+}
+
+async function photoCall(id: string, init: RequestInit): Promise<string | null> {
+  const res = await fetch(`/api/activities/${id}/image`, { ...init, credentials: "same-origin" });
+  const body = (await res.json().catch(() => ({}))) as { cover_url?: string | null; error?: string };
+  if (!res.ok) throw new Error(body.error ?? (res.status === 413 ? "That photo is too large. Choose a smaller one." : "The photo could not be saved. Please try again."));
+  return body.cover_url ?? null;
+}
+export async function uploadActivityPhoto(id: string, file: File): Promise<string | null> {
+  const bad = photoProblem(file); if (bad) throw new Error(bad);
+  const body = new FormData(); body.append("file", await prepareActivityPhoto(file));
+  return photoCall(id, { method: "POST", body });
+}
+export const removeActivityPhoto = (id: string) => photoCall(id, { method: "DELETE" });

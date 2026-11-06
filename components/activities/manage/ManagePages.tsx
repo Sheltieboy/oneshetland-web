@@ -6,6 +6,7 @@ import { CATEGORY_LABEL, type ActivityDraft } from "@/lib/activities";
 import { ActivityForm } from "./ActivityForm";
 import { ActivityEditor } from "./ActivityEditor";
 import { btnPrimary, card } from "./ui";
+import { ActivityImage } from "../ActivityImage";
 
 type Kind = "business" | "hub" | "platform";
 type Ctx = { kind: Kind; ownerId: string; ownerName: string; base: string; backHref: string; backLabel: string; hubVerified?: boolean };
@@ -42,7 +43,8 @@ export async function ActivitiesListPage({ ctx }: { ctx: Ctx }) {
             const st = statusOf(a, ctx);
             return (
               <li key={a.id} className={card + " flex flex-wrap items-center justify-between gap-3"}>
-                <div className="min-w-0">
+                {a.cover_url && <div className="h-14 w-24 shrink-0 overflow-hidden rounded-lg bg-sand" data-manage-photo><ActivityImage url={a.cover_url} /></div>}
+                <div className="min-w-0 flex-1">
                   <p className="truncate font-display text-lg font-bold text-ink">{a.title}</p>
                   <p className="text-sm text-ink-soft">{CATEGORY_LABEL[a.category] ?? "Activity"}{a.venue ? ` · ${a.venue}` : ""}{a.follower_count != null ? ` · ${a.follower_count} following` : ""}</p>
                 </div>
@@ -87,7 +89,7 @@ export async function ActivityEditPage({ ctx, activityId }: { ctx: Ctx; activity
         />
         <section aria-labelledby="det-h">
           <h2 id="det-h" className="mb-3 font-display text-lg font-bold">Details</h2>
-          <ActivityForm owner={{ kind: ctx.kind, id: ctx.ownerId }} base={ctx.base} activityId={a.id} initial={draft} areas={SHETLAND_AREAS} />
+          <ActivityForm owner={{ kind: ctx.kind, id: ctx.ownerId }} base={ctx.base} activityId={a.id} initial={draft} areas={SHETLAND_AREAS} coverUrl={a.cover_url} />
         </section>
       </div>
     </Shell>
