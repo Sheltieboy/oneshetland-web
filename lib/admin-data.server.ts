@@ -5,6 +5,7 @@
  * client components (browser client; RLS enforces role='admin').
  */
 
+import { withContactLinks } from "./fetch-admin-contact";
 import { redirect } from "next/navigation";
 import { getAccount, type Account } from "@/lib/auth";
 import { adminAccessFor } from "@/lib/admin-access";
@@ -87,7 +88,11 @@ export async function getPendingDrivers() {
     const { data } = await sb.from("driver_profiles")
       .select("id, vehicle_type, vehicle_reg, notes, created_at, driver_status")
       .eq("driver_status", "pending").order("created_at", { ascending: true });
-    return attachProfiles(data ?? [], "id");
+    const rows = await attachProfiles(data ?? [], "id");
+    // The applicant's account email, from the ADMINISTRATOR-ONLY database function (anyone else gets an authorisation error, which leaves every row without a link).
+    // It is turned into a mailto: link here and never travels anywhere else.
+    const { data: contacts } = await sb.rpc("admin_driver_applicant_contacts");
+    return withContactLinks(rows as (typeof rows[number] & { profile?: { full_name?: string | null } | null })[], (contacts ?? null) as { driver_id: string; email: string | null }[] | null) as unknown as Record<string, unknown>[];
   })(), [] as Record<string, unknown>[]);
 }
 

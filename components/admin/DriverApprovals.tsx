@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
 
-type Row = { id: string; vehicle_type: string | null; vehicle_reg: string | null; notes: string | null; created_at: string; profile?: { full_name: string | null; location_area: string | null } | null };
+type Row = { id: string; vehicle_type: string | null; vehicle_reg: string | null; notes: string | null; created_at: string; contactHref?: string | null; profile?: { full_name: string | null; location_area: string | null } | null };
 
 export function DriverApprovals({ rows, approvalsPaused = false }: { rows: Row[]; approvalsPaused?: boolean }) {
   const router = useRouter();
@@ -37,7 +37,10 @@ export function DriverApprovals({ rows, approvalsPaused = false }: { rows: Row[]
               <p className="mt-2 text-sm text-ink-soft"><b>{r.vehicle_type ?? "Vehicle"}</b>{r.vehicle_reg ? ` · ${r.vehicle_reg}` : ""}</p>
               {r.notes && <p className="mt-1 max-w-prose text-sm text-ink-soft">{r.notes}</p>}
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {r.contactHref
+                ? <a href={r.contactHref} aria-label={`Email ${r.profile?.full_name ?? "the applicant"} (opens a draft in your email app; nothing is sent)`} className="inline-flex min-h-11 items-center rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink hover:bg-sand">Email applicant</a>
+                : <span className="inline-flex min-h-11 items-center px-2 text-xs text-ink-muted" title="This account has no usable email address">No email on file</span>}
               <button onClick={() => decide(r.id, "approved")} disabled={busy === r.id || approvalsPaused} title={approvalsPaused ? "Fetch is paused: approvals are blocked" : undefined} className="rounded-pill bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">Approve</button>
               <button onClick={() => decide(r.id, "rejected")} disabled={busy === r.id} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40">Reject</button>
             </div>
