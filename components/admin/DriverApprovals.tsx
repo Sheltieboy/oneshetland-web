@@ -7,15 +7,19 @@ import { Card } from "@/components/admin/AdminUI";
 
 type Row = { id: string; vehicle_type: string | null; vehicle_reg: string | null; notes: string | null; created_at: string; profile?: { full_name: string | null; location_area: string | null } | null };
 
-export function DriverApprovals({ rows }: { rows: Row[] }) {
+export function DriverApprovals({ rows, approvalsPaused = false }: { rows: Row[]; approvalsPaused?: boolean }) {
   const router = useRouter();
   const [list, setList] = useState(rows);
   const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   async function decide(id: string, status: "approved" | "rejected") {
-    setBusy(id);
+    setBusy(id); setErr(null);
     try {
-      await createClient().from("driver_profiles").update({ driver_status: status }).eq("id", id);
+      // The result is checked: a refused or filtered update must NOT remove the application from the list as if it had been decided.
+      const { data, error } = await createClient().from("driver_profiles").update({ driver_status: status }).eq("id", id).select("id");
+      if (error) { setErr(error.message); return; }
+      if (!data || data.length === 0) { setErr("Nothing was changed. The application was not updated."); return; }
       setList((l) => l.filter((r) => r.id !== id));
       router.refresh();
     } finally { setBusy(null); }
@@ -23,6 +27,7 @@ export function DriverApprovals({ rows }: { rows: Row[] }) {
 
   return (
     <div className="space-y-3">
+      {err && <p role="alert" className="rounded-card border border-rose-300 bg-rose-50 p-3 text-sm font-semibold text-rose-900">{err}</p>}
       {list.map((r) => (
         <Card key={r.id}>
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -33,7 +38,7 @@ export function DriverApprovals({ rows }: { rows: Row[] }) {
               {r.notes && <p className="mt-1 max-w-prose text-sm text-ink-soft">{r.notes}</p>}
             </div>
             <div className="flex gap-2">
-              <button onClick={() => decide(r.id, "approved")} disabled={busy === r.id} className="rounded-pill bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">Approve</button>
+              <button onClick={() => decide(r.id, "approved")} disabled={busy === r.id || approvalsPaused} title={approvalsPaused ? "Fetch is paused: approvals are blocked" : undefined} className="rounded-pill bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">Approve</button>
               <button onClick={() => decide(r.id, "rejected")} disabled={busy === r.id} className="rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-40">Reject</button>
             </div>
           </div>
