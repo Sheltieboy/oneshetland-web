@@ -34,6 +34,8 @@ import { TrackView } from "@/components/analytics/TrackView";
 import { TicketLink } from "@/components/analytics/TicketLink";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { eventSchema, breadcrumbSchema } from "@/lib/seo-schema";
+import { eventPageMetadata } from "@/lib/whats-on-seo";
+import { eventOrganiser } from "@/lib/event-organiser";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +44,7 @@ const EVENTS = "#d4921a";
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const e = await getEvent(id);
-  return { title: e?.title ?? "Event" };
+  return eventPageMetadata(id, e);
 }
 
 function price(pence: number) {
@@ -68,7 +70,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     isLive ? getEventConditions(coords, e.starts_at) : Promise.resolve(null),
   ]);
 
-  const organiser = e.hub ?? e.business ?? null;
+  const organiser = eventOrganiser(e);
   const urgentUpdate = e.updates.find((u) => u.is_urgent);
   const scarcity = computeScarcity(e.ticket_types);
   // Journey-home is anchored on the event's own area (from Lerwick out to the
@@ -342,8 +344,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
               <p className="eyebrow text-ink-muted">Organised by</p>
               <div className="mt-3 flex items-center gap-3">
-                {organiser.logo_url ? (
-                  <img src={organiser.logo_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
+                {organiser.logoUrl ? (
+                  <img src={organiser.logoUrl} alt="" className="h-12 w-12 rounded-xl object-cover" />
                 ) : (
                   <span className="grid h-12 w-12 place-items-center rounded-xl bg-sand font-display text-lg font-bold text-ink">
                     {organiser.name.charAt(0)}

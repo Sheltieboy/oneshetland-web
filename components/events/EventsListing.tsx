@@ -1,5 +1,6 @@
 "use client";
 
+import { eventOrganiser } from "@/lib/event-organiser";
 import { useState } from "react";
 import { SiteSearch } from "@/components/search/SiteSearch";
 import { normaliseCategory } from "@/lib/event-categories";
@@ -237,7 +238,7 @@ export function OnSaleStrip({ events, nowIso }: { events: EventListItem[]; nowIs
 
 /* ── Event row (date-grouped list) ────────────────────────────────────────── */
 function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
-  const organiser = e.hub?.name ?? e.business?.name ?? null;
+  const organiser = eventOrganiser(e)?.name ?? null;
   const meta = rowMeta(e, organiser, nowIso ? new Date(nowIso) : new Date());
   const label = priceLabel(e);
   return (

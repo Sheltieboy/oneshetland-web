@@ -1,3 +1,4 @@
+import { whatsOnCanonical } from "@/lib/whats-on-seo";
 import Image from "next/image";
 import { normaliseCategory, sameCategory } from "@/lib/event-categories";
 import Link from "next/link";
@@ -25,7 +26,10 @@ import { whenForEventsRange } from "@/lib/activities";
 import { resilient } from "@/lib/home-resilience";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "What's On" };
+export async function generateMetadata({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
+  const sp = await searchParams;
+  return { title: "What's On", alternates: { canonical: whatsOnCanonical(sp) } };
+}
 
 const EVENTS = "#d4921a";
 const PAGE_SIZE = 20;

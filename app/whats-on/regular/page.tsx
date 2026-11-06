@@ -1,3 +1,4 @@
+import { REGULAR_CANONICAL } from "@/lib/whats-on-seo";
 import Link from "next/link";
 import { WhatsOnTabs } from "@/components/activities/WhatsOnTabs";
 import { RegularFilters } from "@/components/activities/RegularFilters";
@@ -10,6 +11,7 @@ import { parseDays, parseWhen, regularHref, safeCategory, summaryLine, WHEN_OPTI
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Regular activities",
+  alternates: { canonical: REGULAR_CANONICAL },
   description: "Classes, groups and weekly sessions across Shetland: one listing for each, with the next session, and changes shown as they happen.",
 };
 

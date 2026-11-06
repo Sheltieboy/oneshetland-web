@@ -4,6 +4,9 @@
  * dropped so we never emit blank/invalid properties.
  */
 
+import { displayOccurrences, nextOccurrence, type Occurrence } from "./event-occurrences";
+import { eventOrganiser } from "./event-organiser";
+
 const BASE = "https://oneshetland.com";
 
 type Obj = Record<string, unknown>;
@@ -52,13 +55,16 @@ export function eventSchema(e: {
   id: string; title: string; description: string | null; starts_at: string; ends_at: string | null;
   venue: string | null; locality: string | null; formatted_address: string | null; cover_url: string | null;
   status: string; business: { name: string | null } | null; hub: { name: string | null } | null;
+  /** Optional until the community-events columns exist in production; never selected today. */
+  is_platform_event?: boolean | null; source?: string | null; organiser_name?: string | null;
   ticket_types: { name: string; price_pence: number; is_active: boolean }[];
 }): Obj {
   const url = `${BASE}/whats-on/${e.id}`;
   const offers = (e.ticket_types || [])
     .filter((t) => t.is_active)
     .map((t) => ({ "@type": "Offer", name: t.name, price: (t.price_pence / 100).toFixed(2), priceCurrency: "GBP", url, availability: "https://schema.org/InStock" }));
-  const organizerName = e.business?.name || e.hub?.name || null;
+  // Same business-then-hub order as before; a community event names its contributor, never OneShetland.
+  const organizerName = eventOrganiser(e, { prefer: "business" })?.name ?? null;
   return clean({
     "@context": "https://schema.org",
     "@type": "Event",
@@ -79,6 +85,69 @@ export function eventSchema(e: {
       address: e.formatted_address || e.locality || "Shetland, Scotland",
     },
     offers: offers.length ? offers : undefined,
+    organizer: organizerName ? { "@type": "Organization", name: organizerName } : undefined,
+  });
+}
+
+/**
+ * A dated run (one production, several performances) as one parent Event with a subEvent per performance. NOT wired into any page yet.
+ * With no occurrences it returns exactly what eventSchema returns, so an ordinary event is unchanged. Cancelled performances are listed
+ * with EventCancelled (a visitor and a search engine should both see them as cancelled). Offers appear only when a real https ticket
+ * link exists. The organiser is organiser_name when present, else the business or hub.
+ */
+export function eventRunSchema(
+  e: Parameters<typeof eventSchema>[0] & { organiser_name?: string | null; ticket_url?: string | null },
+  occurrences: readonly Occurrence[] | null | undefined,
+  now: Date | number = new Date(),
+): Obj {
+  const occ = displayOccurrences(occurrences);
+  if (occ.length === 0) return eventSchema(e);
+  const url = `${BASE}/whats-on/${e.id}`;
+  const status = (st: string | null | undefined) =>
+    st === "cancelled" ? "https://schema.org/EventCancelled" : st === "postponed" ? "https://schema.org/EventPostponed" : "https://schema.org/EventScheduled";
+  const place = (venue: string | null | undefined, locality: string | null | undefined) => ({
+    "@type": "Place",
+    name: venue || e.venue || locality || e.locality || "Shetland",
+    address: (venue ? undefined : e.formatted_address) || locality || e.locality || "Shetland, Scotland",
+  });
+  const live = occ.filter((o) => o.status !== "cancelled");
+  const allCancelled = live.length === 0;
+  const first = nextOccurrence(live, now) ?? live[0] ?? occ[0];
+  const last = occ[occ.length - 1];
+  const ticket = typeof e.ticket_url === "string" && /^https:\/\//i.test(e.ticket_url.trim()) ? e.ticket_url.trim() : null;
+  const offers = ticket
+    ? (e.ticket_types || []).filter((t) => t.is_active).length
+      ? e.ticket_types.filter((t) => t.is_active).map((t) => ({ "@type": "Offer", name: t.name, price: (t.price_pence / 100).toFixed(2), priceCurrency: "GBP", url: ticket, availability: "https://schema.org/InStock" }))
+      : [{ "@type": "Offer", url: ticket }]
+    : undefined;
+  // A community event always names its contributor (never OneShetland); otherwise an explicit organiser_name wins, then the owner.
+  const resolved = eventOrganiser(e, { prefer: "business" });
+  const organizerName = resolved?.kind === "community" ? resolved.name : e.organiser_name?.trim() || resolved?.name || null;
+  return clean({
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: e.title,
+    startDate: first.starts_at,
+    endDate: last.ends_at || last.starts_at,
+    description: stripTags(e.description) || undefined,
+    image: e.cover_url || undefined,
+    url,
+    eventStatus: allCancelled ? "https://schema.org/EventCancelled" : status(e.status),
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    location: place(e.venue, e.locality),
+    subEvent: occ.map((o) =>
+      clean({
+        "@type": "Event",
+        name: e.title,
+        startDate: o.starts_at,
+        endDate: o.ends_at || undefined,
+        url,
+        eventStatus: status(o.status === "cancelled" || e.status === "cancelled" ? "cancelled" : e.status === "postponed" ? "postponed" : "scheduled"),
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: place(o.venue, o.locality),
+      }),
+    ),
+    offers,
     organizer: organizerName ? { "@type": "Organization", name: organizerName } : undefined,
   });
 }

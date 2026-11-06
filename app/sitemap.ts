@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { publicClient } from "@/lib/supabase/public";
+import { eventIsListable, activityIsListable } from "@/lib/whats-on-seo";
 
 const BASE = "https://oneshetland.com";
 
@@ -9,6 +10,7 @@ export const revalidate = 86400;
 const STATIC: { path: string; freq: MetadataRoute.Sitemap[number]["changeFrequency"]; priority: number }[] = [
   { path: "", freq: "daily", priority: 1 },
   { path: "/whats-on", freq: "daily", priority: 0.9 },
+  { path: "/whats-on/regular", freq: "daily", priority: 0.7 },
   { path: "/local", freq: "daily", priority: 0.9 },
   // The two pages people reach by search rather than by knowing us: someone
   // googling "Shetland knitwear" or "things to do in Shetland".
@@ -44,6 +46,24 @@ async function rows(table: string, cols: string): Promise<Record<string, unknown
   }
 }
 
+/** Read rows with a filter, trying the preferred columns first and falling back if one is missing (never fails the build). */
+async function rowsFiltered(table: string, colSets: string[], build: (q: any) => any): Promise<Record<string, unknown>[]> {
+  for (const cols of colSets) {
+    try {
+      const { data, error } = await build(publicClient().from(table).select(cols)).limit(5000);
+      if (!error) return (data ?? []) as unknown as Record<string, unknown>[];
+    } catch {
+      /* try the next column set */
+    }
+  }
+  return [];
+}
+
+const lastMod = (v: unknown, fallback: Date): Date => {
+  const d = typeof v === "string" ? new Date(v) : null;
+  return d && Number.isFinite(d.getTime()) ? d : fallback;
+};
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const out: MetadataRoute.Sitemap = STATIC.map((s) => ({
@@ -55,7 +75,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const [biz, events, words, boats, hubs, articles] = await Promise.all([
     rows("local_businesses", "id, slug, is_active"),
-    rows("events", "id"),
+    rowsFiltered(
+      "events",
+      ["id, status, is_hidden, organiser_hub_id, calendar_approved, updated_at", "id, status, is_hidden, organiser_hub_id, calendar_approved"],
+      (q) => q.eq("status", "published").or("organiser_hub_id.is.null,calendar_approved.eq.true"),
+    ),
     rows("spik_dictionary", "id, slug"),
     rows("vessels", "id"),
     rows("hubs", "id"),
@@ -66,7 +90,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     if (b.is_active === false) continue;
     out.push({ url: `${BASE}/directory/${(b.slug as string) || b.id}`, lastModified: now, changeFrequency: "weekly", priority: 0.6 });
   }
-  for (const e of events) out.push({ url: `${BASE}/whats-on/${e.id}`, lastModified: now, changeFrequency: "daily", priority: 0.6 });
+  for (const e of events) {
+    if (!eventIsListable(e as { id: string })) continue;
+    out.push({ url: `${BASE}/whats-on/${e.id}`, lastModified: lastMod(e.updated_at, now), changeFrequency: "daily", priority: 0.6 });
+  }
+  // Regular activities: the activity_is_public rule, applied explicitly (published, not paused, owner live), on top of RLS.
+  const [acts, hubsLive, bizLive] = await Promise.all([
+    rowsFiltered(
+      "regular_activities",
+      ["slug, status, admin_paused, calendar_approved, organiser_hub_id, organiser_business_id, is_platform_activity, updated_at", "slug, status, admin_paused, calendar_approved, organiser_hub_id, organiser_business_id, is_platform_activity"],
+      (q) => q.eq("status", "published").eq("admin_paused", false),
+    ),
+    rowsFiltered("hubs", ["id, is_active"], (q) => q.eq("is_active", true)),
+    rowsFiltered("local_businesses", ["id, is_active"], (q) => q.eq("is_active", true)),
+  ]);
+  const activeHubs = new Set(hubsLive.map((h) => String(h.id))), activeBiz = new Set(bizLive.map((b) => String(b.id)));
+  for (const a of acts) {
+    if (!activityIsListable(a, activeHubs, activeBiz)) continue;
+    out.push({ url: `${BASE}/whats-on/regular/${a.slug}`, lastModified: lastMod(a.updated_at, now), changeFrequency: "weekly", priority: 0.5 });
+  }
   for (const w of words) out.push({ url: `${BASE}/spik/${w.slug || w.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const v of boats) out.push({ url: `${BASE}/boats/${v.id}`, lastModified: now, changeFrequency: "monthly", priority: 0.5 });
   for (const h of hubs) out.push({ url: `${BASE}/hubs/${h.id}`, lastModified: now, changeFrequency: "weekly", priority: 0.5 });
