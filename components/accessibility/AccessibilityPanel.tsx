@@ -24,7 +24,7 @@ export function AccessibilityPanel({ type, id, profile, heading = "Access and as
     <section aria-labelledby={`acc-${id}`} className="rounded-card border border-line bg-paper p-5 shadow-soft">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id={`acc-${id}`} className="font-display text-xl font-bold">{heading}</h2>
-        <Link href="/accessible" className="text-sm font-semibold underline underline-offset-2">Accessible Shetland</Link>
+        <Link href="/accessible" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-2">Accessible Shetland</Link>
       </div>
       {p.summary?.trim() && <p className="mt-2 whitespace-pre-line text-ink">{p.summary}</p>}
       {groups.length > 0 && (
