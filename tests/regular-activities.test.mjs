@@ -221,3 +221,23 @@ test("staff can see whether the alert job is healthy, and what 'healthy' means i
 test("the website itself sends no follower notifications (the database does), and nothing on the web writes the notification log", () => {
   for (const f of ["lib/activities-client.ts", "lib/activities-data.ts", "components/activities/FollowButton.tsx", "components/admin/ActivitiesAdmin.tsx"]) assert.doesNotMatch(read(f), /notification_log|sendUserPush|send-email/, f);
 });
+
+// ── website notification links: run the REAL routing code (extracted), against the version on main
+import { execFileSync } from "node:child_process";
+import { mkdtempSync as mkd, writeFileSync as wf } from "node:fs";
+import { tmpdir as td } from "node:os";
+import { join as pj } from "node:path";
+const extractWeb = (src) => { const a = src.indexOf("const SCREEN_ALIASES"); const f = src.indexOf("export function webNotificationRoute"); const end = src.indexOf("\n}\n", f) + 3; return src.slice(a, end); };
+const loadWeb = async (name, src) => { const d = mkd(pj(td(), "wr-")); wf(pj(d, `${name}.ts`), extractWeb(src)); return (await import(pj(d, `${name}.ts`))).webNotificationRoute; };
+const webNow = await loadWeb("now", read("lib/notifications-inbox.ts"));
+let webBefore = null;
+try { webBefore = await loadWeb("before", execFileSync("git", ["show", "7e07176:lib/notifications-inbox.ts"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })); } catch { webBefore = null; }
+const U = "11111111-2222-3333-4444-555555555555";
+const WEB_EXISTING = [null, {}, { screen: "fetch" }, { screen: "my-orders" }, { screen: "notices" }, { screen: "my-event-tickets" }, { screen: "job-applicants", job_id: U }, { product_order_id: U }, { shift_id: U }, { job_id: U }, { hub_id: U }, { order_id: U }, { event_id: U }, { request_id: U }, { memory_id: U }, { vessel_id: U }, { business_id: U }, { screen: "fetch", request_id: U }, { event_id: U, hub_id: U }, { screen: "something-new" }];
+test("WEBSITE: a Regular Activity notification opens its page; a hostile slug opens nothing", () => {
+  assert.equal(webNow({ screen: "regular-activity", activity_id: U, activity_slug: "bressay-under-5s" }), "/whats-on/regular/bressay-under-5s");
+  for (const slug of ["../admin", "UPPER", "a b", "x?y=1", "https://evil.test", "-lead", "a".repeat(120), 5, null]) assert.equal(webNow({ screen: "regular-activity", activity_slug: slug }), null, JSON.stringify(slug));
+});
+test("WEBSITE: every existing notification destination is exactly as it was on main", { skip: !webBefore && "git history not available" }, () => {
+  for (const d of WEB_EXISTING) assert.equal(webNow(d), webBefore(d), JSON.stringify(d));
+});
