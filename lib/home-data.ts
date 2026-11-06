@@ -181,10 +181,17 @@ export type HomeContent = {
   spotlight_image: string | null;
   spotlight_href: string | null;
   spotlight_cta: string | null;
+  /** Pinned launch card in the homepage For you strip (migration 20261206000000_home_pin.sql). */
+  pin_enabled: boolean | null;
+  pin_title: string | null;
+  pin_body: string | null;
+  pin_cta: string | null;
+  pin_href: string | null;
+  pin_expires_at: string | null;
 };
 
 const HOME_CONTENT_COLS =
-  "id, welcome_title, welcome_body, welcome_href, welcome_cta, feature_title, feature_image, feature_href, spotlight_title, spotlight_body, spotlight_image, spotlight_href, spotlight_cta";
+  "id, welcome_title, welcome_body, welcome_href, welcome_cta, feature_title, feature_image, feature_href, spotlight_title, spotlight_body, spotlight_image, spotlight_href, spotlight_cta, pin_enabled, pin_title, pin_body, pin_cta, pin_href, pin_expires_at";
 
 export async function getHomeContent(): Promise<HomeContent | null> {
   const sb = publicClient();

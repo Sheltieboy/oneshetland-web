@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
 import type { HomeContent } from "@/lib/home-data";
+import { PIN_LIMITS, dateFromExpiry, expiryFromDate, validatePinDraft } from "@/lib/home-pin";
 
 type Draft = HomeContent;
 
@@ -36,11 +37,18 @@ export function HomeContentForm({ initial }: { initial: HomeContent }) {
 
   async function save() {
     setBusy(true); setMsg(null);
+    const pinProblem = validatePinDraft({
+      enabled: !!draft.pin_enabled, title: draft.pin_title ?? "", body: draft.pin_body ?? "", cta: draft.pin_cta ?? "", href: draft.pin_href ?? "", expiresAt: draft.pin_expires_at,
+    });
+    if (pinProblem) { setMsg(`Failed: ${pinProblem}`); setBusy(false); return; }
     try {
       const { error } = await createClient().from("home_content").update({
         welcome_title: draft.welcome_title, welcome_body: draft.welcome_body, welcome_href: draft.welcome_href, welcome_cta: draft.welcome_cta,
         feature_title: draft.feature_title, feature_image: draft.feature_image, feature_href: draft.feature_href,
         spotlight_title: draft.spotlight_title, spotlight_body: draft.spotlight_body, spotlight_image: draft.spotlight_image, spotlight_href: draft.spotlight_href, spotlight_cta: draft.spotlight_cta,
+        pin_enabled: !!draft.pin_enabled,
+        pin_title: (draft.pin_title ?? "").trim() || null, pin_body: (draft.pin_body ?? "").trim() || null, pin_cta: (draft.pin_cta ?? "").trim() || null,
+        pin_href: (draft.pin_href ?? "").trim() || null, pin_expires_at: draft.pin_expires_at || null,
         updated_at: new Date().toISOString(),
       }).eq("id", draft.id);
       setMsg(error ? `Failed: ${error.message}` : "Saved ✓ — refresh the homepage to see it.");
@@ -84,6 +92,26 @@ export function HomeContentForm({ initial }: { initial: HomeContent }) {
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <Field label="Button text" value={draft.spotlight_cta} onChange={(v) => set("spotlight_cta", v)} placeholder="Find out more" />
           <Field label="Link URL" value={draft.spotlight_href} onChange={(v) => set("spotlight_href", v)} placeholder="https://…" />
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="font-display text-lg font-bold">Pinned card (For you)</h3>
+        <p className="mb-3 text-sm text-ink-muted">A short launch or announcement card shown first in the &ldquo;For you&rdquo; strip to signed-in members. It disappears by itself after the last day you choose, and anyone can dismiss it (it then stays dismissed for them). Changing the wording or link counts as a new card and shows again.</p>
+        <label className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+          <input type="checkbox" checked={!!draft.pin_enabled} onChange={(e) => setDraft((d) => ({ ...d, pin_enabled: e.target.checked }))} className="h-4 w-4" />
+          Show the pinned card
+        </label>
+        <Field label={`Title (up to ${PIN_LIMITS.title} characters)`} value={draft.pin_title} onChange={(v) => set("pin_title", v)} placeholder="e.g. OneShetland has launched" />
+        <Field label={`One line of text, optional (up to ${PIN_LIMITS.body})`} value={draft.pin_body} onChange={(v) => set("pin_body", v)} placeholder="e.g. See what is new this week" />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Field label={`Button text (up to ${PIN_LIMITS.cta})`} value={draft.pin_cta} onChange={(v) => set("pin_cta", v)} placeholder="Take a look" />
+          <Field label="Link (page or https://…)" value={draft.pin_href} onChange={(v) => set("pin_href", v)} placeholder="/notices" />
+          <label className="mb-3 block">
+            <span className="mb-1 block text-sm font-semibold text-ink">Last day to show</span>
+            <input type="date" value={dateFromExpiry(draft.pin_expires_at)} onChange={(e) => setDraft((d) => ({ ...d, pin_expires_at: e.target.value ? expiryFromDate(e.target.value) : null }))} className="auth-input" />
+            <span className="mt-1 block text-xs text-ink-muted">Shown all through this day (Shetland time).</span>
+          </label>
         </div>
       </Card>
 

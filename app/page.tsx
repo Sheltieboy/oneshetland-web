@@ -23,6 +23,7 @@ import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
 import { JoinBusinessCta } from "@/components/business/JoinBusinessCta";
 import { HomeWork } from "@/components/preview/v2/WorkV2";
 import { ForYou } from "@/components/home/ForYou";
+import { getHomePin } from "@/lib/home-pin";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
 import { LivePills, RightNow, DiscoverLocal, CommerceGateway, IslandMosaic, CommunityV2, ExploreV2 } from "@/components/preview/v2/HomeV2";
@@ -47,7 +48,7 @@ export default async function Home() {
   const emptyData: HomeData = { events: [], businesses: [], offers: [], notices: [], campaigns: [], jobs: [], shifts: [], alerts: [], spik: null };
   const emptyShelves: HomeShelves = { freshProducts: [], hiring: [], boat: null, story: null, spik: null };
   const accountP = getAccount();
-  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou] = await Promise.all([
+  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin] = await Promise.all([
     resilient("home:data", { ...R(60_000, 6000, 10 * 60_000), fallback: emptyData }, () => getHomeData({ legacyNotices: false, homepageOnly: true })),
     resilient("home:hero", { ...R(5 * 60_000, 3000, 60 * 60_000), fallback: DEFAULT_HERO_IMAGE }, () => getHeroImage()),
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
@@ -61,6 +62,8 @@ export default async function Home() {
     resilient("home:shifts", { ...R(60_000, 5000, 10 * 60_000), fallback: [] }, () => loadLiveShifts()),
     accountP.then((a) => getHomeNoticeBundle(!!a)).catch(() => ({ notices: [], scopedToMyAreas: false })),
     accountP.then((a) => (a ? getForYou(a.id).catch(() => []) : [])).catch(() => []),
+    // The admin-managed pinned launch card: signed-in members only, one cached read of a one-row table.
+    accountP.then((a) => (a ? getHomePin().catch(() => null) : null)).catch(() => null),
   ]);
   const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: liveShifts }, now);
   // For you — personal, signed-in only, and only when there is something genuine to say.
@@ -100,7 +103,7 @@ export default async function Home() {
 
       {visiting && <section className="mx-auto max-w-6xl px-5 pt-10"><PlanDayTile wide /></section>}
 
-      {account && forYou.length > 0 && <ForYou name={accountName(account).split(" ")[0]} items={forYou} />}
+      {account && (forYou.length > 0 || pin) && <ForYou name={accountName(account).split(" ")[0]} items={forYou} pin={pin} />}
 
       {/* 3 · RIGHT NOW */}
       <RightNow events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} />
