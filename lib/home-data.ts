@@ -1,6 +1,8 @@
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
 import { publicClient } from "./supabase/public";
+import { selectModern } from "./events-schema";
+import { selectHomeRows, type RunInfo, type RunOccurrence } from "./event-runs";
 import { unwrapPublic } from "./public-read";
 import { noticeHref } from "./home-curation";
 import type { NoticePublisher } from "./notice-publisher";
@@ -18,6 +20,9 @@ export type HomeEvent = {
   is_featured: boolean;
   price_text: string | null;
   has_tickets: boolean;
+  /** Set on a production with performances: starts_at / ends_at are then the next performance's (new schema only). */
+  run?: RunInfo;
+  organiser_name?: string | null;
 };
 
 export type HomeBusiness = {
@@ -205,7 +210,32 @@ export async function getHomeContent(): Promise<HomeContent | null> {
 
 type SB = ReturnType<typeof publicClient>;
 
+/** Rows read for the homepage when performances exist: enough to find seven cards after runs and ongoing exhibitions are set aside. */
+const HOME_SCAN = 200;
+
+/**
+ * The homepage's What's On slots. Before the migration: the original query (the database filters, orders and limits to seven).
+ * After it: current events are read with their performances and chosen in memory by lib/event-runs.ts selectHomeRows - featured first,
+ * then soonest; one card per production, dated by its next performance; no organiser more than twice; at most seven.
+ */
 async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
+  const modern = await selectModern<(HomeEvent & { occurrences?: RunOccurrence[] | null })[]>((extra) =>
+    sb
+      .from("events")
+      .select("id, title, starts_at, ends_at, venue, locality, category, cover_url, is_featured, price_text, has_tickets, organiser_hub_id, organiser_business_id" + extra)
+      .eq("is_hidden", false)
+      .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+      .or(currentEventsFilter(now))
+      .order("is_featured", { ascending: false })
+      .order("starts_at", { ascending: true })
+      .limit(HOME_SCAN),
+  );
+  if (!modern.modern) return fetchEventsLegacy(sb, now);
+  if (modern.error) return [];
+  return selectHomeRows(modern.data ?? [], new Date(now), 7) as unknown as HomeEvent[];
+}
+
+async function fetchEventsLegacy(sb: SB, now: string): Promise<HomeEvent[]> {
   const { data } = await sb
     .from("events")
     .select("id, title, starts_at, ends_at, venue, category, cover_url, is_featured, price_text, has_tickets")

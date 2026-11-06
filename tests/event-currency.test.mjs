@@ -110,9 +110,9 @@ describe("categories: the exact legacy -> current mapping, derived from producti
       "Art & Exhibitions": "Arts & Culture", "Charity & Community": "Community", "Cinema": "Arts & Culture",
       "Comedy": "Arts & Culture", "Family & Kids": "Family", "Festivals & Celebrations": "Festival",
       "Heritage & Culture": "Arts & Culture", "Literature": "Arts & Culture", "Music & Gigs": "Music",
-      "Sports & Outdoors": "Sport", "Theatre": "Arts & Culture",
+      "Sports & Outdoors": "Sport", "Theatre": "Theatre & Performing Arts",
     });
-    for (const v of Object.values(LEGACY_CATEGORY_MAP)) assert.ok(CURRENT_EVENT_CATEGORIES.includes(v), `${v} must be a current category`);
+    for (const v of Object.values(LEGACY_CATEGORY_MAP)) assert.ok([...CURRENT_EVENT_CATEGORIES, "Theatre & Performing Arts"].includes(v), `${v} must be a current category`);
   });
   test("the 12 current categories match the event form's list", () => {
     const src = readFileSync(new URL("../lib/events-data.ts", import.meta.url), "utf8");
@@ -128,7 +128,8 @@ describe("categories: the exact legacy -> current mapping, derived from producti
   });
   test("choosing a current category matches every stored spelling; unrelated stay apart", () => {
     assert.deepEqual(storedValuesFor("Music").sort(), ["Music", "Music & Gigs"]);
-    assert.deepEqual(storedValuesFor("Arts & Culture").sort(), ["Art & Exhibitions", "Arts & Culture", "Cinema", "Comedy", "Heritage & Culture", "Literature", "Theatre"]);
+    assert.deepEqual(storedValuesFor("Arts & Culture").sort(), ["Art & Exhibitions", "Arts & Culture", "Cinema", "Comedy", "Heritage & Culture", "Literature"]);
+    assert.deepEqual(storedValuesFor("Theatre & Performing Arts").sort(), ["Theatre", "Theatre & Performing Arts"], "legacy Theatre now belongs to the new chip");
     assert.deepEqual(storedValuesFor("Music & Gigs").sort(), ["Music", "Music & Gigs"], "a legacy name resolves to the same set");
     assert.ok(!storedValuesFor("Music").includes("Sports & Outdoors"));
   });

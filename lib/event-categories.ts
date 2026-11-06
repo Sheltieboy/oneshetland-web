@@ -36,7 +36,7 @@ export const CURRENT_EVENT_CATEGORIES = [
 /**
  * Categories newly recognised as CURRENT without being on the existing event forms yet (the forms' list, above, is pinned to the
  * app by a test). "Theatre & Performing Arts" arrives with the unified Events & Activities front door; until the forms offer it,
- * it only appears as a chip when an event actually carries it. Legacy "Theatre" still reads as "Arts & Culture" (unchanged).
+ * it only appears as a chip when an event actually carries it (like every other chip). Legacy "Theatre" now reads as it (see LEGACY_CATEGORY_MAP).
  */
 export const ADDITIONAL_CURRENT_CATEGORIES = ["Theatre & Performing Arts"] as const;
 
@@ -52,7 +52,8 @@ export const LEGACY_CATEGORY_MAP: Readonly<Record<string, string>> = {
   "Literature": "Arts & Culture",
   "Music & Gigs": "Music",
   "Sports & Outdoors": "Sport",
-  "Theatre": "Arts & Culture",
+  // 6 Nov (Events & Activities): the dedicated chip now exists, so legacy "Theatre" reads as it. It is no longer under "Arts & Culture".
+  "Theatre": "Theatre & Performing Arts",
 };
 
 const key = (s: string) => s.trim().toLowerCase();

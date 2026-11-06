@@ -1,7 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
 import { AccessibilitySection } from "@/components/accessibility/AccessibilitySection";
 import Link from "next/link";
-import { eventWhen } from "@/lib/event-display";
+import { eventWhen, longDateTime, shortDate } from "@/lib/event-display";
+import { displayOccurrences, nextOccurrence, liveOccurrence } from "@/lib/event-occurrences";
+import { PerformancesList } from "@/components/events/PerformancesList";
 import { eventState } from "@/lib/event-state";
 import { normaliseCategory } from "@/lib/event-categories";
 import { notFound, redirect } from "next/navigation";
@@ -33,7 +35,7 @@ import { ShareButton } from "@/components/events/ShareButton";
 import { TrackView } from "@/components/analytics/TrackView";
 import { TicketLink } from "@/components/analytics/TicketLink";
 import { JsonLd } from "@/components/seo/JsonLd";
-import { eventSchema, breadcrumbSchema } from "@/lib/seo-schema";
+import { eventRunSchema, breadcrumbSchema } from "@/lib/seo-schema";
 import { eventPageMetadata } from "@/lib/whats-on-seo";
 import { eventOrganiser } from "@/lib/event-organiser";
 
@@ -59,7 +61,22 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const [e, account] = await Promise.all([getEvent(id), getAccount()]);
   if (!e) notFound();
 
-  const isCancelled = e.status === "cancelled";
+  // Performances (new schema only; empty before the migration, when everything below behaves exactly as it always has).
+  const now = new Date();
+  const occ = displayOccurrences(e.occurrences);
+  const liveOcc = occ.filter((o) => o.status !== "cancelled");
+  /** A production with several performances: dated by its next one, never "ongoing", no ticket sale. */
+  const dated = occ.length >= 2;
+  /** Two or more performances that have not been cancelled: OneShetland sells no ticket (no per-performance availability exists yet). */
+  const multi = liveOcc.length >= 2;
+  const allOccCancelled = occ.length > 0 && liveOcc.length === 0;
+  const currentOcc = liveOccurrence(liveOcc, now) ?? nextOccurrence(liveOcc, now);
+  /** The moment the page's travel / weather / share text is about. */
+  const whenStart = dated && currentOcc ? currentOcc.starts_at : e.starts_at;
+  const whenEnd = dated && currentOcc ? currentOcc.ends_at ?? null : e.ends_at;
+  const heroVenue = dated && currentOcc?.venue ? currentOcc.venue : e.venue;
+
+  const isCancelled = e.status === "cancelled" || allOccCancelled;
   const isPostponed = e.status === "postponed";
   const isLive = !isCancelled && !isPostponed;
 
@@ -67,7 +84,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const [canScan, social, conditions] = await Promise.all([
     account ? canScanEvent(id) : Promise.resolve(false),
     isLive ? getEventSocialStats(id) : Promise.resolve({ goingCount: 0, bookedRecent: 0 }),
-    isLive ? getEventConditions(coords, e.starts_at) : Promise.resolve(null),
+    isLive ? getEventConditions(coords, whenStart) : Promise.resolve(null),
   ]);
 
   const organiser = eventOrganiser(e);
@@ -91,7 +108,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <JsonLd data={[eventSchema(e), breadcrumbSchema([{ name: "What's On", path: "/whats-on" }, { name: e.title, path: `/whats-on/${e.id}` }])]} />
+      <JsonLd data={[eventRunSchema(e, e.occurrences, now), breadcrumbSchema([{ name: "What's On", path: "/whats-on" }, { name: e.title, path: `/whats-on/${e.id}` }])]} />
       <TrackView event="content_viewed" objectType="event" objectId={id} />
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[44vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[52vh]" style={{ background: EVENTS }}>
@@ -109,12 +126,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             >
               <span aria-hidden>‹</span> What&apos;s On
             </Link>
-            <ShareButton title={e.title} text={`${e.title} — ${fmtLongDateTime(e.starts_at)}`} />
+            <ShareButton title={e.title} text={`${e.title} — ${dated ? "next: " : ""}${fmtLongDateTime(whenStart)}`} />
           </div>
         </div>
 
         <div className="relative mx-auto w-full max-w-5xl px-5 pb-9">
-          {eventState(e, new Date()) === "ongoing" && (
+          {!dated && eventState(e, new Date()) === "ongoing" && (
             <span className="mr-2 inline-block rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wide text-paper" style={{ background: EVENTS }}>
               Ongoing
             </span>
@@ -128,8 +145,14 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {e.title}
           </h1>
           <p className="mt-3 text-lg text-paper/90">
-            {eventWhen(e.starts_at, e.ends_at).line}
-            {e.venue ? ` · ${e.venue}` : ""}
+            {dated
+              ? allOccCancelled
+                ? "All performances have been cancelled"
+                : currentOcc
+                  ? `${liveOccurrence(liveOcc, now) ? "On now" : "Next performance"}: ${longDateTime(currentOcc.starts_at)} · ${liveOcc.length} performances`
+                  : `${liveOcc.length} performances, all finished (${shortDate(liveOcc[0].starts_at)} to ${shortDate(liveOcc[liveOcc.length - 1].starts_at)})`
+              : eventWhen(e.starts_at, e.ends_at).line}
+            {heroVenue ? ` · ${heroVenue}` : ""}
           </p>
         </div>
       </section>
@@ -152,7 +175,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           <div className="space-y-3">
             {isCancelled && (
               <div className="rounded-card border border-red-300 bg-red-50 px-5 py-4">
-                <p className="font-display text-lg font-bold text-red-800">This event has been cancelled</p>
+                <p className="font-display text-lg font-bold text-red-800">
+                  {allOccCancelled && e.status !== "cancelled" ? (dated ? "All performances have been cancelled" : "This performance has been cancelled") : "This event has been cancelled"}
+                </p>
               </div>
             )}
             {isPostponed && (
@@ -188,6 +213,25 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           ) : null}
 
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
+            {dated ? (
+              <InfoCard label={currentOcc ? (liveOccurrence(liveOcc, now) ? "On now" : "Next performance") : "Performances"}>
+                {currentOcc ? (
+                  <>
+                    {eventWhen(currentOcc.starts_at, currentOcc.ends_at).start}
+                    {currentOcc.ends_at ? <span className="block text-ink-muted">{eventWhen(currentOcc.starts_at, currentOcc.ends_at).end}</span> : null}
+                  </>
+                ) : allOccCancelled ? (
+                  "All cancelled"
+                ) : (
+                  "All finished"
+                )}
+                <span className="block text-ink-muted">
+                  {liveOcc.length} performance{liveOcc.length === 1 ? "" : "s"}
+                  {liveOcc.length > 0 ? `, ${shortDate(liveOcc[0].starts_at)} to ${shortDate(liveOcc[liveOcc.length - 1].starts_at)}` : ""}
+                </span>
+                <a href="#performances" className="mt-1 block text-sm font-semibold hover:underline" style={{ color: "#8a5a05" }}>See every date ↓</a>
+              </InfoCard>
+            ) : (
             <InfoCard label="When">
               {eventWhen(e.starts_at, e.ends_at).start}
               {/* A multi-day end reads as part of the start ("to Sunday 6 December…"), so it sits straight under it;
@@ -196,8 +240,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               {e.doors_open_at ? <span className="block text-ink-muted">Doors {fmtTime(e.doors_open_at)}</span> : null}
               {!eventWhen(e.starts_at, e.ends_at).multiDay && eventWhen(e.starts_at, e.ends_at).end ? <span className="block text-ink-muted">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
             </InfoCard>
+            )}
             <InfoCard label="Where">
-              {e.venue ?? "Shetland"}
+              {heroVenue ?? "Shetland"}
               {e.formatted_address ? <span className="block text-ink-muted">{e.formatted_address}</span> : e.locality ? <span className="block text-ink-muted">{e.locality}</span> : null}
               {mapHref ? (
                 <a
@@ -215,14 +260,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {e.accessibility_info ? <InfoCard label="Accessibility">{e.accessibility_info}</InfoCard> : null}
           </div>
 
+          {dated ? <PerformancesList occurrences={occ} defaultVenue={e.venue} now={now} /> : null}
+
           {/* Getting there — Shetland context (ferry, weather, daylight) */}
           {isLive && conditions ? (
-            <GettingTherePanel conditions={conditions} eventTime={fmtTime(e.starts_at)} />
+            <GettingTherePanel conditions={conditions} eventTime={fmtTime(whenStart)} />
           ) : null}
           {/* The journey planner is OFF while our stored timetables are out of date and unlicensed (lib/transport-flags.ts): official links instead. */}
           {isLive && eventArea ? (
             TRANSPORT_PLANNER_ENABLED
-              ? <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={e.starts_at} endsAt={e.ends_at} defaultStop={homeDefaultStop} />
+              ? <TravelPlanner eventArea={eventArea} eventStop={eventStop} startsAt={whenStart} endsAt={whenEnd} defaultStop={homeDefaultStop} />
               : <GettingThereLinks />
           ) : null}
 
@@ -274,7 +321,36 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
         {/* Sidebar */}
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start">
-          {(e.has_tickets || e.ticket_types.length > 0 || e.price_text) && !isCancelled && (
+          {multi && !isCancelled && (
+            // Several performances: no OneShetland ticket is sold (there is no per-performance availability yet). Only a real
+            // external link, if the organiser gave one; otherwise a plain line and how to reach them.
+            <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
+              <h3 className="font-display text-xl font-bold">Tickets</h3>
+              {e.price_text ? <p className="mt-3 text-ink-soft">{e.price_text}</p> : null}
+              {e.ticket_url ? (
+                <div className="mt-5">
+                  <TicketLink
+                    eventId={id}
+                    href={e.ticket_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block rounded-pill px-5 py-3 text-center font-semibold text-paper transition hover:brightness-95"
+                    style={{ background: "#8a5a05" }}
+                  >
+                    Get tickets ↗
+                  </TicketLink>
+                  <p className="mt-2 text-xs text-ink-muted">Tickets are sold by the organiser, not by OneShetland.</p>
+                </div>
+              ) : (
+                <div className="mt-4">
+                  <p className="rounded-xl bg-sand/70 px-4 py-3 text-center text-sm text-ink-soft">Ticket details come from the organiser.</p>
+                  {e.contact_info ? <p className="mt-3 whitespace-pre-line text-sm font-medium text-ink">{e.contact_info}</p> : null}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!multi && (e.has_tickets || e.ticket_types.length > 0 || e.price_text) && !isCancelled && (
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
               <h3 className="font-display text-xl font-bold">Tickets</h3>
               <div className="mt-4 empty:hidden">
@@ -353,6 +429,9 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                 )}
                 <p className="font-display text-lg font-bold">{organiser.name}</p>
               </div>
+              {organiser.kind === "community" && (
+                <p className="mt-3 text-sm text-ink-muted">A community event shared on OneShetland. OneShetland is not the organiser.</p>
+              )}
             </div>
           )}
         </aside>

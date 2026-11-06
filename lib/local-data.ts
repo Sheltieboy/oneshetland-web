@@ -3,6 +3,8 @@ import { DIRECTORY_RANK_COL, compareDirectory } from "./directory-rank";
 import { publicClient } from "./supabase/public";
 import { currentEventsFilter } from "./event-currency";
 import { upcomingSurfaceFilter } from "./event-state";
+import { selectModern } from "./events-schema";
+import { presentUpcomingSurface, sortByStart, type RunOccurrence } from "./event-runs";
 import { unwrapPublic } from "./public-read";
 import type { NoticePublisher } from "./notice-publisher";
 import { NOTICE_PUBLISHER_COLUMNS, applyPublicNoticeFilters, attributionFor, loadPersonNames } from "./notice-feed";
@@ -722,6 +724,28 @@ export async function getLocalFeed(area?: string): Promise<{
   const [events, jobs, businesses, notices, offers] = await Promise.all([
     safe(
       (async () => {
+        // New schema: current events are read with their performances; a production becomes one row dated by its next performance
+        // (lib/event-runs.ts). Old schema: the original query below, untouched.
+        const modern = await selectModern<(FeedEvent & { ends_at?: string | null; occurrences?: RunOccurrence[] | null })[]>((extra) => {
+          let mq = sb.from("events")
+            .select("id, title, starts_at, ends_at, venue, locality, cover_url, category, price_text, has_tickets" + extra)
+            .eq("status", "published")
+            .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+            .or(currentEventsFilter(now))
+            .order("starts_at", { ascending: true })
+            .limit(120);
+          if (area) mq = mq.ilike("locality", `%${area}%`);
+          return mq;
+        });
+        if (modern.modern) {
+          if (modern.error) return [] as FeedEvent[];
+          const shown = [];
+          for (const r of modern.data ?? []) {
+            const p = presentUpcomingSurface({ ...r, ends_at: r.ends_at ?? null }, new Date(now));
+            if (p) shown.push(p);
+          }
+          return sortByStart(shown).slice(0, 6) as unknown as FeedEvent[];
+        }
         let q = sb.from("events")
           .select("id, title, starts_at, venue, locality, cover_url, category, price_text, has_tickets")
           .eq("status", "published")
@@ -905,15 +929,36 @@ export async function getBusinessEventsAndJobs(businessId: string): Promise<{
 
   const [events, jobs, ownerProfile] = await Promise.all([
     safe(
-      sb.from("events")
-        .select("id, title, starts_at, venue, cover_url")
-        .eq("organiser_business_id", businessId)
-        .eq("status", "published")
-        .or(upcomingSurfaceFilter().orFilter)   // a business's coming events: not started yet, or finishing today
-        .or(currentEventsFilter(now))
-        .order("starts_at", { ascending: true })
-        .limit(3)
-        .then(r => (r.data ?? []) as BusinessEvent[]),
+      (async () => {
+        // Same two-path rule as the Local feed above: runs dated by their next performance (new schema), the original query otherwise.
+        const modern = await selectModern<(BusinessEvent & { ends_at?: string | null; occurrences?: RunOccurrence[] | null })[]>((extra) =>
+          sb.from("events")
+            .select("id, title, starts_at, ends_at, venue, cover_url" + extra)
+            .eq("organiser_business_id", businessId)
+            .eq("status", "published")
+            .or(currentEventsFilter(now))
+            .order("starts_at", { ascending: true })
+            .limit(60),
+        );
+        if (modern.modern) {
+          if (modern.error) return [] as BusinessEvent[];
+          const shown = [];
+          for (const r of modern.data ?? []) {
+            const p = presentUpcomingSurface({ ...r, ends_at: r.ends_at ?? null }, new Date(now));
+            if (p) shown.push(p);
+          }
+          return sortByStart(shown).slice(0, 3) as unknown as BusinessEvent[];
+        }
+        const r = await sb.from("events")
+          .select("id, title, starts_at, venue, cover_url")
+          .eq("organiser_business_id", businessId)
+          .eq("status", "published")
+          .or(upcomingSurfaceFilter().orFilter)   // a business's coming events: not started yet, or finishing today
+          .or(currentEventsFilter(now))
+          .order("starts_at", { ascending: true })
+          .limit(3);
+        return (r.data ?? []) as BusinessEvent[];
+      })(),
       [] as BusinessEvent[],
     ),
     safe(

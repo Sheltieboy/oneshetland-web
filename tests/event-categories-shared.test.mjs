@@ -85,13 +85,13 @@ describe("label stored on events.category", () => {
 
 describe("existing category behaviour is untouched", () => {
   test("normaliseCategory passes values through exactly as before", () => {
-    assert.equal(normaliseCategory("Music & Gigs"), "Music"); assert.equal(normaliseCategory("Theatre"), "Arts & Culture");
+    assert.equal(normaliseCategory("Music & Gigs"), "Music"); assert.equal(normaliseCategory("Theatre"), "Theatre & Performing Arts");   // 6 Nov: legacy Theatre now reads as the new chip
     assert.equal(normaliseCategory(" zebra "), "zebra"); assert.equal(normaliseCategory(null), null); assert.equal(normaliseCategory("music"), "Music");
   });
   test("the new category is recognised, case-insensitively, and gets its own chip", () => {
     assert.equal(normaliseCategory("theatre & performing arts"), "Theatre & Performing Arts");
-    assert.deepEqual(uniqueCategories(["Music", "Theatre & Performing Arts", "Theatre"]), ["Arts & Culture", "Music", "Theatre & Performing Arts"]);
-    assert.deepEqual(storedValuesFor("Theatre & Performing Arts"), ["Theatre & Performing Arts"]);
+    assert.deepEqual(uniqueCategories(["Music", "Theatre & Performing Arts", "Theatre"]), ["Music", "Theatre & Performing Arts"]);
+    assert.deepEqual(storedValuesFor("Theatre & Performing Arts").sort(), ["Theatre", "Theatre & Performing Arts"]);
   });
   test("the form's twelve are still exactly twelve", () => assert.equal(CURRENT_EVENT_CATEGORIES.length, 12));
 });

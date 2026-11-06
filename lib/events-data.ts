@@ -2,6 +2,9 @@ import { publicClient } from "./supabase/public";
 import { currentEventsFilter, londonRangeEnd } from "./event-currency";
 import { londonDate, upcomingSurfaceFilter } from "./event-state";
 import { storedValuesFor, uniqueCategories } from "./event-categories";
+import { selectModern, selectTolerant } from "./events-schema";
+import { presentRow, presentUpcomingSurface, sortByStart, monthItems, type RunInfo, type RunOccurrence } from "./event-runs";
+import { displayOccurrences } from "./event-occurrences";
 
 // Full static category set — mirrors the app's EVENT_CATEGORIES (lib/events-api.ts),
 // including "Business". The public listing shows all of these regardless of which
@@ -20,6 +23,13 @@ export const EVENT_CATEGORIES = [
   "Festival",
   "Other",
 ] as const;
+
+/**
+ * The chips What's On offers as filters: the twelve above plus "Theatre & Performing Arts" (which has no stored value on the event
+ * FORMS yet, so EVENT_CATEGORIES - pinned to the app - is unchanged). The list page builds its chips from the stored data
+ * (getEventCategories), so this constant is the documented full set, used by tests and by the AI parser's allowed list.
+ */
+export const FILTER_CATEGORIES = [...EVENT_CATEGORIES, "Theatre & Performing Arts"] as const;
 
 export type Organiser = { id: string; name: string; logo_url: string | null; brand_color?: string | null } | null;
 
@@ -42,6 +52,16 @@ export type EventListItem = {
   business: Organiser;
   hub: Organiser;
   ticket_types: ListTicketType[];
+  /** New-schema fields; absent until the migration is live. */
+  organiser_name?: string | null;
+  source?: string | null;
+  is_dated_run?: boolean | null;
+  /** Set on a production with performances: starts_at / ends_at above are then the NEXT performance's. */
+  run?: RunInfo;
+  /** Calendar items only: this entry is one performance. */
+  occurrence_id?: string | null;
+  /** Calendar items only: that performance is cancelled. */
+  cancelled?: boolean;
 };
 
 export type EventStatus = "draft" | "published" | "cancelled" | "postponed" | "archived";
@@ -103,6 +123,11 @@ export type EventDetail = Omit<EventListItem, "ticket_types"> & {
   gallery_urls: string[] | null;
   ticket_types: TicketType[];
   updates: EventUpdate[];
+  /** Every performance of a dated run, soonest first (cancelled ones included). Empty for an ordinary event and before the migration. */
+  occurrences: RunOccurrence[];
+  organiser_name?: string | null;
+  source?: string | null;
+  is_dated_run?: boolean | null;
   /**
    * From event_payout_ready(uuid) — true for a wholly free event regardless
    * of the organiser's Stripe status, true for a demo organiser, otherwise
@@ -312,7 +337,7 @@ function rangeTo(range: DateRange): string | undefined {
  * The range's upper bound still applies to `starts_at`, so "Today" means
  * "on today" — including a festival that began earlier in the week.
  */
-export async function getUpcomingEvents(
+async function legacyUpcomingEvents(
   opts: { category?: string; range?: DateRange; limit?: number; offset?: number; upcomingOnly?: boolean } = {},
 ): Promise<EventListItem[]> {
   const sb = publicClient();
@@ -350,8 +375,67 @@ export async function getUpcomingEvents(
   }
 }
 
+/** Most rows the performance-aware list will read in one request (published, current events islands-wide are in the low hundreds). */
+const LIST_SCAN_CAP = 1000;
+
+type ListRow = EventListItem & { occurrences?: RunOccurrence[] | null };
+const withTicketTypes = (r: unknown): EventListItem => ({
+  ...(r as EventListItem),
+  ticket_types: (r as { ticket_types?: ListTicketType[] }).ticket_types ?? [],
+});
+
+/**
+ * What's On rows: upcoming AND in-progress published events (islands-wide), with optional category, date-range and pagination.
+ *
+ * TWO PATHS, one result shape.
+ *   - Schema BEFORE the migration (no event_occurrences / organiser_name): the original query, untouched - the database filters, orders
+ *     and pages.
+ *   - Schema AFTER: the current events are read once (category filtered in the database) WITH their performances, and then, in memory:
+ *     a production becomes one row dated by its next (or current) performance; the date range, the upcoming-only rule and the sort all
+ *     use that date; and only THEN is the page cut. Filtering before paging is what keeps load-more correct: a page is always
+ *     `limit` rows (or the last, shorter one), `offset` counts rows already shown, and a run is never split or repeated across pages.
+ *     (Paging by the parent's start would put a December run on page 1 under a date it does not have.) Ordinary events are unaffected.
+ *
+ * `hasMore` stays the callers' own rule (a full page means maybe more), identical on both paths.
+ */
+export async function getUpcomingEvents(
+  opts: { category?: string; range?: DateRange; limit?: number; offset?: number; upcomingOnly?: boolean } = {},
+): Promise<EventListItem[]> {
+  const sb = publicClient();
+  const nowDate = new Date();
+  const now = nowDate.toISOString();
+  const stored = storedValuesFor(opts.category);
+  const modern = await selectModern<ListRow[]>((extra) => {
+      let q = sb
+        .from("events")
+        .select(LIST_COLS + extra)
+        .eq("status", "published")
+        .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+        .or(currentEventsFilter(now))
+        .order("starts_at", { ascending: true });
+      if (stored.length > 0) q = q.in("category", stored);
+      return q.limit(LIST_SCAN_CAP);
+    });
+  if (!modern.modern) return legacyUpcomingEvents(opts);
+  if (modern.error) return [];
+
+  const limit = opts.limit ?? 80;
+  const to = rangeTo(opts.range ?? "all");
+  const toMs = to ? Date.parse(to) : null;
+  const shown: EventListItem[] = [];
+  for (const row of modern.data ?? []) {
+    const p = opts.upcomingOnly ? presentUpcomingSurface(row, nowDate) : presentRow(row, nowDate);
+    if (!p) continue;
+    if (toMs !== null && Date.parse(p.starts_at) > toMs) continue;
+    shown.push(withTicketTypes(p));
+  }
+  const ordered = sortByStart(shown);
+  const offset = opts.offset ?? 0;
+  return ordered.slice(offset, offset + limit);
+}
+
 /** All upcoming events within a calendar month [first, last], for the month grid. */
-export async function getEventsInMonth(year: number, month: number): Promise<EventListItem[]> {
+async function legacyEventsInMonth(year: number, month: number): Promise<EventListItem[]> {
   const sb = publicClient();
   const from = new Date(year, month, 1).toISOString();
   const to = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
@@ -372,6 +456,50 @@ export async function getEventsInMonth(year: number, month: number): Promise<Eve
   } catch {
     return [];
   }
+}
+
+/**
+ * All events within a calendar month [first, last], for the month grid.
+ *
+ * Before the migration: the original query. After it: the same query read WITH performances, plus the dated runs that began earlier but
+ * have a performance this month; a production then appears once PER PERFORMANCE on that performance's own day (a cancelled one marked as
+ * such). An ordinary event is returned exactly as before - on its start day only. (Spanning every day of a multi-day ordinary event was
+ * considered and deliberately not done: a six-week exhibition would fill every cell of the grid.)
+ */
+export async function getEventsInMonth(year: number, month: number): Promise<EventListItem[]> {
+  const sb = publicClient();
+  const from = new Date(year, month, 1).toISOString();
+  const to = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
+  const inMonth = await selectModern<ListRow[]>((extra) =>
+    sb
+      .from("events")
+      .select(LIST_COLS + extra)
+      .eq("status", "published")
+      .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+      .gte("starts_at", from)
+      .lte("starts_at", to)
+      .order("starts_at", { ascending: true })
+      .limit(300),
+  );
+  if (!inMonth.modern) return legacyEventsInMonth(year, month);
+  if (inMonth.error) return [];
+  const rows: ListRow[] = [...(inMonth.data ?? [])];
+  const have = new Set(rows.map((r) => r.id));
+  // Runs that started before this month but still have performances in it (their parent start is outside the month).
+  const earlier = await selectModern<ListRow[]>((extra) =>
+    sb
+      .from("events")
+      .select(LIST_COLS + extra)
+      .eq("status", "published")
+      .or("organiser_hub_id.is.null,calendar_approved.eq.true")
+      .eq("is_dated_run", true)
+      .lt("starts_at", from)
+      .gte("ends_at", from)
+      .order("starts_at", { ascending: true })
+      .limit(100),
+  );
+  for (const r of earlier.data ?? []) if (!have.has(r.id) && (r.occurrences?.length ?? 0) > 0) rows.push(r);
+  return monthItems(rows, { year, month: month + 1 }).map(withTicketTypes);
 }
 
 /**
@@ -405,7 +533,9 @@ export async function getEventCategories(): Promise<string[]> {
 export async function getEvent(id: string): Promise<EventDetail | null> {
   const sb = publicClient();
   try {
-    const { data } = await sb
+    // New-schema columns and the performances first; on an old schema the original select, unchanged (see lib/events-schema.ts).
+    const { data } = await selectTolerant<Record<string, unknown>>((extra) =>
+      sb
       .from("events")
       .select(
         `id, title, category, status, venue, locality, lat, lng, starts_at, ends_at, cover_url, price_text, has_tickets,
@@ -413,11 +543,12 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
          contact_info, event_notes, refund_policy, ticket_url, gallery_urls,
          business:local_businesses(id,name,logo_url),
          hub:hubs(id,name,logo_url,brand_color),
-         ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,per_order_max,is_active,sale_starts_at,sale_ends_at,display_order)`,
+         ticket_types:event_ticket_types(id,name,price_pence,description,quantity_available,quantity_sold,per_order_max,is_active,sale_starts_at,sale_ends_at,display_order)${extra}`,
       )
       .eq("id", id)
       .in("status", ["published", "cancelled", "postponed"])
-      .maybeSingle();
+      .maybeSingle(),
+    );
     if (!data) return null;
     const ev = data as Record<string, unknown>;
     const tt = (ev.ticket_types as (TicketType & { display_order?: number })[]) ?? [];
@@ -447,7 +578,8 @@ export async function getEvent(id: string): Promise<EventDetail | null> {
       payoutReady = false;
     }
 
-    return { ...(ev as unknown as EventDetail), ticket_types: tt, updates, payout_ready: payoutReady };
+    const occurrences = displayOccurrences((ev.occurrences as RunOccurrence[] | null | undefined) ?? []);
+    return { ...(ev as unknown as EventDetail), ticket_types: tt, updates, occurrences, payout_ready: payoutReady };
   } catch {
     return null;
   }

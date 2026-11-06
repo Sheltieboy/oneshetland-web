@@ -241,6 +241,7 @@ function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
   const organiser = eventOrganiser(e)?.name ?? null;
   const meta = rowMeta(e, organiser, nowIso ? new Date(nowIso) : new Date());
   const label = priceLabel(e);
+  const cancelled = e.cancelled === true;
   return (
     <Link
       href={`/whats-on/${e.id}`}
@@ -254,11 +255,19 @@ function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="truncate font-display text-lg font-bold leading-snug">{e.title}</h3>
+        <h3 className={"truncate font-display text-lg font-bold leading-snug" + (cancelled ? " line-through" : "")}>{e.title}</h3>
         <p className="mt-0.5 truncate text-sm text-ink-muted">
           {meta.line}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {cancelled && (
+            <span className="rounded-pill bg-red-100 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-red-800">
+              Cancelled
+            </span>
+          )}
+          {e.run?.label && (
+            <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-semibold text-ink-soft">{e.run.label}</span>
+          )}
           {meta.ongoing && (
             <span
               className="rounded-pill px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-paper"
@@ -493,7 +502,7 @@ function MonthCalendar({ monthEvents }: { monthEvents: EventListItem[] }) {
               {count > 0 && (
                 <div className="mt-1 hidden flex-1 space-y-1 md:block">
                   {dayEvents.slice(0, 3).map((e) => (
-                    <DayChip key={e.id} e={e} />
+                    <DayChip key={`${e.id}|${e.occurrence_id ?? e.starts_at}`} e={e} />
                   ))}
                   {count > 3 && (
                     <button
@@ -524,7 +533,7 @@ function MonthCalendar({ monthEvents }: { monthEvents: EventListItem[] }) {
           </h3>
           <div className="grid gap-3 lg:grid-cols-2">
             {selectedEvents.map((e) => (
-              <EventRow key={e.id} e={e} />
+              <EventRow key={`${e.id}|${e.occurrence_id ?? e.starts_at}`} e={e} />
             ))}
           </div>
         </div>
@@ -553,9 +562,12 @@ function DayChip({ e }: { e: EventListItem }) {
         </span>
       )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[11px] font-semibold leading-tight text-ink">
+        <span className={"block truncate text-[11px] font-semibold leading-tight text-ink" + (e.cancelled ? " line-through" : "")}>
           <span style={{ color: EVENTS }}>{fmtTime(e.starts_at)}</span> {e.title}
         </span>
+        {e.cancelled && (
+          <span className="mt-1 inline-flex rounded bg-red-100 px-1 py-px text-[10px] font-bold text-red-800">Cancelled</span>
+        )}
         {(ticketed || free) && (
           <span
             className={
@@ -629,7 +641,8 @@ function ListWithLoadMore({
           e.venue?.toLowerCase().includes(q) ||
           e.locality?.toLowerCase().includes(q) ||
           e.business?.name?.toLowerCase().includes(q) ||
-          e.hub?.name?.toLowerCase().includes(q),
+          e.hub?.name?.toLowerCase().includes(q) ||
+          e.organiser_name?.toLowerCase().includes(q),
       )
     : events;
   // Keep the search in the address (shareable, survives a reload) WITHOUT a navigation or a server call.

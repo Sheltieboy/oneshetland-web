@@ -7,6 +7,9 @@ import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-so
 import { ALL_FACILITIES, PROVENANCE_LABEL } from "@/lib/accessibility";
 import { RESOURCE_SECTIONS } from "@/lib/accessibility-resources";
 import { CATEGORY_LABEL } from "@/lib/activities";
+import { selectTolerant } from "@/lib/events-schema";
+import { presentRow, type RunOccurrence } from "@/lib/event-runs";
+import { eventOrganiser } from "@/lib/event-organiser";
 
 /**
  * /api/social-image — branded 1080×1080 social cards for the Peerie Press
@@ -141,12 +144,22 @@ export async function GET(req: NextRequest) {
 
   /* ── Event spotlight ───────────────────────────────────────────────────── */
   if (kind === "event") {
-    const { data: e } = await sb
-      .from("events")
-      .select("title, starts_at, venue, locality, cover_url, price_text")
-      .eq("id", p.get("id") ?? "")
-      .maybeSingle();
-    if (!e) return new Response("event not found", { status: 404 });
+    // New schema: organiser_name / source / performances too; on an old schema the original columns only (lib/events-schema.ts).
+    const { data: row } = await selectTolerant<Record<string, unknown> & { title: string; starts_at: string; venue: string | null; locality: string | null; cover_url: string | null; ends_at?: string | null; id?: string; source?: string | null; organiser_name?: string | null; occurrences?: RunOccurrence[] | null }>((extra) =>
+      sb
+        .from("events")
+        .select("id, title, starts_at, ends_at, venue, locality, cover_url, price_text" + extra)
+        .eq("id", p.get("id") ?? "")
+        .maybeSingle(),
+    );
+    if (!row) return new Response("event not found", { status: 404 });
+    // A production with performances is dated by its NEXT performance (a finished one keeps its stored date).
+    const shown = presentRow({ ...row, id: String(row.id ?? ""), occurrences: row.occurrences ?? null }, new Date());
+    const e = shown ?? row;
+    const runLabel = shown?.run?.label ?? null;
+    // A community event says who shared it, never that OneShetland organised it.
+    const org = eventOrganiser({ source: row.source, organiser_name: row.organiser_name });
+    const sharedBy = org?.kind === "community" ? `Shared by ${org.name.length > 30 ? `${org.name.slice(0, 29)}…` : org.name}` : null;
     const where = [e.venue, e.locality].filter(Boolean).join(", ");
     const cover = e.cover_url ? await coverAsJpegDataUri(e.cover_url, imagePolicy()) : null;
     return new ImageResponse(
@@ -163,7 +176,8 @@ export async function GET(req: NextRequest) {
           <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", flex: 1, padding: "0 72px 56px", gap: 26, position: "relative" }}>
             <span style={{ display: "flex", alignSelf: "flex-start", background: EVENTS, color: "#ffffff", fontSize: 28, fontWeight: 700, letterSpacing: 5, padding: "12px 28px", borderRadius: 999 }}>WHAT'S ON IN SHETLAND</span>
             <span style={{ fontFamily: "Fraunces", fontSize: e.title.length > 40 ? 66 : 84, color: "#ffffff", lineHeight: 1.08 }}>{e.title}</span>
-            <span style={{ fontSize: 40, fontWeight: 700, color: "#ffd9a0" }}>{fmtDay(e.starts_at)} · {fmtTime(e.starts_at)}</span>
+            <span style={{ fontSize: 40, fontWeight: 700, color: "#ffd9a0" }}>{runLabel ? "Next: " : ""}{fmtDay(e.starts_at)} · {fmtTime(e.starts_at)}</span>
+            {runLabel ? <span style={{ fontSize: 30, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>{runLabel.replace(/^Next: [^·]*· /, "")}</span> : null}
             {where ? <span style={{ fontSize: 34, color: "rgba(255,255,255,0.85)" }}>{where}</span> : null}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 64px", height: 110, background: "rgba(255,255,255,0.97)", position: "relative" }}>
@@ -172,7 +186,7 @@ export async function GET(req: NextRequest) {
               <img src={ringUrl} width={54} height={54} alt="" />
               <span style={{ fontFamily: "Fraunces", fontSize: 38, color: NAVY }}>OneShetland</span>
             </div>
-            <span style={{ fontSize: 26, fontWeight: 700, color: INK_SOFT }}>tickets & details · oneshetland.com</span>
+            <span style={{ fontSize: 26, fontWeight: 700, color: INK_SOFT }}>{sharedBy ? `${sharedBy} · oneshetland.com` : runLabel ? "details · oneshetland.com" : "tickets & details · oneshetland.com"}</span>
           </div>
         </div>
       ),
