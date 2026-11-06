@@ -79,6 +79,8 @@ export function webNotificationRoute(data: Record<string, unknown> | null): stri
 
   const screen = typeof data.screen === "string" ? data.screen : null;
 
+  // A Regular Activity change (cancelled, moved...): straight to the activity. The slug is a database-made [a-z0-9-] value; anything else is ignored.
+  if (typeof data.activity_slug === "string" && /^[a-z0-9][a-z0-9-]{0,80}$/.test(data.activity_slug)) return `/whats-on/regular/${data.activity_slug}`;
   // Employer applicants pipeline needs the job id.
   if (screen === "job-applicants" && typeof data.job_id === "string") return `/jobs/${data.job_id}/applicants`;
   // A shop order update is the buyer's; it must resolve before the generic order_id (event tickets) below.

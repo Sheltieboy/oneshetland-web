@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { REGULAR } from "./tokens";
 
 /**
- * Follow an activity to hear when a session is cancelled or changed. Opt-in, private, and honest about what it does: it is not a reminder, and
- * we say plainly that a notice may arrive in your OneShetland inbox rather than as a phone alert.
+ * Follow an activity to hear when a session is cancelled or changed. Opt-in, private, and exact about what it does: in this first version the ONLY
+ * thing a follower receives is a note in their OneShetland Notification Centre. No email, no phone alert, no reminders. The wording below must
+ * stay true to that; a test pins it.
  */
 export function FollowButton({ activityId, slug, signedIn, following: initial }: { activityId: string; slug: string; signedIn: boolean; following: boolean }) {
   const [following, setFollowing] = useState(initial);
@@ -20,7 +21,7 @@ export function FollowButton({ activityId, slug, signedIn, following: initial }:
         <Link href={`/sign-in?next=${encodeURIComponent(`/whats-on/regular/${slug}`)}`} className="inline-block rounded-pill border border-line-strong px-5 py-2.5 text-sm font-bold text-ink hover:bg-sand">
           Sign in to follow for changes
         </Link>
-        <p className="mt-1.5 max-w-sm text-xs text-ink-muted">Following tells you if a session is cancelled or moved. It never sends reminders.</p>
+        <p className="mt-1.5 max-w-sm text-xs text-ink-muted">Following adds a note to your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders.</p>
       </div>
     );
   }
@@ -53,8 +54,7 @@ export function FollowButton({ activityId, slug, signedIn, following: initial }:
         {following ? "Following · tap to stop" : "Follow for changes"}
       </button>
       <p className="mt-1.5 max-w-sm text-xs text-ink-muted" aria-live="polite">
-        {err ?? (following ? "We'll tell you if a session is cancelled or moved. Notices appear in your OneShetland inbox, and as a phone alert if you use the app." : "Hear if a session is cancelled or moved. No reminders.")}
-      </p>
+        {err ?? (following ? "You'll get a note in your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders. You can turn What's On notifications off in your notification settings." : "Get a note in your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders.")}</p>
     </div>
   );
 }

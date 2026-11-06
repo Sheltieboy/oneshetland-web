@@ -27,7 +27,7 @@ const MODULES: { key: ModuleKey; group: GroupKey; label: string; desc: string }[
   { key: "bookings_enabled", group: "local", label: "Bookings", desc: "Confirmations, reminders and changes" },
   { key: "loyalty_enabled", group: "local", label: "Loyalty & rewards", desc: "Stamps collected and rewards ready" },
   { key: "offers_enabled", group: "local", label: "Offers & deals", desc: "New time-limited deals near you" },
-  { key: "events_enabled", group: "local", label: "What's On", desc: "Tickets, reminders, cancellations" },
+  { key: "events_enabled", group: "local", label: "What's On", desc: "Tickets, reminders, cancellations, and changes to activities you follow" },
   { key: "cruise_enabled", group: "local", label: "Cruise ships", desc: "Ships arriving in Shetland (off by default)" },
   { key: "wallet_enabled", group: "money", label: "Wallet & payments", desc: "Top-ups, payments, cashback and gifts" },
   { key: "hubs_enabled", group: "community", label: "Hubs", desc: "Announcements from hubs you belong to" },

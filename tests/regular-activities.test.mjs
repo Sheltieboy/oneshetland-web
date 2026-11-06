@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import {
   patternText, windowFor, londonMidnight, londonInstant, londonDate, londonDow, addDays, dayLabel, timeRange, timeHM, groupByDay, nextLine,
   regularHref, parseDays, parseWhen, safeCategory, whenForEventsRange, validateActivityDraft, validateRuleDraft, validateBreakDraft,
-  ACTIVITY_CATEGORIES, DEFAULT_WHEN, isLive,
+  ACTIVITY_CATEGORIES, DEFAULT_WHEN, isLive, queueHealth,
 } from "../lib/activities.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -171,10 +171,10 @@ test("Business and Hub Manage link to their activities", () => {
 });
 test("following: opt-in, says it is NOT a reminder, and the website sends nothing itself", () => {
   const f = read("components/activities/FollowButton.tsx");
-  assert.match(f, /No reminders/);
+  assert.match(f, /no reminders/);
   assert.match(f, /activity_follows/);
   assert.doesNotMatch(f, /sendUser|sendPush|sendEmail|expo-push|postmark/i, "the button only writes the follow row");
-  assert.match(f, /phone alert if you use the app/, "honest that an in-app inbox notice may be all someone gets");
+  assert.match(f, /No emails or phone alerts yet/, "honest that a note in the notifications is ALL anyone gets");
 });
 test("staff controls call only the audited database functions (pause, hand over); approve is a plain staff update", () => {
   const a = read("components/admin/ActivitiesAdmin.tsx");
@@ -186,4 +186,38 @@ test("sessions are never computed on the website: it calls the database's Europe
   const d = read("lib/activities-data.ts");
   assert.match(d, /rpc\("activity_sessions"/); assert.match(d, /rpc\("regular_activities_listing"/);
   assert.doesNotMatch(d, /generate_series|setHours|getTimezoneOffset/);
+});
+
+// ── follower alerts: what the UI promises must be exactly what the system does (in-app notifications only)
+test("the Follow wording says exactly what followers get: a note in their notifications, no email, no phone alert, no reminders", () => {
+  const f = read("components/activities/FollowButton.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(f, /adds a note to your OneShetland notifications if a session is cancelled or changed\. No emails or phone alerts yet, and no reminders\./);
+  assert.match(f, /You'll get a note in your OneShetland notifications if a session is cancelled or changed\. No emails or phone alerts yet, and no reminders\./);
+  assert.match(f, /turn What's On notifications off in your notification settings/);
+  assert.doesNotMatch(f, /push notification|we'll email|text message|SMS|phone alert if you use the app/i, "no promise the system does not keep");
+});
+test("the notification settings tell people that the What's On switch also covers followed activities", () => {
+  assert.match(read("components/account/NotificationPrefsForm.tsx"), /label: "What's On", desc: "Tickets, reminders, cancellations, and changes to activities you follow"/);
+});
+test("a follower alert opens the activity: the inbox routes by the database-made slug, and only a safe slug is ever followed", () => {
+  const r = read("lib/notifications-inbox.ts");
+  assert.match(r, /data\.activity_slug === "string" && \/\^\[a-z0-9\]\[a-z0-9-\]\{0,80\}\$\/\.test\(data\.activity_slug\)\) return `\/whats-on\/regular\/\$\{data\.activity_slug\}`/);
+  assert.ok(r.indexOf("activity_slug") < r.indexOf("shift_id"), "before the generic id fallbacks");
+});
+test("staff can see whether the alert job is healthy, and what 'healthy' means is a tested rule", () => {
+  const NOW = Date.parse("2026-11-10T12:00:00Z");
+  const q = (o = {}) => ({ waiting: 0, retrying: 0, oldest_waiting_seconds: null, delivered_7d: 3, failed_7d: 0, last_error: null, last_run: "2026-11-10T11:59:00Z", followers: 5, ...o });
+  assert.equal(queueHealth(null, NOW).tone, "gray");
+  assert.equal(queueHealth(q(), NOW).tone, "green");
+  assert.equal(queueHealth(q({ waiting: 2, oldest_waiting_seconds: 90 }), NOW).tone, "green");
+  assert.equal(queueHealth(q({ waiting: 2, oldest_waiting_seconds: 1200 }), NOW).tone, "red", "stuck: the job may not be running");
+  assert.equal(queueHealth(q({ retrying: 1, waiting: 1, oldest_waiting_seconds: 60 }), NOW).tone, "amber");
+  assert.equal(queueHealth(q({ failed_7d: 2 }), NOW).tone, "red");
+  assert.equal(queueHealth(q({ last_run: "2026-10-01T00:00:00Z" }), NOW).tone, "gray");
+  const page = read("app/admin/activities/page.tsx");
+  assert.match(page, /rpc\("admin_activity_notice_status"\)[\s\S]*\.catch\(\(\) => null\)/, "a failed status read never hides the page");
+  assert.match(read("components/admin/ActivitiesAdmin.tsx"), /no email or phone alerts yet/);
+});
+test("the website itself sends no follower notifications (the database does), and nothing on the web writes the notification log", () => {
+  for (const f of ["lib/activities-client.ts", "lib/activities-data.ts", "components/activities/FollowButton.tsx", "components/admin/ActivitiesAdmin.tsx"]) assert.doesNotMatch(read(f), /notification_log|sendUserPush|send-email/, f);
 });

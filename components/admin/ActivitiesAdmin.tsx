@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
 import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import { dbMessage } from "@/lib/launch-grant";
-import { CATEGORY_LABEL } from "@/lib/activities";
+import { CATEGORY_LABEL, queueHealth, type QueueStatus } from "@/lib/activities";
 
 export type AdminActivity = {
   id: string; slug: string; title: string; category: string; status: "draft" | "published" | "ended"; admin_paused: boolean; admin_pause_reason: string | null;
@@ -20,7 +20,7 @@ const input = "w-full rounded-lg border border-line-strong bg-white px-3 py-2 te
  * Staff controls for Regular Activities: pause or resume any listing, approve a hub's activity, and hand an activity to a hub or a business.
  * Every rule (staff only, a reason, the audit log) lives in the database; this collects inputs, asks first and reports what the database said.
  */
-export function ActivitiesAdmin({ rows }: { rows: AdminActivity[] }) {
+export function ActivitiesAdmin({ rows, queue = null }: { rows: AdminActivity[]; queue?: QueueStatus | null }) {
   const router = useRouter();
   const confirm = useConfirm();
   const notify = useNotify();
@@ -62,7 +62,15 @@ export function ActivitiesAdmin({ rows }: { rows: AdminActivity[] }) {
     await act(a.id, a.title, () => sb().from("regular_activities").update({ calendar_approved: true }).eq("id", a.id), "Approved");
   }
 
+  const health = queueHealth(queue, new Date().getTime());
   return (
+    <>
+    <Card className="mb-5">
+      <h2 className="font-display text-lg font-bold text-ink">Follower alerts</h2>
+      <p className="mt-1 text-sm text-ink-soft">Cancellations and changes go to followers&apos; OneShetland notifications only (no email or phone alerts yet). The job runs every minute.</p>
+      <p className="mt-3 flex flex-wrap items-center gap-2 text-sm"><StatusPill label={health.tone === "green" ? "healthy" : health.tone === "gray" ? "idle" : health.tone === "amber" ? "retrying" : "needs a look"} tone={health.tone} /> <span className="text-ink">{health.text}</span></p>
+      {queue && <p className="mt-1 text-xs text-ink-muted">{queue.followers} follows in total · {queue.delivered_7d} delivered in 7 days · last run {queue.last_run ? new Date(queue.last_run).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never"}{queue.last_error ? ` · last error: ${queue.last_error}` : ""}</p>}
+    </Card>
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-display text-lg font-bold text-ink">All regular activities</h2>
@@ -111,5 +119,6 @@ export function ActivitiesAdmin({ rows }: { rows: AdminActivity[] }) {
         </ul>
       )}
     </Card>
+    </>
   );
 }

@@ -1,11 +1,14 @@
 import { AdminHeader } from "@/components/admin/AdminUI";
 import { ActivitiesAdmin, type AdminActivity } from "@/components/admin/ActivitiesAdmin";
+import type { QueueStatus } from "@/lib/activities";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const sb = await createClient();
+  // The follower-alert queue: a failed read just shows "status unavailable"; it must never hide the page.
+  const queue: QueueStatus | null = await Promise.resolve(sb.rpc("admin_activity_notice_status")).then((r) => (r.error ? null : (r.data as QueueStatus))).catch(() => null);
   const { data } = await sb.from("regular_activities")
     .select("id, slug, title, category, status, admin_paused, admin_pause_reason, calendar_approved, organiser_business_id, organiser_hub_id, is_platform_activity")
     .order("created_at", { ascending: false }).limit(200);
@@ -26,7 +29,7 @@ export default async function Page() {
   return (
     <>
       <AdminHeader title="Regular activities" sub="Publish platform activities, pause any listing, approve hub activities and hand one to a hub or business. Everything here is recorded." />
-      <ActivitiesAdmin rows={list} />
+      <ActivitiesAdmin rows={list} queue={queue} />
     </>
   );
 }

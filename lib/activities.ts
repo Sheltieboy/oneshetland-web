@@ -241,3 +241,17 @@ export function londonInstant(ymd: string, hm: string): string {
   if (got !== hm) { const diff = (h * 60 + m) - (Number(got.slice(0, 2)) * 60 + Number(got.slice(3))); t = new Date(t.getTime() + diff * 60_000); }
   return t.toISOString();
 }
+
+/* ── Follower-alert queue health (staff) ──────────────────────────────────────────────────────────────────────────────────────── */
+export type QueueStatus = { waiting: number; retrying: number; oldest_waiting_seconds: number | null; delivered_7d: number; failed_7d: number; last_error: string | null; last_run: string | null; followers: number };
+
+/** Is the follower-alert job healthy? Waiting items should clear within a few minutes; anything older, or any failure, needs a look. */
+export function queueHealth(q: QueueStatus | null, nowMs: number): { tone: "green" | "amber" | "red" | "gray"; text: string } {
+  if (!q) return { tone: "gray", text: "Status unavailable" };
+  if (q.failed_7d > 0) return { tone: "red", text: `${q.failed_7d} alert${q.failed_7d === 1 ? "" : "s"} could not be delivered in the last 7 days` };
+  if (q.retrying > 0) return { tone: "amber", text: `${q.retrying} alert${q.retrying === 1 ? " is" : "s are"} being retried` };
+  if (q.waiting > 0 && (q.oldest_waiting_seconds ?? 0) > 600) return { tone: "red", text: "Alerts have been waiting over 10 minutes: the scheduled job may not be running" };
+  if (q.waiting > 0) return { tone: "green", text: `${q.waiting} waiting to go out (normally under 3 minutes)` };
+  if (q.last_run && nowMs - Date.parse(q.last_run) > 7 * 86_400_000) return { tone: "gray", text: "Nothing waiting. The job has had nothing to do for a week" };
+  return { tone: "green", text: "Nothing waiting" };
+}
