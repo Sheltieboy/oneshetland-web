@@ -225,11 +225,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                 ) : (
                   "All finished"
                 )}
-                <span className="block text-ink-muted">
-                  {liveOcc.length} performance{liveOcc.length === 1 ? "" : "s"}
-                  {liveOcc.length > 0 ? `, ${shortDate(liveOcc[0].starts_at)} to ${shortDate(liveOcc[liveOcc.length - 1].starts_at)}` : ""}
-                </span>
-                <a href="#performances" className="mt-1 block text-sm font-semibold hover:underline" style={{ color: "#8a5a05" }}>See every date ↓</a>
+                {liveOcc.length > 0 ? (
+                  <span className="block text-ink-muted">
+                    {liveOcc.length} performance{liveOcc.length === 1 ? "" : "s"}, {shortDate(liveOcc[0].starts_at)} to {shortDate(liveOcc[liveOcc.length - 1].starts_at)}
+                  </span>
+                ) : null}
+                <a href="#performances" className="mt-1 block py-2.5 text-sm font-semibold hover:underline" style={{ color: "#8a5a05" }}>See every date ↓</a>
               </InfoCard>
             ) : (
             <InfoCard label="When">

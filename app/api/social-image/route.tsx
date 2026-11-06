@@ -145,10 +145,10 @@ export async function GET(req: NextRequest) {
   /* ── Event spotlight ───────────────────────────────────────────────────── */
   if (kind === "event") {
     // New schema: organiser_name / source / performances too; on an old schema the original columns only (lib/events-schema.ts).
-    const { data: row } = await selectTolerant<Record<string, unknown> & { title: string; starts_at: string; venue: string | null; locality: string | null; cover_url: string | null; ends_at?: string | null; id?: string; source?: string | null; organiser_name?: string | null; occurrences?: RunOccurrence[] | null }>((extra) =>
+    const { data: row } = await selectTolerant<Record<string, unknown> & { title: string; starts_at: string; venue: string | null; locality: string | null; cover_url: string | null; ends_at?: string | null; id?: string; source?: string | null; organiser_name?: string | null; organiser_business_id?: string | null; organiser_hub_id?: string | null; occurrences?: RunOccurrence[] | null }>((extra) =>
       sb
         .from("events")
-        .select("id, title, starts_at, ends_at, venue, locality, cover_url, price_text" + extra)
+        .select("id, title, starts_at, ends_at, venue, locality, cover_url, price_text, organiser_business_id, organiser_hub_id" + extra)
         .eq("id", p.get("id") ?? "")
         .maybeSingle(),
     );
@@ -158,8 +158,9 @@ export async function GET(req: NextRequest) {
     const e = shown ?? row;
     const runLabel = shown?.run?.label ?? null;
     // A community event says who shared it, never that OneShetland organised it.
-    const org = eventOrganiser({ source: row.source, organiser_name: row.organiser_name });
-    const sharedBy = org?.kind === "community" ? `Shared by ${org.name.length > 30 ? `${org.name.slice(0, 29)}…` : org.name}` : null;
+    // Ownership is passed as a stub: only whether an owner exists matters to the rule (an owned event is by its owner, never "named").
+    const org = eventOrganiser({ source: row.source, organiser_name: row.organiser_name, business: row.organiser_business_id ? { name: "owner" } : null, hub: row.organiser_hub_id ? { name: "owner" } : null });
+    const sharedBy = org && (org.kind === "community" || org.kind === "named") ? `Shared by ${org.name.length > 30 ? `${org.name.slice(0, 29)}…` : org.name}` : null;
     const where = [e.venue, e.locality].filter(Boolean).join(", ");
     const cover = e.cover_url ? await coverAsJpegDataUri(e.cover_url, imagePolicy()) : null;
     return new ImageResponse(

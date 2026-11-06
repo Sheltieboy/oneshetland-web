@@ -75,7 +75,10 @@ test("the page and listing route through eventOrganiser", () => {
   assert.match(read("components/events/EventsListing.tsx"), /eventOrganiser\(e\)/);
 });
 test("no select list asks for columns that are not in production yet", () => {
-  for (const f of ["lib/events-data.ts", "app/api/social-image/route.tsx"]) assert.doesNotMatch(read(f), /organiser_name|submission_id|\bsource\b,/, f);
+  // Phase 2A: the new columns are requested ONLY through the capability-tolerant helper (lib/events-schema.ts NEW_EXTRA, with a legacy fallback),
+  // never written into a select literal.
+  for (const f of ["lib/events-data.ts", "app/api/social-image/route.tsx", "lib/home-data.ts", "lib/local-data.ts"]) assert.doesNotMatch(read(f), /\.select\([^)]*(organiser_name|submission_id|is_dated_run|\bsource\b,)/, f);
+  assert.match(read("lib/events-schema.ts"), /organiser_name, source, is_dated_run/);
 });
 
 test("contributor wording: warm, plain, no jargon, no 'wee'", () => {

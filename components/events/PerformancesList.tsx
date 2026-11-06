@@ -79,8 +79,7 @@ export function PerformancesList({
       <h2 id="performances-heading" className="font-display text-2xl font-bold">
         Performances
         <span className="ml-2 text-base font-normal text-ink-muted">
-          {liveCount} date{liveCount === 1 ? "" : "s"}
-          {liveCount !== all.length ? `, ${all.length - liveCount} cancelled` : ""}
+          {liveCount === 0 ? "all cancelled" : `${liveCount} date${liveCount === 1 ? "" : "s"}${liveCount !== all.length ? `, ${all.length - liveCount} cancelled` : ""}`}
         </span>
       </h2>
       {coming.length > 0 ? (

@@ -48,7 +48,7 @@ function parseTerm(t) {
 
 class Query {
   constructor(table) { this.table = table; this.preds = []; this.sort = []; this.lim = null; this.rng = null; this.one = false; }
-  select(_cols, opts) { if (opts?.count) this.wantCount = true; return this; }
+  select(cols, opts) { this.cols = cols; if (opts?.count) this.wantCount = true; return this; }
   eq(c, v) { this.preds.push((r) => ops.eq(r[c], v)); return this; }
   neq(c, v) { this.preds.push((r) => ops.neq(r[c], v)); return this; }
   in(c, arr) { this.preds.push((r) => arr.map(String).includes(String(r[c]))); return this; }
@@ -83,6 +83,9 @@ class Query {
   }
   then(res, rej) {
     return Promise.resolve().then(() => {
+      // A test may install globalThis.__FAKE_SELECT_GUARD__ = (table, cols) => pgError|null to stand in for a schema that lacks a column / table.
+      const guard = globalThis.__FAKE_SELECT_GUARD__?.(this.table, this.cols ?? "");
+      if (guard) return { data: null, error: guard };
       const rows = this.rows();
       return { data: this.one ? (rows[0] ?? null) : rows, error: null, ...(this.wantCount ? { count: rows.length } : {}) };
     }).then(res, rej);
