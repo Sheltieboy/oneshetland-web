@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { FILTERS as ACCESS_FILTERS } from "@/lib/accessibility";
+import { businessIdsWithFacility } from "@/lib/accessibility-data";
 import Link from "next/link";
 import { getAllBusinesses, getDirectoryFeatured, searchHubs, countBusinesses, CATEGORIES, CATEGORY_LABEL, SHETLAND_AREAS } from "@/lib/local-data";
 import { DIRECTORY_LIST_LIMIT, countLabel } from "@/lib/directory-count";
@@ -19,13 +21,16 @@ const DIR = "#4f46e5";
 export default async function DirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; q?: string; area?: string; bookable?: string }>;
+  searchParams: Promise<{ category?: string; q?: string; area?: string; bookable?: string; access?: string }>;
 }) {
-  const { category, q, area, bookable } = await searchParams;
+  const { category, q, area, bookable, access: accessParam } = await searchParams;
   const bookableOnly = bookable === "1";
-  const all = await getAllBusinesses({ category, q, area, bookableOnly });
+  // Access filter: ONE facility a business has said Yes or Partly to. Never an "accessible" label; unknown values are ignored.
+  const access = ACCESS_FILTERS.some((f) => f.key === accessParam) ? accessParam : undefined;
+  const accessIds = access ? await businessIdsWithFacility(access) : undefined;
+  const all = access && accessIds && accessIds.length === 0 ? [] : await getAllBusinesses({ category, q, area, bookableOnly, ids: accessIds ?? undefined });
   // Featured row only on the default (unfiltered, unsearched) view.
-  const showFeatured = !category && !q && !area && !bookableOnly;
+  const showFeatured = !category && !q && !area && !bookableOnly && !access;
   const featured = showFeatured ? await getDirectoryFeatured(6) : [];
   const featuredIds = new Set(featured.map((b) => b.id));
   // Exclude featured from the main grid so they aren't shown twice.
@@ -36,7 +41,7 @@ export default async function DirectoryPage({
   const closest = q && all.length === 0 && !category && !area && !bookableOnly ? await searchSite(q, RESULTS_LIMIT) : null;
   const closeBusinesses = closest && closest.ok ? closest.hits.filter((h) => h.kind === "business").slice(0, 6) : [];
   // The list is capped (DIRECTORY_LIST_LIMIT), so "200 listings" was the cap, not the number. Say how many there really are.
-  const total = all.length >= DIRECTORY_LIST_LIMIT ? await countBusinesses({ category, area, bookableOnly, q }) : null;
+  const total = !access && all.length >= DIRECTORY_LIST_LIMIT ? await countBusinesses({ category, area, bookableOnly, q }) : null;
   // Peerie product strips — one batched query for every card on the page.
   const productThumbs = await getProductThumbs([...featured, ...businesses].map((b) => b.id));
 
@@ -49,6 +54,7 @@ export default async function DirectoryPage({
       q,
       area,
       bookable: bookableOnly ? "1" : undefined,
+      access,
     };
     for (const [k, v] of Object.entries(base)) {
       if (v) params.set(k, v);
@@ -111,15 +117,28 @@ export default async function DirectoryPage({
               bookableOnly,
             )}
             {/* Area filter — chips mirror the app's locality filter */}
-            <span className="ml-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-faint">Area</span>
+            <span className="ml-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-soft">Area</span>
             {chip("All Shetland", buildHref({ area: null }), !area)}
             {SHETLAND_AREAS.map((a) => chip(a.label, buildHref({ area: a.key }), area === a.key))}
+          </div>
+          {/* Access filter: what a business has told us it offers. Missing details are not "no". */}
+          <div className="-mx-5 mt-2 flex items-center gap-2 overflow-x-auto px-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <span className="ml-1 shrink-0 text-xs font-semibold uppercase tracking-wide text-ink-soft">Access</span>
+            {chip("Any", buildHref({ access: null }), !access)}
+            {ACCESS_FILTERS.map((f) => chip(f.label, buildHref({ access: f.key }), access === f.key))}
           </div>
         </div>
       </div>
 
       {/* Invitation for business owners (claim an existing listing, or add one — free). Hidden when the zero-results card carries its own. */}
       {!(q && all.length === 0) && <JoinBusinessCta variant="banner" />}
+
+      {access && (
+        <p role="status" className="mx-auto max-w-6xl px-5 pt-6 text-sm text-ink-soft">
+          Showing businesses that have told us they offer “{ACCESS_FILTERS.find((f) => f.key === access)?.label}” (fully or partly). A business that isn’t listed hasn’t necessarily got no access: it may not have shared details yet.{" "}
+          <Link href="/accessible" className="font-semibold underline">About Accessible Shetland</Link>
+        </p>
+      )}
 
       {/* Results */}
       <div className="mx-auto max-w-6xl px-5 py-12 sm:py-14">
@@ -175,7 +194,7 @@ export default async function DirectoryPage({
             <div className="rounded-xl border border-line bg-paper p-10 text-center shadow-soft">
               <p className="font-display text-xl font-bold">No businesses found{q ? ` for "${q}"` : ""}</p>
               <p className="mx-auto mt-2 max-w-md text-ink-soft">
-                {q ? "Try a different search or browse by category." : "Try a different category."}
+                {access ? "No business has shared this detail yet. That doesn’t mean there is no access: it may just not have been added. Try “Any”, or ask the business directly." : q ? "Try a different search or browse by category." : "Try a different category."}
               </p>
               <div className="mt-5 flex flex-wrap justify-center gap-3">
                 {q && (

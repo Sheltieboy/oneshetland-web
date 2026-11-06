@@ -78,3 +78,26 @@ test("every new route is wired: sidebar, business dashboard, hub tile, four publ
   for (const [p, t] of [["app/directory/[id]/page.tsx", "business"], ["app/hubs/[id]/page.tsx", "hub"], ["app/whats-on/[id]/page.tsx", "event"], ["app/whats-on/regular/[slug]/page.tsx", "activity"]]) assert.match(read(p), new RegExp(`AccessibilitySection type="${t}"`), p);
   assert.ok(readdirSync(new URL("../app/accessible/edit/[type]/[id]", import.meta.url)).includes("page.tsx"));
 });
+
+test("DISCOVERABLE: linked from the footer, the sitemap, the Visiting page, the directory and the landing's six areas", () => {
+  assert.match(read("components/site/SiteFooter.tsx"), /href="\/accessible"/);
+  assert.match(read("app/sitemap.ts"), /path: "\/accessible"/);
+  assert.match(read("app/visiting/page.tsx"), /href="\/accessible"/);
+  const landing = read("app/accessible/page.tsx");
+  for (const t of ["Places and businesses", "Toilets and facilities", "Transport and assistance", "Events and activities", "Local support and services", "Helpful information"]) assert.match(landing, new RegExp(t));
+  assert.match(landing, /Planning a visit/); assert.match(landing, /Exploring Shetland/);
+});
+test("directory access filter: one facility, validated, never a blanket label, and honest about missing details", () => {
+  const d = read("app/directory/page.tsx");
+  assert.match(d, /ACCESS_FILTERS\.some\(\(f\) => f\.key === accessParam\)/);
+  assert.match(d, /hasn’t necessarily got no access/);
+  assert.match(d, /showFeatured = .*&& !access/);
+  assert.match(d, /const total = !access &&/); assert.match(d, /No business has shared this detail yet/);
+  assert.match(read("lib/accessibility-data.ts"), /\.in\("status", \["available", "partial"\]\)\.limit\(500\)/);
+  assert.match(read("lib/local-data.ts"), /if \(opts\.ids\) q = q\.in\("id", opts\.ids\)/);
+  assert.match(read("lib/local-data.ts"), /if \(opts\.ids\) tq = tq\.in\("id", opts\.ids\)/);
+});
+test("owners of activities and events can find the form from their manage screens", () => {
+  assert.match(read("components/activities/manage/ManagePages.tsx"), /accessible\/edit\/activity\/\$\{a\.id\}/);
+  assert.match(read("app/business/[id]/manage/events/[eventId]/page.tsx"), /accessible\/edit\/event\/\$\{event\.id\}/);
+});

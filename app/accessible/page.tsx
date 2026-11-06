@@ -10,6 +10,15 @@ export const metadata: Metadata = {
   description: "Practical information about access, facilities and assistance in Shetland, shared by the places themselves, with links to the organisations who know most.",
 };
 
+const AREAS = [
+  { title: "Places and businesses", about: "Cafés, shops, hotels, attractions and more: filter the Directory by what they offer.", href: "/directory?access=step_free_entrance" },
+  { title: "Toilets and facilities", about: "Public and Changing Places toilets, plus details businesses share.", href: "#r-visiting" },
+  { title: "Transport and assistance", about: "Ferries, flights, buses and community transport, and how to ask for help.", href: "#r-travel" },
+  { title: "Events and activities", about: "What’s on, and regular groups. Organisers can say what to expect.", href: "/whats-on" },
+  { title: "Local support and services", about: "Advice, council services, health travel and equipment loans.", href: "#r-support" },
+  { title: "Helpful information", about: "Blue Badge rules, bus alternatives and general guides.", href: "#r-info" },
+];
+
 export default async function AccessibleShetlandPage() {
   const items = await listPublishedAccessibility();
   return (
@@ -28,6 +37,20 @@ export default async function AccessibleShetlandPage() {
       </section>
 
       <div className="mx-auto max-w-5xl space-y-14 px-5 py-12">
+        <section aria-labelledby="find-h">
+          <h2 id="find-h" className="font-display text-3xl font-bold">Find what you need</h2>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {AREAS.map((a) => (
+              <li key={a.title}>
+                <Link href={a.href} className="flex h-full min-h-11 flex-col rounded-card border-2 border-line-strong bg-white p-4 transition hover:border-ink focus-visible:outline-2 focus-visible:outline-offset-2">
+                  <span className="font-display text-lg font-bold">{a.title}</span>
+                  <span className="mt-1 text-sm text-ink-soft">{a.about}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section aria-labelledby="how" className="rounded-card border border-line bg-paper p-5 sm:p-6">
           <h2 id="how" className="font-display text-xl font-bold">How to read this</h2>
           <ul className="mt-3 space-y-2 text-ink">
@@ -50,10 +73,11 @@ export default async function AccessibleShetlandPage() {
           {items.length > 0 ? (
             <>
               <p className="mt-2 max-w-2xl text-ink-soft">Places, events and groups that have shared access details themselves. This list grows as more people add information.</p>
+              <p className="mt-2 text-sm"><Link href="/directory?access=step_free_entrance" className="font-semibold underline">Filter the whole Directory by facility</Link></p>
               <div className="mt-6"><AccessibleBrowse items={items} /></div>
             </>
           ) : (
-            <p className="mt-2 max-w-2xl text-ink-soft">Local businesses, events and groups can now share access details here. As they do, you’ll be able to browse and filter them in this section, and see the same details on their own pages. In the meantime the guides above are the best place to start.</p>
+            <p className="mt-2 max-w-2xl text-ink-soft">Local businesses, events and groups can now share access details here. As they do, you’ll be able to browse and filter them in this section, and see the same details on their own pages. In the meantime the guides above are the best place to start. You can already <Link href="/directory?access=step_free_entrance" className="font-semibold underline">filter the Directory by facility</Link> as details arrive.</p>
           )}
         </section>
 
@@ -82,7 +106,7 @@ export default async function AccessibleShetlandPage() {
 function ResourceBlock({ id, title, blurb, items }: { id: string; title: string; blurb: string; items: { title: string; href: string; by: string; about: string }[] }) {
   return (
     <div aria-labelledby={`r-${id}`}>
-      <h3 id={`r-${id}`} className="font-display text-xl font-bold">{title}</h3>
+      <h3 id={`r-${id}`} className="scroll-mt-20 font-display text-xl font-bold">{title}</h3>
       <p className="mt-1 text-sm text-ink-soft">{blurb}</p>
       <ul className="mt-3 grid gap-3 sm:grid-cols-2">
         {items.map((r) => (

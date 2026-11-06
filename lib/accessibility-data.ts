@@ -88,3 +88,12 @@ export async function getSubjectLabel(type: SubjectType, id: string): Promise<{ 
     return data ? { name: data.title, href: subjectHref("event", id), manage: "/account" } : null;
   } catch { return null; }
 }
+
+/** Public businesses that have said "Yes" or "Partly" to one facility. Bounded; row security already limits this to published, visible listings. Null = the read failed. */
+export async function businessIdsWithFacility(facility: string): Promise<string[] | null> {
+  try {
+    const { data, error } = await publicClient().from("accessibility_facts").select("subject_id").eq("subject_type", "business").eq("facility", facility).in("status", ["available", "partial"]).limit(500);
+    if (error) throw error;
+    return (data ?? []).map((r: { subject_id: string }) => r.subject_id);
+  } catch { return null; }
+}

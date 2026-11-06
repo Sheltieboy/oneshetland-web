@@ -89,6 +89,11 @@ export async function ActivityEditPage({ ctx, activityId }: { ctx: Ctx; activity
           rules={d.rules as never} sessions={d.sessions} exceptions={d.exceptions} breaks={d.breaks} siblingIds={siblings.map((s) => s.id)} defaultVenue={a.venue}
         />
         <MessageFollowersPanel activityId={a.id} />
+        <section aria-labelledby="acc-h" className="rounded-card border border-line bg-paper p-5">
+          <h2 id="acc-h" className="font-display text-lg font-bold">Help people plan their visit</h2>
+          <p className="mt-1 text-sm text-ink-soft">Tell people what to expect at this activity: access, seating, quiet, how you can help. Free, optional, and it can differ from the venue.</p>
+          <Link href={`/accessible/edit/activity/${a.id}`} className="mt-3 inline-flex min-h-11 items-center rounded-pill bg-ink px-5 text-sm font-bold text-white">Add or edit access information</Link>
+        </section>
         <section aria-labelledby="det-h">
           <h2 id="det-h" className="mb-3 font-display text-lg font-bold">Details</h2>
           <ActivityForm owner={{ kind: ctx.kind, id: ctx.ownerId }} base={ctx.base} activityId={a.id} initial={draft} areas={SHETLAND_AREAS} coverUrl={a.cover_url} />

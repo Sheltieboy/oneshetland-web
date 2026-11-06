@@ -117,6 +117,11 @@ export default async function VisitingPage() {
       </section>
 
       <main className="mx-auto max-w-6xl space-y-16 px-5 py-12">
+        <aside aria-label="Accessibility and assistance" className="rounded-card border border-line bg-paper p-5 sm:flex sm:items-center sm:justify-between sm:gap-6">
+          <p className="max-w-2xl text-ink"><strong className="font-display text-lg">Planning around access needs?</strong> <span className="text-ink-soft">Accessible Shetland gathers practical details about access, facilities and assistance, with links to the ferry, flight and visitor guides.</span></p>
+          <Link href="/accessible" className="mt-3 inline-flex min-h-11 shrink-0 items-center rounded-pill bg-ink px-5 text-sm font-bold text-white sm:mt-0">Open Accessible Shetland</Link>
+        </aside>
+
         {/* What's on — the single most useful thing for someone here now. */}
         <section>
           <Heading eyebrow="While you're here" title="What's on" href="/whats-on" cta="All events →" color={EVENTS} />

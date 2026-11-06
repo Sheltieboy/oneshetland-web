@@ -425,7 +425,7 @@ export async function countBusinesses(opts: { category?: string; area?: string; 
 }
 
 export async function getAllBusinesses(
-  opts: { category?: string; q?: string; area?: string; bookableOnly?: boolean } = {},
+  opts: { category?: string; q?: string; area?: string; bookableOnly?: boolean; ids?: string[] } = {},
 ): Promise<Business[]> {
   const sb = publicClient();
   try {
@@ -441,6 +441,7 @@ export async function getAllBusinesses(
       .limit(DIRECTORY_LIST_LIMIT);
     if (opts.category) q = q.eq("category", opts.category);
     if (opts.bookableOnly) q = q.eq("accepts_bookings", true);
+    if (opts.ids) q = q.in("id", opts.ids);
     // Area filter — match locality first, falling back to address text (mirrors the app feed).
     if (opts.area) {
       const a = sanitizeOrTerm(opts.area);
@@ -484,6 +485,7 @@ export async function getAllBusinesses(
         .limit(200);
       if (opts.category) tq = tq.eq("category", opts.category);
       if (opts.bookableOnly) tq = tq.eq("accepts_bookings", true);
+      if (opts.ids) tq = tq.in("id", opts.ids);
       const { data: tagData } = await tq;
       for (const b of (tagData ?? []) as unknown as Business[]) {
         if (have.has(b.id)) continue;
