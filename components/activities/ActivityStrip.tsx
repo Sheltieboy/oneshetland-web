@@ -23,7 +23,7 @@ export function ActivityStrip({ items, when, now }: { items: ListingRow[]; when:
           <span className="sm:hidden">See all →</span><span className="hidden sm:inline">See all regular activities →</span>
         </Link>
       </div>
-      <ul className="-mx-3 mt-2.5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-0 sm:mt-3 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+      <ul className="-mx-3 mt-2.5 flex scroll-pl-3 snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-0 sm:mt-3 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
         {shown.map((a) => (
           <li key={a.id} className="w-[15.5rem] shrink-0 snap-start sm:w-auto">
             <Link href={activityHref(a.slug)} className="flex min-h-[64px] flex-col justify-center rounded-xl border border-line bg-cream px-3 py-2 transition hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">

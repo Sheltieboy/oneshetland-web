@@ -255,3 +255,78 @@ export function queueHealth(q: QueueStatus | null, nowMs: number): { tone: "gree
   if (q.last_run && nowMs - Date.parse(q.last_run) > 7 * 86_400_000) return { tone: "gray", text: "Nothing waiting. The job has had nothing to do for a week" };
   return { tone: "green", text: "Nothing waiting" };
 }
+
+/* ── The public activity page: what to show, derived only from what the activity actually says ─────────────────────────────────── */
+
+/**
+ * Cost as a person should read it. Organisers type free text ("Free", "Small donation", "£6 drop-in"), and that is kept exactly. Only a BARE
+ * number ("10", "7.5") is finished off as money, because "Cost: 10" looks unfinished. Anything else is shown as written. Empty means "say nothing".
+ */
+export function formatPrice(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (!t) return null;
+  if (/^\d{1,5}(\.\d{1,2})?$/.test(t)) {
+    const n = Number(t);
+    return n === 0 ? "Free" : `£${Number.isInteger(n) ? n : n.toFixed(2)}`;
+  }
+  return t;
+}
+
+/** An https address, or null. Photos and links are only ever shown when they are plain https. */
+export const safeHttps = (u: string | null | undefined): string | null => (u && /^https:\/\/[^\s<>"']+$/.test(u.trim()) ? u.trim() : null);
+
+/** The first session people can still attend: not cancelled, not on a break, and not already over. */
+export function nextLiveSession<T extends { ends_at: string; status: SessionStatus }>(sessions: T[], now: Date): T | null {
+  return sessions.find((s) => isLive(s) && Date.parse(s.ends_at) >= now.getTime()) ?? null;
+}
+
+/** Sessions still ahead of us (not finished), in order, of any status: the preview must show cancellations too. */
+export function stillToCome<T extends { ends_at: string }>(sessions: T[], now: Date): T[] {
+  return sessions.filter((s) => Date.parse(s.ends_at) >= now.getTime());
+}
+
+/** Cancelled, moved or changed sessions that are still ahead: what the warning banner lists. */
+export function changedAhead<T extends { ends_at: string; status: SessionStatus }>(sessions: T[], now: Date): T[] {
+  return stillToCome(sessions, now).filter((s) => s.status === "cancelled" || s.status === "break" || s.status === "moved" || s.status === "changed");
+}
+
+/** "Moved from Fri 6 Nov 10:30" for a moved session, else null. */
+export function movedFrom(s: { status: SessionStatus; original_starts_at: string | null }): string | null {
+  return s.status === "moved" && s.original_starts_at ? `Moved from ${dayShort(s.original_starts_at)}, ${timeHM(s.original_starts_at)}` : null;
+}
+
+/** One plain sentence for the banner. */
+export function changeLine(s: { status: SessionStatus; starts_at: string; ends_at: string; original_starts_at: string | null; note: string | null; venue: string | null }, defaultVenue?: string | null): string {
+  const when = `${dayShort(s.starts_at)}, ${timeHM(s.starts_at)}`;
+  const note = s.note ? ` (${s.note})` : "";
+  if (s.status === "cancelled") return `${when} is cancelled${note}`;
+  if (s.status === "break") return `No session ${when}${note || " (break)"}`;
+  if (s.status === "moved") return `${s.original_starts_at ? `${dayShort(s.original_starts_at)}, ${timeHM(s.original_starts_at)}` : "A session"} has moved to ${when}${note}`;
+  const where = s.venue && s.venue !== defaultVenue ? ` at ${s.venue}` : "";
+  return `${when} has changed${where}${note}`;
+}
+
+/** How to take part: from the activity's own settings, nothing invented. */
+export function joinSummary(a: { booking_mode: BookingMode; contact_info: string | null; booking_url: string | null }): { headline: string; detail: string | null; href: string | null; cta: string | null } {
+  if (a.booking_mode === "link") {
+    const href = safeHttps(a.booking_url);
+    // Never fall through to "Drop in" for an activity that asks people to book: without a usable link, say how to get in touch, or just that booking is needed.
+    return href
+      ? { headline: "Book online", detail: "Booking is through the organiser's website.", href, cta: "Book on their website" }
+      : { headline: "Booking is needed", detail: a.contact_info?.trim() || "Please contact the organiser to book.", href: null, cta: null };
+  }
+  if (a.booking_mode === "contact") return { headline: "Get in touch first", detail: a.contact_info?.trim() || null, href: null, cta: null };
+  return { headline: "Drop in", detail: "Just turn up. No booking needed.", href: null, cta: null };
+}
+
+/** Sessions grouped by London month, for the full schedule. */
+export function monthGroups<T extends { starts_at: string }>(rows: T[]): { month: string; rows: T[] }[] {
+  const out: { month: string; rows: T[] }[] = [];
+  for (const r of rows) {
+    const p = parts(new Date(r.starts_at), { month: "long", year: "numeric" });
+    const month = `${p.month} ${p.year}`;
+    const last = out[out.length - 1];
+    if (last && last.month === month) last.rows.push(r); else out.push({ month, rows: [r] });
+  }
+  return out;
+}

@@ -66,38 +66,45 @@ export async function getActivityDetail(slug: string, now: Date = new Date()) {
     const act = a as unknown as ActivityDetail;
     const from = windowFor("today", now).from;
     const to = new Date(Date.parse(from) + 56 * 86_400_000).toISOString();     // eight weeks, bounded
+    // One read of who is looking, shared by the two things that depend on it: the follow state and the "can manage" check (skipped for visitors).
+    const userP = sb.auth.getUser().then(({ data: { user } }) => user);
     const [rules, sessions, owner, follow, managerCount] = await Promise.all([
       sb.from("activity_schedule_rules").select("id, day_of_week, start_time, end_time, interval_weeks, label, venue, locality, is_active").eq("activity_id", act.id).eq("is_active", true).order("day_of_week").order("start_time"),
       sb.rpc("activity_sessions", { p_from: from, p_to: to, p_activity_id: act.id, p_limit: 120 }),
-      loadOwner(act),
-      sb.auth.getUser().then(async ({ data: { user } }) => {
+      loadOwner(act, sb),
+      userP.then(async (user) => {
         if (!user) return { signedIn: false, following: false };
         const { data: f } = await sb.from("activity_follows").select("activity_id").eq("activity_id", act.id).eq("user_id", user.id).maybeSingle();
         return { signedIn: true, following: !!f };
       }),
-      sb.rpc("activity_follower_count", { p_activity: act.id }),     // null unless the viewer manages this activity
+      userP.then((user) => (user ? sb.rpc("activity_follower_count", { p_activity: act.id }) : null)),   // null unless the viewer manages this activity
     ]);
     return {
       activity: act, owner,
       rules: (rules.data ?? []) as RuleRow[],
       sessions: (sessions.data ?? []) as SessionRow[],
       ...follow,
-      canManage: typeof managerCount.data === "number",
+      canManage: typeof managerCount?.data === "number",
     };
   } catch {
     return null;
   }
 }
 
-async function loadOwner(a: ActivityDetail): Promise<Owner> {
-  const sb = publicClient();
+/**
+ * Who runs it. Read with the VIEWER'S session, not the anonymous client: a business or hub that is not publicly listed (a newly claimed
+ * business awaiting publication, say) is invisible to an anonymous read, so its own organiser previewing a draft used to see the placeholder
+ * "A business". Row security still decides what anyone may see: the public sees only active owners (and a public activity requires one).
+ * When a name genuinely cannot be read, the name is empty and the page says nothing rather than making one up.
+ */
+async function loadOwner(a: ActivityDetail, sb: Awaited<ReturnType<typeof createClient>>): Promise<Owner> {
   if (a.organiser_hub_id) {
     const { data } = await sb.from("hubs").select("id, name, slug").eq("id", a.organiser_hub_id).maybeSingle();
-    return { kind: "hub", id: a.organiser_hub_id, name: (data?.name as string) ?? "A hub", slug: (data?.slug as string) ?? null };
+    return { kind: "hub", id: a.organiser_hub_id, name: (data?.name as string) ?? "", slug: (data?.slug as string) ?? null };
   }
   if (a.organiser_business_id) {
     const { data } = await sb.from("local_businesses_public").select("id, name, slug").eq("id", a.organiser_business_id).maybeSingle();
-    return { kind: "business", id: a.organiser_business_id, name: (data?.name as string) ?? "A business", slug: (data?.slug as string) ?? null };
+    return { kind: "business", id: a.organiser_business_id, name: (data?.name as string) ?? "", slug: (data?.slug as string) ?? null };
   }
   return { kind: "platform", id: null, name: "OneShetland", slug: null };
 }
