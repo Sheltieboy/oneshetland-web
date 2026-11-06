@@ -78,8 +78,39 @@ test("the homepage loads activities anonymously, cached and bounded; nothing per
   assert.match(d, /p_limit: 60/); assert.match(d, /sessions_in_window > 0/);
   for (const f of ["lib/home-activities.ts", "components/preview/v2/HomeActivities.tsx"]) assert.doesNotMatch(read(f), /lorem|sample|placeholder|mock/i, f);
 });
-test("cards are image-led with category fallbacks, never an unrelated stock photo", () => {
-  const c = read("components/preview/v2/HomeActivities.tsx");
-  assert.match(c, /HERO\[c\.category\]/); assert.match(c, /GLYPH/); assert.match(c, /SafeImage/);
-  assert.doesNotMatch(c, /HOME_FALLBACK_IMAGE|\.jpg|\.png/);
+test("no emoji or generic illustration anywhere on the activity tiles; the no-photo fallback is the OneShetland ring mark", () => {
+  const c = read("components/preview/v2/HomeActivities.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(c, /GLYPH/); assert.doesNotMatch(c, /\p{Extended_Pictographic}/u);
+  assert.match(c, /\/brand\/mark-white\.png/); assert.match(c, /SafeImage/);
+  assert.doesNotMatch(c, /HOME_FALLBACK_IMAGE|\.jpg|stock/i);
+});
+test("the tiles share the Events tiles' shape language (radius, shadows, overlays, type scale)", () => {
+  const ev = read("components/preview/v2/HomeV2.tsx"), ac = read("components/preview/v2/HomeActivities.tsx");
+  for (const cls of ["rounded-3xl", "shadow-lift", "shadow-soft", "bg-gradient-to-t from-black/85 via-black/30 to-black/10", "bg-gradient-to-r from-black/80 via-black/40 to-transparent", "sm:text-6xl", "font-display", "min-h-[340px]", "lg:min-h-[560px]", "lg:col-span-7 lg:row-span-2", "snap-x snap-mandatory"]) {
+    assert.ok(ev.includes(cls), `events has ${cls}`); assert.ok(ac.includes(cls), `activities has ${cls}`);
+  }
+});
+test("the mosaic composes for 1, 2, 3, 4 and 7 activities without gaps or repeats", () => {
+  const m = read("components/preview/v2/HomeActivities.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(m, /kind=\{n === 1 \? "wide" : "hero"\}/);                       // 1: one wide feature
+  assert.match(m, /n === 2 && <ActivityTile c=\{c1\} kind="tall"/);                // 2: large beside tall
+  assert.match(m, /n === 3 && \(<><ActivityTile c=\{c1\} kind="medium" \/><ActivityTile c=\{c2\} kind="medium"/); // 3: large beside two
+  assert.match(m, /n >= 4 && \(/);                                                // 4+: the Events arrangement
+  assert.match(m, /const rows = n >= 3 \?/);
+  assert.doesNotMatch(m, /\.\.\.cards|concat\(cards|duplicate/i);
+});
+test("fair rotation: the same day gives the same picks; a different day rotates which activities and organisers are chosen", () => {
+  const rows = []; for (let i = 0; i < 20; i++) rows.push(A({ owner: `org${i}`, category: ["fitness", "music", "arts_crafts", "learning"][i % 4], start: at(9 + (i % 10), 30 + (i % 5)) }));
+  const ids = (d) => homeActivityPlan(rows, {}, new Date(NOW.getTime() + d * 86_400_000)).map((c) => c.id).sort().join();
+  assert.equal(ids(0), ids(0));
+  const days = new Set(); for (let d = 0; d < 8; d++) days.add(ids(d));
+  assert.ok(days.size >= 4, "the featured set changes from day to day");
+  const seen = new Set(); for (let d = 0; d < 20; d++) for (const id of ids(d).split(",")) seen.add(id);
+  assert.ok(seen.size >= 15, "over time most activities get their turn");
+});
+test("a dominant organiser is rotated too, not always first in line", () => {
+  const rows = []; for (let i = 0; i < 8; i++) rows.push(A({ owner: "big", ownerName: "Big", start: at(9 + i, 30) }));
+  rows.push(A({ owner: "s1", start: at(9, 31) }), A({ owner: "s2", start: at(10, 31) }));
+  const picked = new Set(); for (let d = 0; d < 20; d++) for (const c of homeActivityPlan(rows, {}, new Date(NOW.getTime() + d * 86_400_000))) if (c.organiser === "Big") picked.add(c.id);
+  assert.ok(picked.size >= 5, "different Big activities take their turn across days");
 });
