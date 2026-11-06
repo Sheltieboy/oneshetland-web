@@ -132,3 +132,19 @@ test("homepage Recently joined strip: first swipe card clears the screen edge; s
   assert.ok(m.length >= 2);
   for (const ul of m) assert.match(ul, /scroll-p[lx]-5/);
 });
+
+test("polish: next session, how to join and where carry restrained brand tints; About and Organiser stay neutral; structure and copy unchanged", () => {
+  const v = read("components/activities/detail/ActivityDetailView.tsx");
+  const sec = (id) => v.match(new RegExp(`<section aria-labelledby="${id}"[^>]*className=\\{?"([^"]*)"`))?.[1] ?? "";
+  assert.match(sec("next-h"), /var\(--color-jobs\)/); assert.match(sec("join-h"), /var\(--color-events\)/); assert.match(sec("where-h"), /var\(--color-teal\)/);
+  for (const id of ["about-h", "org-h"]) assert.match(sec(id), /bg-paper/, id);
+  assert.doesNotMatch(sec("about-h") + sec("org-h"), /color-mix/);
+  // tints are a few percent only, never a saturated block
+  for (const m of v.matchAll(/color-mix\(in_srgb,var\(--color-[a-z-]+\)_(\d+)%,#fff\)/g)) assert.ok(Number(m[1]) <= 26, m[0]);
+  // the words are the same, and no new data access
+  for (const t of ["Next session", "How to join", "Coming up", "Organiser", "Open in Maps", "Who it&apos;s for:", "See their"]) assert.ok(v.includes(t), t);
+  assert.doesNotMatch(v, /\.from\(|rpc\(|fetch\(/);
+  // small labels on the tinted card are the darker ink, not the muted grey that falls under 4.5:1 on the tint
+  const dl = v.slice(v.indexOf('<dl className="mt-4 grid grid-cols-2'), v.indexOf("</dl>"));
+  assert.doesNotMatch(dl, /text-ink-muted/);
+});

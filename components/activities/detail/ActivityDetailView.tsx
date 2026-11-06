@@ -15,6 +15,8 @@ const Icon = ({ d, className = "h-4 w-4" }: { d: string; className?: string }) =
 const PIN = "M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 1 1 13 0c0 5.4-6.5 11-6.5 11z M12 12.2a2.2 2.2 0 1 0 0-4.4 2.2 2.2 0 0 0 0 4.4z";
 const CAL = "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z";
 const CLOCK = "M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z";
+const JOIN = "M5 12h14M13 6l6 6-6 6";
+const WHO = "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM21 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8";
 const TAG = "M3 12V4h8l9 9-8 8-9-9z M7.5 8.5h.01";
 
 const BADGE: Record<string, string> = {
@@ -112,7 +114,7 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
         )}
 
         {/* ── Next session ────────────────────────────────────────────────────────────────────────────────────────────────── */}
-        <section aria-labelledby="next-h" className={"relative z-10 rounded-card border border-line bg-paper p-5 shadow-lift sm:p-6 " + (changes.length > 0 ? "mt-4" : "-mt-10 sm:-mt-12")}>
+        <section aria-labelledby="next-h" className={"relative z-10 rounded-card border border-t-[3px] border-[color-mix(in_srgb,var(--color-jobs)_26%,#fff)] border-t-[color:var(--color-jobs)] bg-[color-mix(in_srgb,var(--color-jobs)_7%,#fff)] p-5 shadow-lift sm:p-6 " + (changes.length > 0 ? "mt-4" : "-mt-10 sm:-mt-12")}>
           <p id="next-h" className="text-[11px] font-bold uppercase tracking-widest" style={{ color: REGULAR }}>Next session</p>
           {next ? (
             <div className="mt-2 grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
@@ -127,9 +129,9 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
                   </p>
                 )}
                 <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                  {nextPlace && <div><dt className="flex items-center gap-1.5 font-semibold text-ink-muted"><Icon d={PIN} className="h-3.5 w-3.5" />Where</dt><dd className="mt-0.5 text-ink">{nextPlace}</dd></div>}
-                  {price && <div><dt className="flex items-center gap-1.5 font-semibold text-ink-muted"><Icon d={TAG} className="h-3.5 w-3.5" />Cost</dt><dd className="mt-0.5 text-ink">{price}</dd></div>}
-                  <div className="col-span-2"><dt className="font-semibold text-ink-muted">How to join</dt><dd className="mt-0.5 text-ink"><strong>{join.headline}.</strong> {join.detail && <span className="text-ink-soft">{join.detail}</span>}</dd></div>
+                  {nextPlace && <div><dt className="flex items-center gap-1.5 font-semibold text-ink-soft"><Icon d={PIN} className="h-3.5 w-3.5" />Where</dt><dd className="mt-0.5 text-ink">{nextPlace}</dd></div>}
+                  {price && <div><dt className="flex items-center gap-1.5 font-semibold text-ink-soft"><Icon d={TAG} className="h-3.5 w-3.5" />Cost</dt><dd className="mt-0.5 text-ink">{price}</dd></div>}
+                  <div className="col-span-2"><dt className="font-semibold text-ink-soft">How to join</dt><dd className="mt-0.5 text-ink"><strong>{join.headline}.</strong> {join.detail && <span className="text-ink-soft">{join.detail}</span>}</dd></div>
                 </dl>
               </div>
               {join.href && join.cta && (
@@ -201,9 +203,9 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
               <p className="mt-2 whitespace-pre-line text-ink-soft">{a.description}</p>
             </section>
           )}
-          <div className="grid overflow-hidden rounded-card border border-line bg-paper shadow-soft md:col-span-2 md:grid-cols-2 md:divide-x md:divide-line">
-            <section aria-labelledby="join-h" className="p-5">
-              <h2 id="join-h" className="font-display text-xl font-bold text-ink">How to join</h2>
+          <div className="grid overflow-hidden rounded-card border border-line bg-paper shadow-soft md:col-span-2 md:grid-cols-2">
+            <section aria-labelledby="join-h" className="border-t-[3px] border-t-[color:var(--color-events)] bg-[color-mix(in_srgb,var(--color-events)_10%,#fff)] p-5">
+              <h2 id="join-h" className="flex items-center gap-2 font-display text-xl font-bold text-ink"><span aria-hidden className="grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--color-events)_22%,#fff)] text-[#7a4f05]"><Icon d={JOIN} className="h-4 w-4" /></span>How to join</h2>
               <p className="mt-2 font-semibold text-ink">{join.headline}</p>
               {join.detail && <p className="mt-0.5 whitespace-pre-line text-sm text-ink-soft">{join.detail}</p>}
               {join.href && join.cta && <a href={join.href} rel="noopener noreferrer" className="mt-3 inline-block rounded-pill px-5 py-2.5 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: REGULAR }}>{join.cta}</a>}
@@ -211,8 +213,8 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
               {price && <p className="mt-3 text-sm"><span className="font-semibold text-ink">Cost:</span> <span className="text-ink-soft">{price}</span></p>}
             </section>
             {(place || a.audience) && (
-              <section aria-labelledby="where-h" className="border-t border-line p-5 md:border-t-0">
-                <h2 id="where-h" className="font-display text-xl font-bold text-ink">{place ? "Where" : "Who it's for"}</h2>
+              <section aria-labelledby="where-h" className="border-t-[3px] border-t-[color:var(--color-navy-light)] bg-[color-mix(in_srgb,var(--color-teal)_9%,#fff)] p-5">
+                <h2 id="where-h" className="flex items-center gap-2 font-display text-xl font-bold text-ink"><span aria-hidden className="grid h-7 w-7 place-items-center rounded-full bg-[color-mix(in_srgb,var(--color-teal)_20%,#fff)] text-[color:var(--color-navy-light)]"><Icon d={place ? PIN : WHO} className="h-4 w-4" /></span>{place ? "Where" : "Who it's for"}</h2>
                 {place && <p className="mt-2 text-ink">{place}</p>}
                 {a.lat != null && a.lng != null && <a href={`https://www.google.com/maps/search/?api=1&query=${a.lat},${a.lng}`} rel="noopener noreferrer" className="mt-1 inline-block text-sm font-semibold underline underline-offset-2">Open in Maps</a>}
                 {a.audience && <p className="mt-3 text-sm"><span className="font-semibold text-ink">Who it&apos;s for:</span> <span className="text-ink-soft">{a.audience}</span></p>}
