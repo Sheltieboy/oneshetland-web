@@ -120,9 +120,9 @@ export function eventRunSchema(
       ? e.ticket_types.filter((t) => t.is_active).map((t) => ({ "@type": "Offer", name: t.name, price: (t.price_pence / 100).toFixed(2), priceCurrency: "GBP", url: ticket, availability: "https://schema.org/InStock" }))
       : [{ "@type": "Offer", url: ticket }]
     : undefined;
-  // A community event always names its contributor (never OneShetland); otherwise an explicit organiser_name wins, then the owner.
-  const resolved = eventOrganiser(e, { prefer: "business" });
-  const organizerName = resolved?.kind === "community" ? resolved.name : e.organiser_name?.trim() || resolved?.name || null;
+  // Same single rule as the page (lib/event-organiser.ts): community -> its named group, then the owning business/hub, then an explicit
+  // OneShetland marker, then a curated listing's organiser_name; a plain platform-owned event names no organizer.
+  const organizerName = eventOrganiser(e, { prefer: "business" })?.name ?? null;
   return clean({
     "@context": "https://schema.org",
     "@type": "Event",

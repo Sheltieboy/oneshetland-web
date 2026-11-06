@@ -190,5 +190,12 @@ describe("community events in the run schema", () => {
     assert.equal(eventRunSchema({ ...run, source: "community_submission", organiser_name: "Unst Quilters" }, o).organizer.name, "Unst Quilters");
     assert.equal(eventRunSchema({ ...run, source: "community_submission", organiser_name: null }, o).organizer.name, "Community organiser");
   });
-  test("an official platform run names OneShetland", () => assert.equal(eventRunSchema({ ...run, source: null }, o).organizer.name, "OneShetland"));
+  test("a plain platform-owned run names no organizer; only the explicit marker names OneShetland", () => {
+    assert.equal("organizer" in eventRunSchema({ ...run, source: null }, o), false);
+    assert.equal(eventRunSchema({ ...run, source: "oneshetland" }, o).organizer.name, "OneShetland");
+  });
+  test("a business-owned run keeps the business as organizer, and a curated run credits its organiser_name", () => {
+    assert.equal(eventRunSchema({ ...run, is_platform_event: false, business: { name: "Harry's" }, organiser_name: "Other" }, o).organizer.name, "Harry's");
+    assert.equal(eventRunSchema({ ...run, source: null, organiser_name: "Mareel" }, o).organizer.name, "Mareel");
+  });
 });
