@@ -3,6 +3,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { safeNext } from "@/lib/redirect";
 import { recordSignupConsent } from "@/lib/compliance.server";
+import { triggerWelcome } from "@/lib/welcome.server";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data: { user } } = await sb.auth.getUser();
       if (user) await recordSignupConsent(sb, user);
+      if (user) await triggerWelcome(sb, type, false);   // once, to the confirmed address — see lib/welcome.server.ts
       return NextResponse.redirect(`${origin}${next}`);
     }
     // Stripe-style honesty: Supabase told us this token is no good, so we may
@@ -70,6 +72,7 @@ export async function GET(request: NextRequest) {
     if (!error) {
       const { data: { user } } = await sb.auth.getUser();
       if (user) await recordSignupConsent(sb, user);
+      if (user) await triggerWelcome(sb, null, true);
       return NextResponse.redirect(`${origin}${next}`);
     }
     // We do NOT know the token is expired. The overwhelmingly likely cause is
