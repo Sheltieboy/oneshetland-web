@@ -1,4 +1,8 @@
 import Link from "next/link";
+import { AccessibleInviteCard } from "@/components/accessibility/AccessibleInviteCard";
+import { getEditableAccessibility } from "@/lib/accessibility-data";
+import { inviteState, isDismissed } from "@/lib/accessibility-invite";
+import { createClient as createServerClient } from "@/lib/supabase/server";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { getMyManagedBusinesses } from "@/lib/business-data.server";
 import { BIZ, TIER_LABELS } from "@/lib/business-data";
@@ -23,6 +27,9 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const launch = (await getOwnerLaunchSetup(business.id)).launch;
   const launchPrompt = launch.state === "review" || launch.state === "edited";
   const mine = await getMyManagedBusinesses(account.id);
+  // Accessible Shetland invitation: the owner's own view of the record (drafts included) and their own dismissal preference. Two small reads.
+  const [accessibility, authUser] = await Promise.all([getEditableAccessibility("business", business.id), createServerClient().then((sb) => sb.auth.getUser()).catch(() => null)]);
+  const userMeta = (authUser?.data?.user?.user_metadata ?? null) as Record<string, unknown> | null;
   const base = `/business/${business.id}/manage`;
   // Be Found is derived from the business record on every load — nothing about
   // it is stored, so it can never go stale or disagree with the listing.
@@ -67,6 +74,9 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       {/* The dashboard proper: what needs you, how the week went, the code. */}
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>
 
+      {/* Accessible Shetland: a personal invitation (not a requirement), then a small thank-you once details are published. Dismissible, per owner. */}
+      <AccessibleInviteCard businessId={business.id} businessName={business.name} state={inviteState(accessibility)} dismissed={isDismissed(userMeta)} businessCount={mine.length} />
+
       {/* ── Your business ──────────────────────────────────────────────
            Six outcomes in a fixed order. Not eighteen tiles, and not sorted
            by state: an owner learns where things are, and a Home that
@@ -100,17 +110,11 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           <UtilityRow label="Boost" href={`${base}/billing`}
             status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />
           <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
+          <UtilityRow label="Accessibility information" href={`/accessible/edit/business/${business.id}`}
+            status={accessibility ? (accessibility.published ? "Published" : "Draft") : null} />
         </div>
       </section>
 
-      <section className="mb-8" aria-labelledby="plan-visit-h">
-        <h2 id="plan-visit-h" className="eyebrow mb-2 text-ink-muted">Welcome everyone</h2>
-        <div className="rounded-card border border-line bg-paper p-5">
-          <p className="font-display text-lg font-bold">Help people plan their visit</p>
-          <p className="mt-1 text-sm text-ink-soft">Tell people about steps, parking, toilets, quiet times and how you can help, so they can decide what works for them. Free on every plan, optional, and you can save a draft.</p>
-          <Link href={`/accessible/edit/business/${business.id}`} className="mt-3 inline-flex min-h-11 items-center rounded-pill bg-ink px-5 text-sm font-bold text-white">Add access information</Link>
-        </div>
-      </section>
 
     </div>
   );

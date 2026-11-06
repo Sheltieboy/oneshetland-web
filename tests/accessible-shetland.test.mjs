@@ -73,7 +73,7 @@ test("no tier gate: the feature never reads a plan", () => {
 });
 test("every new route is wired: sidebar, business dashboard, hub tile, four public pages", () => {
   assert.match(read("components/admin/AdminSidebar.tsx"), /\/admin\/accessibility/);
-  assert.match(read("app/business/[id]/manage/page.tsx"), /Help people plan their visit/);
+  assert.match(read("app/business/[id]/manage/page.tsx"), /AccessibleInviteCard/);
   assert.match(read("app/hubs/[id]/manage/page.tsx"), /accessible\/edit\/hub/);
   for (const [p, t] of [["app/directory/[id]/page.tsx", "business"], ["app/hubs/[id]/page.tsx", "hub"], ["app/whats-on/[id]/page.tsx", "event"], ["app/whats-on/regular/[slug]/page.tsx", "activity"]]) assert.match(read(p), new RegExp(`AccessibilitySection type="${t}"`), p);
   assert.ok(readdirSync(new URL("../app/accessible/edit/[type]/[id]", import.meta.url)).includes("page.tsx"));
