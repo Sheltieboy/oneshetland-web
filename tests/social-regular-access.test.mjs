@@ -4,16 +4,19 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { RESOURCE_SECTIONS } from "../lib/accessibility-resources.ts";
 import { kindMeta, recipeSchedule } from "../lib/social-meta.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const BACKEND = readFileSync(new URL("../../oneshetland-social-ac/supabase/functions/_shared/social-regular-access.ts", import.meta.url), "utf8");
+const BACKEND_URL = new URL("../../oneshetland-social-ac/supabase/functions/_shared/social-regular-access.ts", import.meta.url);
+// The Social Studio backend lives in another repository checkout; the parity checks run where it is present and are skipped elsewhere.
+const HAVE_BACKEND = existsSync(BACKEND_URL);
+const BACKEND = HAVE_BACKEND ? readFileSync(BACKEND_URL, "utf8") : "";
 const route = read("app/api/social-image/route.tsx");
 const code = (s) => s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\{\/\*[\s\S]*?\*\/\}/g, "").replace(/\/\/.*$/gm, "");
 
-test("the approved resource library in the Social Studio backend is exactly the one on the Accessible Shetland page (slug, link, title, source, description)", () => {
+test("the approved resource library in the Social Studio backend is exactly the one on the Accessible Shetland page (slug, link, title, source, description)", { skip: !HAVE_BACKEND }, () => {
   const Q = `('(?:[^'\\\\]|\\\\.)*'|"[^"]*")`;
   const un = (q) => q.slice(1, -1).replace(/\\'/g, "'").replace(/’/g, "'");
   const be = [...BACKEND.matchAll(new RegExp(`slug: '([a-z0-9-]+)'.*?by: ${Q}, title: ${Q}, href: '([^']+)', about: ${Q}`, "g"))];
@@ -25,7 +28,7 @@ test("the approved resource library in the Social Studio backend is exactly the 
     assert.equal(w.href, m[4]); assert.equal(w.by.replace(/’/g, "'"), un(m[2])); assert.equal(w.title.replace(/’/g, "'"), un(m[3])); assert.equal(w.about.replace(/’/g, "'"), un(m[5]));
   }
 });
-test("every backend resource anchor exists on the landing page", () => {
+test("every backend resource anchor exists on the landing page", { skip: !HAVE_BACKEND }, () => {
   const page = read("app/accessible/page.tsx");
   for (const a of new Set([...BACKEND.matchAll(/anchor: '([a-z-]+)'/g)].map((m) => m[1]))) assert.ok(page.includes(`r-\${id}`) || ["r-travel", "r-visiting", "r-support", "r-info"].includes(a), a);
   for (const id of ["travel", "visiting", "support", "info"]) assert.ok(RESOURCE_SECTIONS.some((s) => s.id === id));
@@ -56,7 +59,7 @@ test("the Accessible Shetland graphics: typographic, high contrast, never a badg
   assert.doesNotMatch(block, /detail|access_contact|verification_note|summary|visit_tips/, "free text, contact lines and notes are never read");
   assert.match(block, /return new Response\("not found", \{ status: 404 \}\)/);
 });
-test("backend captions never overclaim (static check of the approved copy)", () => {
+test("backend captions never overclaim (static check of the approved copy)", { skip: !HAVE_BACKEND }, () => {
   const copy = [...BACKEND.matchAll(/AWARENESS_COPY: string\[\] = \[([\s\S]*?)\n\];/g)][0][1];
   assert.doesNotMatch(copy, /fully accessible|accessible to all|suitable for everyone|certified|helpless|suffer|wheelchair[- ]bound/i);
   assert.match(copy, /make your own decisions|decide what works for you|Know what to expect/);
