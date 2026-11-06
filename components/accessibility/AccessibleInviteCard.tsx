@@ -49,7 +49,7 @@ export function AccessibleInviteCard({ businessId, businessName, state, dismisse
         </div>
         <div className="mt-4 space-y-3 text-[15px] leading-relaxed text-ink sm:text-base">
           <p>Since launching OneShetland, I’ve had several folk get in touch about how difficult it can be to find clear accessibility information around Shetland.</p>
-          <p>I want OneShetland to help everyone enjoy what our islands have to offer, whether they live here or are visiting on holiday.</p>
+          <p>I want OneShetland to give people with accessibility needs the information they need to make their own decisions about where to go and what to enjoy across Shetland, whether they live here or are planning a visit.</p>
           <p>That’s why I’ve introduced Accessible Shetland.</p>
           <p>I’d love your help. Taking a few minutes to share information about access to your business could make a real difference to someone planning where to visit.</p>
           <p>It doesn’t matter if your business can’t offer everything. Honest information is what matters, helping people make their own decisions with confidence.</p>

@@ -27,7 +27,7 @@ test("dismissal is read defensively: only a real timestamp counts", () => {
 });
 test("the message is Darren's, word for word, with 'A favour from me' as the heading", () => {
   for (const t of ["A favour from me", "Since launching OneShetland, I’ve had several folk get in touch about how difficult it can be to find clear accessibility information around Shetland.",
-    "I want OneShetland to help everyone enjoy what our islands have to offer, whether they live here or are visiting on holiday.", "That’s why I’ve introduced Accessible Shetland.",
+    "I want OneShetland to give people with accessibility needs the information they need to make their own decisions about where to go and what to enjoy across Shetland, whether they live here or are planning a visit.", "That’s why I’ve introduced Accessible Shetland.",
     "I’d love your help. Taking a few minutes to share information about access to your business could make a real difference to someone planning where to visit.",
     "It doesn’t matter if your business can’t offer everything. Honest information is what matters, helping people make their own decisions with confidence.",
     "It’s completely free.", "Thanks so much,", "Darren"]) assert.ok(card.includes(t), t);
