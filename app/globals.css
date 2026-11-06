@@ -207,3 +207,8 @@
 @media (prefers-reduced-motion: reduce) {
   .ai-glow.is-active::after { animation: none; }
 }
+
+/* The homepage "What's happening" tabs: a short fade when a panel appears. Respects reduced motion. */
+@keyframes happening-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.happening-fade:not([hidden]) { animation: happening-fade 180ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .happening-fade:not([hidden]) { animation: none; } }

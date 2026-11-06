@@ -175,3 +175,19 @@ export async function legacyEventRedirect(eventId: string): Promise<string | nul
     return null;
   }
 }
+
+/**
+ * The homepage's Regular Activities: activities with a live session from NOW to 14 days ahead (the window starts at this instant, so a session
+ * that has already finished today never counts), plus their weekly rules in ONE more query. Strict: a failure throws so the homepage keeps its
+ * last good copy (see lib/home-resilience.ts) instead of showing "nothing on".
+ */
+export async function getHomeActivities(now: Date = new Date()): Promise<{ rows: ListingRow[]; rules: Record<string, RuleRow[]> }> {
+  const { data, error } = await publicClient().rpc("regular_activities_listing", {
+    p_from: now.toISOString(), p_to: new Date(now.getTime() + 14 * 86_400_000).toISOString(),
+    p_dow: null, p_category: null, p_locality: null, p_drop_in: null, p_q: null, p_limit: 60,
+  });
+  if (error) throw error;
+  const rows = ((data ?? []) as ListingRow[]).filter((r) => r.sessions_in_window > 0);
+  const rules = Object.fromEntries(await getRulesFor(rows.map((r) => r.id)));
+  return { rows, rules };
+}

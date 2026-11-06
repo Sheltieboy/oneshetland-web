@@ -14,6 +14,9 @@ import { SECTIONS } from "@/lib/sections";
 import { CATEGORY_LABEL } from "@/lib/local-data";
 import { PILLARS, PILLAR_ORDER, density, type Merch, type Pillar } from "@/lib/preview-v2";
 import { CropImg, MerchCard, Rail } from "@/components/preview/v2/Merch";
+import { HappeningTabs } from "@/components/preview/v2/HappeningTabs";
+import { ActivitiesMosaic } from "@/components/preview/v2/HomeActivities";
+import type { HomeActivityCard } from "@/lib/home-activities";
 
 /**
  * Home V2 sections. Home is the living front page of Shetland: editorial, useful now, and increasingly curated as
@@ -113,13 +116,13 @@ function EventCard({ c, kind }: { c: HomeCard; kind: Kind }) {
 
 const TILE_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" };
 
-export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEvent[]; cruise: CruiseHomeCard | null; showCruise: boolean; lead?: Merch }) {
+export function RightNow({ events, cruise, showCruise, lead, activities = [] }: { events: HomeEvent[]; cruise: CruiseHomeCard | null; showCruise: boolean; lead?: Merch; activities?: HomeActivityCard[] }) {
   const cards = homeMosaicPlan(events, new Date());
   const [c0, c1, c2, c3, ...tiles] = cards;
-  if (!c0 && !showCruise) return null;
-  return (
-    <Band>
-      <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={{ label: "Full calendar", href: "/whats-on" }} />
+  const hasActivities = activities.length > 0;
+  if (!c0 && !showCruise && !hasActivities) return null;
+  const eventsMosaic = (
+    <>
       {/* Desktop: a large hero beside a medium card and two small ones, then a row of three. Phones: the hero, then everything
           else in one swipeable rail (native scroll-snap), so seven events never become seven full-height cards. */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[repeat(2,minmax(0,1fr))]">
@@ -163,6 +166,19 @@ export function RightNow({ events, cruise, showCruise, lead }: { events: HomeEve
           </span>
         </Link>
       )}
+    </>
+  );
+  return (
+    <Band>
+      <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={hasActivities ? undefined : { label: "Full calendar", href: "/whats-on" }} />
+      {hasActivities ? (
+        <HappeningTabs
+          events={c0 || (showCruise && cruise) ? eventsMosaic : <p className="rounded-card border border-line bg-paper p-6 text-ink-soft">No upcoming events are listed just now. The full calendar has everything coming up.</p>}
+          activities={<ActivitiesMosaic cards={activities} />}
+          eventsCta={{ label: "Full calendar", href: "/whats-on" }}
+          activitiesCta={{ label: "Explore all regular activities", href: "/whats-on/regular" }}
+        />
+      ) : eventsMosaic}
     </Band>
   );
 }

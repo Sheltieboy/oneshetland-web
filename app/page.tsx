@@ -1,4 +1,7 @@
 import Image from "next/image";
+import { getHomeActivities } from "@/lib/activities-data";
+import { homeActivityPlan } from "@/lib/home-activities";
+import type { ListingRow, RuleRow } from "@/lib/activities";
 import { isOnToday } from "@/lib/event-currency";
 import { getHomeData, type HomeData } from "@/lib/home-data";
 import { getHeroImage, DEFAULT_HERO_IMAGE } from "@/lib/hero-context";
@@ -48,7 +51,7 @@ export default async function Home() {
   const emptyData: HomeData = { events: [], businesses: [], offers: [], notices: [], campaigns: [], jobs: [], shifts: [], alerts: [], spik: null };
   const emptyShelves: HomeShelves = { freshProducts: [], hiring: [], boat: null, story: null, spik: null };
   const accountP = getAccount();
-  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin] = await Promise.all([
+  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin, activityData] = await Promise.all([
     resilient("home:data", { ...R(60_000, 6000, 10 * 60_000), fallback: emptyData }, () => getHomeData({ legacyNotices: false, homepageOnly: true })),
     resilient("home:hero", { ...R(5 * 60_000, 3000, 60 * 60_000), fallback: DEFAULT_HERO_IMAGE }, () => getHeroImage()),
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
@@ -64,7 +67,10 @@ export default async function Home() {
     accountP.then((a) => (a ? getForYou(a.id).catch(() => []) : [])).catch(() => []),
     // The admin-managed pinned launch card: signed-in members only, one cached read of a one-row table.
     accountP.then((a) => (a ? getHomePin().catch(() => null) : null)).catch(() => null),
+    // Regular Activities for the "What's happening" tabs: anonymous, one listing read + one rules read, kept for two minutes.
+    resilient<{ rows: ListingRow[]; rules: Record<string, RuleRow[]> }>("home:activities", { ...R(120_000, 5000, 15 * 60_000), fallback: { rows: [], rules: {} }, isEmpty: (v) => v.rows.length === 0 }, () => getHomeActivities(now)),
   ]);
+  const homeActivities = homeActivityPlan(activityData.rows, activityData.rules, now);
   const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: liveShifts }, now);
   // For you — personal, signed-in only, and only when there is something genuine to say.
   const visiting = audience === "visiting";
@@ -106,7 +112,7 @@ export default async function Home() {
       {account && (forYou.length > 0 || pin) && <ForYou name={accountName(account).split(" ")[0]} items={forYou} pin={pin} />}
 
       {/* 3 · RIGHT NOW */}
-      <RightNow events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} />
+      <RightNow events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} activities={homeActivities} />
 
       {/* 4 · DISCOVER SOMETHING LOCAL */}
       <DiscoverLocal businesses={businesses.main} recent={businesses.recent} />
