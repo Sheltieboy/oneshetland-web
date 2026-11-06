@@ -66,9 +66,12 @@ test("visibility is untouched: still active-only, still read through the public 
   assert.doesNotMatch(f, /is_active", false|owner_id|local_businesses"\)/);
 });
 
-test("the Featured row keeps its own definition and the page still excludes it from the grid (no duplicates)", () => {
-  const featured = section(read("lib/local-data.ts"), "getDirectoryFeatured");
-  assert.match(featured, /\.in\("subscription_tier", \["pro", "premium"\]\)/);
-  assert.match(featured, /subscription_until\.is\.null,subscription_until\.gt\./);
+test("Featured (Directory row and landing) uses the canonical entitlement tier, premium before pro, and the page still avoids duplicates", () => {
+  for (const name of ["getDirectoryFeatured", "getFeaturedBusinesses"]) {
+    const f = section(read("lib/local-data.ts"), name);
+    assert.match(f, /\.eq\(DIRECTORY_RANK_COL, 0\)/, name);
+    assert.match(f, /\.order\("live_tier", \{ ascending: true \}\)/, `${name}: premium sorts before pro`);
+    assert.doesNotMatch(f, /subscription_until|\.in\("subscription_tier"/, `${name} no longer re-implements the entitlement test`);
+  }
   assert.match(read("app/directory/page.tsx"), /all\.filter\(\(b\) => !featuredIds\.has\(b\.id\)\)/);
 });

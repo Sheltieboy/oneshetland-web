@@ -182,14 +182,14 @@ function Logo({ b, size = "h-16 w-16" }: { b: CuratedBusiness; size?: string }) 
   );
 }
 
-export function DiscoverLocal({ businesses }: { businesses: CuratedBusiness[] }) {
+export function DiscoverLocal({ businesses, recent = [] }: { businesses: CuratedBusiness[]; recent?: CuratedBusiness[] }) {
   if (businesses.length === 0) return null;
   const lead = businesses.find((b) => b.cover_url || b.logo_url) ?? businesses[0];
   const rest = businesses.filter((b) => b.id !== lead.id).slice(0, 5);
   const href = (b: CuratedBusiness) => `/directory/${b.slug || b.id}`;
   return (
     <Band bg="#f3ece0">
-      <Heading eyebrow="Discover something local" title="Who's open for business" color="#7c3aed" cta={{ label: "Explore all businesses", href: "/directory" }} />
+      <Heading eyebrow="From across Shetland" title="Discover local businesses" color="#7c3aed" cta={{ label: "Explore all businesses", href: "/directory" }} />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Link href={href(lead)} className="group relative isolate flex min-h-[300px] overflow-hidden rounded-3xl shadow-lift lg:col-span-5 lg:min-h-[460px]">
           {lead.cover_url
@@ -220,6 +220,24 @@ export function DiscoverLocal({ businesses }: { businesses: CuratedBusiness[] })
           })}
         </div>
       </div>
+      {recent.length > 0 && (
+        <div className="mt-6" data-recently-joined>
+          <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-ink-soft">Recently joined OneShetland</h3>
+          <ul className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+            {recent.slice(0, 3).map((b) => (
+              <li key={b.id} className="w-[15.5rem] shrink-0 snap-start sm:w-auto">
+                <Link href={href(b)} className="flex min-h-[64px] items-center gap-3 rounded-2xl bg-white p-3 shadow-soft transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                  <Logo b={b} size="h-11 w-11" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-display text-base font-bold leading-tight text-ink">{b.name}</span>
+                    <span className="block truncate text-xs text-ink-soft">{CATEGORY_LABEL[b.category ?? ""] ?? "Business"}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Band>
   );
 }

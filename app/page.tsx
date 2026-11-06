@@ -8,7 +8,7 @@ import { getTodaySnapshot, describeWeather } from "@/lib/shetland-today";
 import { getHomeShelves, type HomeShelves } from "@/lib/home-shelves";
 import { getAudience } from "@/lib/audience.server";
 import { getCruiseHomeCard } from "@/lib/cruise-data";
-import { getCuratedBusinesses } from "@/lib/curated-businesses";
+import { getBusinessShowcase, type Showcase } from "@/lib/curated-businesses";
 import { getActiveLocalPasses, getBookableServices } from "@/lib/local-data";
 import { cruiseWorthShowing } from "@/lib/home-curation";
 import { mapLiveCommerce } from "@/lib/preview-v2";
@@ -54,7 +54,7 @@ export default async function Home() {
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
     resilient("home:shelves", { ...R(120_000, 6000, 15 * 60_000), fallback: emptyShelves }, () => getHomeShelves()),
     resilient("home:cruise", { ...R(120_000, 5000, 15 * 60_000), fallback: null }, () => getCruiseHomeCard().catch(() => null)),
-    resilient("home:businesses", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getCuratedBusinesses({ limit: 9 })),
+    resilient<Showcase>("home:businesses", { ...R(120_000, 5000, 15 * 60_000), fallback: { main: [], recent: [] } }, () => getBusinessShowcase()),
     resilient("home:passes", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getActiveLocalPasses(24).catch(() => [])),
     resilient("home:services", { ...R(120_000, 5000, 15 * 60_000), fallback: [] }, () => getBookableServices({}).catch(() => [])),
     getAudience(),
@@ -109,7 +109,7 @@ export default async function Home() {
       <RightNow events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} />
 
       {/* 4 · DISCOVER SOMETHING LOCAL */}
-      <DiscoverLocal businesses={businesses} />
+      <DiscoverLocal businesses={businesses.main} recent={businesses.recent} />
       <JoinBusinessCta variant="compact" />
 
       {/* 5 · SHOP · OFFERS · BOOK · EXPERIENCES */}

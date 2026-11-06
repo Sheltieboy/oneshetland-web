@@ -157,15 +157,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /* ── Landing ──────────────────────────────────────────────────────────────── */
 export async function getFeaturedBusinesses(limit = 8): Promise<Business[]> {
   const sb = publicClient();
-  const now = new Date().toISOString();
   try {
     const { data: subs } = await sb
       .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
-      .in("subscription_tier", ["pro", "premium"])
-      .or(`subscription_until.is.null,subscription_until.gt.${now}`)
-      .order("subscription_tier", { ascending: false })
+      .eq(DIRECTORY_RANK_COL, 0)            // live Pro/Premium by the deployed entitlement predicate (business_meets_tier)
+      .order("live_tier", { ascending: true })   // 'premium' sorts before 'pro'
       .limit(limit);
     const out = (subs ?? []) as unknown as Business[];
     if (out.length >= limit) return out;
@@ -382,15 +380,13 @@ export async function getLoyaltyBusinesses(limit = 120): Promise<LoyaltyBiz[]> {
  */
 export async function getDirectoryFeatured(limit = 6): Promise<Business[]> {
   const sb = publicClient();
-  const now = new Date().toISOString();
   try {
     const { data } = await sb
       .from(PUBLIC_BUSINESS)
       .select(LIST_COLS)
       .eq("is_active", true)
-      .in("subscription_tier", ["pro", "premium"])
-      .or(`subscription_until.is.null,subscription_until.gt.${now}`)
-      .order("subscription_tier", { ascending: false })
+      .eq(DIRECTORY_RANK_COL, 0)            // live Pro/Premium by the deployed entitlement predicate (business_meets_tier)
+      .order("live_tier", { ascending: true })   // 'premium' sorts before 'pro'
       .order("is_verified", { ascending: false })
       .limit(limit);
     return (data ?? []) as unknown as Business[];
