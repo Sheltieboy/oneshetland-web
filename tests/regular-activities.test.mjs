@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 import {
   patternText, windowFor, londonMidnight, londonInstant, londonDate, londonDow, addDays, dayLabel, timeRange, timeHM, groupByDay, nextLine,
   regularHref, parseDays, parseWhen, safeCategory, whenForEventsRange, validateActivityDraft, validateRuleDraft, validateBreakDraft,
-  ACTIVITY_CATEGORIES, DEFAULT_WHEN, isLive, queueHealth,
+  ACTIVITY_CATEGORIES, DEFAULT_WHEN, summaryLine, isLive, queueHealth,
 } from "../lib/activities.ts";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -242,4 +242,27 @@ test("WEBSITE: a Regular Activity notification opens its page; a hostile slug op
 });
 test("WEBSITE: every existing notification destination is exactly as it was on main", { skip: !webBefore && "git history not available" }, () => {
   for (const d of WEB_EXISTING) assert.equal(webNow(d), webBefore(d), JSON.stringify(d));
+});
+
+test("the listing summary counts live sessions separately from activities whose sessions are cancelled or on a break", () => {
+  const L = (n) => Array.from({ length: n }, () => ({ sessions_in_window: 2 }));
+  const X = (n) => Array.from({ length: n }, () => ({ sessions_in_window: 0 }));
+  assert.equal(summaryLine([...L(2), ...X(1)], "fortnight"), "2 activities with sessions in the next 14 days, plus 1 whose sessions aren't taking place");
+  assert.equal(summaryLine(L(1), "fortnight"), "1 activity with a session in the next 14 days");
+  assert.equal(summaryLine(L(3), "week"), "3 activities with sessions this week");
+  assert.equal(summaryLine(L(1), "today"), "1 activity with a session today");
+  assert.equal(summaryLine(L(2), "tomorrow"), "2 activities with sessions tomorrow");
+  assert.equal(summaryLine([...L(1), ...X(2)], "month"), "1 activity with a session this month, plus 2 whose sessions aren't taking place");
+  assert.equal(summaryLine(X(1), "fortnight"), "No sessions in the next 14 days. The sessions of 1 activity aren't taking place.");
+  assert.equal(summaryLine(X(3), "week"), "No sessions this week. The sessions of 3 activities aren't taking place.");
+  assert.equal(summaryLine([], "fortnight"), "");
+  for (const w of ["today", "tomorrow", "week", "fortnight", "month"]) assert.doesNotMatch(summaryLine([...L(1), ...X(1)], w), /in this week|in today|in tomorrow/);
+});
+test("cancelled activities stay on the page with their own warning; the page uses summaryLine, not the row count", () => {
+  const page = readFileSync(new URL("../app/whats-on/regular/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /summaryLine\(rows, f\.when\)/);
+  assert.doesNotMatch(page, /\{rows\.length\} \{rows\.length === 1/);
+  assert.match(page, /rows\.map\(\(a\) => <ActivityCard/);
+  const warn = nextLine({ next_starts_at: null, next_ends_at: null, sessions_in_window: 0, cancelled_in_window: 4 });
+  assert.equal(warn.tone, "warn"); assert.match(warn.text, /cancelled or on a break/);
 });

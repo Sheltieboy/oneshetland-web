@@ -106,6 +106,25 @@ export const WHEN_OPTIONS: { value: When; label: string }[] = [
 export const DEFAULT_WHEN: When = "fortnight";
 export const parseWhen = (v: string | undefined): When => (WHEN_OPTIONS.some((o) => o.value === v) ? (v as When) : DEFAULT_WHEN);
 
+const WINDOW_PHRASE: Record<When, string> = { today: "today", tomorrow: "tomorrow", week: "this week", fortnight: "in the next 14 days", month: "this month" };
+const noun = (n: number) => (n === 1 ? "activity" : "activities");
+
+/**
+ * The line above the listing. Counts activities that really have a live session in the window SEPARATELY from those whose sessions in that window
+ * are all cancelled or on a break (which stay on the page, with their own warning, so nobody turns up to a class that is not on).
+ */
+export function summaryLine(rows: Pick<ListingRow, "sessions_in_window">[], when: When): string {
+  const live = rows.filter((r) => r.sessions_in_window > 0).length;
+  const off = rows.length - live;
+  const w = WINDOW_PHRASE[when];
+  if (live === 0) {
+    if (off === 0) return "";
+    return `No sessions ${w}. The sessions of ${off === 1 ? "1 activity aren't" : `${off} activities aren't`} taking place.`;
+  }
+  const base = `${live} ${noun(live)} with ${live === 1 ? "a session" : "sessions"} ${w}`;
+  return off > 0 ? `${base}, plus ${off} whose sessions aren't taking place` : base;
+}
+
 /** [from, to) as ISO instants, aligned to London midnights. Never more than 31 days (the database allows 93). */
 export function windowFor(when: When, now: Date = new Date()): { from: string; to: string } {
   const today = londonDate(now);

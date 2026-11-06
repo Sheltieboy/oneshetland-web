@@ -5,7 +5,7 @@ import { ActivityCard } from "@/components/activities/ActivityCard";
 import { REGULAR } from "@/components/activities/tokens";
 import { getActivityListing, getRulesFor } from "@/lib/activities-data";
 import { SHETLAND_AREAS } from "@/lib/local-data";
-import { parseDays, parseWhen, regularHref, safeCategory, WHEN_OPTIONS, type RegularFilters as F } from "@/lib/activities";
+import { parseDays, parseWhen, regularHref, safeCategory, summaryLine, WHEN_OPTIONS, type RegularFilters as F } from "@/lib/activities";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -62,7 +62,7 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
           </div>
         ) : (
           <>
-            <p className="mb-5 text-sm text-ink-muted" aria-live="polite">{rows.length} {rows.length === 1 ? "activity" : "activities"}{whenLabel ? ` with sessions ${f.when === "today" || f.when === "tomorrow" ? whenLabel : `in ${whenLabel}`}` : ""}</p>
+            <p className="mb-5 text-sm text-ink-muted" aria-live="polite">{summaryLine(rows, f.when)}</p>
             <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rows.map((a) => <ActivityCard key={a.id} a={a} rules={rules.get(a.id)} now={now} />)}
             </ul>
