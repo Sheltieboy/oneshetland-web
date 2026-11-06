@@ -205,7 +205,7 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
           </div>
         </Link>
 
-        <div className="grid grid-cols-2 gap-4 lg:col-span-7 lg:grid-cols-3 lg:grid-rows-2">
+        <div className="grid grid-cols-2 gap-4 lg:col-span-7 lg:grid-cols-3 lg:grid-rows-2 max-lg:[&>:last-child:nth-child(odd)]:col-span-2">
           {rest.map((b, i) => {
             const c = CAT_COLOR[b.category ?? ""] ?? "#4f46e5";
             return (
@@ -213,7 +213,7 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
                 <Logo b={b} size="h-14 w-14" />
                 <span>
                   <span className="block text-[10px] font-bold uppercase tracking-widest text-white/75">{CATEGORY_LABEL[b.category ?? ""] ?? "Business"}</span>
-                  <span className="mt-0.5 block line-clamp-2 font-display text-xl font-bold leading-tight">{b.name}</span>
+                  <span className="mt-0.5 block line-clamp-2 break-words font-display text-lg font-bold leading-tight sm:text-xl">{b.name}</span>
                 </span>
               </Link>
             );
@@ -223,7 +223,7 @@ export function DiscoverLocal({ businesses, recent = [] }: { businesses: Curated
       {recent.length > 0 && (
         <div className="mt-6" data-recently-joined>
           <h3 className="mb-2 text-[11px] font-bold uppercase tracking-widest text-ink-soft">Recently joined OneShetland</h3>
-          <ul className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
+          <ul className="-mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0">
             {recent.slice(0, 3).map((b) => (
               <li key={b.id} className="w-[15.5rem] shrink-0 snap-start sm:w-auto">
                 <Link href={href(b)} className="flex min-h-[64px] items-center gap-3 rounded-2xl bg-white p-3 shadow-soft transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">

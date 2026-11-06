@@ -14,7 +14,7 @@ const src = read("lib/curated-businesses.ts");
 const pure = src.slice(0, src.indexOf("/** `areaLabel`")).replace(/^import \{ publicClient \}.*\n/m, "");
 const dir = mkdtempSync(join(tmpdir(), "cb-"));
 writeFileSync(join(dir, "m.ts"), pure);
-const { buildShowcase, businessScore, rotate, rotationBucket, isRecentlyJoined, isShowable, HOME_SHELF, PREMIUM_RESERVED, RECENT_LIMIT, ROTATION_MS } = await import(join(dir, "m.ts"));
+const { buildShowcase, businessScore, rotate, rotationBucket, isRecentlyJoined, isShowable, HOME_SHELF, PREMIUM_RESERVED, PAID_SHELF_MAX, RECENT_LIMIT, ROTATION_MS } = await import(join(dir, "m.ts"));
 
 const NOW = new Date("2026-11-10T12:00:00Z");
 const daysAgo = (d) => new Date(NOW.getTime() - d * 86_400_000).toISOString();
@@ -186,4 +186,81 @@ test("the homepage uses the showcase and passes the strip; Local keeps the main 
   assert.match(read("app/page.tsx"), /getBusinessShowcase\(\)/);
   assert.match(read("app/page.tsx"), /<DiscoverLocal businesses=\{businesses\.main\} recent=\{businesses\.recent\} \/>/);
   assert.match(read("app/local/page.tsx"), /getCuratedBusinesses\(/);
+});
+
+// ── admin-controlled exclusion from the homepage showcase
+test("an excluded business appears in NEITHER the shelf nor the strip, even as the only Premium and a brand-new owner", () => {
+  const founder = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(2), name: "Founder Ltd", homepage_excluded: true });
+  const other = biz({ ...complete, live_tier: "premium", name: "Other Premium" });
+  const { main, recent } = buildShowcase([founder, other, ...strongFiller(8)], NOW);
+  assert.ok(!ids(main).includes(founder.id) && !ids(recent).includes(founder.id));
+  assert.equal(ids(main)[0], other.id, "the next Premium business takes the first position instead");
+  assert.equal(main.length, HOME_SHELF, "the shelf is still full");
+});
+test("excluding one Premium business leaves the rest of the rotation fair (the others share the reserved slots equally)", () => {
+  const founder = biz({ live_tier: "premium", homepage_excluded: true });
+  const others = Array.from({ length: 4 }, () => biz({ live_tier: "premium" }));
+  const base = Math.floor(NOW.getTime() / ROTATION_MS);
+  const counts = new Map(others.map((o) => [o.id, 0]));
+  for (let t = 0; t < 4; t++) {
+    const { main } = buildShowcase([founder, ...others, ...strongFiller(8)], new Date((base + t) * ROTATION_MS + 1000));
+    assert.ok(!ids(main).includes(founder.id));
+    for (const b of main.slice(0, PREMIUM_RESERVED)) counts.set(b.id, counts.get(b.id) + 1);
+  }
+  assert.deepEqual([...counts.values()], [2, 2, 2, 2]);
+});
+test("it is a per-business switch, not a rule about who owns a business: an identical, non-excluded owner is unaffected", () => {
+  const a = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(1), name: "Same Owner A", homepage_excluded: true });
+  const b = biz({ ...complete, live_tier: "premium", is_claimed: true, owner_activated_at: daysAgo(1), name: "Same Owner B" });
+  const { main } = buildShowcase([a, b], NOW);
+  assert.deepEqual(ids(main), [b.id]);
+  assert.doesNotMatch(src.replace(/\/\*[\s\S]*?\*\//g, ""), /founder|Fullerton|owner_id/i, "no founder rule and no name or owner is hard-coded in the web code");
+});
+test("the exclusion touches only the homepage showcase: Directory ranking and Featured never read it", () => {
+  assert.doesNotMatch(read("lib/local-data.ts"), /homepage_excluded/);
+  assert.doesNotMatch(read("lib/directory-rank.ts"), /homepage_excluded/);
+  assert.match(src, /homepage_excluded/);
+});
+test("the admin control calls only the two admin database functions, asks before acting, and is on the Homepage admin screen", () => {
+  const c = read("components/admin/HomepageShowcaseControl.tsx");
+  assert.match(c, /rpc\("admin_set_homepage_exclusion"/);
+  assert.match(c, /rpc\("admin_launch_business_lookup"/);
+  assert.match(c, /await confirm\(/);
+  assert.match(c, /does <strong>not<\/strong> change its plan, its benefits or its Directory position/);
+  assert.doesNotMatch(c, /\.from\(|subscription_tier|launch_plan/, "never writes a table or a plan");
+  const page = read("app/admin/homepage/page.tsx");
+  assert.match(page, /rpc\("admin_homepage_exclusions"\)/);
+  assert.match(page, /<HomepageShowcaseControl initial=\{exclusions\} \/>/);
+});
+
+// ── fairness when many Premium compete
+const paidCount = (main, all) => main.filter((m) => all.find((r) => r.id === m.id).live_tier !== "free").length;
+test("many Premium: the shelf never goes all-paid (PAID_SHELF_MAX), and free local businesses keep their places", () => {
+  const premium = ["food_drink", "retail", "services", "accommodation", "retail", "food_drink", "services"].map((c) => biz({ ...complete, live_tier: "premium", category: c }));
+  const free = ["food_drink", "retail", "services", "accommodation"].map((c) => biz({ ...complete, category: c, is_claimed: true }));
+  const all = [...premium, ...free];
+  const base = Math.floor(NOW.getTime() / ROTATION_MS);
+  for (let t = 0; t < 7; t++) {
+    const { main } = buildShowcase(all, new Date((base + t) * ROTATION_MS + 1000));
+    assert.equal(main.length, HOME_SHELF);
+    assert.ok(paidCount(main, all) <= PAID_SHELF_MAX, `turn ${t}: ${paidCount(main, all)} paid`);
+    assert.ok(main.length - paidCount(main, all) >= HOME_SHELF - PAID_SHELF_MAX, "at least two places stay free");
+  }
+});
+test("many Premium: over a full cycle every Premium business is reserved the same number of times", () => {
+  const premium = Array.from({ length: 7 }, () => biz({ ...complete, live_tier: "premium" }));
+  const base = Math.floor(NOW.getTime() / ROTATION_MS);
+  const held = new Map(premium.map((p) => [p.id, 0]));
+  for (let t = 0; t < 7; t++) for (const b of buildShowcase(premium, new Date((base + t) * ROTATION_MS + 1000)).main.slice(0, PREMIUM_RESERVED)) held.set(b.id, held.get(b.id) + 1);
+  assert.deepEqual([...held.values()], Array(7).fill(2), "7 turns x 2 reserved = 14 placements, 2 each");
+});
+test("a Premium business without a reserved slot is weighed as Pro: never below it, never above it", () => {
+  const prem = biz({ live_tier: "premium", category: "services", name: "Premium Svc" });
+  const pro = biz({ live_tier: "pro", category: "services", name: "Pro Svc" });
+  // with zero reserved slots, both compete: equal paid weight, so the more complete listing leads, and a bare Premium is not above a fuller Pro
+  const fuller = { ...pro, ...complete, cover_url: "c.png", website: "w" };
+  const { main } = buildShowcase([prem, fuller], NOW, { reserved: 0, limit: 1 });
+  assert.equal(main[0].id, fuller.id);
+  const { main: m2 } = buildShowcase([{ ...prem, ...complete, cover_url: "c.png", website: "w" }, pro], NOW, { reserved: 0, limit: 1 });
+  assert.notEqual(m2[0].id, pro.id, "a fuller Premium is not outranked by a bare Pro");
 });

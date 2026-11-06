@@ -9,11 +9,17 @@ import { publicClient } from "./supabase/public";
  *      granted; a lapsed or end-dateless plan counts as nothing). When more Premium businesses qualify than there are slots they
  *      take turns (rotate), so none is permanently shut out and none is permanently first.
  *   2. EVERYONE ELSE, by score, dealt one category at a time (café, shop, service, stay, …) so the shelf is not eight banks.
- *      Pro keeps its scoring advantage here but has NO guaranteed slot (that is not part of the Pro promise).
+ *      Pro keeps its scoring advantage here but has NO guaranteed slot (that is not part of the Pro promise). A Premium business
+ *      that did not hold a reserved slot this turn competes here with the same paid weight as Pro (never less, so a cheaper plan
+ *      cannot outrank it, and never more, so the extra Premium businesses do not crowd out the rotation). No more than
+ *      PAID_SHELF_MAX cards on the shelf may be paid, so the shelf stays a genuine mix.
  *
  * THE SCORE (higher is better): live Premium 200, live Pro 150, claimed 40, logo 30, a real description 15, verified 10, cover 10,
  * phone 5, website 5. Ties go to the newest listing. "Paid" is the entitlement the business HAS (live_tier), never the recorded
  * plan alone.
+ *
+ * EXCLUDED BY AN ADMINISTRATOR (homepage_excluded): the business appears in neither the shelf nor the strip. That is all it changes: the
+ * business keeps its plan and every benefit of it, and its Directory position (those do not read this flag).
  *
  * OPENING HOURS DO NOT AFFECT THIS SHELF, and the heading no longer implies they do.
  *
@@ -37,6 +43,8 @@ export const COMMERCIAL_CATEGORIES = ["food_drink", "retail", "services", "accom
 export const HOME_SHELF = 6;
 /** Of those, how many are held for live Premium businesses. */
 export const PREMIUM_RESERVED = 2;
+/** The most cards that may be paid (Premium or Pro) on the shelf, reserved ones included, so a free local business always has a place. */
+export const PAID_SHELF_MAX = 4;
 export const RECENT_LIMIT = 3;
 export const RECENT_DAYS = 30;
 /** Rotation period: long enough to feel stable and cache-friendly, short enough that every Premium business gets its turn. */
@@ -65,13 +73,15 @@ export type CuratedRow = CuratedBusiness & {
   live_tier: LiveTier;
   /** When it became owner-managed (approved claim or created by its owner). NULL = unowned. */
   owner_activated_at: string | null;
+  /** An administrator has asked for this business to be kept out of the homepage showcase (it changes nothing else about it). */
+  homepage_excluded?: boolean;
   phone: string | null;
   website: string | null;
   created_at: string | null;
 };
 
 const COLS =
-  "id, name, category, description, logo_url, cover_url, slug, subscription_tier, live_tier, owner_activated_at, is_claimed, is_verified, address, phone, website, created_at";
+  "id, name, category, description, logo_url, cover_url, slug, subscription_tier, live_tier, owner_activated_at, homepage_excluded, is_claimed, is_verified, address, phone, website, created_at";
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
@@ -115,7 +125,7 @@ const isCommercial = (b: CuratedRow) => !!b.name?.trim() && (COMMERCIAL_CATEGORI
 /** Pure: commercial listings, best first, one per trading name. */
 export function rankBusinesses(rows: CuratedRow[]): CuratedRow[] {
   const scored = rows
-    .filter(isCommercial)
+    .filter((b) => isCommercial(b) && !b.homepage_excluded)   // an administrator's exclusion removes it from every homepage section
     .map((b) => ({ b, s: businessScore(b) }))
     .sort((x, y) => y.s - x.s || (y.b.created_at ?? "").localeCompare(x.b.created_at ?? "") || x.b.id.localeCompare(y.b.id));
   const seen = new Set<string>();
@@ -129,13 +139,26 @@ export function rankBusinesses(rows: CuratedRow[]): CuratedRow[] {
   return unique;
 }
 
-/** Deal one from each kind in turn: café, shop, service, stay, café, … (best first within each kind). */
-function interleave<T extends { category: string | null }>(list: T[]): T[] {
+/** Deal one category at a time, but let at most `paidMax` paid (Pro or Premium) cards in; further paid ones are skipped, never reordered. */
+function dealCapped(list: CuratedRow[], take: number, paidMax: number): CuratedRow[] {
   const order = ["food_drink", "retail", "services", "accommodation"];
   const lanes = order.map((c) => list.filter((b) => b.category === c));
-  const out: T[] = [];
-  for (let i = 0; out.length < list.length; i++) {
-    for (const lane of lanes) if (lane[i]) out.push(lane[i]);
+  const out: CuratedRow[] = [];
+  const idx = lanes.map(() => 0);
+  let paid = 0;
+  for (let progressed = true; out.length < take && progressed; ) {
+    progressed = false;
+    for (let l = 0; l < lanes.length && out.length < take; l++) {
+      while (idx[l] < lanes[l].length) {
+        const b = lanes[l][idx[l]++];
+        const isPaid = b.live_tier !== "free";
+        if (isPaid && paid >= paidMax) continue;   // over the paid cap: skip this one, try the next in the lane
+        if (isPaid) paid += 1;
+        out.push(b);
+        progressed = true;
+        break;
+      }
+    }
   }
   return out;
 }
@@ -158,18 +181,21 @@ export type Showcase = { main: CuratedBusiness[]; recent: CuratedBusiness[] };
 export function buildShowcase(
   rows: CuratedRow[],
   now: Date,
-  opts: { limit?: number; reserved?: number; recentLimit?: number } = {},
+  opts: { limit?: number; reserved?: number; recentLimit?: number; paidMax?: number } = {},
 ): Showcase {
   const limit = opts.limit ?? HOME_SHELF;
   const reserved = Math.max(0, Math.min(opts.reserved ?? PREMIUM_RESERVED, limit));
   const recentLimit = opts.recentLimit ?? RECENT_LIMIT;
+  const paidMax = opts.paidMax ?? PAID_SHELF_MAX;
   const bucket = rotationBucket(now);
 
   const ranked = rankBusinesses(rows);
   const premium = ranked.filter((b) => b.live_tier === "premium");
   const held = rotate(premium, bucket, Math.min(reserved, premium.length));
   const heldIds = new Set(held.map((b) => b.id));
-  const rest = interleave(ranked.filter((b) => !heldIds.has(b.id))).slice(0, Math.max(0, limit - held.length));
+  // Everyone not holding a reserved slot competes on the shelf on equal paid footing: a Premium business is weighed as Pro here.
+  const contenders = rankBusinesses(ranked.filter((b) => !heldIds.has(b.id)).map((b) => (b.live_tier === "premium" ? { ...b, live_tier: "pro" as const } : b)));
+  const rest = dealCapped(contenders, Math.max(0, limit - held.length), Math.max(0, paidMax - held.length));
   const mainRows = [...held, ...rest];
   const shown = new Set(mainRows.map((b) => b.id));
   const shownNames = new Set(mainRows.map((b) => norm(b.name)));
