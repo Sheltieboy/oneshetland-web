@@ -4,11 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SHARED_CATEGORIES, ASK_QUESTION, ASK_ANSWERS } from "@/lib/event-categories";
 import { frontDoorOutcome } from "@/lib/event-front-door";
+import { NOT_AVAILABLE_YET, NOT_OPEN_YET, SIGN_IN_TO_SUBMIT } from "@/lib/contributor-copy";
+import { SubmissionForm } from "@/components/events/front-door/SubmissionForm";
 
 const btn = "w-full rounded-2xl border border-line-strong bg-paper px-5 py-4 text-left text-lg font-semibold text-ink transition hover:bg-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2";
 
-export function FrontDoor({ submissionsOpen }: { submissionsOpen: boolean }) {
-  const [slug, setSlug] = useState<string | null>(null);
+/** What the server found out about sending an event: who the person is, whether the database can take it, whether the master switch is on. */
+export type SubmitGate =
+  | { kind: "signin" }
+  | { kind: "ready"; staff: boolean; closedToPublic: boolean }
+  | { kind: "closed" }
+  | { kind: "unavailable" }
+  | { kind: "error"; message: string };
+
+export function FrontDoor({ gate, userId, initialCategory }: { gate: SubmitGate; userId: string | null; initialCategory?: string | null }) {
+  const [slug, setSlug] = useState<string | null>(initialCategory ?? null);
   const [answer, setAnswer] = useState<string | null>(null);
   const out = frontDoorOutcome(slug, answer);
   const label = SHARED_CATEGORIES.find((c) => c.slug === slug)?.label;
@@ -54,14 +64,23 @@ export function FrontDoor({ submissionsOpen }: { submissionsOpen: boolean }) {
         </section>
       )}
 
-      {out.kind === "event" && (
+      {out.kind === "event" && gate.kind === "ready" && userId && (
+        <SubmissionForm slug={out.slug} categoryLabel={label ?? ""} userId={userId} staff={gate.staff && gate.closedToPublic} onRestart={restart} />
+      )}
+
+      {out.kind === "event" && !(gate.kind === "ready" && userId) && (
         <section aria-live="polite" className="mt-6 rounded-2xl border border-line-strong bg-cream p-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-ink/75">{label}</p>
           <h2 ref={stepHeading} tabIndex={-1} className="mt-1 text-xl font-semibold text-ink outline-none">This is an event</h2>
-          {submissionsOpen ? (
-            <p className="mt-3 text-ink/80">Event submissions are open, but the form is not connected on this page yet.</p>
+          {gate.kind === "signin" ? (
+            <>
+              <p className="mt-3 text-lg text-ink/80">{SIGN_IN_TO_SUBMIT}</p>
+              <p className="mt-4"><Link href={`/sign-in?next=${encodeURIComponent(`/whats-on/add?category=${out.slug}`)}`} className="inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Sign in</Link></p>
+            </>
+          ) : gate.kind === "closed" ? (
+            <p className="mt-3 text-ink/80"><strong>{NOT_OPEN_YET}</strong></p>
           ) : (
-            <p className="mt-3 text-ink/80"><strong>Member submissions are not open yet.</strong> Thank you for your patience. Nothing has been sent or saved.</p>
+            <p className="mt-3 text-ink/80"><strong>{NOT_AVAILABLE_YET}</strong>{gate.kind === "error" ? ` (${gate.message})` : ""}</p>
           )}
           <button type="button" onClick={restart} className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Start again</button>
         </section>

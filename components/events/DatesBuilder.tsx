@@ -1,0 +1,66 @@
+"use client";
+
+import { MAX_DATES, blankRow, copyRowToNextDay, describeOccurrence, londonToUtc, type DateRow, type RowIssue } from "@/lib/event-dates-builder";
+import { TextInput, SecondaryButton, textBtn } from "@/components/events/submit-ui";
+
+/** The simple dates builder: one row per day. Add a row, copy the last row to the next day, remove a row. */
+export function DatesBuilder({ rows, onChange, issues, today, idBase = "dates" }: {
+  rows: DateRow[]; onChange: (rows: DateRow[]) => void; issues: RowIssue[]; today: string; idBase?: string;
+}) {
+  const set = (i: number, patch: Partial<DateRow>) => onChange(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  const issueFor = (r: DateRow, field: RowIssue["field"]) => issues.find((x) => x.rowId === r.id && (x.field === field || (field === "date" && x.field === "row")))?.message;
+  const full = rows.length >= MAX_DATES;
+
+  return (
+    <div>
+      <ol className="space-y-4">
+        {rows.map((r, i) => {
+          const p = `${idBase}-${r.id}`;
+          const dErr = issueFor(r, "date"), sErr = issueFor(r, "start"), eErr = issueFor(r, "end"), nErr = issueFor(r, "note");
+          const start = r.date && r.start ? londonToUtc(r.date, r.start) : null;
+          return (
+            <li key={r.id}>
+              <fieldset className="rounded-2xl border border-line-strong bg-paper p-4">
+                <legend className="px-2 text-lg font-bold text-ink">Date {i + 1}{start?.ok ? ` · ${describeOccurrence({ starts_at: start.iso })}` : ""}</legend>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div>
+                    <label htmlFor={`${p}-date`} className="block text-base font-semibold">Day</label>
+                    <TextInput id={`${p}-date`} type="date" min={today} value={r.date} onChange={(e) => set(i, { date: e.target.value })} aria-invalid={dErr ? true : undefined} aria-describedby={dErr ? `${p}-date-err` : undefined} />
+                  </div>
+                  <div>
+                    <label htmlFor={`${p}-start`} className="block text-base font-semibold">Starts at</label>
+                    <TextInput id={`${p}-start`} type="time" value={r.start} onChange={(e) => set(i, { start: e.target.value })} aria-invalid={sErr ? true : undefined} aria-describedby={sErr ? `${p}-start-err` : undefined} />
+                  </div>
+                  <div>
+                    <label htmlFor={`${p}-end`} className="block text-base font-semibold">Ends at <span className="font-normal text-ink-soft">(optional)</span></label>
+                    <TextInput id={`${p}-end`} type="time" value={r.end} onChange={(e) => set(i, { end: e.target.value })} aria-invalid={eErr ? true : undefined} aria-describedby={eErr ? `${p}-end-err` : undefined} />
+                  </div>
+                </div>
+                {dErr && <p id={`${p}-date-err`} className="mt-2 text-base font-semibold text-rose-700">{dErr}</p>}
+                {sErr && <p id={`${p}-start-err`} className="mt-2 text-base font-semibold text-rose-700">{sErr}</p>}
+                {eErr && <p id={`${p}-end-err`} className="mt-2 text-base font-semibold text-rose-700">{eErr}</p>}
+                <div className="mt-4">
+                  <label htmlFor={`${p}-note`} className="block text-base font-semibold">A note for this day <span className="font-normal text-ink-soft">(optional, for example "Matinee")</span></label>
+                  <TextInput id={`${p}-note`} type="text" maxLength={200} value={r.note} onChange={(e) => set(i, { note: e.target.value })} aria-invalid={nErr ? true : undefined} aria-describedby={nErr ? `${p}-note-err` : undefined} />
+                  {nErr && <p id={`${p}-note-err`} className="mt-2 text-base font-semibold text-rose-700">{nErr}</p>}
+                </div>
+                <div className="mt-3 flex flex-wrap gap-x-6">
+                  <button type="button" className={textBtn} disabled={full || !r.date} onClick={() => { const next = copyRowToNextDay(rows, i); if (next) onChange(next); }}>
+                    Copy this day to the next day<span className="sr-only"> (date {i + 1})</span>
+                  </button>
+                  {rows.length > 1 && (
+                    <button type="button" className={textBtn} onClick={() => onChange(rows.filter((_, k) => k !== i))}>Remove this day<span className="sr-only"> (date {i + 1})</span></button>
+                  )}
+                </div>
+              </fieldset>
+            </li>
+          );
+        })}
+      </ol>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <SecondaryButton disabled={full} onClick={() => onChange([...rows, blankRow()])}>Add another day</SecondaryButton>
+        <span className="text-base text-ink-soft">{rows.length} of {MAX_DATES} days</span>
+      </div>
+    </div>
+  );
+}
