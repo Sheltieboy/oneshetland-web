@@ -15,6 +15,8 @@ import { socialDestination } from "@/lib/social-links";
  *   /go/whats-on     → /whats-on  (campaign whats_on_roundup)
  *   /go/jobs         → /jobs      (campaign jobs_roundup)
  *   /go/event/<id>   → /whats-on/<id> (campaign event_spotlight)
+ *   /go/regular-activities → /whats-on/regular (campaign regular_roundup)
+ *   /go/accessible   → /accessible (campaign accessible_info)
  *
  *   Social Studio's newer recipes:
  *   /go/notice/<id>      → /notices/<id>       (notice_update / essential_alert)
@@ -33,6 +35,8 @@ const ROUTES: Record<string, { path: string; campaign: string }> = {
   spik: { path: "/spik", campaign: "wird_o_da_day" },
   "whats-on": { path: "/whats-on", campaign: "whats_on_roundup" },
   jobs: { path: "/jobs", campaign: "jobs_roundup" },
+  "regular-activities": { path: "/whats-on/regular", campaign: "regular_roundup" },
+  accessible: { path: "/accessible", campaign: "accessible_info" },
 };
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string[] }> }) {

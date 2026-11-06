@@ -17,6 +17,8 @@ export const KIND_META: Record<string, { label: string; color: string }> = {
   hub_community: { label: "Hubs & community", color: "#0369a1" },
   game_challenge: { label: "Games", color: "#059669" },
   cruise_visit: { label: "Cruise visit", color: "#1e3a8a" },
+  regular_roundup: { label: "Regular activities", color: "#0f766e" },
+  accessible_info: { label: "Accessible Shetland", color: "#0b5d76" },
   custom: { label: "Custom", color: "#6b7280" },
 };
 
@@ -24,7 +26,8 @@ export const kindMeta = (kind: string) => KIND_META[kind] ?? KIND_META.custom;
 
 /** "Mon, Wed, Sat · about 19:00" from the recipe's own config; empty when it has no fixed schedule. */
 export function recipeSchedule(config: Record<string, unknown>): string {
-  const days = Array.isArray(config.weekdays) ? (config.weekdays as string[]).join(", ") : "";
+  // A recipe may compose on one day for another (the weekly roundup drafts Saturday or Sunday for Sunday 18:00): post_day is what staff care about.
+  const days = typeof config.post_day === "string" ? config.post_day : Array.isArray(config.weekdays) ? (config.weekdays as string[]).join(", ") : "";
   const hour = typeof config.hour === "number" ? `about ${String(config.hour).padStart(2, "0")}:00` : "";
   return [days, hour].filter(Boolean).join(" · ");
 }

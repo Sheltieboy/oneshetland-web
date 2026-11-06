@@ -69,3 +69,12 @@ export async function getSpotlightReport(): Promise<import("@/lib/spotlight-repo
   const { parseSpotlightReport } = await import("@/lib/spotlight-report");
   return parseSpotlightReport(data?.value);
 }
+
+/** The latest selection snapshots of the two newest recipes (admin_config, written by the composer on each real run). Read-only; null until the first run. */
+export async function getSelectionSnapshots(): Promise<{ regular: Record<string, unknown> | null; accessible: Record<string, unknown> | null }> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { data } = await sb.from("admin_config").select("key, value").in("key", ["social.regular_roundup_last", "social.accessible_info_last"]);
+  const parse = (k: string) => { try { const v = (data ?? []).find((r) => r.key === k)?.value; const o = v ? JSON.parse(v as string) : null; return o && typeof o === "object" ? (o as Record<string, unknown>) : null; } catch { return null; } };
+  return { regular: parse("social.regular_roundup_last"), accessible: parse("social.accessible_info_last") };
+}

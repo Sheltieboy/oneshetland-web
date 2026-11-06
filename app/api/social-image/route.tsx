@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { publicClient } from "@/lib/supabase/public";
 import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-source";
+import { ALL_FACILITIES, PROVENANCE_LABEL } from "@/lib/accessibility";
+import { RESOURCE_SECTIONS } from "@/lib/accessibility-resources";
+import { CATEGORY_LABEL } from "@/lib/activities";
 
 /**
  * /api/social-image — branded 1080×1080 social cards for the Peerie Press
@@ -17,6 +20,8 @@ import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-so
  *   roundup  &start=<YYYY-MM-DD>&days=N — What's On listing card (7 or 14 days)
  *   jobs     (no params)                — newest open jobs listing card
  *   business &id=<local_businesses.id>  — Business Spotlight card (used when a business has no photograph of its own)
+ *   regular  &ids=<a,b,c…>              — Regular Activities weekly roundup collage (up to 6 PUBLIC activities; their own photographs, else a branded panel)
+ *   access   &format=awareness|resource|business — Accessible Shetland cards (typographic; never a photograph of a facility, never a badge or certification)
  */
 
 export const dynamic = "force-dynamic";
@@ -353,6 +358,104 @@ export async function GET(req: NextRequest) {
               ))}
               {list.length === 0 ? <span style={{ fontSize: 36, color: INK_SOFT }}>New roles are posted every week — see who's hiring at oneshetland.com</span> : null}
             </div>
+          </div>
+        </Frame>
+      ),
+      opts,
+    );
+  }
+
+  /* ── Regular Activities weekly roundup: a collage of the activities' OWN photographs, or a restrained branded panel ── */
+  if (kind === "regular") {
+    const ids = (p.get("ids") ?? "").split(",").map((x) => x.trim()).filter((x) => /^[0-9a-f-]{36}$/i.test(x)).slice(0, 6);
+    // Anonymous read: row security only returns activities that are public, so an unpublished or paused one can never appear on a card.
+    const { data: rows } = ids.length ? await sb.from("regular_activities").select("id, title, category, cover_url").in("id", ids) : { data: [] };
+    const byId = new Map((rows ?? []).map((r) => [r.id as string, r]));
+    const items = ids.flatMap((id) => (byId.get(id) ? [byId.get(id)!] : []));
+    const photos = await Promise.all(items.map((r) => coverAsJpegDataUri(r.cover_url as string | null, imagePolicy())));
+    const TINT: Record<string, string> = { fitness: "#0f766e", kids_family: "#a15c07", social: "#0a4a70", arts_crafts: "#6d28d9", sport: "#15803d", wellbeing: "#0e7490", music: "#4338ca", learning: "#1d4ed8", faith: "#475569", other: "#0f766e" };
+    const n = items.length;
+    const Tile = ({ i, w, h, big }: { i: number; w: number; h: number; big: boolean }) => {
+      const r = items[i]; const photo = photos[i]; const title = String(r.title ?? ""); const tint = TINT[String(r.category)] ?? TINT.other;
+      const size = big ? (title.length > 28 ? 52 : 64) : title.length > 24 ? 36 : 42;
+      return (
+        <div style={{ display: "flex", position: "relative", width: w, height: h, borderRadius: 26, overflow: "hidden", background: `linear-gradient(155deg, ${tint} 0%, ${NAVY} 80%)` }}>
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} width={w} height={h} style={{ position: "absolute", top: 0, left: 0, width: w, height: h, objectFit: "cover" }} alt="" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={new URL("/brand/mark-white.png", req.nextUrl.origin).toString()} width={w * 0.9} height={w * 0.9} style={{ position: "absolute", top: -w * 0.3, right: -w * 0.28, opacity: 0.14 }} alt="" />
+          )}
+          <div style={{ display: "flex", position: "absolute", left: 0, right: 0, bottom: 0, top: 0, background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.38) 52%, rgba(0,0,0,0.06) 100%)" }} />
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", position: "absolute", left: 0, right: 0, bottom: 0, top: 0, padding: big ? 34 : 26, gap: 8 }}>
+            <span style={{ display: "flex", alignSelf: "flex-start", whiteSpace: "nowrap", background: "#ffffff", color: "#0f766e", borderRadius: 999, padding: "5px 16px", fontSize: big ? 22 : 19, fontWeight: 700, letterSpacing: 2 }}>{(big ? (CATEGORY_LABEL[String(r.category)] ?? "Activity") : (CATEGORY_LABEL[String(r.category)] ?? "Activity").split(" & ")[0]).toUpperCase().slice(0, 22)}</span>
+            <span style={{ fontFamily: "Fraunces", fontSize: size, color: "#ffffff", lineHeight: 1.05 }}>{title.length > 44 ? `${title.slice(0, 43)}…` : title}</span>
+          </div>
+        </div>
+      );
+    };
+    const GAP = 14, W = SIZE - 80, H = 1080 - 200 - 110 - 14;      // area under the header, above the footer
+    const cols = (k: number, total = W) => Math.floor((total - GAP * (k - 1)) / k);
+    const rowsOf = (k: number, total = H) => Math.floor((total - GAP * (k - 1)) / k);
+    let grid: React.ReactNode = null;
+    if (n === 1) grid = <Tile i={0} w={W} h={H} big />;
+    else if (n === 2) grid = <div style={{ display: "flex", gap: GAP }}><Tile i={0} w={cols(2)} h={H} big /><Tile i={1} w={cols(2)} h={H} big /></div>;
+    else if (n === 3) grid = <div style={{ display: "flex", gap: GAP }}><Tile i={0} w={Math.floor(W * 0.58)} h={H} big /><div style={{ display: "flex", flexDirection: "column", gap: GAP }}><Tile i={1} w={W - Math.floor(W * 0.58) - GAP} h={rowsOf(2)} big={false} /><Tile i={2} w={W - Math.floor(W * 0.58) - GAP} h={rowsOf(2)} big={false} /></div></div>;
+    else if (n === 4) grid = <div style={{ display: "flex", flexDirection: "column", gap: GAP }}><div style={{ display: "flex", gap: GAP }}><Tile i={0} w={cols(2)} h={rowsOf(2)} big /><Tile i={1} w={cols(2)} h={rowsOf(2)} big={false} /></div><div style={{ display: "flex", gap: GAP }}><Tile i={2} w={cols(2)} h={rowsOf(2)} big={false} /><Tile i={3} w={cols(2)} h={rowsOf(2)} big={false} /></div></div>;
+    else if (n === 5) grid = <div style={{ display: "flex", flexDirection: "column", gap: GAP }}><div style={{ display: "flex", gap: GAP }}><Tile i={0} w={cols(2)} h={Math.floor(H * 0.55)} big /><Tile i={1} w={cols(2)} h={Math.floor(H * 0.55)} big /></div><div style={{ display: "flex", gap: GAP }}>{[2, 3, 4].map((i) => <Tile key={i} i={i} w={cols(3)} h={H - Math.floor(H * 0.55) - GAP} big={false} />)}</div></div>;
+    else if (n >= 6) grid = <div style={{ display: "flex", flexDirection: "column", gap: GAP }}><div style={{ display: "flex", gap: GAP }}>{[0, 1, 2].map((i) => <Tile key={i} i={i} w={cols(3)} h={rowsOf(2)} big={false} />)}</div><div style={{ display: "flex", gap: GAP }}>{[3, 4, 5].map((i) => <Tile key={i} i={i} w={cols(3)} h={rowsOf(2)} big={false} />)}</div></div>;
+    return new ImageResponse(
+      (
+        <Frame ringUrl={ringUrl} accent="#0f766e">
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "44px 40px 0", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", height: 142, gap: 6, paddingLeft: 8 }}>
+              <Eyebrow text="Regular activities" color="#0f766e" />
+              <span style={{ fontFamily: "Fraunces", fontSize: 70, color: NAVY, lineHeight: 1.05 }}>Something new this week</span>
+            </div>
+            {grid ?? <span style={{ fontSize: 36, color: INK_SOFT }}>Classes, clubs and groups across Shetland: oneshetland.com</span>}
+          </div>
+        </Frame>
+      ),
+      opts,
+    );
+  }
+
+  /* ── Accessible Shetland ───────────────────────────────────────────────── */
+  if (kind === "access") {
+    const format = p.get("format") ?? "awareness";
+    const ACCESS = "#0b5d76";        // deep teal-blue: 8:1 on cream
+    let eyebrow = "Accessible Shetland"; let title = "Plan your visit on your own terms."; let sub = "Practical information about access, facilities and assistance, shared by local places and the organisations who know most."; let chips: string[] = []; let foot = "";
+    if (format === "resource") {
+      const r = RESOURCE_SECTIONS.flatMap((sec) => sec.items).find((x) => x.slug === (p.get("slug") ?? ""));
+      if (!r) return new Response("resource not found", { status: 404 });
+      eyebrow = "Accessible Shetland · Helpful resource"; title = r.title; sub = r.about; foot = `From ${r.by}`;
+    } else if (format === "business") {
+      // Anonymous read: only a business whose access information is PUBLISHED and not hidden can be drawn. Free text, contact lines and staff notes are never selected.
+      const id = p.get("id") ?? "";
+      const { data: prof } = await sb.from("accessibility_profiles").select("verification, verified_on").eq("subject_type", "business").eq("subject_id", id).maybeSingle();
+      const { data: biz } = await sb.from("local_businesses_public").select("name").eq("id", id).maybeSingle();
+      if (!prof || !biz) return new Response("not found", { status: 404 });
+      const { data: facts } = await sb.from("accessibility_facts").select("facility, status").eq("subject_type", "business").eq("subject_id", id).in("status", ["available", "partial"]).limit(30);
+      const label = new Map(ALL_FACILITIES.map((f) => [f.key, f.label]));
+      chips = (facts ?? []).filter((f) => label.has(f.facility as string)).sort((a, b) => (a.status === b.status ? 0 : a.status === "available" ? -1 : 1)).slice(0, 6).map((f) => `${label.get(f.facility as string)}${f.status === "partial" ? " (partly)" : ""}`);
+      eyebrow = "Accessible Shetland · Shared by the business"; title = String(biz.name ?? ""); sub = "has shared information about access and facilities, to help people plan a visit.";
+      foot = `${PROVENANCE_LABEL[prof.verification as keyof typeof PROVENANCE_LABEL] ?? "Provided by the business"}${prof.verification === "independently_checked" && prof.verified_on ? ` · checked ${prof.verified_on}` : ""}`;
+    }
+    const big = title.length > 46 ? 62 : title.length > 28 ? 74 : 88;
+    return new ImageResponse(
+      (
+        <Frame ringUrl={ringUrl} accent={ACCESS}>
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "0 72px", gap: 28, justifyContent: "center" }}>
+            <Eyebrow text={eyebrow} color={ACCESS} />
+            <span style={{ fontFamily: "Fraunces", fontSize: big, color: NAVY, lineHeight: 1.06 }}>{title}</span>
+            <span style={{ fontSize: 40, color: INK, lineHeight: 1.35 }}>{sub}</span>
+            {chips.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginTop: 6 }}>
+                {chips.map((c) => <span key={c} style={{ display: "flex", background: "#ffffff", border: `3px solid ${ACCESS}`, color: INK, borderRadius: 14, padding: "10px 20px", fontSize: 32, fontWeight: 700 }}>{c}</span>)}
+              </div>
+            )}
+            {foot ? <span style={{ fontSize: 32, fontWeight: 700, color: INK_SOFT, marginTop: 14 }}>{foot}</span> : null}
           </div>
         </Frame>
       ),

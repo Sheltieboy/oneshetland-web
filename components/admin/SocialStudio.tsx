@@ -373,7 +373,7 @@ function MiniSwitch({
 /** Recipes whose posts always need a person. Mirrors the database rule (CHECK + trigger) so the switch can't even be tried. */
 const ALWAYS_APPROVE = new Set(["essential_alert"]);
 /** Kinds the publisher re-validates against live data just before sending. */
-const NEEDS_CHECK = new Set(["notice_update", "essential_alert", "aald_memory", "business_spotlight", "hub_community", "cruise_visit"]);
+const NEEDS_CHECK = new Set(["notice_update", "essential_alert", "aald_memory", "business_spotlight", "hub_community", "cruise_visit", "regular_roundup", "accessible_info"]);
 
 function RecipeRow({ recipe }: { recipe: SocialRecipe }) {
   const [enabled, setEnabled] = useState(recipe.enabled);

@@ -126,5 +126,5 @@ export const FILTERS: { key: string; label: string }[] = [
 ];
 
 /** Where visitors can find authoritative information we do not hold. Each URL was fetched and answered on 6 Nov 2026; we link, we do not copy. */
-export type Resource = { title: string; href: string; by: string; about: string };
+export type Resource = { slug: string; title: string; href: string; by: string; about: string };
 export type ResourceSection = { id: string; title: string; blurb: string; items: Resource[] };
