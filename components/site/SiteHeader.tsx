@@ -137,7 +137,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
               href={`/sign-in?next=${encodeURIComponent(pathname)}`}
               className="hidden rounded-pill border border-line-strong px-4 py-2 text-sm font-semibold text-ink transition-colors hover:bg-sand sm:inline-flex"
             >
-              Sign in
+              Join / Sign in
             </Link>
           )}
           <button
@@ -217,7 +217,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
                 onClick={() => setOpen(false)}
                 className="mt-2 rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper"
               >
-                Sign in
+                Join / Sign in
               </Link>
             )}
           </div>
