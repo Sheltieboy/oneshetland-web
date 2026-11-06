@@ -68,7 +68,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>
 
       {/* ── Your business ──────────────────────────────────────────────
-           Five outcomes in a fixed order. Not eighteen tiles, and not sorted
+           Six outcomes in a fixed order. Not eighteen tiles, and not sorted
            by state: an owner learns where things are, and a Home that
            rearranges itself has to be read from scratch every visit. */}
       <section className="mb-8">
@@ -96,7 +96,6 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         <h2 className="eyebrow mb-2 text-ink-muted">Grow</h2>
         <div className="grid gap-2 sm:grid-cols-3">
           <UtilityRow label="Analytics" href={`${base}/analytics`} />
-          <UtilityRow label="Regular activities" href={`${base}/activities`} />
           {/* Boost is bought on the billing screen, so that is its real home. */}
           <UtilityRow label="Boost" href={`${base}/billing`}
             status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />

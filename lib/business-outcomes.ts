@@ -1,8 +1,8 @@
 /**
- * business-outcomes.ts — the five things a business owner is actually trying to do.
+ * business-outcomes.ts — the six things a business owner is actually trying to do.
  *
  * Pure, derived on every load, stores nothing. Be found, sell things, take
- * bookings, run events, keep customers coming back. Everything else on the
+ * bookings, run events, run regular activities, keep customers coming back. Everything else on the
  * business is either a system layer (money, growth) or a different product
  * (work).
  *
@@ -21,7 +21,7 @@
 
 import { beFound, type BeFoundInput } from "./be-found.ts";
 
-export type OutcomeKey = "found" | "sell" | "bookings" | "events" | "retention";
+export type OutcomeKey = "found" | "sell" | "bookings" | "events" | "activities" | "retention";
 
 /**
  * neutral — available, started, configured, ready. All perfectly fine states.
@@ -52,6 +52,8 @@ export type OutcomeData = {
   passes: number | null; passesActive: number | null;
   services: number | null; availability: number | null;
   events: number | null; eventsUpcoming: number | null;
+  /** Regular activities of this business: all of them, and the ones published (and not paused by OneShetland). */
+  activities: number | null; activitiesPublished: number | null;
   offers: number | null; offersLive: number | null;
   loyalty: number | null; loyaltyActive: number | null;
   meetsPro: boolean | null; meetsPremium: boolean | null;
@@ -176,6 +178,26 @@ export function eventsOutcome(d: OutcomeData, base: string): Outcome {
   return { ...shell, state: "none_upcoming", tone: "neutral", status: "No upcoming events" };
 }
 
+/* ── Run regular activities ────────────────────────────────────────────────── */
+
+export function activitiesOutcome(d: OutcomeData, base: string): Outcome {
+  const shell = {
+    key: "activities" as const,
+    title: "Run regular activities",
+    blurb: "Add weekly classes, groups and activities. Set your times once and update individual sessions whenever you need to.",
+    primary: { label: "Regular activities", href: `${base}/activities` },
+  };
+  // A failed count is "couldn't load", never a confident "none yet".
+  if (unknown(d.activities, d.activitiesPublished)) return asUnknown(shell);
+  if (n(d.activities) === 0) return { ...shell, state: "available", tone: "neutral", status: "No regular activities yet" };
+  if (n(d.activitiesPublished) === 0) {
+    // Saved but not live: say so plainly rather than pretend, or call it published.
+    return { ...shell, state: "saved", tone: "neutral", status: "No activities published yet" };
+  }
+  const c = n(d.activitiesPublished);
+  return { ...shell, state: "live", tone: "positive", status: `${c} ${c === 1 ? "activity" : "activities"} published` };
+}
+
 /* ── Keep customers coming back ───────────────────────────────────────────── */
 
 export function retentionOutcome(d: OutcomeData, base: string): Outcome {
@@ -220,6 +242,7 @@ export function businessOutcomes(
     sellOutcome(d, base),
     bookingsOutcome(d, business.accepts_bookings === true, base),
     eventsOutcome(d, base),
+    activitiesOutcome(d, base),
     retentionOutcome(d, base),
   ];
 }

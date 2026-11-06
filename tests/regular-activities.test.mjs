@@ -166,7 +166,9 @@ test("nothing is forced: drop-in is the default, no payment or booking set-up is
   assert.match(read("components/activities/manage/ManagePages.tsx"), /Free to list, whatever your plan/);
 });
 test("Business and Hub Manage link to their activities", () => {
-  assert.match(read("app/business/[id]/manage/page.tsx"), /label="Regular activities" href=\{`\$\{base\}\/activities`\}/);
+  // Business Manage: a full-width "Run regular activities" card in "Your business" (lib/business-outcomes.ts), no longer a link under Grow.
+  assert.match(read("lib/business-outcomes.ts"), /primary: \{ label: "Regular activities", href: `\$\{base\}\/activities` \}/);
+  assert.doesNotMatch(read("app/business/[id]/manage/page.tsx"), /UtilityRow label="Regular activities"/);
   assert.match(read("app/hubs/[id]/manage/page.tsx"), /href: `\$\{base\}\/activities`, label: "Regular activities"/);
 });
 test("following: opt-in, says it is NOT a reminder, and the website sends nothing itself", () => {

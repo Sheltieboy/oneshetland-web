@@ -52,6 +52,7 @@ export type OutcomeReads = {
   passes: number | null; passesActive: number | null;
   services: number | null; availability: number | null;
   events: number | null; eventsUpcoming: number | null;
+  activities: number | null; activitiesPublished: number | null;
   offers: number | null; offersLive: number | null;
   loyalty: number | null; loyaltyActive: number | null;
   meetsPro: boolean | null; meetsPremium: boolean | null;
@@ -105,7 +106,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
   const count = (t: string, apply: (q: any) => any) =>   // eslint-disable-line @typescript-eslint/no-explicit-any
     apply(sb.from(t).select("id", { count: "exact", head: true }).eq("business_id", businessId));
 
-  /* Started here rather than awaited later: these sixteen depend on nothing in
+  /* Started here rather than awaited later: these eighteen depend on nothing in
      the batch below, so letting them wait for it would cost Home a whole extra
      round trip for no reason. Two waves, not three. */
   const outcomeReads = Promise.allSettled([
@@ -128,6 +129,9 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "pro" }),
     sb.rpc("business_meets_tier", { p_business_id: businessId, p_required_tier: "premium" }),
     sb.rpc("business_payout_ready", { p_business: businessId }),
+    // This business's Regular Activities: all, and those live (published and not paused by OneShetland). Owner session, so row security is the owner's.
+    sb.from("regular_activities").select("id", { count: "exact", head: true }).eq("organiser_business_id", businessId),
+    sb.from("regular_activities").select("id", { count: "exact", head: true }).eq("organiser_business_id", businessId).eq("status", "published").eq("admin_paused", false),
   ]);
 
   const [codeRes, ordersRes, bookingsRes, leadsRes, appsRes, bizRes, analyticsRes] =
@@ -170,7 +174,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     productsRes, productsActiveRes, passesRes, passesActiveRes,
     servicesRes, availabilityRes, eventsRes, eventsUpcomingRes,
     offersRes, offersLiveRes, loyaltyRes, loyaltyActiveRes,
-    boostRes, proRes, premiumRes, payoutReadyRes,
+    boostRes, proRes, premiumRes, payoutReadyRes, activitiesRes, activitiesPublishedRes,
   ] = await outcomeReads;
 
   /** An exact count, or null when the read failed. Never a consoling zero. */
@@ -191,6 +195,7 @@ export async function getDashboardData(businessId: string): Promise<DashboardDat
     passes: num(passesRes as never), passesActive: num(passesActiveRes as never),
     services: num(servicesRes as never), availability: num(availabilityRes as never),
     events: num(eventsRes as never), eventsUpcoming: num(eventsUpcomingRes as never),
+    activities: num(activitiesRes as never), activitiesPublished: num(activitiesPublishedRes as never),
     offers: num(offersRes as never), offersLive: num(offersLiveRes as never),
     loyalty: num(loyaltyRes as never), loyaltyActive: num(loyaltyActiveRes as never),
     meetsPro: bool(proRes as never), meetsPremium: bool(premiumRes as never),
