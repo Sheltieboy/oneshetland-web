@@ -5,7 +5,7 @@ import { frontDoorAccess } from "@/lib/event-front-door";
 import { FrontDoor } from "@/components/events/front-door/FrontDoor";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Add an Event or Activity", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Add an Event or Activity", robots: { index: false, follow: false }, alternates: { canonical: "/whats-on/add" } };
 
 /**
  * HIDDEN. Not linked from navigation, footers, empty states or the sitemap. Opens only when the server-only variable

@@ -47,7 +47,8 @@ async function rows(table: string, cols: string): Promise<Record<string, unknown
 }
 
 /** Read rows with a filter, trying the preferred columns first and falling back if one is missing (never fails the build). */
-async function rowsFiltered(table: string, colSets: string[], build: (q: any) => any): Promise<Record<string, unknown>[]> {
+type SelectQuery = ReturnType<ReturnType<ReturnType<typeof publicClient>["from"]>["select"]>;
+async function rowsFiltered(table: string, colSets: string[], build: (q: SelectQuery) => SelectQuery): Promise<Record<string, unknown>[]> {
   for (const cols of colSets) {
     try {
       const { data, error } = await build(publicClient().from(table).select(cols)).limit(5000);
