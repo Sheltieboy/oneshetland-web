@@ -20,9 +20,9 @@ export function FollowButton({ activityId, slug, signedIn, following: initial, t
     return (
       <div>
         <Link href={`/sign-in?next=${encodeURIComponent(`/whats-on/regular/${slug}`)}`} className={"inline-block rounded-pill px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 motion-reduce:transition-none " + (dark ? "bg-white text-ink shadow-soft hover:bg-cream" : "border border-line-strong text-ink hover:bg-sand")}>
-          Sign in to follow for changes
+          Sign in to follow
         </Link>
-        <p className={"mt-1.5 max-w-sm text-xs " + (dark ? "text-white/85" : "text-ink-muted")}>Following adds a note to your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders.</p>
+        <p className={"mt-1.5 max-w-sm text-xs " + (dark ? "text-white/85" : "text-ink-muted")}>Following adds a note to your OneShetland notifications if a session is cancelled or changed, and when the organiser sends an occasional message. No emails or phone alerts yet, and no reminders.</p>
       </div>
     );
   }
@@ -52,10 +52,10 @@ export function FollowButton({ activityId, slug, signedIn, following: initial, t
         className={"rounded-pill px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50 motion-reduce:transition-none " + (dark ? (following ? "border border-white/80 text-white hover:bg-white/10" : "bg-white text-ink shadow-soft hover:bg-cream") : (following ? "border border-line-strong text-ink hover:bg-sand" : "text-paper"))}
         style={following || dark ? undefined : { background: REGULAR }}
       >
-        {following ? "Following · tap to stop" : "Follow for changes"}
+        {following ? "Following · tap to stop" : "Follow this activity"}
       </button>
       <p className={"mt-1.5 max-w-sm text-xs " + (dark ? "text-white/85" : "text-ink-muted")} aria-live="polite">
-        {err ?? (following ? "You'll get a note in your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders. You can turn What's On notifications off in your notification settings." : "Get a note in your OneShetland notifications if a session is cancelled or changed. No emails or phone alerts yet, and no reminders.")}</p>
+        {err ?? (following ? "You'll get a note in your OneShetland notifications if a session is cancelled or changed, and when the organiser sends an occasional message. No emails or phone alerts yet, and no reminders. You can turn What's On notifications off in your notification settings, or stop following at any time." : "Get a note in your OneShetland notifications if a session is cancelled or changed, and when the organiser sends an occasional message. No emails or phone alerts yet, and no reminders.")}</p>
     </div>
   );
 }

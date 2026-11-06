@@ -5,6 +5,7 @@ import { SHETLAND_AREAS } from "@/lib/local-data";
 import { CATEGORY_LABEL, type ActivityDraft } from "@/lib/activities";
 import { ActivityForm } from "./ActivityForm";
 import { ActivityEditor } from "./ActivityEditor";
+import { MessageFollowersPanel } from "./MessageFollowersPanel";
 import { btnPrimary, card } from "./ui";
 import { ActivityImage } from "../ActivityImage";
 
@@ -87,6 +88,7 @@ export async function ActivityEditPage({ ctx, activityId }: { ctx: Ctx; activity
           hubPendingApproval={pending} followerCount={d.followerCount} base={ctx.base}
           rules={d.rules as never} sessions={d.sessions} exceptions={d.exceptions} breaks={d.breaks} siblingIds={siblings.map((s) => s.id)} defaultVenue={a.venue}
         />
+        <MessageFollowersPanel activityId={a.id} />
         <section aria-labelledby="det-h">
           <h2 id="det-h" className="mb-3 font-display text-lg font-bold">Details</h2>
           <ActivityForm owner={{ kind: ctx.kind, id: ctx.ownerId }} base={ctx.base} activityId={a.id} initial={draft} areas={SHETLAND_AREAS} coverUrl={a.cover_url} />

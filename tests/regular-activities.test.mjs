@@ -191,10 +191,10 @@ test("sessions are never computed on the website: it calls the database's Europe
 });
 
 // ── follower alerts: what the UI promises must be exactly what the system does (in-app notifications only)
-test("the Follow wording says exactly what followers get: a note in their notifications, no email, no phone alert, no reminders", () => {
+test("the Follow wording says exactly what followers get: schedule-change notes and occasional organiser messages in their notifications, no email, no phone alert, no reminders", () => {
   const f = read("components/activities/FollowButton.tsx").replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.match(f, /adds a note to your OneShetland notifications if a session is cancelled or changed\. No emails or phone alerts yet, and no reminders\./);
-  assert.match(f, /You'll get a note in your OneShetland notifications if a session is cancelled or changed\. No emails or phone alerts yet, and no reminders\./);
+  assert.match(f, /adds a note to your OneShetland notifications if a session is cancelled or changed, and when the organiser sends an occasional message\. No emails or phone alerts yet, and no reminders\./);
+  assert.match(f, /You'll get a note in your OneShetland notifications if a session is cancelled or changed, and when the organiser sends an occasional message\. No emails or phone alerts yet, and no reminders\./);
   assert.match(f, /turn What's On notifications off in your notification settings/);
   assert.doesNotMatch(f, /push notification|we'll email|text message|SMS|phone alert if you use the app/i, "no promise the system does not keep");
 });

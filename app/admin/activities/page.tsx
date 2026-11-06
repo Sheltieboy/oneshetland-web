@@ -2,6 +2,7 @@ import { AdminHeader } from "@/components/admin/AdminUI";
 import { ActivitiesAdmin, type AdminActivity } from "@/components/admin/ActivitiesAdmin";
 import type { QueueStatus } from "@/lib/activities";
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function Page() {
   return (
     <>
       <AdminHeader title="Regular activities" sub="Publish platform activities, pause any listing, approve hub activities and hand one to a hub or business. Everything here is recorded." />
+      <p className="mb-4 text-sm"><Link href="/admin/activities/messages" className="font-semibold underline">Messages to followers: review and hide →</Link></p>
       <ActivitiesAdmin rows={list} queue={queue} />
     </>
   );

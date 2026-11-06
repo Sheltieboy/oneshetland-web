@@ -6,6 +6,7 @@
  */
 import { createClient } from "@/lib/supabase/client";
 import { londonInstant, type ActivityDraft } from "@/lib/activities";
+import type { AdminMessageRow, MessageRow, MessagingStatus, SendResult } from "@/lib/activity-messages";
 
 const nul = (v: string) => (v.trim() === "" ? null : v.trim());
 const fail = (e: unknown): never => { throw new Error((e as { message?: string })?.message ?? "Something went wrong. Please try again."); };
@@ -128,3 +129,36 @@ export async function uploadActivityPhoto(id: string, file: File): Promise<strin
   return photoCall(id, { method: "POST", body });
 }
 export const removeActivityPhoto = (id: string) => photoCall(id, { method: "DELETE" });
+
+/* ── Messages to followers (the database function is the authority: permission, eligibility, text rules, limits, delivery, all in one transaction) ── */
+export async function getMessagingStatus(activityId: string): Promise<MessagingStatus> {
+  const { data, error } = await createClient().rpc("activity_messaging_status", { p_activity: activityId });
+  if (error) fail(error);
+  return data as MessagingStatus;
+}
+/** `requestId` is made once per composed message and reused on a retry, so a double click or a dropped connection can never send twice. */
+export async function sendActivityMessage(activityId: string, body: string, requestId: string): Promise<SendResult> {
+  const { data, error } = await createClient().rpc("send_activity_message", { p_activity: activityId, p_body: body, p_request: requestId });
+  if (error) fail(error);
+  return data as SendResult;
+}
+export async function listActivityMessages(activityId: string): Promise<MessageRow[]> {
+  const { data, error } = await createClient().from("activity_messages").select("id, body, created_at, followers, recipients, opted_out, hidden_at").eq("activity_id", activityId).order("created_at", { ascending: false }).limit(50);
+  if (error) fail(error);
+  return (data ?? []) as MessageRow[];
+}
+export async function adminListMessages(activityId: string | null = null): Promise<AdminMessageRow[]> {
+  const { data, error } = await createClient().rpc("admin_activity_messages", { p_activity: activityId, p_limit: 100 });
+  if (error) fail(error);
+  return (data ?? []) as AdminMessageRow[];
+}
+export async function adminHideMessage(id: string, reason: string): Promise<number> {
+  const { data, error } = await createClient().rpc("admin_hide_activity_message", { p_message: id, p_reason: reason });
+  if (error) fail(error);
+  return (data as number) ?? 0;
+}
+export async function adminRestoreMessage(id: string): Promise<number> {
+  const { data, error } = await createClient().rpc("admin_restore_activity_message", { p_message: id });
+  if (error) fail(error);
+  return (data as number) ?? 0;
+}
