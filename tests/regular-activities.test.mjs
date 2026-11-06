@@ -130,12 +130,13 @@ test("What's On: the strip sits outside the events list, appears only on the pla
   const page = read("app/whats-on/page.tsx");
   assert.match(page, /const showStrip = !calendar && !category && !freeOnly;/);
   assert.match(page, /\{showStrip && <ActivityStrip items=\{activityStrip\} when=\{stripWhen\} now=\{now\} \/>\}/);
-  assert.match(page, /resilient\(`whatson:activities:\$\{stripWhen\}`, \{ ttlMs: 60_000, deadlineMs: 2500, staleMs: 10 \* 60_000, fallback: \[\] \}/);
+  assert.match(page, /resilient\(`whatson:activities:\$\{stripWhen\}`, \{ ttlMs: 60_000, deadlineMs: 2500, staleMs: 10 \* 60_000, emptyGuardMs: 0, fallback: \[\] \}/);
   assert.ok(page.indexOf("<ActivityStrip") < page.indexOf("<FeaturedStrip"), "above the highlights, never inside the list");
   assert.doesNotMatch(page, /visible\.(map|concat)\([^)]*activit/i, "activities are not mixed into the events being listed");
   assert.match(page, /const stripWhen = whenForEventsRange\(range\);/, "the strip follows the date chips");
   const data = read("lib/activities-data.ts");
-  assert.match(data, /catch \{\s*return \[\];\s*\}/, "a failed listing read is 'nothing to show'");
+  assert.match(data, /catch \(e\) \{\s*if \(strict\) throw e;[\s\S]*?return \[\];/, "a failed listing read is 'nothing to show' (the cached strip uses the strict form so it keeps its last good copy)");
+  assert.match(data, /getActivityListing\(\{ when, limit \}, now, true\)/);
 });
 test("a quiet strip renders nothing at all, and shows at most three cards, one per ACTIVITY", () => {
   const strip = read("components/activities/ActivityStrip.tsx");

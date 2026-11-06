@@ -11,7 +11,7 @@ import { windowFor, type ListingRow, type RuleRow, type SessionRow, type When, t
 
 export const LISTING_LIMIT = 60;
 
-export async function getActivityListing(f: Partial<RegularFilters> & { limit?: number }, now: Date = new Date()): Promise<ListingRow[]> {
+export async function getActivityListing(f: Partial<RegularFilters> & { limit?: number }, now: Date = new Date(), strict = false): Promise<ListingRow[]> {
   try {
     const w = windowFor(f.when ?? DEFAULT_WHEN, now);
     const { data, error } = await publicClient().rpc("regular_activities_listing", {
@@ -23,7 +23,8 @@ export async function getActivityListing(f: Partial<RegularFilters> & { limit?: 
     });
     if (error) throw error;
     return (data ?? []) as ListingRow[];
-  } catch {
+  } catch (e) {
+    if (strict) throw e;      // the caller (a cached strip) prefers its last good copy to a false "nothing on"
     return [];
   }
 }
@@ -40,7 +41,7 @@ export async function getRulesFor(activityIds: string[]): Promise<Map<string, Ru
 }
 
 /** The compact strip on What's On (Events): a handful of activities with a session in the chosen window. */
-export const getActivityStrip = (when: When, now: Date = new Date(), limit = 6) => getActivityListing({ when, limit }, now);
+export const getActivityStrip = (when: When, now: Date = new Date(), limit = 6) => getActivityListing({ when, limit }, now, true);
 
 export type ActivityDetail = {
   id: string; slug: string; title: string; description: string | null; category: string; audience: string | null; venue: string | null;

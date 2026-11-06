@@ -27,32 +27,31 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
     <>
       <section className="relative isolate overflow-hidden text-paper" style={{ background: REGULAR }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(135deg, ${REGULAR}, #134e4a)` }} />
-        <div className="relative mx-auto max-w-6xl px-5 py-12 sm:py-14">
+        <div className="relative mx-auto max-w-6xl px-5 py-8 sm:py-14">
           <p className="eyebrow text-paper/85">What&apos;s On</p>
           <h1 className="mt-2 font-display text-4xl font-bold leading-none sm:text-6xl">Regular activities</h1>
           <p className="mt-4 max-w-xl text-lg text-paper/90">Classes, groups and weekly sessions across the isles. One listing for each, with the next session and any changes.</p>
         </div>
       </section>
 
-      <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl space-y-3 px-5 py-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <WhatsOnTabs active="regular" />
-            <form action="/whats-on/regular" method="get" className="flex min-w-0 flex-1 gap-2" role="search">
-              {f.when !== "fortnight" && <input type="hidden" name="when" value={f.when} />}
-              {f.days.length > 0 && <input type="hidden" name="days" value={f.days.join(",")} />}
-              {f.category && <input type="hidden" name="category" value={f.category} />}
-              {f.locality && <input type="hidden" name="place" value={f.locality} />}
-              {f.dropIn && <input type="hidden" name="dropin" value="1" />}
-              <input name="q" defaultValue={f.q ?? ""} placeholder="Search classes and groups" aria-label="Search regular activities" className="min-w-0 flex-1 rounded-pill border border-line-strong bg-white px-4 py-2 text-sm text-ink focus:outline-none focus:ring-2" maxLength={80} />
-              <button type="submit" className="rounded-pill px-5 py-2 text-sm font-bold text-paper" style={{ background: REGULAR }}>Search</button>
-            </form>
-          </div>
-          <RegularFilters f={f} areas={SHETLAND_AREAS} />
-        </div>
+      {/* The same switch, in the same place, as on Events. */}
+      <div className="border-b border-line bg-cream">
+        <div className="mx-auto max-w-6xl px-5 py-2.5"><WhatsOnTabs active="regular" /></div>
       </div>
 
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:py-12">
+      <div className="mx-auto max-w-6xl px-5 pb-10 pt-6 sm:pb-12">
+        <form action="/whats-on/regular" method="get" className="flex gap-2" role="search">
+          {f.when !== "fortnight" && <input type="hidden" name="when" value={f.when} />}
+          {f.days.length > 0 && <input type="hidden" name="days" value={f.days.join(",")} />}
+          {f.category && <input type="hidden" name="category" value={f.category} />}
+          {f.locality && <input type="hidden" name="place" value={f.locality} />}
+          {f.dropIn && <input type="hidden" name="dropin" value="1" />}
+          <input name="q" defaultValue={f.q ?? ""} placeholder="Search classes and groups" aria-label="Search regular activities" className="min-w-0 flex-1 rounded-pill border border-line-strong bg-white px-4 py-2.5 text-sm text-ink focus:outline-none focus:ring-2" maxLength={80} />
+          <button type="submit" className="shrink-0 rounded-pill px-5 py-2.5 text-sm font-bold text-paper" style={{ background: REGULAR }}>Search</button>
+        </form>
+        <div className="mt-4"><RegularFilters f={f} areas={SHETLAND_AREAS} /></div>
+
+        <div className="mt-8">
         {rows.length === 0 ? (
           <div className="rounded-card border border-line bg-paper p-10 text-center shadow-soft">
             <h2 className="font-display text-2xl font-bold">{filtered ? "No regular activities match that" : "No regular activities listed yet"}</h2>
@@ -69,6 +68,7 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
             </ul>
           </>
         )}
+        </div>
         <p className="mt-10 rounded-card border border-dashed border-line-strong p-4 text-sm text-ink-soft">
           Run a class or group? Businesses and hubs can list regular activities free from their Manage screen: weekly times, cancellations and holiday breaks included, no booking or payment set-up needed.
         </p>

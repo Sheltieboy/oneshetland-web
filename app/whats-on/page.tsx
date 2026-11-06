@@ -53,7 +53,8 @@ export default async function WhatsOnPage({
   const now = new Date();
   const nowIso = now.toISOString();
   // Regular activities (classes and groups) are NOT events and never enter the list below. A compact strip points to them, for the same period
-  // as the date chips. It is bounded (2.5 s, kept 60 s) and shows nothing on failure, so it can never delay or break What's On.
+  // as the date chips. It is bounded (2.5 s, kept 60 s) and on a real failure serves its last good copy or nothing, so it can never delay or break What's On.
+  // emptyGuardMs: 0 because an EMPTY answer here is genuine (the loader throws on failure), so a paused or cancelled activity leaves the strip within a minute.
   const stripWhen = whenForEventsRange(range);
   const showStrip = !calendar && !category && !freeOnly;
   const [pageEvents, highlights, monthEvents, categories, activityStrip] = await Promise.all([
@@ -63,7 +64,7 @@ export default async function WhatsOnPage({
     calendar ? getEventsInMonth(now.getFullYear(), now.getMonth()) : Promise.resolve([] as EventListItem[]),
     getEventCategories(),
     showStrip
-      ? resilient(`whatson:activities:${stripWhen}`, { ttlMs: 60_000, deadlineMs: 2500, staleMs: 10 * 60_000, fallback: [] }, () => getActivityStrip(stripWhen, now))
+      ? resilient(`whatson:activities:${stripWhen}`, { ttlMs: 60_000, deadlineMs: 2500, staleMs: 10 * 60_000, emptyGuardMs: 0, fallback: [] }, () => getActivityStrip(stripWhen, now))
       : Promise.resolve([]),
   ]);
 
@@ -96,13 +97,16 @@ export default async function WhatsOnPage({
         </div>
       </section>
 
+      {/* Section switch. Deliberately NOT inside the sticky bar below: that bar is already tall on a phone and must stay exactly as it was. */}
+      <div className="border-b border-line bg-cream">
+        <div className="mx-auto max-w-6xl px-5 py-2.5"><WhatsOnTabs active="events" /></div>
+      </div>
+
       {/* Sticky filters */}
       <div className="sticky top-16 z-30 border-b border-line bg-cream/90 backdrop-blur-md">
         <div className="mx-auto max-w-6xl space-y-2.5 px-5 py-3">
-          {/* Section switch + list ↔ calendar toggle + date range + free */}
+          {/* List ↔ calendar toggle + date range + free */}
           <div className="flex flex-wrap items-center gap-2">
-            <WhatsOnTabs active="events" />
-            <span className="hidden h-5 w-px bg-line-strong sm:block" />
             <ViewToggle calendar={calendar} sp={sp} />
             {!calendar && (
               <>
