@@ -125,3 +125,10 @@ test("scheduling, recurrence, cancellation and following are untouched: the view
   assert.doesNotMatch(view, /generate_series|setHours|activity_exceptions|activity_breaks|\.from\(|rpc\(/);
   assert.match(read("app/whats-on/regular/[slug]/page.tsx"), /getActivityDetail\(slug, now\)/);
 });
+
+test("homepage Recently joined strip: first swipe card clears the screen edge; shelf layout untouched", () => {
+  const home = read("components/preview/v2/HomeV2.tsx");
+  const m = home.match(/<ul [^>]*className="[^"]*snap-x[^"]*"/g) || [];
+  assert.ok(m.length >= 2);
+  for (const ul of m) assert.match(ul, /scroll-p[lx]-5/);
+});
