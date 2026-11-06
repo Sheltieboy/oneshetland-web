@@ -16,6 +16,7 @@ import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-so
  *   event    &id=<events.id>            — event spotlight poster (uses cover)
  *   roundup  &start=<YYYY-MM-DD>&days=N — What's On listing card (7 or 14 days)
  *   jobs     (no params)                — newest open jobs listing card
+ *   business &id=<local_businesses.id>  — Business Spotlight card (used when a business has no photograph of its own)
  */
 
 export const dynamic = "force-dynamic";
@@ -221,6 +222,56 @@ export async function GET(req: NextRequest) {
 
   /* ── Jobs roundup — newest open jobs ───────────────────────────────────── */
   /* ── Product spotlight — Shop Shetland ─────────────────────────────────── */
+  if (kind === "business") {
+    const { data: biz } = await sb
+      .from("local_businesses_public")
+      .select("name, category, description, cover_url, logo_url")
+      .eq("id", p.get("id") ?? "")
+      .maybeSingle();
+    if (!biz) return new Response("business not found", { status: 404 });
+    const DIRECTORY = "#4f46e5";
+    const photo = (await coverAsJpegDataUri(biz.cover_url, imagePolicy())) ?? null;
+    const logo = photo ? null : await coverAsJpegDataUri(biz.logo_url, imagePolicy());
+    const blurb = String(biz.description ?? "").replace(/\s+/g, " ").trim();
+    const short = blurb.length > 170 ? `${blurb.slice(0, 167).replace(/\s+\S*$/, "")}…` : blurb;
+    const name = String(biz.name ?? "");
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: CREAM, position: "relative", fontFamily: "Inter" }}>
+          {photo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photo} width={SIZE} height={560} style={{ width: SIZE, height: 560, objectFit: "cover" }} alt="" />
+          ) : (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ringUrl} width={760} height={760} style={{ position: "absolute", top: -180, right: -200, opacity: 0.08 }} alt="" />
+              {logo && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logo} width={150} height={150} style={{ margin: "56px 64px 0", width: 150, height: 150, objectFit: "contain", borderRadius: 24, background: "#ffffff" }} alt="" />
+              )}
+            </>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: photo ? "30px 64px 0" : logo ? "28px 64px 40px" : "0 64px 24px", gap: photo ? 10 : 22, justifyContent: photo || logo ? "flex-start" : "center" }}>
+            <span style={{ fontSize: 26, fontWeight: 700, letterSpacing: 5, color: DIRECTORY }}>
+              {(`LOCAL BUSINESS SPOTLIGHT${biz.category ? `  ·  ${biz.category}` : ""}`).toUpperCase().slice(0, 60)}
+            </span>
+            <span style={{ fontFamily: "Fraunces", fontSize: name.length > 34 ? (photo ? 60 : 78) : name.length > 22 ? (photo ? 72 : 96) : photo ? 88 : 120, color: NAVY, lineHeight: 1.05 }}>{name}</span>
+            {short && <span style={{ fontSize: photo ? 32 : 40, color: INK_SOFT, lineHeight: 1.35 }}>{short}</span>}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 64px", height: 110, borderTop: `6px solid ${DIRECTORY}`, background: "#ffffff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={ringUrl} width={54} height={54} alt="" />
+              <span style={{ fontFamily: "Fraunces", fontSize: 38, color: NAVY }}>OneShetland</span>
+            </div>
+            <span style={{ fontSize: 26, fontWeight: 700, color: INK_SOFT }}>support local · oneshetland.com</span>
+          </div>
+        </div>
+      ),
+      opts,
+    );
+  }
+
   if (kind === "product") {
     const { data: prod } = await sb
       .from("products")

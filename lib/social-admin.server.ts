@@ -60,3 +60,12 @@ export async function getSocialPublishingPaused(): Promise<boolean> {
     .maybeSingle();
   return data?.value === "true";
 }
+
+/** The Business Spotlight rotation as the composer last saw it (admin_config['social.spotlight_pool'], written on each posting day). Null until the first run. */
+export async function getSpotlightReport(): Promise<import("@/lib/spotlight-report").SpotlightReport | null> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { data } = await sb.from("admin_config").select("value").eq("key", "social.spotlight_pool").maybeSingle();
+  const { parseSpotlightReport } = await import("@/lib/spotlight-report");
+  return parseSpotlightReport(data?.value);
+}

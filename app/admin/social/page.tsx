@@ -1,12 +1,13 @@
-import { listSocialPosts, listSocialRecipes, getSocialPublishingPaused } from "@/lib/social-admin.server";
+import { listSocialPosts, listSocialRecipes, getSocialPublishingPaused, getSpotlightReport } from "@/lib/social-admin.server";
+import { SpotlightPanel } from "@/components/admin/SpotlightPanel";
 import { SocialStudio } from "@/components/admin/SocialStudio";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Social studio · Admin" };
 
 export default async function AdminSocialPage() {
-  const [posts, recipes, paused] = await Promise.all([
-    listSocialPosts(), listSocialRecipes(), getSocialPublishingPaused(),
+  const [posts, recipes, paused, spotlight] = await Promise.all([
+    listSocialPosts(), listSocialRecipes(), getSocialPublishingPaused(), getSpotlightReport().catch(() => null),
   ]);
   return (
     <div>
@@ -18,6 +19,7 @@ export default async function AdminSocialPage() {
         </p>
       </div>
       <SocialStudio posts={posts} recipes={recipes} paused={paused} />
+      <SpotlightPanel report={spotlight} />
     </div>
   );
 }
