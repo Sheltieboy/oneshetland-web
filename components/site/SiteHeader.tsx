@@ -2,26 +2,33 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { BasketPill } from "@/components/shop/BasketPill";
 import { SiteSearch } from "@/components/search/SiteSearch";
+import { MobileMenu } from "@/components/site/MobileMenu";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
 export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderUser; fetchStatus?: FetchStatus }) {
-  const [open, setOpen] = useState(false);
+  // The mobile menu is open only on the page it was opened on, so any navigation closes it without an effect.
+  const [openAt, setOpenAt] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [more, setMore] = useState(false);
   const [search, setSearch] = useState(false);
   const pathname = usePathname();
+  const open = openAt === pathname;
+  const setOpen = useCallback((v: boolean | ((o: boolean) => boolean)) => setOpenAt((cur) => ((typeof v === "function" ? v(cur === pathname) : v) ? pathname : null)), [pathname]);
+  const closeMenu = useCallback(() => setOpenAt(null), []);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
+    <header ref={headerRef} className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
@@ -81,7 +88,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
         <div className="flex items-center gap-2">
           {/* Sits outside the signed-in cluster below (which is hidden on small
               screens) so the way back to the basket survives at every width. */}
-          <button type="button" aria-label="Search" aria-expanded={search} onClick={() => setSearch((v) => !v)}
+          <button type="button" aria-label="Search" aria-expanded={search} onClick={() => { setOpenAt(null); setSearch((v) => !v); }}
             className="grid h-11 w-11 place-items-center rounded-pill text-ink-soft transition-colors hover:bg-sand hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-navy">
             <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           </button>
@@ -141,11 +148,13 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
             </Link>
           )}
           <button
+            ref={toggleRef}
             type="button"
-            aria-label="Menu"
+            aria-label={open ? "Close menu" : "Menu"}
             aria-expanded={open}
-            onClick={() => setOpen((o) => !o)}
-            className="grid h-10 w-10 place-items-center rounded-pill border border-line-strong text-navy xl:hidden"
+            aria-controls="site-menu"
+            onClick={() => { setSearch(false); setOpen((o) => !o); }}
+            className="grid h-11 w-11 place-items-center rounded-pill border border-line-strong text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy xl:hidden"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               {open ? (
@@ -165,64 +174,8 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
         </div>
       </div>
 
-      {/* Mobile menu */}
-      {open && (
-        <nav className="border-t border-line/70 bg-cream px-5 py-3 xl:hidden">
-          <div className="flex flex-col">
-            {[...PRIMARY_NAV, ...MORE_NAV].map((s) => (
-              <Link
-                key={s.key}
-                href={s.href}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-2 py-3 text-base font-medium text-ink hover:bg-sand"
-              >
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
-                {s.label}
-              </Link>
-            ))}
-            <Link
-              href="/business"
-              onClick={() => setOpen(false)}
-              className="mt-1 flex items-center gap-3 rounded-xl px-2 py-3 text-base font-medium text-ink hover:bg-sand"
-            >
-              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "#7c3aed" }} />
-              For businesses
-            </Link>
-            {user ? (
-              <>
-                {/* The bell is hidden below sm; this is how a phone reaches the notifications inbox. */}
-                <Link
-                  href="/notifications"
-                  onClick={() => setOpen(false)}
-                  className="mt-2 rounded-pill border border-line-strong px-4 py-3 text-center text-base font-semibold text-ink"
-                >
-                  Notifications
-                </Link>
-                <Link
-                  href="/account"
-                  onClick={() => setOpen(false)}
-                  className="mt-2 rounded-pill border border-line-strong px-4 py-3 text-center text-base font-semibold text-ink"
-                >
-                  My account
-                </Link>
-                <form action="/auth/sign-out" method="post" className="mt-2">
-                  <button type="submit" className="w-full rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper">
-                    Sign out
-                  </button>
-                </form>
-              </>
-            ) : (
-              <Link
-                href={`/sign-in?next=${encodeURIComponent(pathname)}`}
-                onClick={() => setOpen(false)}
-                className="mt-2 rounded-pill bg-navy px-4 py-3 text-center text-base font-semibold text-paper"
-              >
-                Join / Sign in
-              </Link>
-            )}
-          </div>
-        </nav>
-      )}
+      {/* Mobile menu: a scrolling, grouped sheet (components/site/MobileMenu.tsx) */}
+      {open && <MobileMenu onClose={closeMenu} user={user} signInHref={`/sign-in?next=${encodeURIComponent(pathname)}`} headerRef={headerRef} toggleRef={toggleRef} />}
       {search && (
         <div className="border-t border-line/70 bg-cream" onKeyDown={(e) => { if (e.key === "Escape") setSearch(false); }}>
           <div className="mx-auto max-w-3xl px-5 py-3"><SiteSearch autoFocus onNavigate={() => setSearch(false)} /></div>

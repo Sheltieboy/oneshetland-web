@@ -19,7 +19,8 @@ describe("navigation says Work and still goes to /jobs", () => {
     assert.ok(PRIMARY_NAV.some((s) => s.label === "Work" && s.href === "/jobs"));
     assert.ok(![...PRIMARY_NAV, ...MORE_NAV, ...SECTIONS].some((s) => s.label === "Jobs"));
     for (const f of ["components/site/SiteHeader.tsx", "components/site/SiteFooter.tsx"]) assert.match(read(f), /from "@\/lib\/sections"/, f);
-    assert.match(read("components/site/SiteHeader.tsx"), /\[\.\.\.PRIMARY_NAV, \.\.\.MORE_NAV\]\.map/, "the mobile menu uses the same list");
+    // The mobile menu is its own component now; it builds its tiles from the same two lists (grouped by lib/nav-groups.ts).
+    assert.match(read("components/site/MobileMenu.tsx"), /mobileNavGroups\(PRIMARY_NAV, MORE_NAV\)/, "the mobile menu uses the same list");
   });
   test("no other section was renamed or moved", () => {
     assert.deepEqual(PRIMARY_NAV.map((s) => s.label), ["What's On", "Local", "Shop", "Games", "Cruise", "Work", "Directory", "Hubs"]);
