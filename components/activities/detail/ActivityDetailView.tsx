@@ -44,7 +44,7 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
   const changes = changedAhead(sessions, now);
   const preview = ahead.slice(0, 6);
   const ownerHref = owner.kind === "hub" ? `/hubs/${owner.slug || owner.id}` : owner.kind === "business" ? `/directory/${owner.slug || owner.id}` : null;
-  const ownerKnown = owner.kind === "platform" || !!owner.name;
+  const ownerKnown = owner.kind !== "platform" && !!owner.name;   // platform-owned or unreadable owner: say nothing about who runs it
   const nextPlace = next ? [next.venue, next.locality].filter(Boolean).join(", ") || place : place;
   const nextMoved = next ? movedFrom(next) : null;
 
@@ -84,7 +84,7 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
           <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.05] sm:text-6xl">{a.title}</h1>
           {ownerKnown && (
             <p className="mt-2 text-base text-white/90">
-              {owner.kind === "platform" ? "Listed by OneShetland" : <>Run by {ownerHref ? <Link href={ownerHref} className="font-semibold underline underline-offset-2 hover:text-white">{owner.name}</Link> : <span className="font-semibold">{owner.name}</span>}</>}
+              Run by {ownerHref ? <Link href={ownerHref} className="font-semibold underline underline-offset-2 hover:text-white">{owner.name}</Link> : <span className="font-semibold">{owner.name}</span>}
             </p>
           )}
           <ul className="mt-5 flex flex-col gap-2 text-sm text-white/95 sm:flex-row sm:flex-wrap sm:gap-x-6">

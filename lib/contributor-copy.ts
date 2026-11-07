@@ -9,12 +9,27 @@ export type ChangeRoute = "after_approval" | "automatic";
 export const AFTER_APPROVAL_NOTE =
   "Once your event is approved, you can tell us straight away if a performance or the whole event is cancelled. You don't need to wait for anyone.";
 
-export function cancelledReportedLine(scope: "performance" | "event"): string {
-  return scope === "performance"
-    ? "Thank you for letting us know. We've marked that performance as cancelled so nobody turns up for it."
-    : "Thank you for letting us know. We've marked the whole event as cancelled and taken it off OneShetland, so nobody turns up for it.";
+/** The real support contact (the Support page and its monitored inbox). One place, so no screen invents an address. */
+export const SUPPORT_EMAIL = "hello@oneshetland.com";
+export const SUPPORT_PATH = "/support";
+/** A ready-to-send email to support about cancelling an event that has ticket buyers. */
+export function ticketBuyersMailto(eventTitle: string): string {
+  const subject = `Cancelling an event with ticket buyers: ${eventTitle.trim() || "my event"}`;
+  return `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}`;
 }
 
+/**
+ * OneShetland sends NOTHING to anyone when a community event (free, no OneShetland tickets) is cancelled: no email, no push, no notification.
+ * So every cancellation screen says so, kindly, and hands the job of telling people to the organiser. Never replace this with "we'll let people know".
+ */
+export const CANCEL_NO_NOTIFY_LINE =
+  "OneShetland doesn't send cancellation notifications to people yet. If anyone has told you they plan to come, please let them know yourself.";
+
+export function cancelledReportedLine(scope: "performance" | "event"): string {
+  return scope === "performance"
+    ? `Thank you for letting us know. That performance now shows as cancelled on OneShetland. ${CANCEL_NO_NOTIFY_LINE}`
+    : `Thank you for letting us know. The event page stays on OneShetland, clearly marked Cancelled, and it is off the lists and calendar. ${CANCEL_NO_NOTIFY_LINE}`;
+}
 /** Shown on the change-request form: which route this change will take. */
 export function changeRouteLine(route: ChangeRoute): string {
   return route === "automatic"
@@ -35,10 +50,10 @@ export function changeDeclinedLine(reason?: string | null): string {
     : "We couldn't make that change, so the event stays as it was. You're welcome to send another request.";
 }
 
-// Nothing in the system notifies anyone about a cancellation, so these say only what really happens: one performance stays visible marked Cancelled;
-// a whole-event cancellation takes the event page off the public site (visitors with a link see "not found").
+// What really happens: one performance stays visible marked Cancelled. A whole-event cancellation keeps the event page on OneShetland, clearly marked
+// Cancelled (anyone with the link sees it), and takes the event off the lists, calendar, homepage and feeds. Nothing notifies anyone (see CANCEL_NO_NOTIFY_LINE).
 export const CANCEL_PERFORMANCE_CONFIRM = "This performance will show as cancelled on OneShetland straight away.";
-export const CANCEL_EVENT_CONFIRM = "This takes the event off OneShetland straight away. People with a link will find it isn't there.";
+export const CANCEL_EVENT_CONFIRM = "This keeps the event page on OneShetland, clearly marked Cancelled, and takes it off the lists and calendar.";
 /** Kept for older callers: the performance wording. */
 export const CANCEL_CONFIRM_PROMPT = CANCEL_PERFORMANCE_CONFIRM;
 
@@ -92,7 +107,11 @@ export const CHANGE_FORM_NOTHING = "Nothing has changed yet. Change at least one
 export const PERFORMANCE_CANCELLED_BUTTON = "This performance is cancelled";
 export const EVENT_CANCELLED_BUTTON = "The whole event is cancelled";
 export const RESTORE_HINT = "Changed your mind? You can undo this for 24 hours, as long as nothing else has changed.";
-export const HIDDEN_EVENT_LINE = "This event is cancelled, so it is off OneShetland.";
+export const HIDDEN_EVENT_LINE = "This event is cancelled. Its page stays on OneShetland, clearly marked Cancelled, and it is off the lists and calendar.";
+export const EVENT_RESTORED_LINE = "Done. The event is back on the lists and calendar, and no longer marked Cancelled.";
+export const PERFORMANCE_RESTORED_LINE = "Done. That performance is back on.";
+/** My event submissions: an approved event that has since been cancelled. */
+export const CANCELLED_EVENT_EXPLAINER = "This event is cancelled. Its page stays on OneShetland, clearly marked Cancelled.";
 
 /** Why a particular status can't be acted on. */
 export function cannotChangeLine(reason: "past" | "decided" | "restore_window"): string {

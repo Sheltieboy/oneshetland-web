@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { CATEGORY_LABEL, activityHref, nextLine, patternText, safeHttps, type ListingRow, type RuleRow } from "@/lib/activities";
+import { activityOrganiserLabel } from "@/lib/activity-organiser";
 import { HERO, REGULAR } from "./tokens";
 import { ActivityImage } from "./ActivityImage";
 
 /** ONE card per activity, however many sessions it runs. */
 export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow[]; now?: Date }) {
   const next = nextLine(a, now);
+  const organiser = activityOrganiserLabel(a.owner_kind, a.owner_name);   // null for a platform-owned activity: no organiser claim
   const place = [a.venue, a.locality].filter(Boolean).join(", ");
   const drop = a.booking_mode === "drop_in";
   return (
@@ -23,7 +25,7 @@ export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow
           {a.audience && <span className="text-ink-muted normal-case tracking-normal">· {a.audience}</span>}
         </div>
         <h3 className="mt-1 font-display text-xl font-bold leading-tight text-ink group-hover:underline">{a.title}</h3>
-        <p className="mt-0.5 text-sm text-ink-soft">{a.owner_kind === "platform" ? "OneShetland" : a.owner_name}</p>
+        {organiser && <p className="mt-0.5 text-sm text-ink-soft">{organiser}</p>}
         {rules && rules.length > 0 && <p className="mt-2 text-sm font-semibold text-ink">{patternText(rules)}</p>}
         <p className={"mt-2 inline-flex w-fit rounded-pill px-3 py-1 text-sm font-semibold " + (next.tone === "ok" ? "bg-sand text-ink" : "bg-amber-50 text-amber-900")}>{next.text}</p>
         {a.upcoming.some((u) => u.status === "cancelled" || u.status === "moved" || u.status === "changed" || u.status === "break") && (

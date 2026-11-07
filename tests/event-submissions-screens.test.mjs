@@ -144,15 +144,22 @@ describe("copy", () => {
     }
     assert.doesNotMatch(copy.CANCEL_CONFIRM_PROMPT, /will be told|notified/i);
   });
-  test("cancellation wording is accurate: a performance stays visible as cancelled, the whole event comes off the site, nobody is said to be notified", () => {
+  test("cancellation wording is accurate: a performance stays visible as cancelled, the whole event page stays up marked Cancelled, nobody is said to be notified", () => {
     assert.equal(copy.CANCEL_PERFORMANCE_CONFIRM, "This performance will show as cancelled on OneShetland straight away.");
-    assert.equal(copy.CANCEL_EVENT_CONFIRM.startsWith("This takes the event off OneShetland straight away."), true);
-    assert.match(copy.cancelledReportedLine("event"), /taken it off OneShetland/);
-    assert.match(copy.HIDDEN_EVENT_LINE, /off OneShetland/);
+    assert.equal(copy.CANCEL_EVENT_CONFIRM, "This keeps the event page on OneShetland, clearly marked Cancelled, and takes it off the lists and calendar.");
+    assert.equal(copy.CANCEL_NO_NOTIFY_LINE, "OneShetland doesn't send cancellation notifications to people yet. If anyone has told you they plan to come, please let them know yourself.");
+    assert.match(copy.cancelledReportedLine("event"), /clearly marked Cancelled/);
+    assert.match(copy.cancelledReportedLine("event"), /please let them know yourself/);
+    assert.match(copy.cancelledReportedLine("performance"), /please let them know yourself/);
+    assert.match(copy.HIDDEN_EVENT_LINE, /page stays on OneShetland, clearly marked Cancelled/);
+    assert.doesNotMatch(copy.HIDDEN_EVENT_LINE, /taken (it )?off OneShetland|isn't there|not found/i);
     assert.doesNotMatch(copy.changeRouteLine("after_approval"), /we'll tell you|notif/i);
-    for (const s of [copy.CANCEL_PERFORMANCE_CONFIRM, copy.CANCEL_EVENT_CONFIRM, copy.cancelledReportedLine("event"), copy.cancelledReportedLine("performance"), copy.RESTORE_HINT]) assert.doesNotMatch(s, /\b(will be told|notified|emailed)\b/i, s);
+    const all = [copy.CANCEL_PERFORMANCE_CONFIRM, copy.CANCEL_EVENT_CONFIRM, copy.CANCEL_NO_NOTIFY_LINE, copy.cancelledReportedLine("event"), copy.cancelledReportedLine("performance"), copy.RESTORE_HINT, copy.HIDDEN_EVENT_LINE, copy.EVENT_RESTORED_LINE, copy.CANCELLED_EVENT_EXPLAINER];
+    // The only mention of notifications is the honest "doesn't send ... notifications" line; nothing says anyone was or will be told, emailed or notified.
+    for (const s of all) assert.doesNotMatch(s.replace(copy.CANCEL_NO_NOTIFY_LINE, ""), /\b(will be told|be notified|notified|notify|emailed|will email|we'll tell|we will tell|nobody turns up|has been told)\b/i, s);
     const c = read("components/events/contributor/ContributorEvent.tsx");
     assert.match(c, /confirm\.kind === "event" \? CANCEL_EVENT_CONFIRM : CANCEL_PERFORMANCE_CONFIRM/);
+    assert.match(c, /\{CANCEL_NO_NOTIFY_LINE\}/);
   });
   test("trusted wording: says changes go live straight away only when the database said trusted", () => {
     assert.match(copy.TRUSTED_CHANGE_INTRO, /dates, description, place, ticket link and contact details go live straight away/);

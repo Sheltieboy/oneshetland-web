@@ -9,6 +9,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/errors";
 import type { EventStatus, EventUpdateKind } from "./events-data";
+import { summariseBuyers, type BuyerSummary } from "@/lib/event-cancel-panel";
 import { normalisePerOrderMax, type PerOrderMaxDraft } from "@/lib/event-ticket-utils";
 
 export type TicketMode = "none" | "oneshetland" | "external";
@@ -253,5 +254,38 @@ export async function postEventUpdate(input: {
   // Tell every ticket-holder (fire-and-forget, same edge fn as the app).
   if (data?.id) {
     sb.functions.invoke("notify-event-update", { body: { update_id: data.id } }).catch(() => {});
+  }
+}
+
+/**
+ * How many people hold tickets, for the "before you cancel" panel. Uses the organiser's own read (get_event_orders, which refuses anyone who may not
+ * manage the event). Never throws: any failure is "not known", and the panel says so rather than guessing.
+ */
+export async function fetchBuyerSummary(eventId: string): Promise<BuyerSummary> {
+  try {
+    const { data, error } = await createClient().rpc("get_event_orders", { p_event_id: eventId });
+    if (error) return { known: false };
+    return summariseBuyers(data);
+  } catch {
+    return { known: false };
+  }
+}
+
+/**
+ * Cancel an event and tell the organiser the truth about the ticket-holder message. Used by the HUB screen (the business screen does the same steps inline).
+ * Runs setEventStatus (status, event_updates row kind 'cancellation', notify-event-update without waiting). Throws if the cancel itself failed.
+ * Returns { notifyError } = null when the update was recorded and the function was called, or the reason the update could not be recorded (the event IS cancelled).
+ * Authorised for a hub owner and active committee members: the event_updates insert policy uses is_hub_admin, and notify-event-update uses can_scan_event.
+ */
+export async function cancelEventReportingNotify(eventId: string): Promise<{ notifyError: string | null }> {
+  try {
+    await setEventStatus(eventId, "cancelled");
+    return { notifyError: null };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "";
+    if (/^The event is cancelled, but we couldn't notify ticket holders: /.test(m)) {
+      return { notifyError: m.replace(/^The event is cancelled, but we couldn't notify ticket holders: /, "").replace(/\. Please post an update manually\.$/, "") || "unknown error" };
+    }
+    throw e;
   }
 }

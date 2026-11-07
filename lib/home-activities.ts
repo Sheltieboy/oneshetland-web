@@ -12,12 +12,13 @@
  */
 import { CATEGORY_LABEL, activityHref, londonDate, nextLine, patternText, safeHttps, type ListingRow, type RuleRow } from "./activities.ts";
 import { thumbUrl } from "./activity-image-url.ts";
+import { activityOrganiserLabel } from "./activity-organiser.ts";
 
 export const HOME_ACTIVITY_MAX = 7;
 export const MAX_PER_ORGANISER = 2;
 
 export type HomeActivityCard = {
-  id: string; href: string; title: string; organiser: string; category: string; categoryLabel: string;
+  id: string; href: string; title: string; /** null = no organiser claim (platform-owned or unreadable owner): the card shows no organiser line. */ organiser: string | null; category: string; categoryLabel: string;
   /** The activity's own photograph (full size), or null: the card then uses its category colours. */
   photo: string | null; thumb: string | null;
   days: string | null; place: string | null; next: string; nextStartsAt: string;
@@ -55,7 +56,7 @@ export function homeActivityPlan(rows: readonly ListingRow[], rules: Record<stri
     const place = [...new Set([r.venue, r.locality].filter((x): x is string => !!x && !!x.trim()))].join(", ") || null;
     const rs = rules[r.id];
     return {
-      id: r.id, href: activityHref(r.slug), title: r.title, organiser: r.owner_kind === "platform" ? "OneShetland" : r.owner_name,
+      id: r.id, href: activityHref(r.slug), title: r.title, organiser: activityOrganiserLabel(r.owner_kind, r.owner_name),
       category: r.category, categoryLabel: CATEGORY_LABEL[r.category] ?? "Activity", photo, thumb: photo ? safeHttps(thumbUrl(photo)) : null,
       days: rs && rs.length > 0 ? patternText(rs) : null, place, next: nextLine(r, now).text, nextStartsAt: r.next_starts_at!,
     };

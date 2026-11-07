@@ -32,6 +32,7 @@ export type ErrorKind =
   | "decided"       // already decided, cannot be withdrawn / reviewed again
   | "restore_window"// too late to undo
   | "past"          // the date has gone
+  | "has_ticket_buyers" // cancelling a community event that people have bought OneShetland tickets for: staff must help (refunds, telling buyers)
   | "notfound"
   | "network"
   | "unknown";
@@ -47,6 +48,8 @@ export const MSG = {
   network: "We couldn't reach OneShetland. Please check your connection and try again. Nothing has been changed.",
   unknown: "Something went wrong on our side. Nothing has been changed. Please try again in a moment.",
   notfound: "We couldn't find that.",
+  /** The same words as the database's own message (hint has_ticket_buyers), so either source reads the same. */
+  hasTicketBuyers: "People have bought tickets for this event through OneShetland, so we need to help you tell them and arrange refunds. Please contact OneShetland.",
 } as const;
 
 const LIMIT_HINTS = new Set(["pending_limit", "daily_limit", "global_limit"]);
@@ -72,6 +75,7 @@ export function mapError(err: ErrLike, status?: number): ClientError {
     return { kind: "forbidden", message: /^[A-Z][^<>{}]{3,160}$/.test(message) ? message : MSG.forbidden };
   }
   if (code === "P0002") return { kind: "notfound", message: MSG.notfound };
+  if (hint === "has_ticket_buyers") return { kind: "has_ticket_buyers", message: MSG.hasTicketBuyers, field: hint };
   if (code === "P0001" && message) {
     const kind: ErrorKind = hint && LIMIT_HINTS.has(hint) ? "limit" : hint === "not_pending" || hint === "decided" ? "decided"
       : hint === "restore_window" ? "restore_window" : hint === "past" ? "past" : "validation";

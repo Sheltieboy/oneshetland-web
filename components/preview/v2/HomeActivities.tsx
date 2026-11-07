@@ -44,7 +44,7 @@ function ActivityTile({ c, kind }: { c: HomeActivityCard; kind: Kind }) {
         <div className="mt-auto w-full p-6 text-white sm:p-9">
           <span className="inline-flex items-center rounded-pill bg-white px-3.5 py-1.5 text-xs font-black uppercase tracking-wide" style={{ color: TEAL }}>{c.categoryLabel}</span>
           <h3 className={"mt-4 max-w-2xl font-display font-bold leading-[1.02] [text-shadow:_0_2px_18px_rgb(0_0_0_/_55%)] " + (kind === "tall" ? "text-3xl sm:text-4xl" : "text-4xl sm:text-6xl")}>{c.title}</h3>
-          <p className="mt-3 text-base font-semibold text-white/95 sm:text-lg">{c.organiser}</p>
+          {c.organiser && <p className="mt-3 text-base font-semibold text-white/95 sm:text-lg">{c.organiser}</p>}
           {c.days && <p className="mt-1 text-sm text-white/85 sm:text-base">{c.days}</p>}
           <p className="mt-2 text-sm font-bold text-amber-200 sm:text-base">{c.next}{c.place ? <span className="font-medium text-white/85"> · {c.place}</span> : null}</p>
         </div>
@@ -52,7 +52,7 @@ function ActivityTile({ c, kind }: { c: HomeActivityCard; kind: Kind }) {
         <div className="mt-auto w-full min-w-0 p-4 text-white sm:p-5">
           <span className="text-xs font-black uppercase tracking-wider text-amber-300">{c.categoryLabel}</span>
           <p className={"mt-1 line-clamp-2 font-display font-bold leading-tight [text-shadow:_0_1px_10px_rgb(0_0_0_/_55%)] " + (kind === "medium" ? "max-w-xs text-2xl" : kind === "tile" ? "text-xl" : "text-lg")}>{c.title}</p>
-          <p className="mt-1 truncate text-sm text-white/90">{c.organiser}</p>
+          {c.organiser && <p className="mt-1 truncate text-sm text-white/90">{c.organiser}</p>}
           {(kind === "medium" || kind === "tile") && c.days && <p className="truncate text-sm text-white/80">{c.days}</p>}
           <p className="mt-0.5 truncate text-sm font-semibold text-amber-200">{c.next}{(kind === "medium" || kind === "tile") && c.place ? <span className="font-normal text-white/80"> · {c.place}</span> : null}</p>
         </div>

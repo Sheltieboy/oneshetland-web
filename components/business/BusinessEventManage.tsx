@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { UPDATE_KIND_LABELS, type EventStatus, type EventUpdateKind } from "@/lib/events-data";
 import type { ManageEvent, EventSalesStats } from "@/lib/events-manage";
 import { ticketCapacity } from "@/lib/event-ticket-utils";
-import { setEventStatus, postEventUpdate, eventHasActivePaidTicket } from "@/lib/events-manage-client";
+import { setEventStatus, postEventUpdate, eventHasActivePaidTicket, fetchBuyerSummary } from "@/lib/events-manage-client";
+import { cancelPanel, afterCancel, sellsOneShetlandTickets } from "@/lib/event-cancel-panel";
+import { CancelBefore, CancelAfter } from "@/components/events/CancelTicketedBody";
 import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
 import { startOrResumePayoutSetup, payoutOnboardingErrorNotify } from "@/lib/payout-readiness";
 
@@ -102,6 +104,32 @@ export function BusinessEventManage({
     }
   }
 
+  // Cancelling an event that sells OneShetland tickets: say, BEFORE confirming, how many people hold tickets, what OneShetland will and will not do, and
+  // where refunds are made. The cancel itself is unchanged (setEventStatus). Events without OneShetland tickets keep the short confirm.
+  async function cancelEvent() {
+    const ticketed = sellsOneShetlandTickets({ ticketTypes: event.ticket_types, ticketsSold: event.tickets_sold, hasTickets: event.has_tickets, externalUrl: event.ticket_url });
+    if (!ticketed) return changeStatus("cancelled", "Cancel this event? It will be marked as cancelled.");
+    setStatusBusy(true);
+    const summary = await fetchBuyerSummary(event.id);
+    setStatusBusy(false);
+    const ordersHref = `${base}/${event.id}/orders`;
+    const ok = await confirm({ title: "Cancel this event?", body: <CancelBefore panel={cancelPanel("business", summary)} ordersHref={ordersHref} />, confirmLabel: "Cancel the event", danger: true });
+    if (!ok) return;
+    setStatusBusy(true);
+    let notifyError: string | null = null;
+    try {
+      await setEventStatus(event.id, "cancelled");
+    } catch (e) {
+      // setEventStatus throws AFTER saving when only the ticket-holder message failed; say so rather than hiding it.
+      notifyError = e instanceof Error ? e.message : "unknown error";
+      if (!/^The event is cancelled/.test(notifyError)) { setStatusBusy(false); await notify({ title: "The event was not cancelled", body: notifyError, tone: "error" }); return; }
+      notifyError = notifyError.replace(/^The event is cancelled, but we couldn't notify ticket holders: /, "").replace(/\. Please post an update manually\.$/, "");
+    }
+    router.refresh();
+    setStatusBusy(false);
+    await notify({ title: "Event cancelled", body: <CancelAfter result={afterCancel("business", summary, notifyError)} ordersHref={ordersHref} showOrders={!(summary.known && summary.liveOrders === 0)} /> });
+  }
+
   async function submitUpdate() {
     if (!uTitle.trim()) return setUError("Add an update headline.");
     setUError(null);
@@ -180,7 +208,7 @@ export function BusinessEventManage({
           <button onClick={() => changeStatus("archived", "Archive this event? It will be hidden from the public.")} disabled={statusBusy} className="rounded-pill border border-line-strong px-4 py-1.5 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50">Archive</button>
         )}
         {!isCancelled && (
-          <button onClick={() => changeStatus("cancelled", "Cancel this event? Ticket-holders will see it marked as cancelled.")} disabled={statusBusy} className="rounded-pill border border-rose-200 px-4 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50">Cancel event</button>
+          <button onClick={cancelEvent} disabled={statusBusy} className="rounded-pill border border-rose-200 px-4 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50">Cancel event</button>
         )}
         {statusBusy && <span className="text-sm text-ink-muted">Saving…</span>}
       </section>

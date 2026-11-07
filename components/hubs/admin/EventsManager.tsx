@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createHubEvent, updateHubEvent, deleteEvent, uploadHubMedia, type TicketMode, type WebTicketType } from "@/lib/hubs-client";
-import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { useConfirm, useNotify } from "@/components/ui/ConfirmProvider";
+import { cancelEventReportingNotify, fetchBuyerSummary } from "@/lib/events-manage-client";
+import { cancelPanel, afterCancel, sellsOneShetlandTickets } from "@/lib/event-cancel-panel";
+import { CancelBefore, CancelAfter } from "@/components/events/CancelTicketedBody";
 
 type AdminEvent = {
   id: string;
@@ -56,6 +59,7 @@ function toLocal(iso: string): string {
 export function EventsManager({ hubId, events, accent, hubVerified = false }: { hubId: string; events: AdminEvent[]; accent: string; hubVerified?: boolean }) {
   const router = useRouter();
   const confirm = useConfirm();
+  const notify = useNotify();
 
   // Create form state
   const [title, setTitle] = useState("");
@@ -166,11 +170,31 @@ export function EventsManager({ hubId, events, accent, hubVerified = false }: { 
   }
 
   async function cancel(id: string) {
-    if (!(await confirm({ title: "Cancel this event?", body: "Members will still see it marked as cancelled.", confirmLabel: "Cancel event", danger: true }))) return;
+    const ev = events.find((e) => e.id === id);
+    // An event that sells OneShetland tickets gets the full "before you cancel" panel. The cancel runs the same steps as a business cancel (status, event_updates row, notify-event-update) via cancelEventReportingNotify.
+    const ticketed = !!ev && sellsOneShetlandTickets({ ticketTypes: ev.ticket_types, hasTickets: ev.has_tickets, externalUrl: ev.ticket_url });
+    if (!ticketed) {
+      if (!(await confirm({ title: "Cancel this event?", body: "The event page stays up, marked Cancelled, for anyone with its link (a members-only event stays private to members). It comes off the lists and calendar.", confirmLabel: "Cancel event", danger: true }))) return;
+      try {
+        await cancelEventReportingNotify(id);     // no ticket sales here, so a failed holder message needs no report
+        router.refresh();
+      } catch (e) {
+        await notify({ title: "The event was not cancelled", body: e instanceof Error ? e.message : "Something went wrong. Nothing was changed.", tone: "error" });
+      }
+      return;
+    }
+    const summary = await fetchBuyerSummary(id);
+    const ordersHref = `/hubs/${hubId}/manage/events/${id}/orders`;
+    if (!(await confirm({ title: "Cancel this event?", body: <CancelBefore panel={cancelPanel("hub", summary)} ordersHref={ordersHref} />, confirmLabel: "Cancel the event", danger: true }))) return;
+    let notifyError: string | null = null;
     try {
-      await updateHubEvent(id, { status: "cancelled" });
-      router.refresh();
-    } catch { /* ignore */ }
+      ({ notifyError } = await cancelEventReportingNotify(id));
+    } catch (e) {
+      await notify({ title: "The event was not cancelled", body: e instanceof Error ? e.message : "Something went wrong. Nothing was changed.", tone: "error" });
+      return;
+    }
+    router.refresh();
+    await notify({ title: "Event cancelled", body: <CancelAfter result={afterCancel("hub", summary, notifyError)} ordersHref={ordersHref} showOrders={!(summary.known && summary.liveOrders === 0)} /> });
   }
 
   const now = Date.now();

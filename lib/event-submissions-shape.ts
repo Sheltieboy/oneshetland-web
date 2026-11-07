@@ -5,7 +5,7 @@ import { describeOccurrence } from "./event-dates-builder";
 import type { UtcOccurrence } from "./event-dates-builder";
 import { eventOrganiser } from "./event-organiser";
 import { eventLabelForCategory } from "./event-categories";
-import { STATUS_LABEL, STATUS_EXPLAINER, type SubmissionStatusName } from "./contributor-copy";
+import { STATUS_LABEL, STATUS_EXPLAINER, CANCELLED_EVENT_EXPLAINER, type SubmissionStatusName } from "./contributor-copy";
 
 export const FIELD_LABEL: Record<string, string> = {
   title: "Event name", description: "Description", venue: "Place", cover_url: "Poster", ticket_url: "Ticket link", price_text: "Price", contact_info: "Contact details", occurrences: "Dates",
@@ -49,10 +49,12 @@ export type SubmissionView = {
 };
 const TONE: Record<SubmissionStatusName, SubmissionView["tone"]> = { pending: "blue", approved: "green", changes_requested: "amber", rejected: "red", withdrawn: "gray" };
 
-export function viewSubmission(s: { id: string; status: SubmissionStatusName; title: string; organiser_name: string; category: string; occurrences: UtcOccurrence[]; review_reason: string | null; event_id: string | null }): SubmissionView {
+export function viewSubmission(s: { id: string; status: SubmissionStatusName; title: string; organiser_name: string; category: string; occurrences: UtcOccurrence[]; review_reason: string | null; event_id: string | null }, eventStatus?: string | null): SubmissionView {
+  // An approved event that has since been cancelled says so (its page stays up, marked Cancelled). Anything we could not read is left as it was.
+  const cancelled = s.status === "approved" && eventStatus === "cancelled";
   return {
     id: s.id, title: s.title, organiser: s.organiser_name, categoryLabel: eventLabelForCategory(s.category) ?? s.category,
-    statusLabel: STATUS_LABEL[s.status], statusExplainer: STATUS_EXPLAINER[s.status], tone: TONE[s.status],
+    statusLabel: cancelled ? "Cancelled" : STATUS_LABEL[s.status], statusExplainer: cancelled ? CANCELLED_EVENT_EXPLAINER : STATUS_EXPLAINER[s.status], tone: cancelled ? "red" : TONE[s.status],
     credit: publicCredit(s.organiser_name), dates: s.occurrences.map(describeOccurrence), canWithdraw: s.status === "pending" || s.status === "changes_requested",
     canManage: s.status === "approved" && !!s.event_id, reason: s.status === "pending" || s.status === "approved" ? null : s.review_reason,
   };

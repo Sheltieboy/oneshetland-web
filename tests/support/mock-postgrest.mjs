@@ -16,6 +16,20 @@ const base = (o) => ({
   business: null, hub: null, ticket_types: [], organiser_name: null, source: null, is_dated_run: false, occurrences: [], is_platform_event: false, ...o,
 });
 const pantoOcc = Array.from({ length: 15 }, (_, i) => perf(5 + i, i === 3 ? { status: "cancelled", note: "Cancelled - cast illness" } : i === 6 ? { venue: "Brae Hall", locality: "Brae", note: "Special matinee" } : {}));
+// Regular Activities fixtures: one business-owned, one PLATFORM-owned (the database returns owner_name 'OneShetland' for it), and one hub-owned whose hub
+// the viewer cannot read (kind 'hub', name falls back to 'OneShetland'). Next sessions are always in the future.
+const act = (n, o) => ({ id: `aa000000-0000-4000-8000-00000000000${n}`, slug: `fixture-${n}`, title: o.title, description: "A fixture activity.", category: "fitness", audience: "Everyone", venue: "Hall", locality: "Lerwick", price_text: "Free",
+  booking_mode: "drop_in", cover_url: null, owner_kind: o.kind, owner_id: o.id, owner_name: o.name, owner_slug: null,
+  next_starts_at: iso(NOW + (n + 1) * D), next_ends_at: iso(NOW + (n + 1) * D + H), sessions_in_window: 3, cancelled_in_window: 0, upcoming: [] });
+export const ACTIVITIES = [
+  act(1, { title: "Business Run Club", kind: "business", id: "b1", name: "Ruth Archer Fitness" }),
+  act(2, { title: "Platform Walk (no separate organiser)", kind: "platform", id: null, name: "OneShetland" }),
+  act(3, { title: "Hub Craft Circle (owner unreadable)", kind: "hub", id: "h9", name: "OneShetland" }),
+];
+const detailRow = (a) => ({ id: a.id, slug: a.slug, title: a.title, description: a.description, category: a.category, audience: a.audience, venue: a.venue, locality: a.locality, lat: null, lng: null, cover_url: null,
+  price_text: a.price_text, booking_mode: "drop_in", contact_info: null, booking_url: null, status: "published", active_from: null, active_until: null,
+  organiser_business_id: a.owner_kind === "business" ? a.owner_id : null, organiser_hub_id: a.owner_kind === "hub" ? a.owner_id : null, is_platform_activity: a.owner_kind === "platform", admin_paused: false, calendar_approved: true });
+
 export const EVENTS = [
   base({ id: "11111111-1111-4111-8111-111111111111", title: "Cinderella - the Pantomime", category: "Theatre & Performing Arts", venue: "Garrison Theatre", starts_at: pantoOcc[0].starts_at, ends_at: pantoOcc[14].ends_at,
     is_dated_run: true, organiser_name: "Lerwick Drama Club", source: "community_submission", is_platform_event: true, contact_info: "Phone 01595 000000", description: "The much-loved pantomime.", occurrences: pantoOcc }),
@@ -70,13 +84,30 @@ function filter(rows, q) {
 http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*" }); res.end(JSON.stringify(body)); };
-  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "*" }); return res.end(); }
+  if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" }); return res.end(); }
+  if (u.pathname === "/auth/v1/user") return send(200, { id: "00000000-0000-4000-8000-000000000001", email: "organiser@example.com", aud: "authenticated", role: "authenticated" });
+  if (u.pathname.startsWith("/functions/v1/")) return send(200, { ok: true });
+  if (u.pathname === "/rest/v1/event_updates" && req.method === "POST") return send(201, { id: "upd1" });
+  if (u.pathname === "/rest/v1/events" && req.method === "PATCH") { res.writeHead(204, { "access-control-allow-origin": "*" }); return res.end(); }
   const single = /pgrst\.object/.test(req.headers.accept ?? "");
   if (u.pathname.startsWith("/rest/v1/rpc/")) {
     const fn = u.pathname.split("/").pop();
     if (fn === "event_payout_ready") return send(200, true);
+    if (fn === "get_event_orders") return send(200, { can_refund: true, is_admin: false, total_orders: 2, orders: [{ id: "o1", status: "paid", total_pence: 3000, tickets_count: 2 }, { id: "o2", status: "paid", total_pence: 1500, tickets_count: 1 }] });
+    if (fn === "report_event_cancelled") return send(400, { code: "P0001", message: "People have bought tickets for this event through OneShetland, so we need to help you tell them and arrange refunds. Please contact OneShetland.", hint: "has_ticket_buyers" });
+    if (fn === "regular_activities_listing") return send(200, ACTIVITIES);
+    if (fn === "activity_sessions") return send(200, ACTIVITIES.map((a) => ({ activity_id: a.id, rule_id: null, exception_id: null, occurrence_date: a.next_starts_at.slice(0, 10), original_starts_at: a.next_starts_at, starts_at: a.next_starts_at, ends_at: a.next_ends_at, status: "scheduled", venue: null, locality: null, note: null, is_extra: false })));
     if (fn === "get_event_social_stats") return send(200, [{ going_count: 0, booked_recent: 0 }]);
     return send(200, null);
+  }
+  if (u.pathname === "/rest/v1/regular_activities") {
+    const slug = (u.searchParams.get("slug") ?? "").replace(/^eq\./, "");
+    const a = ACTIVITIES.find((x) => x.slug === slug);
+    return a ? send(200, detailRow(a)) : send(406, { code: "PGRST116", message: "no rows" });
+  }
+  if (u.pathname === "/rest/v1/hubs" || u.pathname === "/rest/v1/local_businesses_public") {
+    const id = (u.searchParams.get("id") ?? "").replace(/^eq\./, "");
+    return id === "b1" ? send(200, { id: "b1", name: "Ruth Archer Fitness", slug: "ruth-archer-fitness" }) : send(406, { code: "PGRST116", message: "no rows" });   // anything else: not readable
   }
   if (u.pathname === "/rest/v1/events") {
     const cols = u.searchParams.get("select") ?? "";

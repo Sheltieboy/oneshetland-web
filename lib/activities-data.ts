@@ -5,6 +5,7 @@
  * and visitor-facing reads use the anonymous client so row security shows exactly what the public may see. A failed read returns "nothing to
  * show", never an error page: Regular Activities must not be able to take What's On down.
  */
+import { activityOrganiserLabel } from "./activity-organiser";
 import { publicClient } from "./supabase/public";
 import { createClient } from "./supabase/server";
 import { windowFor, type ListingRow, type RuleRow, type SessionRow, type When, type RegularFilters, DEFAULT_WHEN } from "./activities";
@@ -100,13 +101,14 @@ export async function getActivityDetail(slug: string, now: Date = new Date()) {
 async function loadOwner(a: ActivityDetail, sb: Awaited<ReturnType<typeof createClient>>): Promise<Owner> {
   if (a.organiser_hub_id) {
     const { data } = await sb.from("hubs").select("id, name, slug").eq("id", a.organiser_hub_id).maybeSingle();
-    return { kind: "hub", id: a.organiser_hub_id, name: (data?.name as string) ?? "", slug: (data?.slug as string) ?? null };
+    return { kind: "hub", id: a.organiser_hub_id, name: activityOrganiserLabel("hub", data?.name) ?? "", slug: (data?.slug as string) ?? null };
   }
   if (a.organiser_business_id) {
     const { data } = await sb.from("local_businesses_public").select("id, name, slug").eq("id", a.organiser_business_id).maybeSingle();
-    return { kind: "business", id: a.organiser_business_id, name: (data?.name as string) ?? "", slug: (data?.slug as string) ?? null };
+    return { kind: "business", id: a.organiser_business_id, name: activityOrganiserLabel("business", data?.name) ?? "", slug: (data?.slug as string) ?? null };
   }
-  return { kind: "platform", id: null, name: "OneShetland", slug: null };
+  // Platform-owned: no organiser claim (name "" = unknown). The page shows no "Run by" line for it.
+  return { kind: "platform", id: null, name: "", slug: null };
 }
 
 /** For a business or hub page: its public activities with their next session. Bounded to a month's window. */
