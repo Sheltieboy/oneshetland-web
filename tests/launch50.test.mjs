@@ -339,16 +339,46 @@ describe("Business Suite Launch 50 invitation", () => {
   test("an expired reservation is not enrolment: the invitation is shown again", () => {
     assert.equal(vis({ place: { ...pl("reserved"), reservation_expires_at: "2026-11-08T09:00:00Z" } }), true);
   });
-  test("the card shows both prices, 12 months then normal prices, the first-access date, the billing link and the showcase link", () => {
+  test("the invitation is a personal note from Darren: headline, early-joiner lead, two pricing cards, personal future section, honest limits, same actions", () => {
     const o = renderToStaticMarkup(h(Launch50Invite, { businessId: BIZ, base: `/business/${BIZ}/manage`, firstAccessUntil: "21 November", publicOpen: false }));
-    for (const t of ["Launch Pro", "£9", "Launch Premium", "£22", "12 months", "£12 and £29", "21 November", "Not now"]) assert.ok(o.includes(t), t);
-    assert.match(o, new RegExp(`href="/business/${BIZ}/manage/billing#launch-50"[^>]*>See the Launch 50 plans`)); assert.match(o, /href="\/launch-50"[^>]*>See the showcase/);
-    assert.doesNotMatch(o, /[Ff]ounding|VAT/);
-    assert.doesNotMatch(renderToStaticMarkup(h(Launch50Invite, { businessId: BIZ, base: "/x", firstAccessUntil: "21 November", publicOpen: true })), /21 November/, "no deadline once it is open to everyone");
+    assert.match(o, /Help me build OneShetland(&#x27;|')s future\./);
+    assert.match(o, /You joined OneShetland early, so I(&#x27;|')m offering you first access to Launch 50, exclusively until <strong[^>]*>21 November<\/strong>/);
+    const pro = o.slice(o.indexOf('data-launch50-invite-plan="pro"'), o.indexOf('data-launch50-invite-plan="premium"')), prem = o.slice(o.indexOf('data-launch50-invite-plan="premium"'));
+    assert.match(pro, /Launch Pro/); assert.match(pro, /£9<span[^>]*>\/month<\/span>/); assert.match(pro, /for 12 months, then £12\/month/);
+    assert.match(prem, /Launch Premium/); assert.match(prem, /£22<span[^>]*>\/month<\/span>/); assert.match(prem, /for 12 months, then £29\/month/);
+    assert.match(o, /Both can choose to appear in the extended showcase\./);
+    assert.match(o, /My aim is to make OneShetland sustainable, so I can keep improving it for Shetland\./);
+    assert.match(o, /OneShetland Gives Back, with a monthly charity wheel that involves the community/);
+    assert.match(o, /I can(&#x27;|')t promise an amount or a date/);
+    assert.match(o, /Your Free listing stays free, and there(&#x27;|')s no obligation to upgrade\./);
+    assert.match(o, />Darren</);
+    assert.match(o, new RegExp(`href="/business/${BIZ}/manage/billing#launch-50"[^>]*>See the Launch 50 plans`)); assert.match(o, /href="\/launch-50"[^>]*>See the showcase/); assert.match(o, />Not now</);
+    const text = o.replace(/<[^>]+>/g, " ");
+    assert.doesNotMatch(text, /\bwe\b|\bour\b|\bus\b/i, "first person only"); assert.doesNotMatch(o, /[Ff]ounding|VAT/);
+    assert.doesNotMatch(text, /£\d+[^.]*\b(donat|give|charity)\w*|\b(will|going to) (donate|give)\b|launching (in|on)|by (december|january|spring|summer|2027)/i, "no donation amount or date promised");
+  });
+  test("once open to everyone the lead no longer claims an early join or shows a deadline", () => {
+    const o = renderToStaticMarkup(h(Launch50Invite, { businessId: BIZ, base: "/x", firstAccessUntil: "21 November", publicOpen: true }));
+    assert.match(o, /I(&#x27;|')m offering 50 Shetland businesses a special price for your first 12 months\./); assert.doesNotMatch(o, /joined OneShetland early|21 November/);
   });
   test("wired into the dashboard behind the visibility rule, tolerant of failed reads", () => {
     const src = read("app/business/[id]/manage/page.tsx");
     assert.match(src, /const showL50 = launch50InviteVisible\(/); assert.match(src, /\{showL50 && <div className="mb-8"><Launch50Invite/); assert.match(src, /\.catch\(\(\) => null\)/);
   });
   test("day/month formatter", () => { assert.equal(core.fmtDayMonth("2026-11-21T13:25:07Z"), "21 November"); assert.equal(core.fmtDayMonth(null), null); assert.equal(core.fmtDayMonth("nope"), null); });
+});
+
+describe("Launch 50 page: why I am doing this", () => {
+  test("a fuller first-person explanation of sustainability and OneShetland Gives Back, with no promised amount or date", async () => {
+    setup(); const out = await html(); const text = out.replace(/<[^>]+>/g, " ");
+    assert.match(out, /data-launch50-why/); assert.match(out, /Why I(&#x27;|')m doing this/);
+    assert.match(out, /it needs to pay for itself, so I can keep improving it for Shetland/);
+    assert.match(out, /Your Free listing stays free, and there is no obligation to upgrade\./);
+    assert.match(out, /OneShetland Gives Back, a monthly charity wheel that involves the community/);
+    assert.match(out, /I can(&#x27;|')t say how much it would give, or when it would start/);
+    assert.doesNotMatch(text, /\bwe\b|\bour\b/i);
+    assert.doesNotMatch(text, /£\d+[^.]*\b(donat|charity)\w*|will (donate|give)\b|launch(es|ing)? (in|on) /i);
+    assert.match(out, /A note from me/, "the existing personal note and the rest of the page are kept");
+    assert.match(out, /Launch 50 is a paid commercial programme/);
+  });
 });

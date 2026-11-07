@@ -17,22 +17,44 @@ export function Launch50Invite({ businessId, base, firstAccessUntil, publicOpen 
   );
   if (dismissed) return null;
   return (
-    <section aria-labelledby={`l50-${businessId}`} className="overflow-hidden rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-paper to-paper p-5 shadow-soft" data-launch50-invite>
-      <p className="text-xs font-bold uppercase tracking-widest text-violet-800">OneShetland Launch 50</p>
-      <h2 id={`l50-${businessId}`} className="mt-1 font-display text-xl font-bold text-ink">A special price for 50 Shetland businesses</h2>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <p className="rounded-xl bg-paper px-4 py-3 text-ink shadow-soft"><span className="block text-xs font-semibold uppercase tracking-wide text-ink-muted">Launch Pro</span><span className="font-display text-2xl font-bold">£9</span><span className="text-sm text-ink-soft">/month</span></p>
-        <p className="rounded-xl bg-paper px-4 py-3 text-ink shadow-soft"><span className="block text-xs font-semibold uppercase tracking-wide text-ink-muted">Launch Premium</span><span className="font-display text-2xl font-bold">£22</span><span className="text-sm text-ink-soft">/month</span></p>
-      </div>
-      <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-        Both for 12 months, then the normal £12 and £29 a month. Monthly billing only, and you can cancel any time.
-        {!publicOpen && firstAccessUntil ? <> First access for businesses already on OneShetland runs until <strong className="text-ink">{firstAccessUntil}</strong>.</> : null}
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link href={`${base}/billing#launch-50`} className="inline-flex min-h-[44px] items-center rounded-pill bg-navy px-5 py-2.5 text-sm font-bold text-paper shadow-soft hover:brightness-110">See the Launch 50 plans</Link>
-        <Link href="/launch-50" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-ink-soft underline underline-offset-4 hover:text-ink">See the showcase</Link>
-        <button type="button" className="min-h-[44px] px-2 text-sm font-semibold text-ink-soft underline"
-          onClick={() => { try { localStorage.setItem(key, "1"); } catch { /* ignore */ } window.dispatchEvent(new Event("l50-invite")); }}>Not now</button>
+    <section aria-labelledby={`l50-${businessId}`} className="overflow-hidden rounded-3xl border border-violet-200 bg-gradient-to-br from-violet-50 via-paper to-paper shadow-soft" data-launch50-invite>
+      <div className="p-5 sm:p-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-violet-800">OneShetland Launch 50</p>
+        <h2 id={`l50-${businessId}`} className="mt-1 font-display text-2xl font-bold leading-tight text-ink sm:text-3xl">Help me build OneShetland&apos;s future.</h2>
+        <p className="mt-3 text-base leading-relaxed text-ink-soft" data-launch50-lead>
+          {publicOpen
+            ? <>I&apos;m offering 50 Shetland businesses a special price for your first 12 months.</>
+            : <>You joined OneShetland early, so I&apos;m offering you first access to Launch 50{firstAccessUntil ? <>, exclusively until <strong className="text-ink">{firstAccessUntil}</strong></> : null}.</>}
+        </p>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-violet-100 bg-paper px-3 py-3 shadow-soft sm:px-4 sm:py-4" data-launch50-invite-plan="pro">
+            <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Launch Pro</p>
+            <p className="mt-1 font-display text-2xl font-bold text-ink sm:text-3xl">£9<span className="text-sm font-semibold text-ink-soft sm:text-base">/month</span></p>
+            <p className="mt-0.5 text-sm text-ink-soft">for 12 months, then £12/month</p>
+          </div>
+          <div className="rounded-2xl border border-violet-100 bg-paper px-3 py-3 shadow-soft sm:px-4 sm:py-4" data-launch50-invite-plan="premium">
+            <p className="text-xs font-bold uppercase tracking-wide text-ink-muted">Launch Premium</p>
+            <p className="mt-1 font-display text-2xl font-bold text-ink sm:text-3xl">£22<span className="text-sm font-semibold text-ink-soft sm:text-base">/month</span></p>
+            <p className="mt-0.5 text-sm text-ink-soft">for 12 months, then £29/month</p>
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-ink-muted">Both can choose to appear in the extended showcase.</p>
+
+        <div className="mt-5 rounded-2xl bg-sand/50 p-4" data-launch50-invite-note>
+          <p className="text-sm leading-relaxed text-ink-soft">
+            My aim is to make OneShetland sustainable, so I can keep improving it for Shetland. Once I&apos;m financially ready, I hope to introduce OneShetland Gives Back, with a monthly charity wheel that involves the community. I can&apos;t promise an amount or a date, but it&apos;s something I care about.
+          </p>
+          <p className="mt-2 text-sm leading-relaxed text-ink-soft">Your Free listing stays free, and there&apos;s no obligation to upgrade.</p>
+          <p className="mt-2 font-display text-base font-bold text-ink">Darren</p>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Link href={`${base}/billing#launch-50`} className="inline-flex min-h-[44px] items-center rounded-pill bg-navy px-5 py-2.5 text-sm font-bold text-paper shadow-soft hover:brightness-110">See the Launch 50 plans</Link>
+          <Link href="/launch-50" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-ink-soft underline underline-offset-4 hover:text-ink">See the showcase</Link>
+          <button type="button" className="min-h-[44px] px-2 text-sm font-semibold text-ink-soft underline"
+            onClick={() => { try { localStorage.setItem(key, "1"); } catch { /* ignore */ } window.dispatchEvent(new Event("l50-invite")); }}>Not now</button>
+        </div>
       </div>
     </section>
   );

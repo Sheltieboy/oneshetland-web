@@ -99,6 +99,16 @@ export default async function Launch50Page() {
         </div>
       </section>
 
+      {/* Why I'm doing this */}
+      <section className="mx-auto max-w-3xl px-5 pt-10" aria-labelledby="l50-why" data-launch50-why>
+        <h2 id="l50-why" className="font-display text-3xl font-bold text-ink sm:text-4xl">Why I&apos;m doing this</h2>
+        <div className="mt-5 space-y-4 text-lg leading-relaxed text-ink-soft">
+          <p>OneShetland is a new platform that I&apos;ve built, and I want it to last. For that to happen it needs to pay for itself, so I can keep improving it for Shetland instead of letting it stand still. Launch 50 is part of that: the businesses that join will help make OneShetland sustainable, and I&apos;ll be listening closely to what they need.</p>
+          <p>Your Free listing stays free, and there is no obligation to upgrade. If you&apos;d rather not, nothing changes for you.</p>
+          <p>Once I&apos;m financially ready, I hope to introduce OneShetland Gives Back, a monthly charity wheel that involves the community. It&apos;s an idea I care about, but it isn&apos;t something I can promise yet: I can&apos;t say how much it would give, or when it would start. I&apos;ll tell you honestly when I know more.</p>
+        </div>
+      </section>
+
       {/* Plain statement */}
       <section className="mx-auto max-w-3xl px-5 pt-10">
         <p className="rounded-2xl border border-line-strong bg-sand/50 p-5 text-base font-semibold leading-relaxed text-ink" data-launch50-statement>
