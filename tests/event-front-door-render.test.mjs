@@ -7,7 +7,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const fd = readFileSync(new URL("../components/events/front-door/FrontDoor.tsx", import.meta.url), "utf8");
-const page = readFileSync(new URL("../app/whats-on/add/page.tsx", import.meta.url), "utf8");
+const pageOnly = readFileSync(new URL("../app/whats-on/add/page.tsx", import.meta.url), "utf8");
+const page = pageOnly + readFileSync(new URL("../lib/event-submissions-access.server.ts", import.meta.url), "utf8");
 
 test("every step heading can take focus, so keyboard and screen-reader users are not dropped to the page body", () => {
   assert.match(fd, /useRef<HTMLHeadingElement>/);

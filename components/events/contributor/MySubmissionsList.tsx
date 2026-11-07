@@ -34,7 +34,7 @@ export function MySubmissionsList({ items, eventIds }: { items: SubmissionView[]
               <h2 className="text-xl font-bold text-ink">{s.title}</h2>
               <StatusChip label={s.statusLabel} tone={s.tone} />
             </div>
-            <p className="mt-1 text-base text-ink-soft">Run by {s.organiser} · {s.categoryLabel}</p>
+            <p className="mt-1 text-base text-ink-soft">{s.credit} · {s.categoryLabel}</p>
             <p className="mt-3 text-base text-ink">{s.statusExplainer}</p>
             {s.reason && <p className="mt-3 rounded-xl bg-cream p-3 text-base text-ink"><span className="font-semibold">From OneShetland: </span>{s.reason}</p>}
             {s.dates.length > 0 && (

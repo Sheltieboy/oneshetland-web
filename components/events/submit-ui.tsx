@@ -50,7 +50,7 @@ export const ErrorSummary = forwardRef<HTMLDivElement, { items: { id: string; me
       <h3 className="text-lg font-bold text-rose-900">{items.length === 1 ? "There is one thing to fix" : `There are ${items.length} things to fix`}</h3>
       <ul className="mt-2 list-disc pl-5">
         {items.map((i) => (
-          <li key={i.id + i.message}><a href={`#${i.id}`} className={`text-base font-semibold text-rose-900 underline ${focusRing}`}>{i.message}</a></li>
+          <li key={i.id + i.message}><a href={`#${i.id}`} className={`inline-flex min-h-11 items-center text-base font-semibold text-rose-900 underline ${focusRing}`}>{i.message}</a></li>
         ))}
       </ul>
     </div>

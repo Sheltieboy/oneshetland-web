@@ -70,8 +70,9 @@ export const POSTER_HELP = "A picture or poster, if you have one. JPG, PNG or We
 export const REVIEW_INTRO = "This is exactly what we will see. Check it, then send it to us.";
 export const NOT_OPEN_YET = "We aren't taking event submissions just yet. Thank you for your patience. Nothing has been sent or saved.";
 export const NOT_AVAILABLE_YET = "Sending an event isn't available yet. Please check back soon. Nothing has been sent or saved.";
+/** For pages that are not about sending: My submissions, looking after an event, staff queues. */
+export const PAGE_NOT_AVAILABLE_YET = "This isn't available yet. Please check back soon.";
 export const SIGN_IN_TO_SUBMIT = "Please sign in to tell us about an event. You'll come straight back here.";
-export const COMMUNITY_BADGE = (organiser: string) => `Community event \u00b7 ${organiser}`;
 
 export const POSTER_DEFERRED = "Adding a poster is coming soon.";
 
@@ -114,3 +115,7 @@ export function historyLine(entry: { action: string; actor_kind: string }): stri
   const verb = what[entry.action];
   return verb ? `${who} ${verb}` : "A change was made";
 }
+
+/** Staff-facing: what approving does. Never OneShetland's own event. */
+export const APPROVE_CONFIRM = (organiser: string) =>
+  `Approving publishes this as a community event credited to ${organiser.trim() || "the named organiser"}. It will not be shown as organised by OneShetland.`;

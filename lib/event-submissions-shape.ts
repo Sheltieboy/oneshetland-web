@@ -3,6 +3,7 @@
  */
 import { describeOccurrence } from "./event-dates-builder";
 import type { UtcOccurrence } from "./event-dates-builder";
+import { eventOrganiser } from "./event-organiser";
 import { eventLabelForCategory } from "./event-categories";
 import { STATUS_LABEL, STATUS_EXPLAINER, type SubmissionStatusName } from "./contributor-copy";
 
@@ -44,7 +45,7 @@ export function describeChange(payload: Record<string, unknown>, before: Record<
 
 export type SubmissionView = {
   id: string; title: string; organiser: string; categoryLabel: string; statusLabel: string; statusExplainer: string; tone: "green" | "amber" | "red" | "gray" | "blue";
-  dates: string[]; canWithdraw: boolean; canManage: boolean; reason: string | null;
+  credit: string; dates: string[]; canWithdraw: boolean; canManage: boolean; reason: string | null;
 };
 const TONE: Record<SubmissionStatusName, SubmissionView["tone"]> = { pending: "blue", approved: "green", changes_requested: "amber", rejected: "red", withdrawn: "gray" };
 
@@ -52,7 +53,7 @@ export function viewSubmission(s: { id: string; status: SubmissionStatusName; ti
   return {
     id: s.id, title: s.title, organiser: s.organiser_name, categoryLabel: eventLabelForCategory(s.category) ?? s.category,
     statusLabel: STATUS_LABEL[s.status], statusExplainer: STATUS_EXPLAINER[s.status], tone: TONE[s.status],
-    dates: s.occurrences.map(describeOccurrence), canWithdraw: s.status === "pending" || s.status === "changes_requested",
+    credit: publicCredit(s.organiser_name), dates: s.occurrences.map(describeOccurrence), canWithdraw: s.status === "pending" || s.status === "changes_requested",
     canManage: s.status === "approved" && !!s.event_id, reason: s.status === "pending" || s.status === "approved" ? null : s.review_reason,
   };
 }
@@ -76,6 +77,26 @@ export function queueBadge(subs: { pending: number } | null, changes: { pending:
   return { pending: p, changes: c, total: p + c, hasAny: p + c > 0 };
 }
 
-export function communityBadge(e: { source?: string | null; organiser_name?: string | null }): string | null {
-  return e.source === "community_submission" && e.organiser_name?.trim() ? `Community event · ${e.organiser_name.trim()}` : null;
+export type AdminLabelInput = {
+  source?: string | null; organiser_name?: string | null; is_platform_event?: boolean | null;
+  business?: { name?: string | null } | null; hub?: { name?: string | null } | null;
+};
+export const CURATED_LABEL = "Curated listing (added by staff)";
+export const OFFICIAL_LABEL = "OneShetland-organised";
+
+/**
+ * How staff lists label an event: by its TRUE classification (eventOrganiser), never by is_platform_event.
+ * Platform ownership only says who owns the row; 120 live platform-owned events are third-party listings curated by staff.
+ */
+export function adminEventLabel(e: AdminLabelInput | null | undefined): string {
+  const o = eventOrganiser(e ?? null);
+  if (o?.kind === "community") return `Community event \u00b7 ${o.name}`;
+  if (o?.kind === "business") return `Business \u00b7 ${o.name}`;
+  if (o?.kind === "hub") return `Hub \u00b7 ${o.name}`;
+  if (o?.kind === "official") return OFFICIAL_LABEL;
+  if (o?.kind === "named") return `Curated listing \u00b7 ${o.name}`;
+  return e?.is_platform_event ? CURATED_LABEL : "No organiser shown";
 }
+
+/** The credit the public will see for a community event: exactly the organiser name the contributor typed. */
+export const publicCredit = (organiserName: string): string => `Shown to the public as: ${organiserName.trim() || "Community organiser"}`;

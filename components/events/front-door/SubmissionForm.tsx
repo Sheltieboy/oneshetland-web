@@ -41,6 +41,7 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
   const [posterNote, setPosterNote] = useState<string | null>(null);
   const [errTick, setErrTick] = useState(0);
   const requestId = useRef<string | null>(null);
+  const inFlight = useRef(false);   // a double tap must not send twice (state updates are too slow to stop it)
 
   const heading = useRef<HTMLHeadingElement>(null);
   const summary = useRef<HTMLDivElement>(null);
@@ -50,7 +51,10 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
 
   const today = useMemo(() => utcToLondonParts(new Date().toISOString())?.date ?? "", []);
   const full = (): FormState => ({ ...form, request_id: (requestId.current ??= crypto.randomUUID()), category: slug, rows });
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    setErrors((e) => { if (!(k in e)) return e; const n = { ...e }; delete n[k as FieldName]; return n; });   // fixing a box clears its message
+  };
   const err = (f: FieldName) => errors[f];
 
   const summaryItems = () => {
@@ -79,6 +83,7 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
   function back() { setErrors({}); setRowIssues([]); setBanner(null); setStep(STEPS[Math.max(0, STEPS.indexOf(step) - 1)]); }
 
   async function send() {
+    if (inFlight.current) return;
     setBanner(null);
     const v = validateSubmission(full(), new Date(), userId);
     if (!v.ok) {
@@ -88,9 +93,9 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
       if (s && s !== "review") setStep(s);
       return;
     }
-    setBusy(true);
+    inFlight.current = true; setBusy(true);
     const r = await submitEvent(createClient() as unknown as Sb, v.payload);
-    setBusy(false);
+    inFlight.current = false; setBusy(false);
     if (r.ok) { setErrors({}); setRowIssues([]); setStep("done"); return; }
     const f = r.error.field as FieldName | undefined;
     if (r.error.kind === "validation" && f && FIELD_STEP[f]) {
@@ -197,12 +202,13 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
         <p className={mutedP}>{REVIEW_INTRO}</p>
         <Review form={full()} />
         <div className="mt-6 rounded-2xl border border-line-strong bg-paper p-4">
-          <div className="flex items-start gap-3">
+          {/* The whole row is the tap target (the label), so the box itself can stay a normal size. */}
+          <label htmlFor={fid("adult_confirmed")} className="flex min-h-14 cursor-pointer items-start gap-3 text-lg font-semibold text-ink">
             <input id={fid("adult_confirmed")} type="checkbox" checked={form.adult_confirmed} onChange={(e) => set("adult_confirmed", e.target.checked)}
               aria-invalid={err("adult_confirmed") ? true : undefined} aria-describedby={err("adult_confirmed") ? `${fid("adult_confirmed")}-err` : undefined}
               className={`mt-1 h-7 w-7 shrink-0 accent-navy ${focusRing}`} />
-            <label htmlFor={fid("adult_confirmed")} className="min-h-11 text-lg font-semibold text-ink">{ADULT_CONFIRM_TEXT}</label>
-          </div>
+            <span>{ADULT_CONFIRM_TEXT}</span>
+          </label>
           {err("adult_confirmed") && <p id={`${fid("adult_confirmed")}-err`} className="mt-2 text-base font-semibold text-rose-700">{err("adult_confirmed")}</p>}
         </div>
       </>)}
@@ -225,7 +231,7 @@ function Review({ form }: { form: FormState }) {
   );
   return (
     <dl className="mt-4 rounded-2xl border border-line-strong bg-paper px-4">
-      {row("Run by", form.organiser_name.trim())}
+      {row("Shown to the public as", form.organiser_name.trim())}
       {row("Event name", form.title.trim())}
       {row("About", form.description.trim())}
       {row("Place", [form.venue.trim(), form.locality.trim()].filter(Boolean).join(", "))}

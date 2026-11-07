@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { gateFeatureSignedIn, serverSb } from "@/lib/event-submissions-access.server";
 import { listMySubmissions } from "@/lib/event-submissions-client";
 import { viewSubmission } from "@/lib/event-submissions-shape";
-import { NOT_AVAILABLE_YET } from "@/lib/contributor-copy";
+import { PAGE_NOT_AVAILABLE_YET } from "@/lib/contributor-copy";
 import { MySubmissionsList } from "@/components/events/contributor/MySubmissionsList";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export default async function MyEventSubmissionsPage() {
       <p className="mt-2 text-lg text-ink-soft">The events you have sent to us, and how each one is getting on.</p>
       {!res.ok ? (
         <p role="status" className="mt-6 rounded-2xl border border-line-strong bg-cream p-5 text-lg text-ink">
-          {res.error.kind === "unavailable" ? NOT_AVAILABLE_YET : res.error.message}
+          {res.error.kind === "unavailable" ? PAGE_NOT_AVAILABLE_YET : res.error.message}
         </p>
       ) : res.data.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-line-strong bg-cream p-5">

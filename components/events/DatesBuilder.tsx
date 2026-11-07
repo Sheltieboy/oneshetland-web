@@ -40,7 +40,7 @@ export function DatesBuilder({ rows, onChange, issues, today, idBase = "dates" }
                 {sErr && <p id={`${p}-start-err`} className="mt-2 text-base font-semibold text-rose-700">{sErr}</p>}
                 {eErr && <p id={`${p}-end-err`} className="mt-2 text-base font-semibold text-rose-700">{eErr}</p>}
                 <div className="mt-4">
-                  <label htmlFor={`${p}-note`} className="block text-base font-semibold">A note for this day <span className="font-normal text-ink-soft">(optional, for example "Matinee")</span></label>
+                  <label htmlFor={`${p}-note`} className="block text-base font-semibold">A note for this day <span className="font-normal text-ink-soft">(optional, for example &ldquo;Matinee&rdquo;)</span></label>
                   <TextInput id={`${p}-note`} type="text" maxLength={200} value={r.note} onChange={(e) => set(i, { note: e.target.value })} aria-invalid={nErr ? true : undefined} aria-describedby={nErr ? `${p}-note-err` : undefined} />
                   {nErr && <p id={`${p}-note-err`} className="mt-2 text-base font-semibold text-rose-700">{nErr}</p>}
                 </div>
