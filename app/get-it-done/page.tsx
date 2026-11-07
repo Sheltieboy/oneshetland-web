@@ -4,6 +4,7 @@ import { getTradeDemand } from "@/lib/trades-data";
 import { TRADE_LABEL } from "@/lib/trades";
 import { BriefForm } from "@/components/trades/BriefForm";
 import { FINDER_ANCHOR } from "@/lib/plan-cta";
+import { PRO_PRICE } from "@/lib/get-it-done-entitlement";
 
 /**
  * /get-it-done — the demand side.
@@ -31,16 +32,16 @@ const ACCENT = "#2a8b5c";
  */
 function TradeJoinPanel() {
   const steps: [string, string][] = [
-    ["Claim your listing", "Find your business and claim it. It is free, and we check each claim by hand. Not listed yet? Add your business."],
+    ["Create or claim your business listing", "Listing your business is free. Find it and claim it (we check each claim by hand), or add it if it isn't listed yet."],
+    ["Get it done is included with Pro and Premium", `Job enquiries are included with OneShetland Pro (${PRO_PRICE}) and Premium. There are no per-job fees.`],
     ["Say what you do, and whether you have room", "In your business dashboard, open Get it done: job leads. Pick your trades and set your availability. Jobs only reach you while that is up to date."],
-    ["Jobs that fit are sent to you", "The job appears in your Job leads, without the customer's name or number, and we send a notification where you have the OneShetland app. Check Job leads regularly. Tap \"I'm interested\" or say you can't take it."],
-    ["The customer decides who gets their details", "If you say you are interested, the customer sees who you are and chooses whether to share their phone number with you. You will not see it until they do."],
+    ["Jobs that fit, and the customer decides", "Matching jobs appear in your Job leads without the customer's name or number, and we email you (and notify the OneShetland app where you have it). If you say you are interested, the customer chooses whether to share their details with you."],
   ];
   return (
     <section id="for-trades" className="mt-14 border-t border-line pt-8">
       <h2 className="font-display text-2xl font-bold text-ink">Do you do this for a living?</h2>
       <p className="mt-1 max-w-2xl text-ink-muted">
-        Join Get it done and hear about local jobs that match your trade. It is free to join. We can&apos;t promise work, but every job sent to you is from a real person in Shetland.
+        Get it done sends local jobs that match your trade to businesses on Pro or Premium. Residents always post for free. Nobody can promise work, but every job sent to you is from a real person in Shetland.
       </p>
       <ol className="mt-5 grid gap-3 sm:grid-cols-2">
         {steps.map(([t, d], i) => (
@@ -97,7 +98,7 @@ export default async function GetItDonePage() {
           </a>
           <a href="#for-trades" className="rounded-xl border border-line bg-paper p-5 shadow-soft transition hover:shadow-lift">
             <p className="font-display text-xl font-bold text-ink">I provide a trade or service</p>
-            <p className="mt-1 text-sm text-ink-soft">Say what you cover and when you are free. Free to join.</p>
+            <p className="mt-1 text-sm text-ink-soft">Say what you cover and when you are free. Included with Pro and Premium.</p>
           </a>
         </nav>
         <div id="post-a-job" className="scroll-mt-24"></div>

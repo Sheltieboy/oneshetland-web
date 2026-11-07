@@ -50,7 +50,7 @@ export type ListingFeature =
 /** Screens under /business/<id>/manage. */
 export type ManageFeature =
   | "jobs" | "eventsManage"
-  | "till" | "nfc" | "enquiries" | "analytics"
+  | "till" | "nfc" | "enquiries" | "jobEnquiries" | "analytics"
   | "products" | "orders" | "passes" | "bookings" | "schedule"
   | "alerts";
 
@@ -91,6 +91,7 @@ export const TIER_FEATURES: Record<Feature, ListingTier> = {
   nfc:           "pro",
   wallet:        "pro",
   enquiries:     "pro",
+  jobEnquiries: "pro",   // Get it done: being matched to job enquiries. Enforced in the database (create_brief_matches uses business_meets_tier).
   analytics:     "pro",
   bookings:      "pro",
   services:      "pro",
@@ -184,7 +185,7 @@ export const TIER_PITCH: Record<ListingTier, { headline: string; blurb: string }
     headline: "Turn finders into regulars",
     blurb:
       "Everything in Free, plus the counter tools: offers, a loyalty card, tap-to-stamp, " +
-      "Local Wallet payments, enquiries, your own numbers — and bookings at 95p each, " +
+      "Local Wallet payments, enquiries, Get it done job enquiries, your own numbers — and bookings at 95p each, " +
       "capped so it never costs more than Premium.",
   },
   premium: {
@@ -215,6 +216,7 @@ export const PLAN_COMPARISON: { label: string; tier: ListingTier }[] = [
   { label: "Tap-to-stamp NFC tile",             tier: TIER_FEATURES.nfc },
   { label: "Local Wallet payments",             tier: TIER_FEATURES.wallet },
   { label: "Customer enquiries",                tier: TIER_FEATURES.enquiries },
+  { label: "Get it done job enquiries",         tier: TIER_FEATURES.jobEnquiries },
   { label: "Your analytics",                    tier: TIER_FEATURES.analytics },
   { label: "Services and bookings",             tier: TIER_FEATURES.bookings },
   { label: "Bookings with no per-booking fee",  tier: "premium" },

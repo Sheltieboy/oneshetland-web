@@ -147,6 +147,7 @@ export async function findMatches(brief: {
     .from("local_businesses")
     .select("id, name, slug, logo_url, lat, lng, subscription_tier, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials")
     .eq("is_active", true)
+    .in("subscription_tier", ["pro", "premium"])   // job enquiries are a Pro/Premium entitlement; the database re-checks expiry when matches are created
     .overlaps("trade_categories", brief.trades)
     .limit(200);
 

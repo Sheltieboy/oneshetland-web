@@ -3,6 +3,7 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { createClient } from "@/lib/supabase/server";
 import { effectiveAvailability } from "@/lib/trades";
 import { getLeadContact } from "@/lib/trades-actions";
+import { jobMatchingActive, PRO_PRICE } from "@/lib/get-it-done-entitlement";
 import { TradeSettings } from "@/components/trades/TradeSettings";
 import { LeadCard } from "@/components/trades/LeadCard";
 import { HelpTip } from "@/components/help/HelpTip";
@@ -25,7 +26,7 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
 
   const { data: row } = await sb
     .from("local_businesses")
-    .select("subscription_tier, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials")
+    .select("subscription_tier, subscription_until, trade_categories, trade_availability, trade_availability_set_at, trade_min_job_pence, trade_credentials")
     .eq("id", business.id)
     .single();
 
@@ -55,6 +56,7 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
       .map(async (m) => { contacts.set(m.id as string, (await getLeadContact(m.id as string)).contact); }),
   );
 
+  const entitled = jobMatchingActive(row?.subscription_tier as string | null, row?.subscription_until as string | null);
   const live = effectiveAvailability(
     (row?.trade_availability as string | null) ?? null,
     (row?.trade_availability_set_at as string | null) ?? null,
@@ -73,16 +75,31 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
         Folk across Shetland looking for somebody to do a job.
       </p>
 
+      {entitled ? (
+        <p className="mt-4 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">
+          Job matching is active on your plan. Matching jobs appear below while your trades and availability are set and up to date.
+        </p>
+      ) : (
+        <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+          <p className="font-semibold text-amber-900">You are not being matched to new jobs</p>
+          <p className="mt-1 text-sm text-amber-900">
+            Job enquiries are included with OneShetland Pro ({PRO_PRICE}) and Premium. You can set up your trades and availability now and they are saved.
+            Enquiries you have already received stay here.
+          </p>
+          <Link href={`/business/${business.id}/manage/billing`} className="mt-2 inline-block text-sm font-bold underline text-amber-900">See Pro and Premium</Link>
+        </div>
+      )}
+
       {((row?.trade_categories as string[] | null) ?? []).length === 0 && (
         <div className="mt-6 rounded-xl border border-line bg-sand/40 p-5">
           <p className="font-semibold text-ink">How Get it done works for you</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
-            <li>Say what you do and whether you have room, below. Until you do, no jobs are sent to you.</li>
+            <li>Say what you do and whether you have room, below. Until you do, and while you are on the free plan, no new jobs are sent to you.</li>
             <li>When somebody posts a job that fits, it appears here without their name or number. We also send a notification where you have the OneShetland app, so check this page regularly.</li>
             <li>Tap &quot;I&apos;m interested&quot; or say you can&apos;t take it.</li>
             <li>If you are interested, the customer chooses whether to share their details with you. Their number appears here once they do.</li>
           </ol>
-          <p className="mt-2 text-xs text-ink-faint">It is free to join. We can&apos;t promise work.</p>
+          <p className="mt-2 text-xs text-ink-faint">Nobody can promise work.</p>
         </div>
       )}
 
@@ -103,7 +120,9 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
 
       {(matches ?? []).length === 0 ? (
         <p className="mt-3 text-ink-soft">
-          {live
+          {!entitled
+            ? "No job enquiries yet. New jobs are only matched to businesses on Pro or Premium."
+            : live
             ? "No jobs yet. That is normal while Get it done is new. When somebody posts a job you cover and you have room, it will appear here. Keep your availability up to date."
             : "You haven't said whether you have room, so jobs aren't being sent to you. Set your availability above."}
         </p>

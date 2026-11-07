@@ -170,7 +170,7 @@ describe("account-aware plan buttons (existing owner, upgrade)", () => {
 describe("prices, plans and permissions are unchanged", () => {
   test("the published prices", () => { assert.deepEqual([TIER_PRICE.free, TIER_PRICE.pro, TIER_PRICE.premium], ["£0", "£12/mo", "£29/mo"]); assert.deepEqual([TIER_PRICE_PENCE.pro, TIER_PRICE_PENCE.premium, PREMIUM_ANNUAL_PENCE], [1200, 2900, 29000]); });
   test("the plan feature table and permission map (shared with the app) are byte-identical to before", () => {
-    assert.equal(PLAN_COMPARISON.length, 15); assert.equal(TIER_FEATURES.offers, "pro"); assert.equal(TIER_FEATURES.products, "premium"); assert.equal(TIER_FEATURES.description, "free"); assert.equal(TIER_FEATURES.featuredBadge, "premium");
+    assert.equal(PLAN_COMPARISON.length, 16); assert.equal(TIER_FEATURES.offers, "pro"); assert.equal(TIER_FEATURES.products, "premium"); assert.equal(TIER_FEATURES.description, "free"); assert.equal(TIER_FEATURES.featuredBadge, "premium");
   });
   test("the shared tier file was not edited (this change only re-words the marketing page)", () => {
     const lt = read("lib/listing-tiers.ts"); assert.match(lt, /KEEP IN SYNC with oneshetland-delivers\/lib\/listing-tiers\.ts/); assert.match(lt, /pro:     1200/); assert.match(lt, /premium: 2900/);

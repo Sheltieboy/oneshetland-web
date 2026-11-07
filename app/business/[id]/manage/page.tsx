@@ -9,6 +9,7 @@ import { BIZ, TIER_LABELS } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
 import { GetItDoneInvite } from "@/components/business/GetItDoneInvite";
 import { isGetItDoneCategory } from "@/lib/get-it-done-eligibility";
+import { jobMatchingActive } from "@/lib/get-it-done-entitlement";
 import { AVAILABILITY_LABEL, availabilityIsFresh } from "@/lib/trades";
 import { nextAction, hasOperationalAttention } from "@/lib/business-next-action";
 import { beFound } from "@/lib/be-found";
@@ -82,6 +83,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           businessId={business.id} base={base}
           eligible={isGetItDoneCategory(business.category)}
           isTrade={dashboard.isTrade}
+          entitled={jobMatchingActive(business.subscription_tier, business.subscription_until)}
           availabilityLabel={dashboard.tradeAvailability ? (AVAILABILITY_LABEL[dashboard.tradeAvailability as keyof typeof AVAILABILITY_LABEL] ?? null) : null}
           availabilityFresh={availabilityIsFresh(dashboard.tradeAvailabilitySetAt)}
         />
@@ -123,7 +125,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           <UtilityRow label="Boost" href={`${base}/billing`}
             status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />
           <UtilityRow label="Get it done: job leads" href={`${base}/leads`}
-            status={dashboard.isTrade ? "Joined" : "Not joined"} />
+            status={jobMatchingActive(business.subscription_tier, business.subscription_until) ? (dashboard.isTrade ? "Matching active" : "Not set up") : (dashboard.isTrade ? "Needs Pro" : "Pro and Premium")} />
           <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
           <UtilityRow label="Accessibility information" href={`/accessible/edit/business/${business.id}`}
             status={accessibility ? (accessibility.published ? "Published" : "Draft") : null} />

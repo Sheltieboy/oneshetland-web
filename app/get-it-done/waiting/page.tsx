@@ -75,8 +75,8 @@ export default async function WaitingPage() {
         <p className="font-display text-lg font-bold text-ink">If you&apos;re a tradesperson</p>
         <p className="mt-2 text-ink-soft">
           This is work nobody is doing. Claim your listing, say what you cover and whether
-          you have room, and jobs that fit are sent to you. It is free to join. We never charge
-          to be seen sooner: the order is set by who has room and who answers.
+          you have room, and jobs that fit are sent to you. Job enquiries are included with OneShetland Pro and Premium. Paying doesn&apos;t
+          put you ahead: the order is set by who has room and who answers.
         </p>
         <Link href="/business#find-your-business" className="mt-4 inline-block rounded-pill px-5 py-2.5 font-bold text-white" style={{ background: ACCENT }}>
           Claim your listing

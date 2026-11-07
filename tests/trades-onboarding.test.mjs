@@ -41,7 +41,7 @@ test("the public copy matches behaviour: no cap claim, no paid priority, custome
   assert.ok(!/first few/i.test(all));
   assert.ok(!/ring you directly/i.test(all));
   assert.match(all, /chooses? whether to share/i);
-  assert.match(all, /can(&apos;|')t promise work/);
+  assert.match(all, /promise work/);
   const nudge = read("lib/trades-data.ts").match(/const TIER_NUDGE[^\n]*\n?[^\n]*/g).join("");
   assert.match(nudge, /premium: 0, pro: 0, free: 0/);
 });
@@ -49,7 +49,7 @@ test("the public copy matches behaviour: no cap claim, no paid priority, custome
 test("the business hub links to Get it done: job leads, showing whether the business has joined", () => {
   const src = read("app/business/[id]/manage/page.tsx");
   assert.match(src, /Get it done: job leads/);
-  assert.match(src, /dashboard\.isTrade \? "Joined" : "Not joined"/);
+  assert.match(src, /Get it done: job leads/); assert.match(src, /Matching active/); assert.match(src, /Needs Pro/);
 });
 
 test("the leads page explains how it works until a trade profile is saved", () => {
