@@ -13,9 +13,11 @@ const page = pageOnly + readFileSync(new URL("../lib/event-submissions-access.se
 test("every step heading can take focus, so keyboard and screen-reader users are not dropped to the page body", () => {
   assert.match(fd, /useRef<HTMLHeadingElement>/);
   assert.match(fd, /stepHeading\.current\?\.focus\(\)/);
-  const headings = fd.match(/<h2[^>]*>/g) ?? [];
-  const withRef = headings.filter((h) => h.includes("ref={stepHeading}") && h.includes("tabIndex={-1}"));
-  assert.equal(withRef.length, 4, "choose, ask, event and activity step headings");
+  // One helper draws every step heading (organiser, category, ask, and the three outcomes), so none can forget its ref.
+  const helper = fd.match(/const H = \(id: string[^\n]*\n\s*<h2[^>]*>/)?.[0] ?? "";
+  assert.ok(helper.includes("ref={stepHeading}") && helper.includes("tabIndex={-1}"));
+  assert.equal((fd.match(/\{H\("/g) ?? []).length, 6, "organiser, category, ask and the three outcome headings");
+  assert.equal((fd.match(/<h2[^>]*>/g) ?? []).length, 2, "only the helper and the sign-in panel draw an h2 directly");
 });
 
 test("the first render does not steal focus", () => {

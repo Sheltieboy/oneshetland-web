@@ -58,6 +58,29 @@ export const EVENTS = [
   base({ id: "d0000002-0000-4000-8000-000000000002", title: "Postponed Event", status: "postponed", is_hidden: true, starts_at: iso(NOW + 9 * D) }),
 ];
 
+// ── signed-in member fixtures for the ownership journey (/whats-on/add, /account/event-submissions) ─────────────────────────────────
+// A session cookie whose access_token payload carries { fx: "<name>" } picks the fixture (see tests/support/mock-session.mjs).
+const U = (n) => `00000000-0000-4000-8000-0000000000${n}`;
+const sub = (n, status) => ({ id: `5b000000-0000-4000-8000-00000000000${n}`, submitter_id: "x", status, organiser_name: "Unst Quilters", title: `Winter Fair ${n}`, description: "Tea.", category: "Community", venue: "Hall", locality: "Unst",
+  cover_url: null, contact_info: null, ticket_url: null, price_text: "Free", occurrences: [{ starts_at: iso(NOW + n * D), ends_at: iso(NOW + n * D + 2 * H), status: "scheduled", note: null }], review_reason: null, reviewed_at: null, event_id: null, created_at: iso(NOW - n * D) });
+const hubRow = (id, name, slug, role) => ({ role, hub: { id, name, slug, type: "community", logo_url: null, brand_color: null, is_active: true } });
+export const MEMBERS = {
+  none: { id: U("11"), businesses: [], hubs: [], subs: [] },
+  business: { id: U("12"), businesses: [{ id: "b1", name: "Ruth Archer Fitness", slug: "ruth-archer-fitness", logo_url: null, is_active: true }], hubs: [], subs: [] },
+  hub: { id: U("13"), businesses: [], hubs: [hubRow("h1", "Bressay Hall Hub", "bressay-hall", "owner")], subs: [] },
+  committee: { id: U("14"), businesses: [], hubs: [hubRow("h2", "Aith Choir", "aith-choir", "committee")], subs: [] },
+  both: { id: U("15"), businesses: [{ id: "b1", name: "Ruth Archer Fitness", slug: "ruth-archer-fitness", logo_url: null, is_active: true }, { id: "b2", name: "Anderson Bakery", slug: null, logo_url: null, is_active: false }], hubs: [hubRow("h1", "Bressay Hall Hub", "bressay-hall", "owner"), hubRow("h2", "Aith Choir", "aith-choir", "committee")], subs: [] },
+  many: { id: U("16"), businesses: [], hubs: [], subs: [sub(1, "approved"), sub(2, "pending"), sub(3, "changes_requested"), sub(4, "withdrawn")] },
+  fail: { id: U("17"), businesses: [], hubs: "ERROR", subs: [] },     // the hub read fails: the journey must degrade to independent-only
+};
+const memberOf = (req) => {
+  try {
+    const tok = (req.headers.authorization ?? "").replace(/^Bearer /i, "").split(".")[1];
+    const fx = JSON.parse(Buffer.from(tok, "base64url").toString()).fx;
+    return MEMBERS[fx] ?? null;
+  } catch { return null; }
+};
+
 // What an anonymous visitor may read: published and not hidden, plus (migration 20261230020000) a CANCELLED event by its link when it is not a members-only hub event.
 const visible = (e) => (e.status === "published" && !e.is_hidden) || (e.status === "cancelled" && (!e.organiser_hub_id || ["hub", "islands"].includes(e.hub_visibility)));
 
@@ -85,6 +108,23 @@ http.createServer((req, res) => {
   const u = new URL(req.url, "http://x");
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*" }); res.end(JSON.stringify(body)); };
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" }); return res.end(); }
+  const m = memberOf(req);
+  if (u.pathname === "/auth/v1/user" && m) return send(200, { id: m.id, email: "member@example.com", aud: "authenticated", role: "authenticated" });
+  if (m && u.pathname === "/rest/v1/local_businesses") return send(200, m.businesses);
+  if (m && u.pathname === "/rest/v1/hub_members" && (u.searchParams.get("select") ?? "").replace(/\s/g, "") === "role,status") {
+    const mine = Array.isArray(m.hubs) ? m.hubs.find((r) => r.hub.id === (u.searchParams.get("hub_id") ?? "").replace(/^eq\./, "")) : null;
+    return mine ? send(200, { role: mine.role, status: "active" }) : (/pgrst\.object/.test(req.headers.accept ?? "") ? send(406, { code: "PGRST116", message: "no rows" }) : send(200, []));
+  }
+  if (u.pathname === "/rest/v1/hubs" && (u.searchParams.get("slug") || u.searchParams.get("id"))) {
+    const key = (u.searchParams.get("slug") ?? u.searchParams.get("id")).replace(/^eq\./, "");
+    const all = Object.values(MEMBERS).flatMap((x) => (Array.isArray(x.hubs) ? x.hubs : [])).map((r) => r.hub).find((h) => h.slug === key || h.id === key);
+    if (all) return send(200, { ...all, is_verified: false, owner_id: null, description: null, island: null, member_count: 0 });
+  }
+  if (m && u.pathname === "/rest/v1/hub_members") return m.hubs === "ERROR" ? send(500, { code: "XX000", message: "boom" }) : send(200, m.hubs);
+  if (m && u.pathname === "/rest/v1/event_submissions") return send(200, m.subs.map((x) => ({ ...x, submitter_id: m.id })));
+  if (m && u.pathname === "/rest/v1/rpc/event_submissions_open") return send(200, true);
+  if (m && u.pathname === "/rest/v1/rpc/submit_event_submission") return send(200, "5b000000-0000-4000-8000-0000000000ff");
+  if (m && u.pathname === "/rest/v1/profiles") return send(200, []);
   if (u.pathname === "/auth/v1/user") return send(200, { id: "00000000-0000-4000-8000-000000000001", email: "organiser@example.com", aud: "authenticated", role: "authenticated" });
   if (u.pathname.startsWith("/functions/v1/")) return send(200, { ok: true });
   if (u.pathname === "/rest/v1/event_updates" && req.method === "POST") return send(201, { id: "upd1" });
