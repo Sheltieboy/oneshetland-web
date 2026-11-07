@@ -151,7 +151,7 @@ export function listingCard(event: RunEvent, occurrences: readonly Occurrence[] 
 }
 
 /**
- * The homepage's What's On slots: featured first, then soonest; each production at most once; no organiser takes more than
+ * The homepage's What's On slots: featured first, then soonest (ties at the same instant by event id, so the order is deterministic); each production at most once; no organiser takes more than
  * `perOrganiserMax` slots; at most `max` cards. Cards with nothing to come (finished, cancelled, or an ordinary event that is
  * already ongoing) never take a slot.
  */
@@ -160,7 +160,12 @@ export function homepageSelect(cards: readonly ListingCard[], opts: { max?: numb
   const eligible = cards
     .map((c, i) => ({ c, i }))
     .filter(({ c }) => isUpcomingLike(c.state) && c.nextStartsAt !== null && ms(c.nextStartsAt) !== null)
-    .sort((a, b) => Number(b.c.isFeatured) - Number(a.c.isFeatured) || (ms(a.c.nextStartsAt) as number) - (ms(b.c.nextStartsAt) as number) || a.i - b.i)
+    .sort((a, b) =>
+      Number(b.c.isFeatured) - Number(a.c.isFeatured) ||
+      (ms(a.c.nextStartsAt) as number) - (ms(b.c.nextStartsAt) as number) ||
+      // two events at exactly the same instant: break the tie by id (never by the order the database happened to return rows), so the page is stable
+      (a.c.eventId < b.c.eventId ? -1 : a.c.eventId > b.c.eventId ? 1 : 0) ||
+      a.i - b.i)
     .map((x) => x.c);
   const seen = new Set<string>(), perOrg = new Map<string, number>(), out: ListingCard[] = [];
   for (const c of eligible) {

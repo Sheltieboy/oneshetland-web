@@ -229,6 +229,7 @@ async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
       .or(currentEventsFilter(now))
       .order("is_featured", { ascending: false })
       .order("starts_at", { ascending: true })
+      .order("id", { ascending: true })   // deterministic: events starting at the same instant always come back in the same order
       .limit(HOME_SCAN),
   );
   if (!modern.modern) return fetchEventsLegacy(sb, now);
@@ -249,6 +250,7 @@ async function fetchEventsLegacy(sb: SB, now: string): Promise<HomeEvent[]> {
     .or(currentEventsFilter(now))
     .order("is_featured", { ascending: false })
     .order("starts_at", { ascending: true })
+    .order("id", { ascending: true })   // deterministic: events starting at the same instant always come back in the same order
     .limit(7);   // the homepage mosaic shows seven (lib/event-display.ts HOME_MOSAIC_COUNT)
   return (data ?? []) as HomeEvent[];
 }
