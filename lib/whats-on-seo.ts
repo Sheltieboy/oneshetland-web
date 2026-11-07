@@ -14,7 +14,7 @@ export function trimDescription(raw: string | null | undefined, max = 155): stri
   return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\-–—]+$/, "")}…`;
 }
 
-type EventMetaInput = { id: string; title: string; description?: string | null; venue?: string | null; locality?: string | null; cover_url?: string | null };
+type EventMetaInput = { id: string; title: string; status?: string | null; description?: string | null; venue?: string | null; locality?: string | null; cover_url?: string | null };
 const FALLBACK_DESCRIPTION = "Find the date, time and place on OneShetland, the island guide to what's on across Shetland.";
 
 /** Metadata for /whats-on/<id>. A missing, hidden or unreadable event gets a generic, non-indexed answer that reveals nothing. */
@@ -22,6 +22,18 @@ export function eventPageMetadata(id: string, e: EventMetaInput | null) {
   const path = `/whats-on/${id}`;
   if (!e) return { title: "Event", robots: { index: false, follow: false } };
   const where = [e.venue, e.locality].filter(Boolean).join(", ");
+  // A cancelled event keeps its page and is NOT noindex: search engines should learn that it is cancelled. (It stays out of the sitemap and every list.)
+  if (e.status === "cancelled") {
+    const title = `Cancelled: ${e.title}`;
+    const text = "This event has been cancelled.";
+    return {
+      title,
+      description: text,
+      alternates: { canonical: `${BASE}${path}` },
+      openGraph: { type: "article" as const, title, description: text, url: `${BASE}${path}`, siteName: "OneShetland" },
+      twitter: { card: "summary" as const, title, description: text },
+    };
+  }
   const description = trimDescription(e.description) || (where ? `${e.title} at ${where}. ${FALLBACK_DESCRIPTION}` : `${e.title}. ${FALLBACK_DESCRIPTION}`);
   const cover = typeof e.cover_url === "string" && /^https:\/\//i.test(e.cover_url) ? e.cover_url : null;
   return {

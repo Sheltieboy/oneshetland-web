@@ -84,7 +84,8 @@ export function eventSchema(e: {
       name: e.venue || e.locality || "Shetland",
       address: e.formatted_address || e.locality || "Shetland, Scotland",
     },
-    offers: offers.length ? offers : undefined,
+    // A cancelled event offers nothing: no ticket "InStock" for something that is not happening.
+    offers: offers.length && e.status !== "cancelled" ? offers : undefined,
     organizer: organizerName ? { "@type": "Organization", name: organizerName } : undefined,
   });
 }
@@ -147,7 +148,7 @@ export function eventRunSchema(
         location: place(o.venue, o.locality),
       }),
     ),
-    offers,
+    offers: allCancelled || e.status === "cancelled" ? undefined : offers,   // nothing to buy for a cancelled event
     organizer: organizerName ? { "@type": "Organization", name: organizerName } : undefined,
   });
 }

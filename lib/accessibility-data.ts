@@ -57,7 +57,7 @@ export async function listPublishedAccessibility(): Promise<BrowseItem[]> {
       ids("business").length ? sb.from("local_businesses_public").select("id, name, slug, address").in("id", ids("business")) : { data: [] },
       ids("hub").length ? sb.from("hubs").select("id, name, slug").in("id", ids("hub")) : { data: [] },
       ids("activity").length ? sb.from("regular_activities").select("id, title, slug, locality").in("id", ids("activity")) : { data: [] },
-      ids("event").length ? sb.from("events").select("id, title, venue").in("id", ids("event")) : { data: [] },
+      ids("event").length ? sb.from("events").select("id, title, venue").eq("status", "published").in("id", ids("event")) : { data: [] },
       sb.from("accessibility_facts").select("subject_type, subject_id, facility, status, detail").in("subject_id", profiles.map((p) => p.subject_id)).limit(BROWSE_LIMIT * 30),
     ]);
     type N = { id: string; name?: string; title?: string; slug?: string | null; locality?: string | null; address?: string | null; venue?: string | null };

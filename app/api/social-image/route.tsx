@@ -7,8 +7,8 @@ import { coverAsJpegDataUri, policyFromSupabaseUrl } from "@/lib/social-image-so
 import { ALL_FACILITIES, PROVENANCE_LABEL } from "@/lib/accessibility";
 import { RESOURCE_SECTIONS } from "@/lib/accessibility-resources";
 import { CATEGORY_LABEL } from "@/lib/activities";
-import { selectTolerant } from "@/lib/events-schema";
-import { presentRow, type RunOccurrence } from "@/lib/event-runs";
+import { getSpotlightEvent } from "@/lib/social-event-row";
+import { presentRow } from "@/lib/event-runs";
 import { eventOrganiser } from "@/lib/event-organiser";
 
 /**
@@ -145,13 +145,8 @@ export async function GET(req: NextRequest) {
   /* ── Event spotlight ───────────────────────────────────────────────────── */
   if (kind === "event") {
     // New schema: organiser_name / source / performances too; on an old schema the original columns only (lib/events-schema.ts).
-    const { data: row } = await selectTolerant<Record<string, unknown> & { title: string; starts_at: string; venue: string | null; locality: string | null; cover_url: string | null; ends_at?: string | null; id?: string; source?: string | null; organiser_name?: string | null; organiser_business_id?: string | null; organiser_hub_id?: string | null; occurrences?: RunOccurrence[] | null }>((extra) =>
-      sb
-        .from("events")
-        .select("id, title, starts_at, ends_at, venue, locality, cover_url, price_text, organiser_business_id, organiser_hub_id" + extra)
-        .eq("id", p.get("id") ?? "")
-        .maybeSingle(),
-    );
+    // Published and visible only: a cancelled event is readable by its link but never gets a promotional card (lib/social-event-row.ts).
+    const row = await getSpotlightEvent(p.get("id") ?? "");
     if (!row) return new Response("event not found", { status: 404 });
     // A production with performances is dated by its NEXT performance (a finished one keeps its stored date).
     const shown = presentRow({ ...row, id: String(row.id ?? ""), occurrences: row.occurrences ?? null }, new Date());

@@ -223,6 +223,7 @@ async function fetchEvents(sb: SB, now: string): Promise<HomeEvent[]> {
     sb
       .from("events")
       .select("id, title, starts_at, ends_at, venue, locality, category, cover_url, is_featured, price_text, has_tickets, organiser_hub_id, organiser_business_id" + extra)
+      .eq("status", "published")   // explicit: a cancelled event stays readable by its link (events_cancelled_public_read) but is never a homepage card
       .eq("is_hidden", false)
       .or("organiser_hub_id.is.null,calendar_approved.eq.true")
       .or(currentEventsFilter(now))
@@ -239,6 +240,7 @@ async function fetchEventsLegacy(sb: SB, now: string): Promise<HomeEvent[]> {
   const { data } = await sb
     .from("events")
     .select("id, title, starts_at, ends_at, venue, category, cover_url, is_featured, price_text, has_tickets")
+    .eq("status", "published")   // explicit (see fetchEvents)
     .eq("is_hidden", false)
     .or("organiser_hub_id.is.null,calendar_approved.eq.true")
     // "What's happening": events not yet started, or in progress and finishing today (Shetland). An exhibition that began days or

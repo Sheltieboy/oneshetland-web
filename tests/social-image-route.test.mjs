@@ -21,7 +21,7 @@ test("the route does not fetch anything or decode images itself", () => {
 test("every cover/photo goes through coverAsJpegDataUri with the trusted-origin policy", () => {
   assert.match(code, /import\s*\{[^}]*coverAsJpegDataUri[^}]*\}\s*from\s*["']@\/lib\/social-image-source["']/);
   const calls = [...code.matchAll(/coverAsJpegDataUri\s*\(([^)]*\)?[^)]*)\)/g)].map((m) => m[1]);
-  assert.equal(calls.length, 4, "event cover, product photo and a business's cover and logo are the only picture sources on this route");
+  assert.equal(calls.length, 5, "event cover, a business's cover and logo, product photo and the gallery strip are the only picture sources on this route");
   for (const c of calls) assert.match(c, /imagePolicy\(\)/, `call is missing the policy: ${c}`);
   assert.match(code, /policyFromSupabaseUrl\(process\.env\.NEXT_PUBLIC_SUPABASE_URL\)/, "the trusted origin is the project's own Supabase URL, never request data");
 });

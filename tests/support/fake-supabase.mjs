@@ -11,6 +11,9 @@
 const state = globalThis.__FAKE_STATE__ ??= { viewer: "anon" };
 export const setViewer = (v) => { state.viewer = v; };
 export const setDb = (db) => { globalThis.__FAKE_DB__ = db; };
+// events_cancelled_public_read (migration 20261230020000, product decision 7 Nov 2026): when ON, anyone can also read a row with status 'cancelled'
+// by asking for it (hub events only on the tiers 'hub' / 'islands'). is_hidden stays true on such rows. OFF = production today.
+export const setCancelledPolicy = (on) => { state.cancelledPolicy = !!on; };
 
 const isoLike = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}T/.test(v);
 const norm = (a, b) => (isoLike(a) && isoLike(b) ? [Date.parse(a), Date.parse(b)] : [a, b]);
@@ -68,7 +71,7 @@ class Query {
   rows() {
     const db = globalThis.__FAKE_DB__ ?? {};
     let rows = [...(db[this.table] ?? [])];
-    if (this.table === "events" && state.viewer !== "admin") rows = rows.filter((r) => r.is_hidden === false);   // RLS: events_public_read
+    if (this.table === "events" && state.viewer !== "admin") rows = rows.filter((r) => r.is_hidden === false || (state.cancelledPolicy && r.status === "cancelled" && (!r.organiser_hub_id || ["hub", "islands"].includes(r.hub_visibility))));   // RLS: events_public_read (+ events_cancelled_public_read when switched on)
     rows = rows.filter((r) => this.preds.every((p) => p(r)));
     for (const [c, asc] of [...this.sort].reverse()) {
       rows.sort((x, y) => {

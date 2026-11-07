@@ -63,7 +63,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
 
   // Performances (new schema only; empty before the migration, when everything below behaves exactly as it always has).
   const now = new Date();
-  const occ = displayOccurrences(e.occurrences);
+  const occ = displayOccurrences(e.occurrences).map((o) => (e.status === "cancelled" ? { ...o, status: "cancelled" as const } : o));   // a cancelled event cancels every date
   const liveOcc = occ.filter((o) => o.status !== "cancelled");
   /** A production with several performances: dated by its next one, never "ongoing", no ticket sale. */
   const dated = occ.length >= 2;
@@ -76,13 +76,15 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const whenEnd = dated && currentOcc ? currentOcc.ends_at ?? null : e.ends_at;
   const heroVenue = dated && currentOcc?.venue ? currentOcc.venue : e.venue;
 
-  const isCancelled = e.status === "cancelled" || allOccCancelled;
+  /** The WHOLE event is cancelled (status 'cancelled'): the page stays up and says so; nothing on it is bookable or presented as upcoming. */
+  const wholeCancelled = e.status === "cancelled";
+  const isCancelled = wholeCancelled || allOccCancelled;
   const isPostponed = e.status === "postponed";
   const isLive = !isCancelled && !isPostponed;
 
   const coords = e.lat != null && e.lng != null ? { lat: e.lat, lng: e.lng } : LERWICK_COORDS;
   const [canScan, social, conditions] = await Promise.all([
-    account ? canScanEvent(id) : Promise.resolve(false),
+    account && !wholeCancelled ? canScanEvent(id) : Promise.resolve(false),
     isLive ? getEventSocialStats(id) : Promise.resolve({ goingCount: 0, bookedRecent: 0 }),
     isLive ? getEventConditions(coords, whenStart) : Promise.resolve(null),
   ]);
@@ -98,7 +100,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   const homeArea = detectEventArea(account?.profile?.location_area, null, null, null);
   const homeDefaultStop = defaultStopForArea(homeArea);
 
-  const mapHref = e.formatted_address
+  const mapHref = wholeCancelled ? null : e.formatted_address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
         [e.venue, e.formatted_address].filter(Boolean).join(" "),
       )}`
@@ -110,10 +112,24 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
     <>
       <JsonLd data={[eventRunSchema(e, e.occurrences, now), breadcrumbSchema([{ name: "What's On", path: "/whats-on" }, { name: e.title, path: `/whats-on/${e.id}` }])]} />
       <TrackView event="content_viewed" objectType="event" objectId={id} />
+      {/* A cancelled event keeps its page (so nobody turns up to a locked door) and says so first, in plain words. */}
+      {wholeCancelled && (
+        <section aria-label="Event cancelled" className="border-b border-red-300 bg-red-50">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 py-4">
+            <div>
+              <p className="font-display text-xl font-bold text-red-800">Cancelled</p>
+              <p className="text-red-900">This event has been cancelled.</p>
+            </div>
+            <Link href="/whats-on" className="py-2.5 text-sm font-semibold text-red-900 underline underline-offset-2 hover:no-underline">
+              See what else is on →
+            </Link>
+          </div>
+        </section>
+      )}
       {/* Cover hero */}
       <section className="relative isolate flex min-h-[44vh] flex-col justify-end overflow-hidden text-paper sm:min-h-[52vh]" style={{ background: EVENTS }}>
         {e.cover_url ? (
-          <SafeImage src={e.cover_url} className="absolute inset-0 h-full w-full object-cover" />
+          <SafeImage src={e.cover_url} className={`absolute inset-0 h-full w-full object-cover${wholeCancelled ? " grayscale" : ""}`} />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/15" />
 
@@ -126,12 +142,15 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             >
               <span aria-hidden>‹</span> What&apos;s On
             </Link>
-            <ShareButton title={e.title} text={`${e.title} — ${dated ? "next: " : ""}${fmtLongDateTime(whenStart)}`} />
+            {wholeCancelled ? null : <ShareButton title={e.title} text={`${e.title} — ${dated ? "next: " : ""}${fmtLongDateTime(whenStart)}`} />}
           </div>
         </div>
 
         <div className="relative mx-auto w-full max-w-5xl px-5 pb-9">
-          {!dated && eventState(e, new Date()) === "ongoing" && (
+          {wholeCancelled && (
+            <span className="mr-2 inline-block rounded-pill bg-red-700 px-3 py-1 text-xs font-bold uppercase tracking-wide text-paper">Cancelled</span>
+          )}
+          {!wholeCancelled && !dated && eventState(e, new Date()) === "ongoing" && (
             <span className="mr-2 inline-block rounded-pill px-3 py-1 text-xs font-bold uppercase tracking-wide text-paper" style={{ background: EVENTS }}>
               Ongoing
             </span>
@@ -144,6 +163,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
           <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-tight drop-shadow sm:text-5xl">
             {e.title}
           </h1>
+          {wholeCancelled ? (
+            <p className="mt-3 text-lg text-paper/90">
+              <span className="sr-only">Cancelled. </span>
+              {dated ? (
+                `${occ.length} performances, all cancelled`
+              ) : (
+                <s>{eventWhen(e.starts_at, e.ends_at).line}{heroVenue ? ` · ${heroVenue}` : ""}</s>
+              )}
+            </p>
+          ) : (
           <p className="mt-3 text-lg text-paper/90">
             {dated
               ? allOccCancelled
@@ -154,11 +183,12 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               : eventWhen(e.starts_at, e.ends_at).line}
             {heroVenue ? ` · ${heroVenue}` : ""}
           </p>
+          )}
         </div>
       </section>
 
       {/* Organiser check-in (only shown to whoever can scan this event) */}
-      {canScan && (
+      {canScan && !wholeCancelled && (
         <div className="border-b border-line bg-navy/[0.04]">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3">
             <p className="text-sm font-semibold text-ink">You&apos;re organising this event.</p>
@@ -170,13 +200,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       )}
 
       {/* Status / urgent banners */}
-      {(isCancelled || isPostponed || urgentUpdate) && (
+      {((isCancelled && !wholeCancelled) || isPostponed || urgentUpdate) && (
         <div className="mx-auto max-w-5xl px-5 pt-6">
           <div className="space-y-3">
-            {isCancelled && (
+            {isCancelled && !wholeCancelled && (
               <div className="rounded-card border border-red-300 bg-red-50 px-5 py-4">
                 <p className="font-display text-lg font-bold text-red-800">
-                  {allOccCancelled && e.status !== "cancelled" ? (dated ? "All performances have been cancelled" : "This performance has been cancelled") : "This event has been cancelled"}
+                  {allOccCancelled ? (dated ? "All performances have been cancelled" : "This performance has been cancelled") : "This event has been cancelled"}
                 </p>
               </div>
             )}
@@ -233,6 +263,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
                 <a href="#performances" className="mt-1 block py-2.5 text-sm font-semibold hover:underline" style={{ color: "#8a5a05" }}>See every date ↓</a>
               </InfoCard>
             ) : (
+            wholeCancelled ? (
+            <InfoCard label="When">
+              <span className="sr-only">Cancelled. </span>
+              <s>{eventWhen(e.starts_at, e.ends_at).start}</s>
+              <span className="block font-bold text-red-800">Cancelled</span>
+            </InfoCard>
+            ) : (
             <InfoCard label="When">
               {eventWhen(e.starts_at, e.ends_at).start}
               {/* A multi-day end reads as part of the start ("to Sunday 6 December…"), so it sits straight under it;
@@ -241,7 +278,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               {e.doors_open_at ? <span className="block text-ink-muted">Doors {fmtTime(e.doors_open_at)}</span> : null}
               {!eventWhen(e.starts_at, e.ends_at).multiDay && eventWhen(e.starts_at, e.ends_at).end ? <span className="block text-ink-muted">{eventWhen(e.starts_at, e.ends_at).end}</span> : null}
             </InfoCard>
-            )}
+            ))}
             <InfoCard label="Where">
               {heroVenue ?? "Shetland"}
               {e.formatted_address ? <span className="block text-ink-muted">{e.formatted_address}</span> : e.locality ? <span className="block text-ink-muted">{e.locality}</span> : null}
@@ -274,7 +311,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               : <GettingThereLinks />
           ) : null}
 
-          <div className="mt-10"><AccessibilitySection type="event" id={e.id} heading="Access and assistance at this event" /></div>
+          {wholeCancelled ? null : <div className="mt-10"><AccessibilitySection type="event" id={e.id} heading="Access and assistance at this event" /></div>}
 
           {/* Photo gallery */}
           {e.gallery_urls?.length ? (
@@ -416,6 +453,15 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               </div>
             </div>
           )}
+
+          {wholeCancelled && (e.has_tickets || e.ticket_url || e.ticket_types.length > 0) ? (
+            // No ticket link and no buy button on a cancelled event: a seller's page may still say "buy". Refunds are between the ticket
+            // holder and the organiser, so point there rather than send people back to a checkout.
+            <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
+              <h3 className="font-display text-xl font-bold">Had a ticket?</h3>
+              <p className="mt-3 text-ink-soft">Please contact the organiser about a refund.{e.contact_info ? " Their contact details are on this page." : ""}</p>
+            </div>
+          ) : null}
 
           {organiser && (
             <div className="rounded-xl border border-line bg-paper p-6 shadow-soft">
