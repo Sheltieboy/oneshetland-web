@@ -207,6 +207,20 @@ export function adminReviewSubmission(sb: Sb, id: string, decision: ReviewDecisi
   });
 }
 
+/**
+ * After a staff review SUCCEEDED: ask the server to email the contributor about that decision. The function re-verifies everything (staff,
+ * the reviewer, a recent decision, one email per decision, deleted accounts, opt-outs), so this only reports what actually happened.
+ * Never throws and never affects the review itself: a failure just means no email was confirmed.
+ */
+export async function notifyEventDecision(sb: Sb, submissionId: string): Promise<{ emailed: boolean }> {
+  try {
+    const fns = (sb as unknown as { functions?: { invoke: (n: string, o: { body: unknown }) => Promise<{ data?: unknown; error?: unknown }> } }).functions;
+    if (!fns) return { emailed: false };
+    const { data, error } = await fns.invoke("notify-event-submission", { body: { submission_id: submissionId } });
+    return { emailed: !error && (data as { emailed?: number } | null)?.emailed === 1 };
+  } catch { return { emailed: false }; }
+}
+
 /* ── contributor: self-service ─────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export type OccurrenceRow = { id: string; event_id: string; starts_at: string; ends_at: string | null; status: "scheduled" | "cancelled" | "changed"; note: string | null };

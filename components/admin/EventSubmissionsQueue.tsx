@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { adminReviewSubmission, type ReviewDecision, type Sb, type SubmissionRow } from "@/lib/event-submissions-client";
+import { adminReviewSubmission, notifyEventDecision, type ReviewDecision, type Sb, type SubmissionRow } from "@/lib/event-submissions-client";
 import { describeOccurrence } from "@/lib/event-dates-builder";
 import { eventLabelForCategory } from "@/lib/event-categories";
 import { APPROVE_CONFIRM } from "@/lib/contributor-copy";
@@ -35,9 +35,12 @@ function SubmissionCard({ s, nowMs }: { s: Item; nowMs: number }) {
 
   async function go(decision: ReviewDecision) {
     setBusy(true); setMsg(null);
-    const r = await adminReviewSubmission(createClient() as unknown as Sb, s.id, decision, reason);
+    const sb = createClient() as unknown as Sb;
+    const r = await adminReviewSubmission(sb, s.id, decision, reason);
+    // Only after the review succeeded (and not for a repeated approval): the contributor is emailed once. The message below says so only if it really happened.
+    const mailed = r.ok && !r.data.duplicate ? (await notifyEventDecision(sb, s.id)).emailed : false;
     setBusy(false);
-    if (r.ok) { setMsg({ text: decision === "approve" ? "Approved. It is now published as a community event." : decision === "reject" ? "Rejected." : "Asked the member for changes.", good: true }); setMode(null); router.refresh(); }
+    if (r.ok) { setMsg({ text: (decision === "approve" ? "Approved. It is now published as a community event." : decision === "reject" ? "Rejected." : "Asked the member for changes.") + (mailed ? " The member has been emailed." : " The member was not emailed (no email address, a deleted account, an opt-out, or the email did not send)."), good: true }); setMode(null); router.refresh(); }
     else setMsg({ text: r.error.message, good: false });
   }
   const row = (k: string, v: string | null) => v ? <div className="py-1"><dt className="text-sm font-semibold text-ink-soft">{k}</dt><dd className="whitespace-pre-line text-base text-ink">{v}</dd></div> : null;
