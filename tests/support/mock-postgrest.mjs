@@ -58,6 +58,30 @@ export const EVENTS = [
   base({ id: "d0000002-0000-4000-8000-000000000002", title: "Postponed Event", status: "postponed", is_hidden: true, starts_at: iso(NOW + 9 * D) }),
 ];
 
+// ── where-is-it fixtures (the community event form's venue + area suggestions) ─────────────────────────────────────────────────────────
+// Shapes match lib/event-location-search.ts selects. GET /__fail?tables=areas,local_businesses makes those tables answer 500 (GET /__fail clears it).
+const A = (id, name, type, parent_id, sort_order) => ({ id, name_display: name, name_official: name, type, parent_id, sort_order, is_active: true, is_physical: type !== "shetland" });
+export const AREAS = [
+  A("shetland_wide", "Shetland-wide", "shetland", null, 0), A("north_mainland", "North Mainland", "locality", null, 1), A("central_mainland", "Central Mainland", "locality", null, 2),
+  A("south_mainland", "South Mainland", "locality", null, 3), A("north_isles", "Yell, Unst & Fetlar / North Isles", "locality", null, 4), A("whalsay_skerries", "Whalsay & Skerries", "locality", null, 5),
+  A("lerwick", "Lerwick", "settlement", "central_mainland", 10), A("brae", "Brae", "settlement", "north_mainland", 11), A("voe", "Voe", "settlement", "north_mainland", 12),
+  A("hamnavoe", "Hamnavoe", "settlement", "central_mainland", 13), A("sandwick", "Sandwick", "settlement", "south_mainland", 14), A("whiteness", "Whiteness", "settlement", "central_mainland", 15),
+  A("burra", "Burra", "island", "central_mainland", 20), A("bressay", "Bressay", "island", "central_mainland", 21), A("unst", "Unst", "island", "north_isles", 22), A("yell", "Yell", "island", "north_isles", 23),
+  A("fetlar", "Fetlar", "island", "north_isles", 24), A("whalsay", "Whalsay", "island", "whalsay_skerries", 25), A("out_skerries", "Out Skerries", "island", "whalsay_skerries", 26), A("fair_isle", "Fair Isle", "island", null, 27),
+];
+export const ALIASES = [
+  { alias: "Baltasound", area_id: "unst", candidate_ids: [], is_active: true }, { alias: "Skerries", area_id: "out_skerries", candidate_ids: [], is_active: true },
+  { alias: "Hamnavoe", area_id: null, candidate_ids: ["hamnavoe", "burra"], is_active: true },
+];
+export const BUSINESS_VENUES = [
+  { id: "bv1", name: "Mareel", address: "North Ness, Lerwick, Shetland ZE1 0WD", lat: 60.1638, lng: -1.1457, is_active: true },
+  { id: "bv2", name: "Brae Co-op", address: "Main Street, Brae, Shetland ZE2 9QJ", lat: null, lng: null, is_active: true },
+  { id: "bv3", name: "Baltasound Hall Shop", address: "Baltasound, Unst, Shetland ZE2 9DS", lat: 60.7, lng: -0.85, is_active: true },
+  { id: "bv4", name: "Burra Road Garage", address: "Burra Road, Lerwick, Shetland ZE1 0AA", lat: null, lng: null, is_active: true },
+  { id: "bv5", name: "Lerwick Hall Cafe", address: "Not given", lat: null, lng: null, is_active: true },
+];
+let failing = new Set();
+
 // ── signed-in member fixtures for the ownership journey (/whats-on/add, /account/event-submissions) ─────────────────────────────────
 // A session cookie whose access_token payload carries { fx: "<name>" } picks the fixture (see tests/support/mock-session.mjs).
 const U = (n) => `00000000-0000-4000-8000-0000000000${n}`;
@@ -109,6 +133,15 @@ http.createServer((req, res) => {
   const send = (code, body) => { res.writeHead(code, { "content-type": "application/json", "access-control-allow-origin": "*" }); res.end(JSON.stringify(body)); };
   if (req.method === "OPTIONS") { res.writeHead(204, { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "*" }); return res.end(); }
   const m = memberOf(req);
+  if (u.pathname === "/__fail") { failing = new Set((u.searchParams.get("tables") ?? "").split(",").filter(Boolean)); return send(200, { failing: [...failing] }); }
+  const table = u.pathname.startsWith("/rest/v1/") ? u.pathname.split("/")[3] : "";
+  if (failing.has(table)) return send(500, { code: "XX000", message: "forced failure" });
+  if (u.pathname === "/rest/v1/areas") return send(200, AREAS.filter((a) => a.is_active && a.is_physical));
+  if (u.pathname === "/rest/v1/place_aliases") return send(200, ALIASES);
+  if (u.pathname === "/rest/v1/local_businesses" && (u.searchParams.get("name") ?? "").startsWith("ilike.")) {
+    const needle = u.searchParams.get("name").slice(6).replace(/%/g, "").toLowerCase();
+    return send(200, BUSINESS_VENUES.filter((b) => b.name.toLowerCase().includes(needle)));
+  }
   if (u.pathname === "/auth/v1/user" && m) return send(200, { id: m.id, email: "member@example.com", aud: "authenticated", role: "authenticated" });
   if (m && u.pathname === "/rest/v1/local_businesses") return send(200, m.businesses);
   if (m && u.pathname === "/rest/v1/hub_members" && (u.searchParams.get("select") ?? "").replace(/\s/g, "") === "role,status") {

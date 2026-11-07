@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { blankRow, describeOccurrence, utcToLondonParts, type DateRow, type RowIssue } from "@/lib/event-dates-builder";
@@ -12,6 +12,9 @@ import {
   DATES_HELP, DESCRIPTION_HELP, FORM_INTRO, ORGANISER_HELP, POSTER_HELP, REVIEW_INTRO, SUBMIT_THANKS_BODY, SUBMIT_THANKS_TITLE, TICKET_LINK_HELP,
 } from "@/lib/contributor-copy";
 import { HubSuggestion } from "@/components/events/front-door/HubSuggestion";
+import { VenueField } from "@/components/events/VenueField";
+import { AreaField } from "@/components/events/AreaField";
+import { areaFromLocality, areaFromVenue, loadAreaIndex, onVenuePicked, type AreaIndex, type AreaSource, type LocationClient, type VenueOption } from "@/lib/event-location-search";
 import { DatesBuilder } from "@/components/events/DatesBuilder";
 import { ErrorSummary, Field, Notice, PrimaryButton, SecondaryButton, TextArea, TextInput, textBtn, focusRing } from "@/components/events/submit-ui";
 
@@ -35,6 +38,23 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart, 
   const [form, setForm] = useState<Omit<FormState, "request_id" | "category" | "rows">>({
     organiser_name: "", title: "", description: "", venue: "", locality: "", price_text: "", contact_info: "", ticket_url: "", cover_url: null, adult_confirmed: false,
   });
+  // Where-is-it helpers. The text that is sent stays in `form` (venue, locality, lat, lng); these only remember how it was chosen.
+  const [venueSel, setVenueSel] = useState<VenueOption | null>(null);
+  const [areaIdx, setAreaIdx] = useState<AreaIndex | null>(null);
+  const [areaId, setAreaId] = useState<string | null>(null);
+  const [areaSource, setAreaSource] = useState<AreaSource>("none");
+  const [areaNote, setAreaNote] = useState<{ kind: "venue" } | { kind: "conflict"; areaId: string } | null>(null);
+  const getLocationClient = useCallback(() => createClient() as unknown as LocationClient, []);
+  useEffect(() => {
+    let live = true;
+    loadAreaIndex(getLocationClient()).then((i) => { if (live) setAreaIdx(i); }).catch(() => {});
+    return () => { live = false; };
+  }, [getLocationClient]);
+  // Older typed text in the area is matched to an official area as soon as the list is here (derived, so nothing is lost if no area matches).
+  const legacyArea = areaIdx && !areaId && form.locality.trim() ? areaFromLocality(areaIdx, form.locality) : null;
+  const effAreaId = areaId ?? legacyArea?.id ?? null;
+  const effSource: AreaSource = areaId ? areaSource : legacyArea ? "manual" : "none";
+
   const [rows, setRows] = useState<DateRow[]>(() => [blankRow()]);
   const [errors, setErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [rowIssues, setRowIssues] = useState<RowIssue[]>([]);
@@ -53,12 +73,34 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart, 
   useEffect(() => { if (errTick > 0) summary.current?.focus(); }, [errTick]);
 
   const today = useMemo(() => utcToLondonParts(new Date().toISOString())?.date ?? "", []);
-  const full = (): FormState => ({ ...form, request_id: (requestId.current ??= crypto.randomUUID()), category: slug, rows });
+  const full = (): FormState => ({ ...form, locality: legacyArea?.name ?? form.locality, request_id: (requestId.current ??= crypto.randomUUID()), category: slug, rows });
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => {
     setForm((f) => ({ ...f, [k]: v }));
     setErrors((e) => { if (!(k in e)) return e; const n = { ...e }; delete n[k as FieldName]; return n; });   // fixing a box clears its message
   };
   const err = (f: FieldName) => errors[f];
+
+  function typeVenue(text: string) {
+    set("venue", text);
+    if (venueSel) { setVenueSel(null); setForm((f) => ({ ...f, lat: null, lng: null })); setAreaNote(null); }
+  }
+  function pickVenue(v: VenueOption) {
+    setVenueSel(v);
+    setForm((f) => ({ ...f, venue: v.name, lat: v.lat, lng: v.lng }));
+    setErrors((e) => { if (!e.venue) return e; const n = { ...e }; delete n.venue; return n; });
+    const derived = areaIdx ? areaFromVenue(areaIdx, v) : null;
+    const out = onVenuePicked({ areaId: effAreaId, source: effSource, legacyText: !effAreaId && !!form.locality.trim() }, derived?.id ?? null);
+    if (out.kind === "set" && derived) { setAreaId(derived.id); setAreaSource("venue"); set("locality", derived.name); setAreaNote({ kind: "venue" }); }
+    else if (out.kind === "conflict") setAreaNote({ kind: "conflict", areaId: out.areaId });
+    else setAreaNote(effSource === "venue" && derived && derived.id === effAreaId ? { kind: "venue" } : null);
+  }
+  function clearVenue() { setVenueSel(null); setForm((f) => ({ ...f, venue: "", lat: null, lng: null })); setAreaNote(null); }
+  function pickArea(id: string, fromVenue = false) {
+    const a = areaIdx?.byId.get(id);
+    if (!a) return;
+    setAreaId(id); setAreaSource(fromVenue ? "venue" : "manual"); set("locality", a.name); setAreaNote(fromVenue ? { kind: "venue" } : null);
+  }
+  function clearArea() { setAreaId(null); setAreaSource("none"); setAreaNote(null); set("locality", ""); }
 
   const summaryItems = () => {
     const items: { id: string; message: string }[] = [];
@@ -156,11 +198,21 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart, 
       </>)}
 
       {step === "where" && (<>
-        <Field id={fid("venue")} label="Where is it?" help="The name of the hall, pub, school or place." error={err("venue")}>
-          {(a) => <TextInput id={a.id} value={form.venue} maxLength={220} aria-invalid={a.invalid || undefined} aria-describedby={a.describedBy} onChange={(e) => set("venue", e.target.value)} />}
+        <Field id={fid("venue")} label="Where is it?" help="Start typing and we will suggest places we already know. Or type the name of the hall, pub, school or place yourself." error={err("venue")}>
+          {(a) => <VenueField id={a.id} value={form.venue} selected={venueSel} onTyped={typeVenue} onPicked={pickVenue} onClear={clearVenue} getClient={getLocationClient} describedBy={a.describedBy} invalid={a.invalid} />}
         </Field>
-        <Field id={fid("locality")} label="Which village or town?" optional error={err("locality")}>
-          {(a) => <TextInput id={a.id} value={form.locality} maxLength={120} aria-invalid={a.invalid || undefined} aria-describedby={a.describedBy} onChange={(e) => set("locality", e.target.value)} />}
+        <Field id={fid("locality")} label="Which village, town or island?" optional error={err("locality")}>
+          {(a) => areaIdx
+            ? (<>
+                <AreaField id={a.id} index={areaIdx} selectedId={effAreaId} legacyText={form.locality} onPick={(id) => pickArea(id)} onClear={clearArea} describedBy={a.describedBy} invalid={a.invalid} />
+                {areaNote?.kind === "venue" && venueSel && effAreaId && <p role="status" className="mt-2 text-base font-semibold text-ink">Area chosen from the venue. Change it if that is wrong.</p>}
+                {areaNote?.kind === "conflict" && areaIdx.byId.get(areaNote.areaId) && (
+                  <p role="status" className="mt-2 text-base text-ink">This venue looks to be in {areaIdx.byId.get(areaNote.areaId)!.name}. We have kept the area you chose.{" "}
+                    <button type="button" className={textBtn} onClick={() => pickArea(areaNote.areaId, true)}>Use {areaIdx.byId.get(areaNote.areaId)!.name} instead</button></p>
+                )}
+              </>)
+            /* The area list could not be loaded: fall back to the plain box, exactly as before. */
+            : <TextInput id={a.id} value={form.locality} maxLength={120} aria-invalid={a.invalid || undefined} aria-describedby={a.describedBy} onChange={(e) => set("locality", e.target.value)} />}
         </Field>
       </>)}
 

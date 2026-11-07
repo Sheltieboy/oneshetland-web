@@ -81,6 +81,9 @@ export type SubmissionForm = {
   category: string;
   venue: string;
   locality: string;
+  /** Only when the venue was chosen from a record that has coordinates; both or neither. Typed venues never carry any. */
+  lat?: number | null;
+  lng?: number | null;
   price_text: string;
   contact_info: string;
   ticket_url: string;
@@ -92,6 +95,7 @@ export type SubmissionForm = {
 export type SubmissionPayload = {
   request_id: string; organiser_name: string; title: string; description: string; category: string; venue: string; locality: string | null;
   price_text: string | null; contact_info: string | null; ticket_url: string | null; cover_url: string | null; adult_confirmed: true; occurrences: UtcOccurrence[];
+  lat?: number; lng?: number;
 };
 
 export type ValidationResult =
@@ -144,6 +148,7 @@ export function validateSubmission(f: SubmissionForm, now: Date | number = new D
       organiser_name: vals.organiser_name!, title: vals.title!, description: vals.description!, category: f.category,
       venue: vals.venue!, locality: vals.locality, price_text: vals.price_text, contact_info: vals.contact_info, ticket_url: vals.ticket_url,
       cover_url: f.cover_url || null, adult_confirmed: true, occurrences: built.occurrences,
+      ...(typeof f.lat === "number" && typeof f.lng === "number" && Number.isFinite(f.lat) && Number.isFinite(f.lng) ? { lat: f.lat, lng: f.lng } : {}),
     },
   };
 }
