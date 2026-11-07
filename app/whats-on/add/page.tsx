@@ -11,8 +11,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Add an Event or Activity", robots: { index: false, follow: false }, alternates: { canonical: "/whats-on/add" } };
 
 /**
- * HIDDEN. Not linked from navigation, footers, empty states or the sitemap. Opens only when the server-only variable
- * EVENT_FRONT_DOOR is "on", or for a signed-in administrator previewing it; otherwise it is a 404.
+ * HIDDEN. Two separate questions, deliberately kept apart:
+ *   WHO CAN OPEN THIS PAGE (this gate): the public flag EVENT_FRONT_DOOR === "on" opens it for everyone; with the flag off it is open ONLY to a
+ *     signed-in administrator (preview) or an allowlisted tester (controlled acceptance testing); everyone else gets a 404.
+ *   WHO IS SHOWN LINKS TO IT (lib/event-entry-points.ts): the flag alone, for everyone including admins. With the flag off nothing links here, so an
+ *     admin or tester uses the direct address.
+ * Executable proof of every viewer type: tests/event-gate-viewers.test.mjs.
  *
  * Whether the event form can be used is decided here, on the server: signed out -> sign in first; the database functions missing -> "not available
  * yet"; the master switch closed -> "not open yet" (staff may still try it, as the database allows).
