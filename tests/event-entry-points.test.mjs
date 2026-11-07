@@ -1,7 +1,7 @@
 /**
  * "Add an Event or Activity" entry points: hidden unless EVENT_FRONT_DOOR === "on"; when hidden, nothing is added anywhere; when on, each surface
  * carries exactly one link to /whats-on/add. Pages and components are RENDERED (react-dom/server) with the in-memory fake supabase; nothing touches a network.
- * Run: node --test --import ./tests/support/register-jsx.mjs tests/event-entry-points.test.mjs
+ * Run: node --test --import ./tests/support/register.mjs tests/event-entry-points.test.mjs   (the JSX loader is registered by the file itself)
  */
 import { test, describe, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
@@ -10,6 +10,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createElement as h } from "react";
 import fake, { setDb, setViewer } from "./support/fake-supabase.mjs";
 import { ADD_EVENT_HREF, ADD_EVENT_LABEL, ADD_EVENT_MENU_LABEL, ADD_EVENT_EMPTY_PROMPT, entryPointsEnabled, entryPointProps } from "../lib/event-entry-points.ts";
+
+// Self-contained: register the .tsx/JSX loader here (every component and page below is imported dynamically, AFTER this), so the file passes under the
+// plain suite command as well as under --import ./tests/support/register-jsx.mjs. Nothing here is shipped.
+await import("./support/register-jsx.mjs");
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const ORIGINAL = process.env.EVENT_FRONT_DOOR;
