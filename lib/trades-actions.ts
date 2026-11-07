@@ -89,7 +89,9 @@ export async function postBrief(
       scale: input.scale,
       lat: input.lat,
       lng: input.lng,
-      limit: 8,
+      // More candidates than the cap on purpose: the database drops anyone who is unclaimed, booked up or invalid
+      // and keeps the first 8 that remain, in this order. Sending only 8 would let unclaimed listings eat the slots.
+      limit: 30,
     });
   } catch { matches = []; }
 
