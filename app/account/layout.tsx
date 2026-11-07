@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getAccount, accountName } from "@/lib/auth";
 import { isBusinessOwner } from "@/lib/account-data.server";
 import { AccountSidebar } from "@/components/account/AccountSidebar";
+import { entryPointProps } from "@/lib/event-entry-points";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My account" };
@@ -28,7 +29,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
         </div>
       </div>
       <div className="mx-auto max-w-6xl gap-8 px-5 py-8 lg:flex">
-        <aside className="mb-6 shrink-0 lg:mb-0 lg:w-56"><AccountSidebar isAdmin={isAdmin} isBusiness={isBusiness} /></aside>
+        <aside className="mb-6 shrink-0 lg:mb-0 lg:w-56"><AccountSidebar isAdmin={isAdmin} isBusiness={isBusiness} {...entryPointProps()} /></aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>

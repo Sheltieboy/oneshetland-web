@@ -5,6 +5,8 @@ import { RegularFilters } from "@/components/activities/RegularFilters";
 import { ActivityCard } from "@/components/activities/ActivityCard";
 import { REGULAR } from "@/components/activities/tokens";
 import { getActivityListing, getRulesFor } from "@/lib/activities-data";
+import { AddEventEntry } from "@/components/events/AddEventEntry";
+import { entryPointsEnabled } from "@/lib/event-entry-points";
 import { SHETLAND_AREAS } from "@/lib/local-data";
 import { parseDays, parseWhen, regularHref, safeCategory, summaryLine, WHEN_OPTIONS, type RegularFilters as F } from "@/lib/activities";
 
@@ -23,6 +25,7 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
   const rows = await getActivityListing(f, now);
   const rules = await getRulesFor(rows.map((r) => r.id));
   const filtered = !!(f.days.length || f.category || f.locality || f.dropIn || f.q || f.when !== "fortnight");
+  const addOn = entryPointsEnabled(); // EVENT_FRONT_DOOR === "on" only; off = the page is exactly as it was
   const whenLabel = WHEN_OPTIONS.find((o) => o.value === f.when)?.label.toLowerCase();
 
   return (
@@ -38,7 +41,10 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
 
       {/* The same switch, in the same place, as on Events. */}
       <div className="border-b border-line bg-cream">
-        <div className="mx-auto max-w-6xl px-5 py-2.5"><WhatsOnTabs active="regular" /></div>
+        <div className={"mx-auto max-w-6xl px-5 py-2.5" + (addOn ? " flex flex-wrap items-center justify-between gap-2" : "")}>
+          <WhatsOnTabs active="regular" />
+          <AddEventEntry variant="button" />
+        </div>
       </div>
 
       <div className="mx-auto max-w-6xl px-5 pb-10 pt-6 sm:pb-12">
@@ -72,7 +78,14 @@ export default async function RegularActivitiesPage({ searchParams }: { searchPa
         )}
         </div>
         <p className="mt-10 rounded-card border border-dashed border-line-strong p-4 text-sm text-ink-soft">
-          Run a class or group? Businesses and hubs can list regular activities free from their Manage screen: weekly times, cancellations and holiday breaks included, no booking or payment set-up needed.
+          {addOn ? (
+            <>
+              Run a class or group? Regular activities are run from a Business or a Hub, so people can see who is responsible. Either can list them free from their Manage screen: weekly times, cancellations and holiday breaks included, no booking or payment set-up needed.{" "}
+              Not sure where to start? <AddEventEntry variant="link" /> explains the way in.
+            </>
+          ) : (
+            <>Run a class or group? Businesses and hubs can list regular activities free from their Manage screen: weekly times, cancellations and holiday breaks included, no booking or payment set-up needed.</>
+          )}
         </p>
       </div>
     </>

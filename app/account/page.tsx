@@ -3,6 +3,8 @@ import { getAccount } from "@/lib/auth";
 import { getMyBusinessesBasic } from "@/lib/account-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentState } from "@/lib/payment-state";
+import { AddEventEntry } from "@/components/events/AddEventEntry";
+import { ADD_EVENT_ACCOUNT_DESC } from "@/lib/event-entry-points";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,8 @@ export default async function AccountOverview() {
             <p className="mt-0.5 text-sm text-ink-muted">{c.desc}</p>
           </Link>
         ))}
+        {/* Only when EVENT_FRONT_DOOR === "on"; renders nothing otherwise. */}
+        <AddEventEntry variant="card" description={ADD_EVENT_ACCOUNT_DESC} />
       </div>
 
       {/* Businesses */}

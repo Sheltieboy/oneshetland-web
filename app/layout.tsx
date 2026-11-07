@@ -13,6 +13,7 @@ import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
 import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
+import { entryPointProps } from "@/lib/event-entry-points";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -120,7 +121,7 @@ export default async function RootLayout({
             moves with it — it never gated any of them, it only covered them. */}
         <ChargeApprovalListener>
           <ConfirmProvider>
-            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} /></HideOnPrivateRoutes>
+            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
             <HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes>
             <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>

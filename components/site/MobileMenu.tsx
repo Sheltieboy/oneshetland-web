@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { mobileNavGroups } from "@/lib/nav-groups";
+import { ADD_EVENT_HREF, ADD_EVENT_MENU_LABEL } from "@/lib/event-entry-points";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 
@@ -18,8 +20,8 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input, [tabindex]:not([tabin
  * it is locked while it is open. Escape closes it, focus moves in and returns to the menu button on close, and Tab stays within the menu and its
  * button. No animation. Every destination the old menu had is here (the groups are built from lib/sections.ts), plus the same account links.
  */
-export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef }: {
-  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>;
+export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, addEvent = false }: {
+  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState<number | null>(null);
@@ -105,7 +107,8 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef }: 
         )}
 
         {GROUPS.map((g, gi) => (
-          <section key={g.title ?? "featured"} aria-labelledby={g.title ? `menu-g-${gi}` : undefined} aria-label={g.title ? undefined : "Popular"} className="mt-5">
+          <Fragment key={g.title ?? "featured"}>
+          <section aria-labelledby={g.title ? `menu-g-${gi}` : undefined} aria-label={g.title ? undefined : "Popular"} className="mt-5">
             {g.title && <h2 id={`menu-g-${gi}`} className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-ink-muted">{g.title}</h2>}
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {g.items.map((s) => (
@@ -124,6 +127,13 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef }: 
               ))}
             </ul>
           </section>
+          {/* One quiet item under the What's On area; only when the server passed addEvent (EVENT_FRONT_DOOR === "on"). */}
+          {addEvent && g.featured && (
+            <Link href={ADD_EVENT_HREF} onClick={onClose} className="mt-2 flex min-h-[48px] items-center justify-center rounded-xl px-3 py-2.5 text-[15px] font-semibold text-ink-soft underline underline-offset-2 hover:bg-sand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy">
+              {ADD_EVENT_MENU_LABEL}
+            </Link>
+          )}
+          </Fragment>
         ))}
 
         {user && (

@@ -14,7 +14,7 @@ import { MobileMenu } from "@/components/site/MobileMenu";
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
-export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderUser; fetchStatus?: FetchStatus }) {
+export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean }) {
   // The mobile menu is open only on the page it was opened on, so any navigation closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -175,7 +175,7 @@ export function SiteHeader({ user = null, fetchStatus = null }: { user?: HeaderU
       </div>
 
       {/* Mobile menu: a scrolling, grouped sheet (components/site/MobileMenu.tsx) */}
-      {open && <MobileMenu onClose={closeMenu} user={user} signInHref={`/sign-in?next=${encodeURIComponent(pathname)}`} headerRef={headerRef} toggleRef={toggleRef} />}
+      {open && <MobileMenu onClose={closeMenu} user={user} signInHref={`/sign-in?next=${encodeURIComponent(pathname)}`} headerRef={headerRef} toggleRef={toggleRef} addEvent={addEvent} />}
       {search && (
         <div className="border-t border-line/70 bg-cream" onKeyDown={(e) => { if (e.key === "Escape") setSearch(false); }}>
           <div className="mx-auto max-w-3xl px-5 py-3"><SiteSearch autoFocus onNavigate={() => setSearch(false)} /></div>

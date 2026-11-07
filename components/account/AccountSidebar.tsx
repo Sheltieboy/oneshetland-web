@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ADD_EVENT_HREF, ADD_EVENT_SIDEBAR_LABEL } from "@/lib/event-entry-points";
 
 type Item = { href: string; label: string; external?: boolean };
 
-export function AccountSidebar({ isAdmin, isBusiness }: { isAdmin: boolean; isBusiness: boolean }) {
+export function AccountSidebar({ isAdmin, isBusiness, addEvent = false }: { isAdmin: boolean; isBusiness: boolean; addEvent?: boolean }) {
   const path = usePathname();
   const account: Item[] = [
     { href: "/account", label: "Overview" },
@@ -25,6 +26,8 @@ export function AccountSidebar({ isAdmin, isBusiness }: { isAdmin: boolean; isBu
     { href: "/jobs/applications", label: "Job applications", external: true },
     { href: "/games/stats", label: "Game stats", external: true },
   ];
+  // Only passed (true) by the server when EVENT_FRONT_DOOR === "on".
+  if (addEvent) activity.splice(activity.findIndex((i) => i.href === "/account/hubs") + 1, 0, { href: ADD_EVENT_HREF, label: ADD_EVENT_SIDEBAR_LABEL });
   if (isBusiness) activity.splice(2, 0, { href: "/directory/new", label: "Add a business", external: true });
 
   const Section = ({ title, items }: { title: string; items: Item[] }) => (

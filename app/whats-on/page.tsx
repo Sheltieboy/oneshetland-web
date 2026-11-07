@@ -24,6 +24,8 @@ import { ActivityStrip } from "@/components/activities/ActivityStrip";
 import { getActivityStrip } from "@/lib/activities-data";
 import { whenForEventsRange } from "@/lib/activities";
 import { resilient } from "@/lib/home-resilience";
+import { AddEventEntry } from "@/components/events/AddEventEntry";
+import { ADD_EVENT_EMPTY_PROMPT, entryPointsEnabled } from "@/lib/event-entry-points";
 
 export const dynamic = "force-dynamic";
 export async function generateMetadata({ searchParams }: { searchParams: Promise<{ category?: string }> }) {
@@ -82,6 +84,8 @@ export default async function WhatsOnPage({
   // filter (category, date range, free-only, calendar) hides them, otherwise the
   // all-time highlights contradict the filtered list.
   const showHighlights = !category && !freeOnly && !calendar && range === "all";
+  // "Add an Event or Activity" entry points: present only when EVENT_FRONT_DOOR === "on" (server-only). Off = the markup below is exactly what it was.
+  const addOn = entryPointsEnabled();
 
   return (
     <>
@@ -103,7 +107,10 @@ export default async function WhatsOnPage({
 
       {/* Section switch. Deliberately NOT inside the sticky bar below: that bar is already tall on a phone and must stay exactly as it was. */}
       <div className="border-b border-line bg-cream">
-        <div className="mx-auto max-w-6xl px-5 py-2.5"><WhatsOnTabs active="events" /></div>
+        <div className={"mx-auto max-w-6xl px-5 py-2.5" + (addOn ? " flex flex-wrap items-center justify-between gap-2" : "")}>
+          <WhatsOnTabs active="events" />
+          <AddEventEntry variant="button" />
+        </div>
       </div>
 
       {/* Sticky filters */}
@@ -154,9 +161,10 @@ export default async function WhatsOnPage({
                   Nothing listed{category ? ` in ${category}` : ""} just now
                 </h2>
                 <p className="mx-auto mt-2 max-w-md text-ink-soft">
-                  Try a different date or category. New events are added all the time and appear here
-                  automatically once they&apos;re published in the app.
+                  {addOn ? ADD_EVENT_EMPTY_PROMPT : <>Try a different date or category. New events are added all the time and appear here
+                  automatically once they&apos;re published in the app.</>}
                 </p>
+                {addOn && <div className="mt-5"><AddEventEntry variant="button" /></div>}
                 {(category || freeOnly || range !== "all") && (
                   <Link
                     href="/whats-on"
