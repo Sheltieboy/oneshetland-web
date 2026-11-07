@@ -4,6 +4,9 @@ import { gateFeatureSignedIn, serverSb } from "@/lib/event-submissions-access.se
 import { listMySubmissions } from "@/lib/event-submissions-client";
 import { viewSubmission } from "@/lib/event-submissions-shape";
 import { PAGE_NOT_AVAILABLE_YET } from "@/lib/contributor-copy";
+import { loadMyOrganisers } from "@/lib/event-organisers.server";
+import { shouldSuggestHub } from "@/lib/event-ownership";
+import { HubSuggestion } from "@/components/events/front-door/HubSuggestion";
 import { MySubmissionsList } from "@/components/events/contributor/MySubmissionsList";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +29,13 @@ export default async function MyEventSubmissionsPage() {
     }
   }
 
+  // A gentle suggestion only: three or more of their own submissions that they have not withdrawn, and we know they run no hub yet.
+  let suggestHub = false;
+  if (res.ok) {
+    const loaded = await loadMyOrganisers(account.id).catch(() => null);
+    suggestHub = shouldSuggestHub({ statuses: res.data.map((s) => s.status), managesHub: loaded ? loaded.managesHub : null });
+  }
+
   return (
     <div>
       <h1 className="font-display text-3xl font-bold text-ink">My event submissions</h1>
@@ -42,6 +52,7 @@ export default async function MyEventSubmissionsPage() {
       ) : (
         <MySubmissionsList items={res.data.map((s) => viewSubmission(s, s.event_id && cancelled.has(s.event_id) ? "cancelled" : null))} eventIds={Object.fromEntries(res.data.filter((s) => s.event_id).map((s) => [s.id, s.event_id!]))} />
       )}
+      {suggestHub && <HubSuggestion />}
     </div>
   );
 }

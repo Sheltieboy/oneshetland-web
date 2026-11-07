@@ -11,6 +11,7 @@ import { submitEvent, uploadPoster, type Sb } from "@/lib/event-submissions-clie
 import {
   DATES_HELP, DESCRIPTION_HELP, FORM_INTRO, ORGANISER_HELP, POSTER_HELP, REVIEW_INTRO, SUBMIT_THANKS_BODY, SUBMIT_THANKS_TITLE, TICKET_LINK_HELP,
 } from "@/lib/contributor-copy";
+import { HubSuggestion } from "@/components/events/front-door/HubSuggestion";
 import { DatesBuilder } from "@/components/events/DatesBuilder";
 import { ErrorSummary, Field, Notice, PrimaryButton, SecondaryButton, TextArea, TextInput, textBtn, focusRing } from "@/components/events/submit-ui";
 
@@ -25,8 +26,10 @@ const FIELD_STEP: Partial<Record<FieldName, Step>> = {
 };
 const fid = (f: string) => `sf-${f}`;
 
-export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }: {
-  slug: string; categoryLabel: string; userId: string; staff: boolean; onRestart: () => void;
+export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart, onChangeOrganiser, suggestHub = false }: {
+  slug: string; categoryLabel: string; userId: string; staff: boolean; onRestart: () => void; onChangeOrganiser?: () => void;
+  /** Computed by the page from the member's own submissions (shouldSuggestHub); only ever a gentle note on the thank-you screen. */
+  suggestHub?: boolean;
 }) {
   const [step, setStep] = useState<Step>("about");
   const [form, setForm] = useState<Omit<FormState, "request_id" | "category" | "rows">>({
@@ -125,6 +128,7 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
         <p className="mt-3 text-lg text-emerald-950">{SUBMIT_THANKS_BODY}</p>
         <p className="mt-5"><Link href="/account/event-submissions" className={`inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white ${focusRing}`}>See my event submissions</Link></p>
         <button type="button" className={`${textBtn} mt-3`} onClick={onRestart}>Add another event</button>
+        {suggestHub && <HubSuggestion />}
       </section>
     );
   }
@@ -217,6 +221,7 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart }
         {idx > 0 && <SecondaryButton onClick={back} disabled={busy}>Back</SecondaryButton>}
         {step !== "review" ? <PrimaryButton onClick={next}>Next</PrimaryButton>
           : <PrimaryButton onClick={send} disabled={busy} aria-busy={busy}>{busy ? "Sending..." : "Send to OneShetland"}</PrimaryButton>}
+        {onChangeOrganiser && <button type="button" className={textBtn} onClick={onChangeOrganiser}>Change who is organising this</button>}
         <button type="button" className={textBtn} onClick={onRestart}>Start again</button>
       </div>
     </section>
