@@ -9,6 +9,7 @@
 export const MAX_DATES = 60;
 export const MAX_SPAN_DAYS = 400;
 export const NOTE_MAX = 200;
+export const MAX_OVERNIGHT_HOURS = 12;
 const TZ = "Europe/London";
 const DAY = 86_400_000;
 const HOUR = 3_600_000;
@@ -93,16 +94,18 @@ export function blankRow(partial: Partial<DateRow> = {}): DateRow {
 }
 
 /**
- * "Add another day": a new row that starts with the START and END times of the last row (so a run of performances only needs dates picked).
- * The date and note stay empty. Pure: existing rows are never touched. Null when the list is full.
+ * "Add another performance": a new row at the END that copies the LAST row's date, start time and end time (and its end date, when it has one),
+ * so a matinee + evening on one day, or a run on one day, only needs the times changed. The note starts EMPTY.
+ * Pure: existing rows are never touched. Null when the list is full.
  */
 export function nextBlankRow(rows: readonly DateRow[]): DateRow | null {
   if (rows.length >= MAX_DATES) return null;
   const last = rows[rows.length - 1];
-  return blankRow(last ? { start: last.start, end: last.end } : {});
+  if (!last) return blankRow();
+  return blankRow({ date: last.date, start: last.start, end: last.end, ...(last.endDate ? { endDate: last.endDate } : {}) });
 }
 
-/** The rows after pressing "Add another day": the existing rows (same objects, same order) then the new row. Unchanged when full. */
+/** The rows after pressing "Add another performance": the existing rows (same objects, same order) then the new row. Unchanged when full. */
 export function appendNextBlankRow(rows: readonly DateRow[]): DateRow[] {
   const next = nextBlankRow(rows);
   return next ? [...rows, next] : [...rows];
@@ -185,6 +188,10 @@ export function buildOccurrences(rows: readonly DateRow[], now: Date | number = 
       if (!TIME_RE.test(r.end)) { issues.push({ rowId: r.id, field: "end", message: "That end time does not look right." }); continue; }
       if (r.end === r.start && !r.endDate) { issues.push({ rowId: r.id, field: "end", message: "The end time must be after the start time." }); continue; }
       const endDate = r.endDate && isRealDate(r.endDate) ? r.endDate : r.end > r.start ? r.date : addDays(r.date, 1);   // earlier than the start = after midnight
+      // An end earlier than the start means "after midnight" (23:00 to 01:00 is fine), but only up to MAX_OVERNIGHT_HOURS: 14:00 to 09:00 is a typo, not a 19-hour show.
+      if (!r.endDate && r.end < r.start && (Number(r.end.slice(0, 2)) * 60 + Number(r.end.slice(3)) + 1440) - (Number(r.start.slice(0, 2)) * 60 + Number(r.start.slice(3))) > MAX_OVERNIGHT_HOURS * 60) {
+        issues.push({ rowId: r.id, field: "end", message: `The end time is earlier than the start time. If it runs past midnight, it can end up to ${MAX_OVERNIGHT_HOURS} hours after it starts; otherwise please check the end time.` }); continue;
+      }
       const e = londonToUtc(endDate, r.end);
       if (!e.ok) { issues.push({ rowId: r.id, field: "end", message: e.reason === "gap" ? "That end time does not exist because the clocks go forward." : "That end time does not look right." }); continue; }
       if (e.ms <= s.ms) { issues.push({ rowId: r.id, field: "end", message: "The end time must be after the start time." }); continue; }
@@ -195,11 +202,25 @@ export function buildOccurrences(rows: readonly DateRow[], now: Date | number = 
     out.push({ ms: s.ms, endMs, rowId: r.id, occ: { starts_at: s.iso, ...(endIso ? { ends_at: endIso } : {}), ...(note ? { note } : {}) } });
   }
 
-  // Two rows that start at the same moment
+  // Two rows that start at the same moment, and rows that overlap on the same London date. Messages name the other row ("Date 2"); the form prefixes the row itself.
+  const num = (id: string) => rows.findIndex((x) => x.id === id) + 1;
   const seen = new Map<number, string>();
+  const dupIds = new Set<string>();
   for (const o of out) {
-    if (seen.has(o.ms)) issues.push({ rowId: o.rowId, field: "row", message: "You have already listed this date and start time." });
+    const first = seen.get(o.ms);
+    if (first !== undefined) { dupIds.add(o.rowId); issues.push({ rowId: o.rowId, field: "row", message: `You have already listed this date and start time (it is the same as Date ${num(first)}).` }); }
     else seen.set(o.ms, o.rowId);
+  }
+  const byStart = out.filter((o) => !dupIds.has(o.rowId)).sort((a, b) => a.ms - b.ms);
+  const dateOf = (id: string) => rows.find((x) => x.id === id)?.date;
+  for (let i = 1; i < byStart.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const prev = byStart[j], cur = byStart[i];
+      if (prev.endMs > prev.ms && cur.ms < prev.endMs && dateOf(prev.rowId) === dateOf(cur.rowId)) {
+        issues.push({ rowId: cur.rowId, field: "row", message: `This starts before Date ${num(prev.rowId)} has finished. Change a start or end time so they do not overlap.` });
+        break;
+      }
+    }
   }
 
   if (out.length > 0 && issues.length === 0) {
@@ -208,7 +229,10 @@ export function buildOccurrences(rows: readonly DateRow[], now: Date | number = 
     if (last - first > MAX_SPAN_DAYS * DAY) general.push(`Your dates need to fall within ${MAX_SPAN_DAYS} days of each other. Please remove the ones that are furthest away.`);
   }
 
-  if (issues.length || general.length) return { ok: false, issues, general };
+  if (issues.length || general.length) {
+    issues.sort((a, b) => num(a.rowId) - num(b.rowId));   // in the order the rows appear on screen
+    return { ok: false, issues, general };
+  }
   out.sort((a, b) => a.ms - b.ms);
   return { ok: true, occurrences: out.map((o) => o.occ), warnings: [...new Set(warnings)] };
 }
