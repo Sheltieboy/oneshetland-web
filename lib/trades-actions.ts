@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAccount } from "@/lib/auth";
 import { findMatches } from "@/lib/trades-data";
-import {
-  FREE_LEADS_PER_MONTH, hasUnlimitedLeads, isTradeKey,
-  type Scale, type TradeKey, type Urgency,
-} from "@/lib/trades";
+import { isTradeKey, type Scale, type TradeKey, type Urgency } from "@/lib/trades";
 
 export type BriefInput = {
   title: string;
@@ -38,7 +35,7 @@ export type BriefInput = {
  */
 export async function postBrief(
   input: BriefInput,
-): Promise<{ ok: boolean; id?: string; sentTo?: number; error?: string }> {
+): Promise<{ ok: boolean; id?: string; sentTo?: number; deliveryFailed?: boolean; error?: string }> {
   const account = await getAccount();
   if (!account) return { ok: false, error: "Please sign in to post a job." };
 
@@ -57,6 +54,7 @@ export async function postBrief(
 
   const sb = await createClient();
 
+  // Only the id is read back: the contact columns are not readable by clients.
   const { data: brief, error } = await sb
     .from("trade_briefs")
     .insert({
@@ -78,64 +76,48 @@ export async function postBrief(
 
   if (error || !brief) return { ok: false, error: error?.message ?? "Couldn't post that." };
 
-  const matches = await findMatches({
-    trades,
-    urgency: input.urgency,
-    scale: input.scale,
-    lat: input.lat,
-    lng: input.lng,
-    limit: 8,
-  });
-
   /*
-   * The free tier's cap is applied HERE, at delivery, not in the ranking.
-   *
-   * A free listing that has had its three this month is skipped and the lead
-   * goes to the next trade with room — the person waiting is never made to
-   * wait longer because nobody has paid. That ordering is the whole ethic of
-   * this: paid buys volume and tools, never a place in the queue.
+   * Ranking is decided here (room first, then who answers); whether a match
+   * row really exists is decided by the database. `sentTo` is ONLY the length
+   * of what the database says it created — never the length of our own list.
    */
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  monthStart.setHours(0, 0, 0, 0);
+  let matches: Awaited<ReturnType<typeof findMatches>> = [];
+  try {
+    matches = await findMatches({
+      trades,
+      urgency: input.urgency,
+      scale: input.scale,
+      lat: input.lat,
+      lng: input.lng,
+      limit: 8,
+    });
+  } catch { matches = []; }
 
-  const freeIds = matches.filter((m) => !hasUnlimitedLeads(m.tier)).map((m) => m.id);
-  const usage: Record<string, number> = {};
-  if (freeIds.length > 0) {
-    const { data: used } = await sb
-      .from("trade_brief_matches")
-      .select("business_id")
-      .in("business_id", freeIds)
-      .gte("created_at", monthStart.toISOString());
-    for (const r of (used ?? []) as { business_id: string }[]) {
-      usage[r.business_id] = (usage[r.business_id] ?? 0) + 1;
+  let sentTo = 0;
+  if (matches.length > 0) {
+    const { data: created, error: rpcErr } = await sb.rpc("create_brief_matches", {
+      p_brief: brief.id,
+      p_business_ids: matches.map((m) => m.id),
+    });
+    if (rpcErr) {
+      // Saved, but nobody was told. Say exactly that; never invent a count.
+      revalidatePath("/get-it-done");
+      return { ok: true, id: brief.id, sentTo: 0, deliveryFailed: true };
     }
+    sentTo = Array.isArray(created) ? created.length : 0;
   }
 
-  const deliverable = matches.filter(
-    (m) => hasUnlimitedLeads(m.tier) || (usage[m.id] ?? 0) < FREE_LEADS_PER_MONTH,
-  );
-
-  if (deliverable.length > 0) {
-    await sb.from("trade_brief_matches").insert(
-      deliverable.map((m) => ({ brief_id: brief.id, business_id: m.id, status: "sent" })),
-    );
-
+  if (sentTo > 0) {
     /*
-     * Tell them. A tradesperson is up a ladder, not refreshing a dashboard —
-     * a lead seen three days later is one somebody else already took, and the
-     * person waiting decides OneShetland doesn't work.
-     *
-     * Deliberately not awaited for its result: the brief is already saved and
-     * on screen, and a slow or failing push must never make posting a job feel
-     * broken. Failures are logged inside the function.
+     * Tell them. Deliberately not awaited for its result: the brief is already
+     * saved, and a slow or failing push must never make posting feel broken.
      */
-    void sb.functions.invoke("notify-trade-lead", { body: { brief_id: brief.id } })
+    void Promise.resolve(sb.functions.invoke("notify-trade-lead", { body: { brief_id: brief.id } }))
       .catch(() => { /* the lead is visible in the app regardless */ });
   }
 
   revalidatePath("/get-it-done");
-  return { ok: true, id: brief.id, sentTo: deliverable.length };
+  return { ok: true, id: brief.id, sentTo };
 }
 
 /**
@@ -150,44 +132,69 @@ export async function respondToBrief(
   matchId: string,
   response: "interested" | "declined",
   declineReason?: string,
-): Promise<{ ok: boolean; contact?: { name: string | null; phone: string | null; email: string | null }; error?: string }> {
+): Promise<{ ok: boolean; status?: string; error?: string }> {
   const account = await getAccount();
   if (!account) return { ok: false, error: "Please sign in." };
 
   const sb = await createClient();
+  const { data, error } = await sb.rpc("respond_to_trade_match", {
+    p_match: matchId,
+    p_response: response,
+    p_reason: response === "declined" ? (declineReason ?? "other") : null,
+  });
+  if (error) return { ok: false, error: error.message };
 
-  // RLS already limits this to the owner's own matches; the select confirms it
-  // exists and gives us the brief id to read contact from.
-  const { data: match, error: mErr } = await sb
-    .from("trade_brief_matches")
-    .update({
-      status: response,
-      decline_reason: response === "declined" ? (declineReason ?? "other") : null,
-      responded_at: new Date().toISOString(),
-    })
-    .eq("id", matchId)
-    .select("brief_id, status")
-    .single();
-
-  if (mErr || !match) return { ok: false, error: mErr?.message ?? "Couldn't record that." };
-
+  const result = (data ?? {}) as { status?: string; changed?: boolean };
   revalidatePath("/business/leads");
-  if (response !== "interested") return { ok: true };
 
-  const { data: brief } = await sb
-    .from("trade_briefs")
-    .select("contact_name, contact_phone, contact_email")
-    .eq("id", match.brief_id)
-    .single();
+  if (response === "interested" && result.changed === true) {
+    // Tells the resident. Fire-and-forget: never fails the reply.
+    void Promise.resolve(sb.functions.invoke("notify-trade-response", { body: { match_id: matchId, kind: "interested" } }))
+      .catch(() => { /* visible on My jobs regardless */ });
+  }
+  return { ok: true, status: result.status ?? response };
+}
 
-  return {
-    ok: true,
-    contact: {
-      name: brief?.contact_name ?? null,
-      phone: brief?.contact_phone ?? null,
-      email: brief?.contact_email ?? null,
-    },
-  };
+/**
+ * The resident chooses to give THIS trade their details. Nothing else ever
+ * releases them.
+ */
+export async function shareContactWithTrade(matchId: string): Promise<{ ok: boolean; error?: string }> {
+  const account = await getAccount();
+  if (!account) return { ok: false, error: "Please sign in." };
+
+  const sb = await createClient();
+  const { error } = await sb.rpc("share_brief_contact", { p_match: matchId });
+  if (error) return { ok: false, error: error.message };
+
+  void Promise.resolve(sb.functions.invoke("notify-trade-response", { body: { match_id: matchId, kind: "shared" } }))
+    .catch(() => { /* the trade sees it on Job leads regardless */ });
+  revalidatePath("/get-it-done/mine");
+  return { ok: true };
+}
+
+/** A trade reads the contact the resident chose to share (null until then). */
+export async function getLeadContact(
+  matchId: string,
+): Promise<{ ok: boolean; contact: { name: string | null; phone: string | null; email: string | null } | null; error?: string }> {
+  const account = await getAccount();
+  if (!account) return { ok: false, contact: null, error: "Please sign in." };
+
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("get_trade_lead_contact", { p_match: matchId });
+  if (error) return { ok: false, contact: null, error: error.message };
+  if (!data) return { ok: true, contact: null };
+  const c = data as { name?: string | null; phone?: string | null; email?: string | null };
+  return { ok: true, contact: { name: c.name ?? null, phone: c.phone ?? null, email: c.email ?? null } };
+}
+
+/** A trade opened the lead. Idempotent in the database (only moves sent -> viewed). */
+export async function markLeadViewed(matchId: string): Promise<{ ok: boolean }> {
+  const account = await getAccount();
+  if (!account) return { ok: false };
+  const sb = await createClient();
+  const { error } = await sb.rpc("mark_trade_lead_viewed", { p_match: matchId });
+  return { ok: !error };
 }
 
 /**

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
 import { createClient } from "@/lib/supabase/server";
-import { effectiveAvailability, FREE_LEADS_PER_MONTH, hasUnlimitedLeads } from "@/lib/trades";
+import { effectiveAvailability } from "@/lib/trades";
+import { getLeadContact } from "@/lib/trades-actions";
 import { TradeSettings } from "@/components/trades/TradeSettings";
 import { LeadCard } from "@/components/trades/LeadCard";
 import { HelpTip } from "@/components/help/HelpTip";
@@ -30,16 +31,30 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
 
   const { data: matches } = await sb
     .from("trade_brief_matches")
-    .select("id, status, created_at, trade_briefs(title, description, trades, scale, urgency, location_text, created_at, status, contact_name, contact_phone, contact_email)")
+    .select("id, status, created_at, contact_shared_at, trade_briefs(title, description, trades, scale, urgency, location_text, created_at, status)")
     .eq("business_id", business.id)
     .order("created_at", { ascending: false })
     .limit(50);
 
-  const monthStart = new Date();
-  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
-  const thisMonth = (matches ?? []).filter((m) => new Date(m.created_at as string) >= monthStart).length;
+  /*
+   * Opening this page is "seeing" the leads. Done here, on the server, once per
+   * render and only for leads still at 'sent' (the database only ever moves
+   * sent -> viewed, so it is safe to repeat). The cards still show "New" for
+   * the ones that were unseen when this page loaded.
+   */
+  const unseen = new Set(
+    (matches ?? []).filter((m) => m.status === "sent").map((m) => m.id as string),
+  );
+  await Promise.all([...unseen].map((id) => sb.rpc("mark_trade_lead_viewed", { p_match: id })));
 
-  const unlimited = hasUnlimitedLeads(row?.subscription_tier as string);
+  // Contact is fetched only where the customer chose to share it.
+  const contacts = new Map<string, { name: string | null; phone: string | null; email: string | null } | null>();
+  await Promise.all(
+    (matches ?? [])
+      .filter((m) => m.status === "interested" && m.contact_shared_at)
+      .map(async (m) => { contacts.set(m.id as string, (await getLeadContact(m.id as string)).contact); }),
+  );
+
   const live = effectiveAvailability(
     (row?.trade_availability as string | null) ?? null,
     (row?.trade_availability_set_at as string | null) ?? null,
@@ -71,25 +86,6 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
         />
       </div>
 
-      {!unlimited && (
-        <div className="mt-6 rounded-xl border border-line bg-sand/40 p-4">
-          <p className="text-sm text-ink-soft">
-            <strong className="text-ink">{thisMonth} of {FREE_LEADS_PER_MONTH}</strong> free leads used
-            this month.{" "}
-            {thisMonth >= FREE_LEADS_PER_MONTH
-              ? "Further jobs this month go to the next trade with room."
-              : "After that, jobs go to the next trade with room."}{" "}
-            <Link href={`/business/${business.id}/manage/billing`} className="font-semibold underline">Go unlimited</Link>.
-          </p>
-          {/* Stated plainly because a trade will assume the opposite, and the
-              assumption would be corrosive to the whole thing. */}
-          <p className="mt-1.5 text-xs text-ink-faint">
-            Paying never puts you ahead in the queue — the order is who has room and who answers.
-            It lifts the cap and adds the tools.
-          </p>
-        </div>
-      )}
-
       <h2 className="mt-10 font-display text-2xl font-bold text-ink">Jobs sent to you</h2>
 
       {(matches ?? []).length === 0 ? (
@@ -119,15 +115,9 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
                   createdAt: b.created_at as string,
                   closed: (b.status as string) !== "open",
                 }}
-                contact={
-                  m.status === "interested"
-                    ? {
-                        name: (b.contact_name as string | null) ?? null,
-                        phone: (b.contact_phone as string | null) ?? null,
-                        email: (b.contact_email as string | null) ?? null,
-                      }
-                    : null
-                }
+                contact={contacts.get(m.id as string) ?? null}
+                contactShared={Boolean(m.contact_shared_at)}
+                isNew={unseen.has(m.id as string)}
                 alreadyAnswered={m.status === "interested" || m.status === "declined"}
               />
             );

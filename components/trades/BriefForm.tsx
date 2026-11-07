@@ -52,7 +52,7 @@ export function BriefForm({
 
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [sent, setSent] = useState<{ id: string; sentTo: number } | null>(null);
+  const [sent, setSent] = useState<{ id: string; sentTo: number; deliveryFailed: boolean } | null>(null);
 
   const tradeKey = useMemo(() => trades.slice().sort().join(","), [trades]);
 
@@ -100,11 +100,11 @@ export function BriefForm({
         locationText, contactName, contactPhone, contactEmail,
       });
       if (!res.ok) { setError(res.error ?? "Couldn't post that."); return; }
-      setSent({ id: res.id!, sentTo: res.sentTo ?? 0 });
+      setSent({ id: res.id!, sentTo: res.sentTo ?? 0, deliveryFailed: res.deliveryFailed === true });
     });
   }
 
-  if (sent) return <Sent sentTo={sent.sentTo} />;
+  if (sent) return <Sent sentTo={sent.sentTo} deliveryFailed={sent.deliveryFailed} />;
 
   const pill = (on: boolean) =>
     "rounded-pill border px-3.5 py-1.5 text-sm font-semibold transition " +
@@ -191,16 +191,17 @@ export function BriefForm({
           </Field>
         </div>
 
-        <Field label="Where is it?">
+        <Field label="Where is it?" hint="A town or area is plenty (e.g. Scalloway). Please don't put your full address here.">
           <input className="auth-input" value={locationText} onChange={(e) => setLocationText(e.target.value)}
-            placeholder="e.g. Scalloway" maxLength={160} required />
+            placeholder="Town or area, e.g. Scalloway" maxLength={160} required />
         </Field>
 
         <div className="rounded-xl border border-line bg-paper p-4">
           <p className="font-semibold text-ink">How they get back to you</p>
           <p className="mt-1 text-sm text-ink-muted">
-            Only shown to a trade who says they&apos;re interested. It is never in a list
-            anyone can browse.
+            We never show your name, phone or email to a trade automatically. A trade that
+            is interested appears on My jobs, and you choose whether to share your details
+            with that trade.
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             <input className="auth-input" value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="Your name" />
@@ -243,28 +244,32 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Sent({ sentTo }: { sentTo: number }) {
+export function Sent({ sentTo, deliveryFailed = false }: { sentTo: number; deliveryFailed?: boolean }) {
   return (
     <div className="rounded-xl border border-line bg-paper p-8 shadow-soft">
       <span className="grid h-14 w-14 place-items-center rounded-full bg-emerald-100 text-2xl">✅</span>
       <h2 className="mt-5 font-display text-3xl font-bold text-navy">
-        {sentTo > 0 ? `Sent to ${sentTo} ${sentTo === 1 ? "trade" : "trades"}` : "Posted"}
+        {sentTo > 0 ? `Sent to ${sentTo} ${sentTo === 1 ? "trade" : "trades"}` : "Your job is saved"}
       </h2>
       {sentTo > 0 ? (
         <p className="mt-3 text-ink-soft">
-          They&apos;ll get your details only if they say they&apos;re interested. You&apos;ll
-          hear directly from anyone who is — this isn&apos;t a message thread, they&apos;ll
-          just ring you.
+          Your name, phone and email stay private. A trade that is interested appears on
+          My jobs, and you choose whether to share your details with that trade. A reply
+          doesn&apos;t guarantee the work.
+        </p>
+      ) : deliveryFailed ? (
+        <p className="mt-3 text-ink-soft">
+          Your job is saved, but we couldn&apos;t tell any trades about it just now. Nothing
+          has been sent. Please try again later from My jobs.
         </p>
       ) : (
-        /* Worth being straight about. Somebody who has been told "no problem,
-           we'll be in touch" and then hears nothing is worse off than somebody
-           told the truth today. */
+        /* Worth being straight about. Somebody told "no problem, we'll be in
+           touch" and then hearing nothing is worse off than somebody told the
+           truth today. */
         <p className="mt-3 text-ink-soft">
-          Nobody on OneShetland has said they have room for this yet — which is exactly
-          the problem we&apos;re trying to fix. Your job is counted in the waiting list,
-          and that list is what we use to get more trades signed up. If somebody joins
-          who can help, it&apos;ll go to them.
+          Your job is saved. No matching trade is available to tell yet; you will see
+          replies on My jobs. It is counted in the waiting list we use to get more trades
+          signed up.
         </p>
       )}
       <Link href="/get-it-done/mine" className="mt-6 inline-block rounded-pill bg-navy px-6 py-3 font-semibold text-paper">

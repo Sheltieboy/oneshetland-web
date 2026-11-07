@@ -213,11 +213,4 @@ export async function getTradeDemand(): Promise<DemandRow[]> {
 export const BRIEF_PUBLIC_COLUMNS =
   "id, created_at, title, description, trades, scale, urgency, location_text, lat, lng, photos, status";
 
-/**
- * The contact columns are never in a browse query. They're released by
- * `revealContact`, and only to a trade that has said yes.
- *
- * Kept as one constant so there is a single place to check that this rule
- * holds, rather than trusting every future select to remember it.
- */
-export const BRIEF_CONTACT_COLUMNS = "contact_name, contact_phone, contact_email";
+/* Contact columns are not readable by clients; they are released only through get_trade_lead_contact after the resident shares. */

@@ -16,7 +16,7 @@ export async function resolve(specifier, context, next) {
   if (/(^|\/)supabase\/(public|server|client)(\.ts)?$/.test(specifier) || /^@\/lib\/supabase\/(public|server|client)$/.test(specifier)) {
     return { url: FAKE, shortCircuit: true };
   }
-  if (specifier === "server-only" || specifier === "next/headers" || specifier === "next/navigation") return { url: STUB, shortCircuit: true };
+  if (specifier === "server-only" || specifier === "next/headers" || specifier === "next/navigation" || specifier === "next/cache") return { url: STUB, shortCircuit: true };
   let p = null;
   if (specifier.startsWith("@/")) p = withExt(join(ROOT, specifier.slice(2)));
   else if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL?.startsWith("file:")) {

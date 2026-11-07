@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { closeBrief } from "@/lib/trades-actions";
+import { closeBrief, shareContactWithTrade } from "@/lib/trades-actions";
 
 /**
  * One posted job, and what came back from it.
@@ -33,11 +33,15 @@ export function MyBriefCard({
   responses,
 }: {
   brief: { id: string; title: string; trades: string[]; location: string; status: string; outcome: string | null; createdAt: string };
-  responses: { id: string; status: string; declineReason: string | null; businessName: string; businessSlug: string | null; businessPhone: string | null }[];
+  responses: { id: string; status: string; declineReason: string | null; businessName: string; businessSlug: string | null; businessPhone: string | null; contactShared?: boolean }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [closing, setClosing] = useState(false);
   const [status, setStatus] = useState(brief.status);
+  const [shared, setShared] = useState<Set<string>>(
+    () => new Set(responses.filter((r) => r.contactShared).map((r) => r.id)),
+  );
+  const [shareError, setShareError] = useState<string | null>(null);
 
   const interested = responses.filter((r) => r.status === "interested");
   const declined = responses.filter((r) => r.status === "declined");
@@ -59,6 +63,12 @@ export function MyBriefCard({
         )}
       </div>
 
+      {responses.length > 0 && (
+        <p className="mt-3 text-sm text-ink-soft">
+          Told {responses.length} {responses.length === 1 ? "trade" : "trades"}.
+        </p>
+      )}
+
       <div className="mt-4 space-y-2">
         {interested.map((r) => (
           <div key={r.id} className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
@@ -73,26 +83,47 @@ export function MyBriefCard({
                 {r.businessPhone}
               </a>
             )}
+            {shared.has(r.id) ? (
+              <p className="mt-2 text-sm font-semibold text-emerald-900">Shared with {r.businessName}</p>
+            ) : status === "open" ? (
+              <div className="mt-2">
+                <button
+                  disabled={pending}
+                  onClick={() =>
+                    startTransition(async () => {
+                      setShareError(null);
+                      const res = await shareContactWithTrade(r.id);
+                      if (res.ok) setShared((p) => new Set(p).add(r.id));
+                      else setShareError(res.error ?? "Couldn't share your details.");
+                    })
+                  }
+                  className="rounded-pill bg-emerald-700 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+                >
+                  Share my details with {r.businessName}
+                </button>
+                <p className="mt-1 text-xs text-emerald-900">Only this trade will see your name, phone and email.</p>
+              </div>
+            ) : null}
           </div>
         ))}
+        {shareError && <p className="text-sm font-medium text-rose-700">{shareError}</p>}
 
-        {declined.length > 0 && (
-          <p className="text-sm text-ink-muted">
-            {declined.length} said no
-            {declined.some((d) => d.declineReason) && (
-              <> — {[...new Set(declined.map((d) => DECLINE_LABEL[d.declineReason ?? "other"]))].join(", ")}</>
-            )}
+        {[...waiting, ...declined].map((r) => (
+          <p key={r.id} className="text-sm text-ink-muted">
+            {r.businessSlug
+              ? <Link href={`/directory/${r.businessSlug}`} className="font-semibold underline">{r.businessName}</Link>
+              : <span className="font-semibold">{r.businessName}</span>}
+            {" — "}
+            {r.status === "declined"
+              ? <>Not available{r.declineReason ? ` (${DECLINE_LABEL[r.declineReason] ?? DECLINE_LABEL.other})` : ""}</>
+              : "Waiting to hear"}
           </p>
-        )}
-
-        {waiting.length > 0 && (
-          <p className="text-sm text-ink-muted">{waiting.length} haven&apos;t answered yet</p>
-        )}
+        ))}
 
         {responses.length === 0 && (
           <p className="text-sm text-ink-muted">
-            Nobody has this yet. It&apos;s counted in the waiting list, which is what we use to
-            get more trades signed up.
+            No trade has been told about this job. It&apos;s counted in the waiting list, which is
+            what we use to get more trades signed up.
           </p>
         )}
       </div>

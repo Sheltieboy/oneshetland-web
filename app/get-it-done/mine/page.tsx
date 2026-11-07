@@ -31,7 +31,7 @@ export default async function MyBriefsPage() {
   const { data: matches } = ids.length
     ? await sb
         .from("trade_brief_matches")
-        .select("id, brief_id, business_id, status, decline_reason, responded_at, local_businesses(name, slug, phone)")
+        .select("id, brief_id, business_id, status, decline_reason, responded_at, contact_shared_at, local_businesses(name, slug, phone)")
         .in("brief_id", ids)
     : { data: [] as unknown[] };
 
@@ -81,6 +81,7 @@ export default async function MyBriefsPage() {
                   // person who posted gets their number without waiting for a
                   // call. Nobody sits by the phone.
                   businessPhone: m.status === "interested" ? (biz?.phone ?? null) : null,
+                  contactShared: Boolean(m.contact_shared_at),
                 };
               })}
             />
