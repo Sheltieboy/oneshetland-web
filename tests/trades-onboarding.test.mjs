@@ -57,3 +57,12 @@ test("the leads page explains how it works until a trade profile is saved", () =
   assert.match(src, /How Get it done works for you/);
   assert.match(src, /trade_categories as string\[\] \| null\) \?\? \[\]\)\.length === 0/);
 });
+
+test("/business/leads explains itself instead of silently redirecting when the account has no business", () => {
+  const src = read("app/business/leads/page.tsx");
+  assert.ok(!/redirect\(id \? [^)]*: "\/business"\)/.test(src), "no silent fall-back redirect to /business");
+  assert.match(src, /doesn&apos;t manage one yet/);
+  assert.match(src, /administrator doesn&apos;t give access/);
+  assert.match(src, /mine\.length === 1\) redirect\(`\/business\/\$\{mine\[0\]\.id\}\/manage\/leads`\)/);
+  assert.match(src, /\.eq\("owner_id", account\.id\)/, "ownership still decides which businesses are offered");
+});
