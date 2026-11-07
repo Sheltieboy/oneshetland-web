@@ -7,6 +7,9 @@ import { requireBusinessOwner } from "@/lib/business-server";
 import { getMyManagedBusinesses } from "@/lib/business-data.server";
 import { BIZ, TIER_LABELS } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
+import { GetItDoneInvite } from "@/components/business/GetItDoneInvite";
+import { isGetItDoneCategory } from "@/lib/get-it-done-eligibility";
+import { AVAILABILITY_LABEL, availabilityIsFresh } from "@/lib/trades";
 import { nextAction, hasOperationalAttention } from "@/lib/business-next-action";
 import { beFound } from "@/lib/be-found";
 import { businessOutcomes } from "@/lib/business-outcomes";
@@ -74,6 +77,16 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
       {/* The dashboard proper: what needs you, how the week went, the code. */}
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>
 
+      <div className="mb-8">
+        <GetItDoneInvite
+          businessId={business.id} base={base}
+          eligible={isGetItDoneCategory(business.category)}
+          isTrade={dashboard.isTrade}
+          availabilityLabel={dashboard.tradeAvailability ? (AVAILABILITY_LABEL[dashboard.tradeAvailability as keyof typeof AVAILABILITY_LABEL] ?? null) : null}
+          availabilityFresh={availabilityIsFresh(dashboard.tradeAvailabilitySetAt)}
+        />
+      </div>
+
       {/* Accessible Shetland: a personal invitation (not a requirement), then a small thank-you once details are published. Dismissible, per owner. */}
       <AccessibleInviteCard businessId={business.id} businessName={business.name} state={inviteState(accessibility)} dismissed={isDismissed(userMeta)} businessCount={mine.length} />
 
@@ -110,7 +123,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           <UtilityRow label="Boost" href={`${base}/billing`}
             status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />
           <UtilityRow label="Get it done: job leads" href={`${base}/leads`}
-            status={dashboard.isTrade ? "On" : "Not joined"} />
+            status={dashboard.isTrade ? "Joined" : "Not joined"} />
           <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
           <UtilityRow label="Accessibility information" href={`/accessible/edit/business/${business.id}`}
             status={accessibility ? (accessibility.published ? "Published" : "Draft") : null} />

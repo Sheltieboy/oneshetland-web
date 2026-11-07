@@ -1,5 +1,8 @@
 "use client";
 
+import { isGetItDoneCategory } from "@/lib/get-it-done-eligibility";
+
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { BIZ, type ManagedBusiness } from "@/lib/business-data";
@@ -127,6 +130,12 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
         <select className={field} value={f.category} onChange={(e) => set("category", e.target.value)}>
           {CATEGORIES.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
         </select>
+        {isGetItDoneCategory(f.category) && (
+          <p className="mt-1.5 text-sm text-ink-soft">
+            Do you do work for people, like repairs, building or cleaning?{" "}
+            <Link href={`/business/${business.id}/manage/leads`} className="font-semibold underline" style={{ color: "#2a8b5c" }}>Set up job enquiries</Link> (free).
+          </p>
+        )}
       </div>
       <div><label className={lab}>Description</label><textarea className={field + " min-h-[110px]"} value={f.description} onChange={(e) => set("description", e.target.value)} /></div>
       <div><label className={lab}>Address</label><input className={field} value={f.address} onChange={(e) => set("address", e.target.value)} /></div>

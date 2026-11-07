@@ -33,7 +33,7 @@ function TradeJoinPanel() {
   const steps: [string, string][] = [
     ["Claim your listing", "Find your business and claim it. It is free, and we check each claim by hand. Not listed yet? Add your business."],
     ["Say what you do, and whether you have room", "In your business dashboard, open Get it done: job leads. Pick your trades and set your availability. Jobs only reach you while that is up to date."],
-    ["Jobs that fit are sent to you", "You get a notification with the job, without the customer's name or number. Tap \"I'm interested\" or say you can't take it."],
+    ["Jobs that fit are sent to you", "The job appears in your Job leads, without the customer's name or number, and we send a notification where you have the OneShetland app. Check Job leads regularly. Tap \"I'm interested\" or say you can't take it."],
     ["The customer decides who gets their details", "If you say you are interested, the customer sees who you are and chooses whether to share their phone number with you. You will not see it until they do."],
   ];
   return (
@@ -90,6 +90,17 @@ export default async function GetItDonePage() {
       </section>
 
       <main className="mx-auto max-w-6xl px-5 py-10">
+        <nav aria-label="Choose your route" className="mb-8 grid gap-3 sm:grid-cols-2">
+          <a href="#post-a-job" className="rounded-xl border border-line bg-paper p-5 shadow-soft transition hover:shadow-lift">
+            <p className="font-display text-xl font-bold text-ink">I need a job done</p>
+            <p className="mt-1 text-sm text-ink-soft">Describe the work and see which trades have room. Free to post.</p>
+          </a>
+          <a href="#for-trades" className="rounded-xl border border-line bg-paper p-5 shadow-soft transition hover:shadow-lift">
+            <p className="font-display text-xl font-bold text-ink">I provide a trade or service</p>
+            <p className="mt-1 text-sm text-ink-soft">Say what you cover and when you are free. Free to join.</p>
+          </a>
+        </nav>
+        <div id="post-a-job" className="scroll-mt-24"></div>
         <BriefForm
           signedIn={!!account}
           defaultName={account ? accountName(account) : ""}

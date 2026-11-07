@@ -78,7 +78,7 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
           <p className="font-semibold text-ink">How Get it done works for you</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
             <li>Say what you do and whether you have room, below. Until you do, no jobs are sent to you.</li>
-            <li>When somebody posts a job that fits, you get a notification and it appears here, without their name or number.</li>
+            <li>When somebody posts a job that fits, it appears here without their name or number. We also send a notification where you have the OneShetland app, so check this page regularly.</li>
             <li>Tap &quot;I&apos;m interested&quot; or say you can&apos;t take it.</li>
             <li>If you are interested, the customer chooses whether to share their details with you. Their number appears here once they do.</li>
           </ol>
@@ -104,7 +104,7 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
       {(matches ?? []).length === 0 ? (
         <p className="mt-3 text-ink-soft">
           {live
-            ? "Nothing yet. When somebody posts a job you cover, it'll appear here."
+            ? "No jobs yet. That is normal while Get it done is new. When somebody posts a job you cover and you have room, it will appear here. Keep your availability up to date."
             : "You haven't said whether you have room, so jobs aren't being sent to you. Set your availability above."}
         </p>
       ) : (

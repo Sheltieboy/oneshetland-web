@@ -24,6 +24,7 @@ import { PlanDayTile } from "@/components/home/PlanDayTile";
 import { buildWork } from "@/lib/preview-work";
 import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
 import { JoinBusinessCta } from "@/components/business/JoinBusinessCta";
+import { GetItDoneHome } from "@/components/home/GetItDoneHome";
 import { HomeWork } from "@/components/preview/v2/WorkV2";
 import { ForYou } from "@/components/home/ForYou";
 import { getHomePin } from "@/lib/home-pin";
@@ -123,6 +124,9 @@ export default async function Home() {
 
       {/* 6 · WORK */}
       <HomeWork work={work} now={now} />
+
+      {/* 6b · GET IT DONE — static, honest entry for residents and trades */}
+      <GetItDoneHome />
 
       {/* 7 · ISLAND LIFE */}
       <IslandMosaic boat={shelves.boat} story={shelves.story} spik={shelves.spik} game={getTodaysGame()} />

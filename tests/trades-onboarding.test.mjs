@@ -49,7 +49,7 @@ test("the public copy matches behaviour: no cap claim, no paid priority, custome
 test("the business hub links to Get it done: job leads, showing whether the business has joined", () => {
   const src = read("app/business/[id]/manage/page.tsx");
   assert.match(src, /Get it done: job leads/);
-  assert.match(src, /dashboard\.isTrade \? "On" : "Not joined"/);
+  assert.match(src, /dashboard\.isTrade \? "Joined" : "Not joined"/);
 });
 
 test("the leads page explains how it works until a trade profile is saved", () => {
