@@ -109,6 +109,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           {/* Boost is bought on the billing screen, so that is its real home. */}
           <UtilityRow label="Boost" href={`${base}/billing`}
             status={reads.boostActive === null ? null : reads.boostActive ? "Active" : null} />
+          <UtilityRow label="Get it done: job leads" href={`${base}/leads`}
+            status={dashboard.isTrade ? "On" : "Not joined"} />
           <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
           <UtilityRow label="Accessibility information" href={`/accessible/edit/business/${business.id}`}
             status={accessibility ? (accessibility.published ? "Published" : "Draft") : null} />

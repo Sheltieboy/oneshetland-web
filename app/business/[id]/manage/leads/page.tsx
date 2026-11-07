@@ -73,6 +73,19 @@ export default async function BusinessLeadsPage({ params }: { params: Promise<{ 
         Folk across Shetland looking for somebody to do a job.
       </p>
 
+      {((row?.trade_categories as string[] | null) ?? []).length === 0 && (
+        <div className="mt-6 rounded-xl border border-line bg-sand/40 p-5">
+          <p className="font-semibold text-ink">How Get it done works for you</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-ink-soft">
+            <li>Say what you do and whether you have room, below. Until you do, no jobs are sent to you.</li>
+            <li>When somebody posts a job that fits, you get a notification and it appears here, without their name or number.</li>
+            <li>Tap &quot;I&apos;m interested&quot; or say you can&apos;t take it.</li>
+            <li>If you are interested, the customer chooses whether to share their details with you. Their number appears here once they do.</li>
+          </ol>
+          <p className="mt-2 text-xs text-ink-faint">It is free to join. We can&apos;t promise work.</p>
+        </div>
+      )}
+
       <div className="mt-6">
         <TradeSettings
           businessId={business.id}

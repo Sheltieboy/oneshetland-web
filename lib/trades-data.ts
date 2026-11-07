@@ -47,7 +47,8 @@ const AVAILABILITY_SCORE: Record<Availability, number> = {
   booked_up: -1000, // never matched; kept explicit rather than filtered silently
 };
 
-const TIER_NUDGE: Record<string, number> = { premium: 6, pro: 3, free: 0 };
+// Paid plans do NOT affect who a job is sent to: the public promise is that order is set by room and by who answers.
+const TIER_NUDGE: Record<string, number> = { premium: 0, pro: 0, free: 0 };
 
 /**
  * Score a business against a brief.

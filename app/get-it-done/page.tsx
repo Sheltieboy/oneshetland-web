@@ -3,6 +3,7 @@ import { getAccount, accountName } from "@/lib/auth";
 import { getTradeDemand } from "@/lib/trades-data";
 import { TRADE_LABEL } from "@/lib/trades";
 import { BriefForm } from "@/components/trades/BriefForm";
+import { FINDER_ANCHOR } from "@/lib/plan-cta";
 
 /**
  * /get-it-done — the demand side.
@@ -24,6 +25,46 @@ export const metadata = {
 
 const ACCENT = "#2a8b5c";
 
+/**
+ * How a trade joins. Always shown (it used to appear only when jobs were waiting, which is never true on day one),
+ * and every link goes somewhere real.
+ */
+function TradeJoinPanel() {
+  const steps: [string, string][] = [
+    ["Claim your listing", "Find your business and claim it. It is free, and we check each claim by hand. Not listed yet? Add your business."],
+    ["Say what you do, and whether you have room", "In your business dashboard, open Get it done: job leads. Pick your trades and set your availability. Jobs only reach you while that is up to date."],
+    ["Jobs that fit are sent to you", "You get a notification with the job, without the customer's name or number. Tap \"I'm interested\" or say you can't take it."],
+    ["The customer decides who gets their details", "If you say you are interested, the customer sees who you are and chooses whether to share their phone number with you. You will not see it until they do."],
+  ];
+  return (
+    <section id="for-trades" className="mt-14 border-t border-line pt-8">
+      <h2 className="font-display text-2xl font-bold text-ink">Do you do this for a living?</h2>
+      <p className="mt-1 max-w-2xl text-ink-muted">
+        Join Get it done and hear about local jobs that match your trade. It is free to join. We can&apos;t promise work, but every job sent to you is from a real person in Shetland.
+      </p>
+      <ol className="mt-5 grid gap-3 sm:grid-cols-2">
+        {steps.map(([t, d], i) => (
+          <li key={t} className="rounded-xl border border-line bg-paper p-4 shadow-soft">
+            <p className="font-display text-lg font-bold text-ink"><span style={{ color: ACCENT }}>{i + 1}.</span> {t}</p>
+            <p className="mt-1 text-sm text-ink-soft">{d}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-5 flex flex-wrap gap-3">
+        <Link href={FINDER_ANCHOR} className="rounded-pill px-5 py-2.5 text-sm font-bold text-white" style={{ background: ACCENT }}>
+          Find and claim your listing
+        </Link>
+        <Link href="/directory/new" className="rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink-soft hover:bg-sand">
+          Not listed? Add your business
+        </Link>
+        <Link href="/business/leads" className="rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink-soft hover:bg-sand">
+          Already claimed? Set up job leads
+        </Link>
+      </div>
+    </section>
+  );
+}
+
 export default async function GetItDonePage() {
   const [account, demand] = await Promise.all([getAccount(), getTradeDemand()]);
   const waiting = demand.reduce((n, d) => n + d.waiting, 0);
@@ -38,7 +79,7 @@ export default async function GetItDonePage() {
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-ink-soft">
             Describe what needs doing and we&apos;ll show you which trades actually have
-            room — before you send anything. Free to post, and they ring you directly.
+            room — before you send anything. Free to post. A trade tells you it is interested, and you choose who gets your phone number.
           </p>
           {waiting > 0 && (
             <Link href="/get-it-done/waiting" className="mt-4 inline-block text-sm font-semibold" style={{ color: ACCENT }}>
@@ -54,6 +95,8 @@ export default async function GetItDonePage() {
           defaultName={account ? accountName(account) : ""}
           defaultEmail={account?.email ?? ""}
         />
+
+        <TradeJoinPanel />
 
         {demand.length > 0 && (
           <section className="mt-14 border-t border-line pt-8">
@@ -74,16 +117,6 @@ export default async function GetItDonePage() {
                   )}
                 </div>
               ))}
-            </div>
-            <div className="mt-6 rounded-xl border border-line bg-sand/40 p-5">
-              <p className="font-semibold text-ink">Do you do this for a living?</p>
-              <p className="mt-1 text-sm text-ink-soft">
-                Claim your listing, say what you do and whether you have room, and these jobs
-                come to you. Free to receive your first few every month.
-              </p>
-              <Link href="/for-businesses" className="mt-3 inline-block rounded-pill px-5 py-2.5 text-sm font-bold text-white" style={{ background: ACCENT }}>
-                Claim your listing
-              </Link>
             </div>
           </section>
         )}
