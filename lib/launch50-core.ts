@@ -137,6 +137,23 @@ export function launch50CardState(args: { phase: Launch50Phase; tier: string; su
 /** A business holding an active or pending place may not change plan. */
 export const launch50PlanLocked = (place: Launch50Place | null | undefined) => place?.status === "active" || place?.status === "pending_payment";
 
+/**
+ * The rate a Launch 50 member is ACTUALLY paying right now, or null (standard prices apply): an active place on the plan they are on, while the
+ * founding discount has not ended. The billing page uses this so it never shows the standard price as the current monthly payment.
+ */
+export function foundingRate(place: Launch50Place | null | undefined, tier: string, nowMs: number = Date.now()):
+  { pence: number; price: string; standard: string; until: string | null; note: string } | null {
+  if (!place || place.status !== "active" || place.tier !== tier || (tier !== "pro" && tier !== "premium")) return null;
+  const ends = place.discount_ends_at ? Date.parse(place.discount_ends_at) : NaN;
+  if (!Number.isFinite(ends) || ends <= nowMs) return null;
+  const t = tier as Launch50Tier;
+  const until = fmtLaunchDate(place.discount_ends_at);
+  return {
+    pence: LAUNCH50_PRICE_PENCE[t], price: launch50Price(t), standard: standardPrice(t), until,
+    note: `Launch 50 founding rate: ${launch50Price(t)}/month${until ? ` until ${until}` : ""}, then ${standardPrice(t)}/month.`,
+  };
+}
+
 /* ── Formatters ───────────────────────────────────────────────────────────────────────────────────── */
 export function fmtLaunchDate(iso: string | null | undefined): string | null {
   if (!iso) return null;

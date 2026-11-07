@@ -248,3 +248,25 @@ describe("checkout wiring", () => {
     assert.doesNotMatch(JSON.stringify(c), /VAT/);
   });
 });
+
+describe("billing page shows the rate a Launch 50 member actually pays", () => {
+  const FUT2 = new Date(Date.now() + 200 * 86400000).toISOString(), PAST2 = new Date(Date.now() - 86400000).toISOString();
+  const pl = (o) => ({ business_id: BIZ, tier: "pro", status: "active", reservation_expires_at: null, activated_at: PAST2, discount_ends_at: FUT2, showcase_opt_in: true, ...o });
+  test("foundingRate: only for an ACTIVE place on the CURRENT plan while the discount has not ended", () => {
+    const r = core.foundingRate(pl({}), "pro");
+    assert.equal(r.pence, 900); assert.equal(r.price, "£9"); assert.equal(r.standard, "£12"); assert.match(r.note, /^Launch 50 founding rate: £9\/month until .+, then £12\/month\.$/);
+    assert.equal(core.foundingRate(pl({ tier: "premium" }), "premium").pence, 2200);
+    assert.equal(core.foundingRate(pl({}), "premium"), null, "a Pro place says nothing about a Premium plan");
+    assert.equal(core.foundingRate(pl({ discount_ends_at: PAST2 }), "pro"), null, "after the discount ends the standard price is shown");
+    for (const status of ["reserved", "pending_payment", "ended", "released"]) assert.equal(core.foundingRate(pl({ status }), "pro"), null, status);
+    assert.equal(core.foundingRate(null, "pro"), null); assert.equal(core.foundingRate(pl({}), "free"), null);
+  });
+  test("BillingManager uses it for the plan badge, the rate note and the monthly breakdown, never the standard price as current payment", () => {
+    const src = readFileSync("components/business/BillingManager.tsx", "utf8");
+    assert.match(src, /const founding = foundingRate\(launch50\?\.place, tier\);/);
+    assert.match(src, /founding \? `\$\{TIER_LABELS\[tier\]\} · \$\{founding\.price\}\/mo \(Launch 50\)`/);
+    assert.match(src, /data-launch50-rate>\{founding\.note\}/);
+    assert.match(src, /\(founding \? founding\.pence : TIER_PRICE_PENCE\.pro\)/);
+    assert.match(src, /Pro plan \(Launch 50 rate\)/);
+  });
+});

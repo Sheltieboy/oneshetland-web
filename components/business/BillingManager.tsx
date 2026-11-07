@@ -28,7 +28,7 @@ import { BoostCheckout } from "@/components/business/BoostCheckout";
 import { launchGrantCopy, type LaunchGrant } from "@/lib/launch-grant";
 import { Launch50Card } from "@/components/business/Launch50Card";
 import {
-  launch50ConfirmCopy, launch50PlanLocked, isLaunch50Code, launch50CheckoutMessage, LAUNCH50_LOCKED_NOTE,
+  launch50ConfirmCopy, launch50PlanLocked, foundingRate, isLaunch50Code, launch50CheckoutMessage, LAUNCH50_LOCKED_NOTE,
   type Launch50Phase, type Launch50Place, type Launch50Tier,
 } from "@/lib/launch50-core";
 
@@ -168,6 +168,8 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
   // A Launch 50 refusal from the checkout, shown inside the Launch 50 card (never charged at the standard price).
   const [launch50Msg, setLaunch50Msg] = useState<string | null>(null);
   const l50Locked = launch50PlanLocked(launch50?.place);
+  // What a Launch 50 member really pays now (null = standard). Never show the standard price as their current monthly payment.
+  const founding = foundingRate(launch50?.place, tier);
   const subAttempt = useRef<{ key: string; id: string } | null>(null);
   function subAttemptId(target: string, period: string, launch50Attempt = false): string {
     const key = `${target}:${period}${launch50Attempt ? ":launch50" : ""}`;
@@ -475,7 +477,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
       <section className={card}>
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-xl font-bold text-ink">Your plan</h2>
-          <span className="rounded-pill px-3 py-1 text-sm font-bold" style={{ background: `${BIZ}1a`, color: BIZ }}>{launchGrant ? launchGrantCopy(launchGrant, TIER_LABELS[tier]).badge : `${TIER_LABELS[tier]} · ${TIER_PRICE[tier]}`}</span>
+          <span className="rounded-pill px-3 py-1 text-sm font-bold" style={{ background: `${BIZ}1a`, color: BIZ }}>{launchGrant ? launchGrantCopy(launchGrant, TIER_LABELS[tier]).badge : founding ? `${TIER_LABELS[tier]} · ${founding.price}/mo (Launch 50)` : `${TIER_LABELS[tier]} · ${TIER_PRICE[tier]}`}</span>
         </div>
         {launchGrant ? (
           <p className="mt-1 text-sm text-ink-muted">{launchGrantCopy(launchGrant, TIER_LABELS[tier]).line}</p>
@@ -484,6 +486,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
         )}
 
 
+        {founding && <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-900" data-launch50-rate>{founding.note}</p>}
         <p className="mt-2 text-sm text-ink-soft">{nfcPitch(TIER_PITCH[tier].blurb)}</p>
 
         <ul className="mt-3 space-y-1.5">
@@ -562,8 +565,8 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
               <p className="mb-2 text-xs font-bold uppercase tracking-widest text-ink-muted">This month so far</p>
               <dl className="space-y-1 text-sm tabular-nums">
                 <div className="flex items-baseline justify-between gap-4">
-                  <dt className="text-ink-soft">Pro plan</dt>
-                  <dd className="font-semibold text-ink">£{(TIER_PRICE_PENCE.pro / 100).toFixed(2)}</dd>
+                  <dt className="text-ink-soft">{founding ? "Pro plan (Launch 50 rate)" : "Pro plan"}</dt>
+                  <dd className="font-semibold text-ink">£{((founding ? founding.pence : TIER_PRICE_PENCE.pro) / 100).toFixed(2)}</dd>
                 </div>
                 <div className="flex items-baseline justify-between gap-4">
                   <dt className="text-ink-soft">
@@ -574,7 +577,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
                 </div>
                 <div className="mt-1 flex items-baseline justify-between gap-4 border-t border-line pt-2">
                   <dt className="font-bold text-ink">Total this month</dt>
-                  <dd className="font-extrabold text-ink">£{((TIER_PRICE_PENCE.pro + meter.feePence) / 100).toFixed(2)}</dd>
+                  <dd className="font-extrabold text-ink">£{(((founding ? founding.pence : TIER_PRICE_PENCE.pro) + meter.feePence) / 100).toFixed(2)}</dd>
                 </div>
               </dl>
               <p className="mt-2.5 border-t border-line pt-2 text-xs leading-relaxed text-ink-muted">
