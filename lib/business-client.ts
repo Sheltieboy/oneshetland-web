@@ -150,7 +150,7 @@ export const createSubscriptionIntent = (
   period: BillingPeriod = "monthly",
   clientRequestId?: string,
   useSavedCard = true,
-  /** OneShetland Launch 50: asks the server for the founding price. Sent ONLY when true, so the standard request is unchanged. */
+  /** OneShetland Launch 50: asks the server for the Launch 50 price. Sent ONLY when true, so the standard request is unchanged. */
   launch50 = false,
 ) =>
   invoke<{

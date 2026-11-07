@@ -14,7 +14,7 @@ const core = await import("../lib/launch50-core.ts");
 const actions = await import("../lib/launch50-actions.ts");
 const { getLaunch50Status, getLaunch50Showcase, getMyLaunch50Place } = await import("../lib/launch50.ts");
 const { default: Launch50Page } = await import("../app/launch-50/page.tsx");
-const { ShowcaseCard } = await import("../components/launch50/ShowcaseCard.tsx");
+const { ShowcaseCard, ShowcaseGrid } = await import("../components/launch50/ShowcaseCard.tsx");
 const { Launch50Card } = await import("../components/business/Launch50Card.tsx");
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -98,7 +98,7 @@ describe("page gating", () => {
     setup({ st: status(), members: [{ id: "m1", name: "Anderson Bakery", slug: "anderson-bakery", category: "food_drink", description: "Bread." }] });
     const out = await html();
     assert.doesNotMatch(out, /Preview: Launch 50/);
-    assert.match(out, /Founding Pro/); assert.match(out, /Founding Premium/); assert.match(out, /How it works/); assert.match(out, /Meet the Launch 50/);
+    assert.match(out, /Launch 50 Pro/); assert.match(out, /Launch 50 Premium/); assert.doesNotMatch(out, /[Ff]ounding/); assert.match(out, /How it works/); assert.match(out, /Meet the Launch 50/);
     assert.match(out, /<strong[^>]*>37<\/strong> of 50 places left/); assert.match(out, /5 January 2027/); assert.match(out, /19 January 2027/);
     assert.match(out, /Anderson Bakery/);
   });
@@ -151,7 +151,7 @@ describe("showcase cards", () => {
   test("identical treatment: same structure for any member, and no tier or ranking cue", () => {
     const a = card({ ...A, tier: "premium" }), b = card({ ...A, id: "c", name: "Charlie", tier: "pro" });
     assert.equal(shape(a), shape(b));
-    for (const s of [a, b, card(B)]) assert.doesNotMatch(s, /\b(pro|premium|founding|featured|top|first|#\d|rank)\b/i);
+    for (const s of [a, b, card(B)]) assert.doesNotMatch(s.replace(/<[^>]+>/g, " "), /\b(pro|premium|founding|featured|top|first|#\d|rank)\b/i);
   });
   test("description is clamped at a word boundary, ellipsis added", () => {
     const d = core.clampDescription(long, 220); assert.ok(d.length <= 221); assert.ok(d.endsWith("…")); assert.match(d, /Word…$/);
@@ -166,7 +166,7 @@ describe("showcase cards", () => {
   });
   test("fallbacks and links: category colour block, view listing by slug or id, alt text on images, category label", () => {
     const a = card(A), b = card(B);
-    assert.match(a, /alt="Alpha Ltd logo"/); assert.match(a, /alt="Alpha Ltd cover photo"/); assert.match(a, /href="\/directory\/alpha"/); assert.match(a, />Retail|Shopping|Retail/i);
+    assert.match(a, /alt="Alpha Ltd logo"/); assert.match(a, /alt="Alpha Ltd banner"/); assert.match(a, /href="\/directory\/alpha"/); assert.match(a, />Retail|Shopping|Retail/i);
     assert.match(b, /href="\/directory\/b"/); assert.match(b, /background:#4f46e5/); assert.doesNotMatch(b, /<img/);
   });
 });
@@ -209,7 +209,7 @@ describe("billing card states", () => {
   });
   test("(b) active: founding price until the date, showcase toggle, locked note", () => {
     const o = render({ tier: "pro", subscriptionConnected: true, place: place({ status: "active", tier: "premium", discount_ends_at: "2028-01-20T10:00:00Z", showcase_opt_in: true }) });
-    assert.match(o, /Launch 50 member: founding price £22\/month until 20 January 2028, then £29\/month/); assert.match(o, /checked/); assert.match(o, /Plan changes are not available during Launch 50\. You can cancel any time below\./);
+    assert.match(o, /Launch 50 member: Launch 50 price £22\/month until 20 January 2028, then £29\/month/); assert.match(o, /checked/); assert.match(o, /Plan changes are not available during Launch 50\. You can cancel any time below\./);
   });
   test("(c) ended", () => { assert.match(render({ phase: "closed", place: place({ status: "ended" }) }), /Your Launch 50 place is complete\. Standard prices apply\./); });
   test("not shown when closed, paid, or subscribed", () => {
@@ -254,7 +254,7 @@ describe("billing page shows the rate a Launch 50 member actually pays", () => {
   const pl = (o) => ({ business_id: BIZ, tier: "pro", status: "active", reservation_expires_at: null, activated_at: PAST2, discount_ends_at: FUT2, showcase_opt_in: true, ...o });
   test("foundingRate: only for an ACTIVE place on the CURRENT plan while the discount has not ended", () => {
     const r = core.foundingRate(pl({}), "pro");
-    assert.equal(r.pence, 900); assert.equal(r.price, "£9"); assert.equal(r.standard, "£12"); assert.match(r.note, /^Launch 50 founding rate: £9\/month until .+, then £12\/month\.$/);
+    assert.equal(r.pence, 900); assert.equal(r.price, "£9"); assert.equal(r.standard, "£12"); assert.match(r.note, /^Launch 50 rate: £9\/month until .+, then £12\/month\.$/);
     assert.equal(core.foundingRate(pl({ tier: "premium" }), "premium").pence, 2200);
     assert.equal(core.foundingRate(pl({}), "premium"), null, "a Pro place says nothing about a Premium plan");
     assert.equal(core.foundingRate(pl({ discount_ends_at: PAST2 }), "pro"), null, "after the discount ends the standard price is shown");
@@ -268,5 +268,54 @@ describe("billing page shows the rate a Launch 50 member actually pays", () => {
     assert.match(src, /data-launch50-rate>\{founding\.note\}/);
     assert.match(src, /\(founding \? founding\.pence : TIER_PRICE_PENCE\.pro\)/);
     assert.match(src, /Pro plan \(Launch 50 rate\)/);
+  });
+});
+
+describe("Launch 50 page polish", () => {
+  test("a personal note from Darren: warm, honest, first person, no promise of customers", async () => {
+    setup(); const out = await html();
+    assert.match(out, /data-launch50-note/); assert.match(out, /A note from me/);
+    assert.match(out, /I(&#x27;|')m Darren, and I run OneShetland/); assert.match(out, /It(&#x27;|')s a new platform/);
+    assert.match(out, /50 Shetland businesses/); assert.match(out, /help grow OneShetland together/);
+    assert.match(out, /I can(&#x27;|')t promise customers or enquiries/);
+    assert.match(out, /I will email you a reminder/);
+    assert.doesNotMatch(out.replace(/<[^>]+>/g, " "), /\bwe\b|\bour\b/i, "first person, not corporate");
+  });
+  test("consistent campaign language: nothing says Founding anywhere a visitor can read it", async () => {
+    setup(); const out = await html();
+    assert.doesNotMatch(out, /[Ff]ounding/);
+    for (const f of ["app/launch-50/page.tsx", "components/launch50/ShowcaseCard.tsx", "components/business/Launch50Card.tsx"]) assert.doesNotMatch(read(f).replace(/\/\*[\s\S]*?\*\//g, ""), /Founding|founding (price|plan|place|rate)/, f);
+    assert.equal(core.LAUNCH50_NAME.pro, "Launch 50 Pro"); assert.equal(core.LAUNCH50_NAME.premium, "Launch 50 Premium");
+    assert.match(core.foundingRate({ business_id: BIZ, tier: "pro", status: "active", reservation_expires_at: null, activated_at: null, discount_ends_at: new Date(Date.now() + 9e9).toISOString(), showcase_opt_in: true }, "pro").note, /^Launch 50 rate:/);
+  });
+  test("pricing cards: price is the hero, the standard price follows, and benefits are the plus-list only (easy to scan)", async () => {
+    setup(); const out = await html();
+    assert.match(out, /Launch 50 price/); assert.match(out, /Your free listing, plus/); assert.match(out, /Everything in Pro, plus/);
+    const pro = out.slice(out.indexOf('data-launch50-offer="pro"'), out.indexOf('data-launch50-offer="premium"'));
+    const prem = out.slice(out.indexOf('data-launch50-offer="premium"'));
+    for (const l of ["Time-limited offers", "Local Wallet payments", "Get it done job enquiries"]) { assert.match(pro, new RegExp(l)); assert.doesNotMatch(prem.split("</article>")[0], new RegExp(l)); }
+    for (const l of ["Products and orders", "Passes and packs", "Bookings with no per-booking fee"]) assert.match(prem, new RegExp(l));
+    assert.match(pro, /£9<span[^>]*>\/month<\/span>/); assert.match(prem, /£22<span[^>]*>\/month<\/span>/);
+  });
+  test("extended showcase card: banner, overlapping logo, name, category, description, location, View business, Launch 50 recognition, nothing that ranks", () => {
+    const full = { id: "a", name: "Premises Ready", slug: "premises-ready", category: "services", description: "Helping venues get ready.", logo_url: "https://x.test/l.png", cover_url: "https://x.test/c.jpg", website: "https://premisesready.uk", address: "Lerwick, Shetland" };
+    const o = renderToStaticMarkup(h(ShowcaseCard, { m: full }));
+    assert.match(o, /alt="Premises Ready banner"/); assert.match(o, /alt="Premises Ready logo"/); assert.match(o, /Premises Ready<\/h3>/); assert.match(o, /Services/);
+    assert.match(o, /Helping venues get ready\./); assert.match(o, /Lerwick, Shetland/); assert.match(o, /href="\/directory\/premises-ready"[^>]*>View business</);
+    assert.match(o, />Launch 50</); assert.match(o, /Part of OneShetland Launch 50/); assert.match(o, /rel="noopener noreferrer"/);
+    assert.doesNotMatch(o.replace(/<[^>]+>/g, " "), /\b(pro|premium|featured|top|first|#\d|rank)\b/i);
+  });
+  test("fallbacks: no banner or logo still gives a finished card with the category colour, the initial and the same recognition", () => {
+    const bare = { id: "b", name: "Quiet Croft", slug: null, category: "retail", description: null, logo_url: null, cover_url: null, website: null, address: null };
+    const o = renderToStaticMarkup(h(ShowcaseCard, { m: bare }));
+    assert.doesNotMatch(o, /<img/); assert.match(o, />Q</); assert.match(o, /href="\/directory\/b"[^>]*>View business</);
+    assert.match(o, />Launch 50</); assert.match(o, /Part of OneShetland Launch 50/);
+    const strip = (s) => s.replace(/\s+/g, " ");
+    const full = { ...bare, id: "c", name: "Another Shop", logo_url: "https://x.test/l.png", cover_url: "https://x.test/c.jpg" };
+    assert.equal((strip(o).match(/data-launch50-card/g) ?? []).length, (strip(renderToStaticMarkup(h(ShowcaseCard, { m: full }))).match(/data-launch50-card/g) ?? []).length, "same card structure for everyone");
+  });
+  test("grid is one column on phones and two on larger screens", () => {
+    const g = renderToStaticMarkup(h(ShowcaseGrid, { members: [{ id: "a", name: "A", slug: "a", category: null, description: null, logo_url: null, cover_url: null, website: null, address: null }] }));
+    assert.match(g, /grid-cols-1[^"]*md:grid-cols-2/);
   });
 });

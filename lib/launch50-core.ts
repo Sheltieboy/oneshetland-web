@@ -36,11 +36,11 @@ export type ShowcaseMember = {
   logo_url: string | null; cover_url: string | null; website: string | null; address: string | null;
 };
 
-/** Founding prices in pence, per month, for the first 12 months. The standard prices come from listing-tiers.ts. */
+/** Launch 50 prices in pence, per month, for the first 12 months. The standard prices come from listing-tiers.ts. */
 export const LAUNCH50_PRICE_PENCE: Record<Launch50Tier, number> = { pro: 900, premium: 2200 };
 export const LAUNCH50_DISCOUNT_MONTHS = 12;
 export const LAUNCH50_RESERVATION_MINUTES = 30;
-export const LAUNCH50_NAME: Record<Launch50Tier, string> = { pro: "Founding Pro", premium: "Founding Premium" };
+export const LAUNCH50_NAME: Record<Launch50Tier, string> = { pro: "Launch 50 Pro", premium: "Launch 50 Premium" };
 
 const pounds = (pence: number) => `£${(pence / 100).toFixed(2).replace(/\.00$/, "")}`;
 export const launch50Price = (tier: Launch50Tier) => pounds(LAUNCH50_PRICE_PENCE[tier]);
@@ -139,7 +139,7 @@ export const launch50PlanLocked = (place: Launch50Place | null | undefined) => p
 
 /**
  * The rate a Launch 50 member is ACTUALLY paying right now, or null (standard prices apply): an active place on the plan they are on, while the
- * founding discount has not ended. The billing page uses this so it never shows the standard price as the current monthly payment.
+ * Launch 50 discount has not ended. The billing page uses this so it never shows the standard price as the current monthly payment.
  */
 export function foundingRate(place: Launch50Place | null | undefined, tier: string, nowMs: number = Date.now()):
   { pence: number; price: string; standard: string; until: string | null; note: string } | null {
@@ -150,7 +150,7 @@ export function foundingRate(place: Launch50Place | null | undefined, tier: stri
   const until = fmtLaunchDate(place.discount_ends_at);
   return {
     pence: LAUNCH50_PRICE_PENCE[t], price: launch50Price(t), standard: standardPrice(t), until,
-    note: `Launch 50 founding rate: ${launch50Price(t)}/month${until ? ` until ${until}` : ""}, then ${standardPrice(t)}/month.`,
+    note: `Launch 50 rate: ${launch50Price(t)}/month${until ? ` until ${until}` : ""}, then ${standardPrice(t)}/month.`,
   };
 }
 

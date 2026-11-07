@@ -193,7 +193,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant, launc
   /* Upgrade / change plan */
   async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly", useSavedCard = true, launch50Attempt = false) {
     const annual = target === "premium" && period === "annual";
-    const label = launch50Attempt ? `Founding ${TIER_LABELS[target]}` : `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
+    const label = launch50Attempt ? `Launch 50 ${TIER_LABELS[target]}` : `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
     setBusy(launch50Attempt ? `launch50-${target}` : annual ? `${target}-annual` : target); setError(null); setLaunch50Msg(null);
     try {
       if (launch50Attempt && period !== "monthly") throw Object.assign(new Error("Launch 50 is monthly billing only."), { code: "LAUNCH50_MONTHLY_ONLY" });

@@ -105,7 +105,7 @@ export function Launch50Card({ businessId, phase, tier, subscriptionConnected, h
       <section id="launch-50" className={card}>
         {heading}
         <p className="mt-2 text-sm font-semibold text-ink">
-          Launch 50 member: founding price {launch50Price(t)}/month{until ? ` until ${until}` : ""}, then {standardPrice(t)}/month
+          Launch 50 member: Launch 50 price {launch50Price(t)}/month{until ? ` until ${until}` : ""}, then {standardPrice(t)}/month
         </p>
         <label className="mt-4 flex items-start gap-3 text-sm text-ink">
           <input type="checkbox" className="mt-0.5 h-4 w-4" checked={place.showcase_opt_in} disabled={working}
@@ -156,7 +156,7 @@ export function Launch50Card({ businessId, phase, tier, subscriptionConnected, h
       {heading}
       <p className="mt-1 text-sm text-ink-muted">{LAUNCH50_STATEMENT}</p>
       <fieldset className="mt-4">
-        <legend className="text-sm font-semibold text-ink">Choose a founding plan</legend>
+        <legend className="text-sm font-semibold text-ink">Choose your Launch 50 plan</legend>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {TIERS.map((t) => (
             <label key={t} className={"flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm " + (choice === t ? "border-ink bg-sand/60" : "border-line")}>
