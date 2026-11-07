@@ -20,6 +20,8 @@ export default async function Page() {
           <Link href="/admin/events/submissions" className="font-semibold text-navy underline">Event submissions{counts.subs ? ` (${badge.pending} waiting)` : ""}</Link>
           {" · "}
           <Link href="/admin/events/changes" className="font-semibold text-navy underline">Change requests{counts.changes ? ` (${badge.changes} waiting)` : ""}</Link>
+          {" · "}
+          <Link href="/admin/events/community" className="font-semibold text-navy underline">Community events</Link>
         </p>
       )}
       {rows.length === 0 ? <Empty>No events awaiting approval.</Empty> : <EventApprovals rows={rows as never[]} />}

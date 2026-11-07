@@ -1,21 +1,26 @@
 import Link from "next/link";
 import { getAdminStats } from "@/lib/admin-data.server";
 import { AdminHeader, StatCard } from "@/components/admin/AdminUI";
+import { eventQueueBadgeCounts } from "@/lib/event-submissions-admin.server";
+import { COMMUNITY_EVENTS_HREF, CHANGES_BADGE_KEY, CHANGES_HREF, SUBMISSIONS_BADGE_KEY, SUBMISSIONS_HREF } from "@/lib/event-community-admin";
 
 export const dynamic = "force-dynamic";
 
-const QUEUES = [
+const QUEUES: readonly { href: string; label: string; key: string; desc: string; optional?: boolean }[] = [
   { href: "/admin/drivers", label: "Driver approvals", key: "pendingDrivers", desc: "Review pending driver applications" },
   { href: "/admin/events", label: "Event approvals", key: "pendingEvents", desc: "Approve hub events for the islands calendar" },
+  { href: SUBMISSIONS_HREF, label: "Event submissions", key: SUBMISSIONS_BADGE_KEY, desc: "Review events members have sent in for community groups", optional: true },
+  { href: CHANGES_HREF, label: "Change requests", key: CHANGES_BADGE_KEY, desc: "Decide changes organisers have asked for on their events", optional: true },
   { href: "/admin/claims", label: "Business claims", key: "pendingClaims", desc: "Verify directory ownership claims" },
   { href: "/admin/nfc", label: "NFC tiles", key: "nfcToPost", desc: "Tap-to-stamp tiles waiting to be posted" },
   { href: "/admin/vessel-photos", label: "Vessel photos", key: "pendingVesselPhotos", desc: "Approve community photos for boat galleries" },
   { href: "/admin/boats", label: "New boats", key: "pendingVesselSubmissions", desc: "Approve community-submitted boats (hulls)" },
   { href: "/admin/alerts", label: "Alert access", key: "pendingAlerts", desc: "Approve urgent-alert add-on requests" },
   { href: "/admin/spik", label: "Spik suggestions", key: "pendingSpik", desc: "Review community dictionary suggestions" },
-] as const;
+];
 
 const TOOLS = [
+  { href: COMMUNITY_EVENTS_HREF, label: "Community events", desc: "Find published community events, open them, cancel or restore a date or the whole event" },
   { href: "/admin/launch-partners", label: "Launch partners", desc: "Prepare previews and business pages, invite businesses, follow each to going live" },
   { href: "/admin/launch-readiness", label: "Launch readiness", desc: "What's done, what's left and what still blocks launch" },
   { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
@@ -29,7 +34,7 @@ const TOOLS = [
 
 export default async function AdminDashboard() {
   const s = await getAdminStats();
-  const counts: Record<string, number> = s as unknown as Record<string, number>;
+  const counts: Record<string, number> = { ...(s as unknown as Record<string, number>), ...(await eventQueueBadgeCounts()) };
 
   return (
     <>
@@ -45,10 +50,11 @@ export default async function AdminDashboard() {
       <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Needs review</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         {QUEUES.map((q) => {
+          const known = counts[q.key] !== undefined;
           const n = counts[q.key] ?? 0;
           return (
             <Link key={q.href} href={q.href} className="flex items-center gap-4 rounded-card border border-line bg-paper p-4 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
-              <span className={"grid h-11 w-11 shrink-0 place-items-center rounded-full font-display text-lg font-bold " + (n > 0 ? "bg-rose-100 text-rose-700" : "bg-sand text-ink-muted")}>{n}</span>
+              <span className={"grid h-11 w-11 shrink-0 place-items-center rounded-full font-display text-lg font-bold " + (n > 0 ? "bg-rose-100 text-rose-700" : "bg-sand text-ink-muted")}>{q.optional && !known ? <span aria-label="count not available">–</span> : n}</span>
               <div className="min-w-0 flex-1">
                 <p className="font-display font-bold text-ink">{q.label}</p>
                 <p className="text-sm text-ink-muted">{q.desc}</p>

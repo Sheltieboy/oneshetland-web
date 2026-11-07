@@ -21,7 +21,7 @@ export default async function ManageCommunityEventPage({ params }: { params: Pro
 
   return (
     <div>
-      <p><Link href="/account/event-submissions" className="inline-flex min-h-11 items-center text-base font-semibold text-navy underline">Back to my event submissions</Link></p>
+      <p><Link href="/account/event-submissions" className="inline-flex min-h-11 items-center text-base font-semibold text-navy underline">Back to my events &amp; submissions</Link></p>
       {!res.ok ? (
         <p role="status" className="mt-6 rounded-2xl border border-line-strong bg-cream p-5 text-lg text-ink">{res.error.kind === "unavailable" ? PAGE_NOT_AVAILABLE_YET : res.error.message}</p>
       ) : (

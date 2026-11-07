@@ -116,7 +116,7 @@ describe("account area", async () => {
     assert.equal(on.replace(/<a href="\/whats-on\/add"[^>]*>.*?<\/a>/, ""), off);
   });
   test("the account layout and the root layout pass the prop only through entryPointProps() (absent when off)", () => {
-    assert.match(read("app/account/layout.tsx"), /<AccountSidebar isAdmin=\{isAdmin\} isBusiness=\{isBusiness\} \{\.\.\.entryPointProps\(\)\} \/>/);
+    assert.match(read("app/account/layout.tsx"), /<AccountSidebar isAdmin=\{isAdmin\} isBusiness=\{isBusiness\} \{\.\.\.entryPointProps\(\)\} \{\.\.\.myEvents\} \/>/);
     assert.match(read("app/layout.tsx"), /<SiteHeader user=\{user\} fetchStatus=\{fetchStatus\} \{\.\.\.entryPointProps\(\)\} \/>/);
   });
   test("overview page (rendered, signed in): no card when off; exactly one card when on, and the other cards are unchanged", async () => {
@@ -125,7 +125,7 @@ describe("account area", async () => {
     const overview = (await import("../app/account/page.tsx")).default;
     const off = renderToStaticMarkup(await overview()); assert.equal(hrefCount(off), 0); assert.doesNotMatch(off, /Add an Event or Activity/);
     flag("on"); const on = renderToStaticMarkup(await overview()); assert.equal(hrefCount(on), 1); assert.equal(count(on, ADD_EVENT_LABEL), 1);
-    assert.equal(on.replace(/<a href="\/whats-on\/add"[^>]*>.*?<\/a>/, ""), off, "removing the one card gives today's page exactly");
+    assert.equal(on.replace(/<a href="\/whats-on\/add"[^>]*>.*?<\/a>/, "").replace(/<a href="\/account\/event-submissions"[^>]*>.*?<\/a>/, ""), off, "removing the add card and the (flag-on) My events card gives today's page exactly");
     fake.auth.getUser = async () => ({ data: { user: null } });
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
@@ -54,6 +55,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
     <div>
       <h1 className="mt-4 font-display text-3xl font-bold text-ink">{title}</h1>
       <p className="mt-1 text-lg text-ink-soft">{publicCredit(submission.organiser_name)}</p>
+      <p className="mt-2"><Link href={`/whats-on/${eventId}`} className={textBtn}>View the public page<span className="sr-only">: {title}</span></Link></p>
       <div ref={live} tabIndex={-1} role="status" className="outline-none">
         {message && <Notice tone={message.good ? "good" : "warn"}>{message.text}</Notice>}
       </div>
@@ -70,6 +72,19 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
           ) : <p className="mt-2">It&apos;s too late to undo this here. Please ask OneShetland and we&apos;ll sort it out.</p>}
           <p className="mt-2">{CANCEL_NO_NOTIFY_LINE}</p>
         </Notice>
+      )}
+      {event && event.status === "cancelled" && occurrences.length > 0 && (
+        <section aria-labelledby="ce-perf-ro" className="mt-8">
+          <h2 id="ce-perf-ro" className="text-2xl font-bold text-ink">{occurrences.length > 1 ? "Performances" : "Date"}</h2>
+          <ul className="mt-3 space-y-3">
+            {occurrences.map((o) => (
+              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-line-strong bg-paper p-4">
+                <p className="text-lg font-semibold text-ink">{describeOccurrence(o)}</p>
+                <StatusChip label={isPast(o.starts_at, nowMs) ? "Already happened" : o.status === "cancelled" ? "Cancelled" : "Cancelled with the event"} tone={isPast(o.starts_at, nowMs) ? "gray" : "red"} />
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
       {buyersPanel && <TicketBuyersPanel title={title} onClose={() => setBuyersPanel(false)} />}
 

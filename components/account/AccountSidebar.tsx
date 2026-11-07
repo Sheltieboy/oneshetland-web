@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ADD_EVENT_HREF, ADD_EVENT_SIDEBAR_LABEL } from "@/lib/event-entry-points";
+import { ADD_EVENT_HREF, ADD_EVENT_SIDEBAR_LABEL, MY_EVENTS_HREF, MY_EVENTS_LABEL } from "@/lib/event-entry-points";
 
 type Item = { href: string; label: string; external?: boolean };
 
-export function AccountSidebar({ isAdmin, isBusiness, addEvent = false }: { isAdmin: boolean; isBusiness: boolean; addEvent?: boolean }) {
+export function AccountSidebar({ isAdmin, isBusiness, addEvent = false, myEvents = false }: { isAdmin: boolean; isBusiness: boolean; addEvent?: boolean; myEvents?: boolean }) {
   const path = usePathname();
   const account: Item[] = [
     { href: "/account", label: "Overview" },
@@ -28,6 +28,8 @@ export function AccountSidebar({ isAdmin, isBusiness, addEvent = false }: { isAd
   ];
   // Only passed (true) by the server when EVENT_FRONT_DOOR === "on".
   if (addEvent) activity.splice(activity.findIndex((i) => i.href === "/account/hubs") + 1, 0, { href: ADD_EVENT_HREF, label: ADD_EVENT_SIDEBAR_LABEL });
+  // Only passed (true) by the server for a person who can open the page (flag on, admin, or allowlisted tester): the link can never lead to a 404.
+  if (myEvents) activity.splice(activity.findIndex((i) => i.href === (addEvent ? ADD_EVENT_HREF : "/account/hubs")) + 1, 0, { href: MY_EVENTS_HREF, label: MY_EVENTS_LABEL });
   if (isBusiness) activity.splice(2, 0, { href: "/directory/new", label: "Add a business", external: true });
 
   const Section = ({ title, items }: { title: string; items: Item[] }) => (

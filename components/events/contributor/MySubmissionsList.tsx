@@ -47,6 +47,9 @@ export function MySubmissionsList({ items, eventIds }: { items: SubmissionView[]
               {s.canManage && eventIds[s.id] && (
                 <Link href={`/account/event-submissions/event/${eventIds[s.id]}`} className={`inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white ${focusRing}`}>Look after this event</Link>
               )}
+              {s.canManage && eventIds[s.id] && (
+                <Link href={`/whats-on/${eventIds[s.id]}`} className={`${textBtn}`}>View public page<span className="sr-only">: {s.title}</span></Link>
+              )}
               {s.canWithdraw && confirming !== s.id && (
                 <SecondaryButton onClick={() => setConfirming(s.id)}>Withdraw<span className="sr-only"> {s.title}</span></SecondaryButton>
               )}

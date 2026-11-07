@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { STAFF_EVENT_NAV, adminNavActive } from "@/lib/event-community-admin";
 
-const NAV: { group: string; items: { href: string; label: string; badgeKey?: string }[] }[] = [
+const NAV: { group: string; items: { href: string; label: string; badgeKey?: string; exact?: boolean }[] }[] = [
   { group: "Overview", items: [
     { href: "/admin", label: "Dashboard" },
     { href: "/admin/launch-readiness", label: "Launch readiness" },
@@ -15,7 +16,8 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/payments", label: "Payments" },
   ] },
   { group: "Community", items: [
-    { href: "/admin/events", label: "Event approvals", badgeKey: "pendingEvents" },
+    { href: "/admin/events", label: "Event approvals", badgeKey: "pendingEvents", exact: true },
+    ...STAFF_EVENT_NAV,
     { href: "/admin/launch-partners", label: "Launch partners" },
     { href: "/admin/claims", label: "Business claims", badgeKey: "pendingClaims" },
     { href: "/admin/reports", label: "Reports", badgeKey: "openReports" },
@@ -49,7 +51,7 @@ export function AdminSidebar({ badges }: { badges: Record<string, number> }) {
           <p className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-ink-faint">{g.group}</p>
           <div className="space-y-0.5">
             {g.items.map((it) => {
-              const active = path === it.href || (it.href !== "/admin" && path.startsWith(it.href));
+              const active = adminNavActive(path, it);
               const n = it.badgeKey ? badges[it.badgeKey] ?? 0 : 0;
               return (
                 <Link key={it.href} href={it.href}

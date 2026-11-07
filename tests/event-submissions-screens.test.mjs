@@ -210,8 +210,10 @@ describe("gating and dark launch", () => {
     const hits = [];
     const walk = (d) => { for (const n of readdirSync(d)) { if (["node_modules", ".next", ".git", "tests"].includes(n)) continue; const p = join(d, n); if (statSync(p).isDirectory()) walk(p); else if (/\.(tsx?|mjs)$/.test(n) && /event-submissions|whats-on\/add/.test(readFileSync(p, "utf8"))) hits.push(p); } };
     for (const d of ["app", "components", "lib"]) walk(d);
-    const allowed = /(^|\/)(app\/whats-on\/add|app\/account\/event-submissions|app\/admin\/events|components\/events|components\/admin\/Event(Submissions|Changes)Queue|lib\/event-)/;
-    assert.deepEqual(hits.filter((h) => !allowed.test(h)), []);
+    const allowed = /(^|\/)(app\/whats-on\/add|app\/account\/event-submissions|app\/admin\/events|components\/events|components\/admin\/Event(Submissions|Changes)Queue|components\/admin\/CommunityEventsList|lib\/event-)/;
+    // The staff and account entry points (UX-B) import the gate/badge helpers by name; they are checked by tests/event-staff-and-my-events.test.mjs.
+    const entryImports = new Set(["app/account/layout.tsx", "app/account/page.tsx", "app/admin/layout.tsx", "app/admin/page.tsx"]);
+    assert.deepEqual(hits.filter((h) => !allowed.test(h) && !entryImports.has(h)), []);
     assert.doesNotMatch(read("app/sitemap.ts"), /event-submissions|whats-on\/add/);
     assert.doesNotMatch(read("components/account/AccountSidebar.tsx"), /event-submissions/);
   });

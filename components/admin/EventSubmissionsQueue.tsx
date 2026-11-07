@@ -8,6 +8,8 @@ import { describeOccurrence } from "@/lib/event-dates-builder";
 import { eventLabelForCategory } from "@/lib/event-categories";
 import { APPROVE_CONFIRM } from "@/lib/contributor-copy";
 import { ageLabel } from "@/lib/event-submissions-shape";
+import Link from "next/link";
+import { communityEventHref } from "@/lib/event-community-admin";
 import { Card } from "@/components/admin/AdminUI";
 import { Field, Notice, TextArea, focusRing } from "@/components/events/submit-ui";
 
@@ -42,6 +44,7 @@ function SubmissionCard({ s, nowMs }: { s: Item; nowMs: number }) {
 
   return (
     <Card>
+      <div id={`sub-${s.id}`} className="scroll-mt-4" />
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <h2 className="text-xl font-bold text-ink">{s.title}</h2>
@@ -63,6 +66,12 @@ function SubmissionCard({ s, nowMs }: { s: Item; nowMs: number }) {
       </dl>
       {s.cover_url && (<><img src={s.cover_url} alt={`Poster for ${s.title}`} className="mt-3 max-h-48 rounded-xl border border-line" /></>)}
       <div role="status" aria-live="polite">{msg && <Notice tone={msg.good ? "good" : "warn"}>{msg.text}</Notice>}</div>
+      {s.status === "approved" && s.event_id && (
+        <p className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1">
+          <Link href={`/whats-on/${s.event_id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline">View published event<span className="sr-only">: {s.title}</span></Link>
+          <Link href={communityEventHref(s.event_id, s.title)} className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline">Manage on Community events<span className="sr-only">: {s.title}</span></Link>
+        </p>
+      )}
       {pending && (
         <div className="mt-4">
           {mode === null && (

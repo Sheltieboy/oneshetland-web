@@ -13,6 +13,11 @@ export const ADD_EVENT_LABEL = "Add an Event or Activity";
 export const ADD_EVENT_MENU_LABEL = "Add an event or activity";
 export const ADD_EVENT_SIDEBAR_LABEL = "Add an Event or Activity";
 
+/** The member's own area: what they sent, and the events they look after. Shown only to someone who can open it (see myEventsEntryVisible). */
+export const MY_EVENTS_HREF = "/account/event-submissions";
+export const MY_EVENTS_LABEL = "My events & submissions";
+export const MY_EVENTS_DESC = "Events you have sent us, how each is getting on, and the ones you look after.";
+
 export const ADD_EVENT_SHORT_DESC = "Tell the isles about a gig, market, class or group.";
 export const ADD_EVENT_ACCOUNT_DESC = "Share an event or activity. Our team checks independent events before they appear.";
 export const ADD_EVENT_EMPTY_PROMPT = "Try a different date or category, or tell us about something that is coming up.";

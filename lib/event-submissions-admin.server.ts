@@ -6,9 +6,10 @@ import "server-only";
 import { serverSb } from "@/lib/event-submissions-access.server";
 import {
   adminChangeBefore, adminChangeCounts, adminListChanges, adminListSubmissions, adminSubmissionCounts, adminSubmissionDetails, adminTrustFor,
-  type ChangeCounts, type ChangeSummary, type Result, type Sb, type SubmissionCounts, type SubmissionRow, type SubmissionStatus,
+  mapError, type ChangeCounts, type ChangeSummary, type Result, type Sb, type SubmissionCounts, type SubmissionRow, type SubmissionStatus,
 } from "@/lib/event-submissions-client";
 import { adminEventLabel, describeChange, type ChangeLine } from "@/lib/event-submissions-shape";
+import { COMMUNITY_LIMIT, cleanSearch, eventQueueBadges, shapeCommunityEvent, tabStatus, type CommunityEventView, type CommunityTab } from "@/lib/event-community-admin";
 
 async function names(sb: Sb, ids: string[]): Promise<Record<string, string>> {
   const uniq = [...new Set(ids.filter(Boolean))];
@@ -58,4 +59,44 @@ export async function loadChangeQueue(status: "pending" | "auto_approved"): Prom
     return { ...c, requester: who[c.requester_id] ?? "A member", label, lines: describeChange(c.payload, before.ok ? before.data[c.id] ?? {} : {}), trusted: t?.trusted ?? false, trustNote: t?.note ?? null };
   });
   return { ok: true, data: { items, counts: counts.ok ? counts.data : null } };
+}
+
+/**
+ * Badge counts for the admin sidebar (shape: event-community-admin.eventQueueBadges). Tolerant to the end: a missing database function, a read
+ * error or a thrown error just means no badge for that part.
+ */
+export async function eventQueueBadgeCounts(): Promise<Record<string, number>> {
+  try { return eventQueueBadges(await queueCounts()); } catch { return {}; }
+}
+
+/** The Community events screen: events whose source is 'community_submission' (staff see every one, hidden or not, through their own session). */
+export async function loadCommunityEvents(tab: CommunityTab, q: string): Promise<Result<CommunityEventView[]>> {
+  let sb: Sb;
+  try { sb = await serverSb(); } catch { return { ok: false, error: { kind: "unknown", message: "Something went wrong on our side. Please try again in a moment." } }; }
+  const status = tabStatus(tab), term = cleanSearch(q);
+  let reply: { data: unknown; error: { message?: string; code?: string } | null; status?: number };
+  try {
+    let query = sb.from("events")
+      .select("id, title, status, is_hidden, organiser_name, source, submission_id, starts_at, ends_at, is_dated_run, created_at, occurrences:event_occurrences(id, starts_at, ends_at, status, note)")
+      .eq("source", "community_submission");
+    if (status) query = query.eq("status", status);
+    if (term) query = query.ilike("title", `%${term}%`);
+    reply = await query.order("created_at", { ascending: false }).limit(COMMUNITY_LIMIT);
+  } catch (e) { return { ok: false, error: mapError({ message: e instanceof Error ? e.message : String(e) }) }; }
+  if (reply.error || (reply.status && reply.status >= 400)) return { ok: false, error: mapError(reply.error, reply.status) };
+  const raw = (Array.isArray(reply.data) ? reply.data : []) as Record<string, unknown>[];
+  // The submitter comes from the linked submission (staff can read them all), then their profile name; any failure leaves the "A member" fallback.
+  const subIds = [...new Set(raw.flatMap((r) => (typeof r.submission_id === "string" ? [r.submission_id] : [])))];
+  const submitterOf: Record<string, string> = {};
+  if (subIds.length) {
+    try {
+      const { data } = await sb.from("event_submissions").select("id, submitter_id").in("id", subIds);
+      const subs = ((data ?? []) as { id: string; submitter_id: string }[]);
+      const who = await names(sb, subs.map((s) => s.submitter_id));
+      for (const s of subs) if (who[s.submitter_id]) submitterOf[s.id] = who[s.submitter_id];
+    } catch { /* fallback names */ }
+  }
+  const now = Date.now();
+  const items = raw.flatMap((r) => { const v = shapeCommunityEvent(r, typeof r.submission_id === "string" ? submitterOf[r.submission_id] : null, now); return v ? [v] : []; });
+  return { ok: true, data: items };
 }

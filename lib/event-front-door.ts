@@ -15,6 +15,19 @@ export function frontDoorAccess(input: { flag: string | undefined | null; isStaf
   return input.isTester === true ? "tester" : "hidden";
 }
 
+/**
+ * Does this viewer get a link to "My events & submissions"? EXACTLY when /account/event-submissions would open for them: the same rule as the gate
+ * (frontDoorAccess), so the link can never lead to a 404 and is never shown to someone the page would refuse. Pure; the one place this is decided.
+ */
+export function myEventsEntryVisible(input: { flag: string | undefined | null; isStaff: boolean; isTester?: boolean }): boolean {
+  return frontDoorAccess(input) !== "hidden";
+}
+
+/** Props to spread so that the prop is ABSENT (not false) for everyone who may not open the page: their account pages carry exactly the same bytes as before. */
+export function myEventsProps(visible: boolean): { myEvents?: true } {
+  return visible ? { myEvents: true } : {};
+}
+
 export type FrontDoorOutcome =
   | { kind: "choose" }                       // nothing (or something unknown) chosen yet
   | { kind: "ask"; slug: string }            // needs the one question

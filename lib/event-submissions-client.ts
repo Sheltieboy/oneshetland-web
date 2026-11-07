@@ -319,6 +319,32 @@ export function adminTrustFor(sb: Sb, userIds: readonly string[]): Promise<Resul
     (d) => Object.fromEntries(rows(d).flatMap((r) => (str(r.user_id) ? [[str(r.user_id)!, { trusted: r.trusted === true, note: str(r.note) }]] : []))));
 }
 
+/* ── staff: community events (cancel / restore) ────────────────────────────────────────────────────────────────────────────── */
+
+/** Cancel ('cancelled') or restore ('scheduled') ONE performance through the existing staff function. The note stays empty on purpose (a performance note is public). */
+export function adminSetOccurrenceStatus(sb: Sb, occurrenceId: string, status: "cancelled" | "scheduled"): Promise<Result<{ id: string; status: string }>> {
+  return call(sb, "admin_set_occurrence_status", { p_occurrence: occurrenceId, p_status: status, p_note: null }, (d) => {
+    const o = obj(d);
+    return o && str(o.id) ? { id: str(o.id)!, status: str(o.status) ?? status } : null;
+  });
+}
+
+/**
+ * Cancel or restore the WHOLE event by updating events.status through the staff session (the events UPDATE policy lets staff do this; the database then
+ * hides or shows it on the lists). The update only applies from the state the screen showed (published -> cancelled, cancelled -> published); if
+ * nothing changed (someone else got there first, or row security refused) the answer says so instead of pretending.
+ */
+export function adminSetEventStatus(sb: Sb, eventId: string, to: "cancelled" | "published"): Promise<Result<{ id: string; status: string }>> {
+  const from = to === "cancelled" ? "published" : "cancelled";
+  return read(() => sb.from("events").update({ status: to }).eq("id", eventId).eq("status", from).select("id, status"), (d) => rows(d)[0] ?? null)
+    .then((r): Result<{ id: string; status: string }> => {
+      if (!r.ok) return r;
+      const row = r.data;
+      if (!row || !str(row.id)) return { ok: false, error: { kind: "decided", message: "Nothing was changed. The event may have been changed by someone else, or you may not have permission. Please refresh the page and look again." } };
+      return { ok: true, data: { id: str(row.id)!, status: str(row.status) ?? to } };
+    });
+}
+
 /* ── poster upload ─────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 /**

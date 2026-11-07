@@ -4,7 +4,8 @@ import { getMyBusinessesBasic } from "@/lib/account-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { getPaymentState } from "@/lib/payment-state";
 import { AddEventEntry } from "@/components/events/AddEventEntry";
-import { ADD_EVENT_ACCOUNT_DESC } from "@/lib/event-entry-points";
+import { ADD_EVENT_ACCOUNT_DESC, MY_EVENTS_DESC, MY_EVENTS_HREF, MY_EVENTS_LABEL } from "@/lib/event-entry-points";
+import { myEventsEntry } from "@/lib/event-submissions-access.server";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,8 @@ export default async function AccountOverview() {
   const sb = await createClient();
   const payments = await getPaymentState(sb, account.id);
   const businesses = await getMyBusinessesBasic(account.id, { includeUnlisted: true });
+  // Present only for a person who can open the page (flag on, admin, or allowlisted tester); absent otherwise.
+  const { myEvents } = await myEventsEntry();
 
   // Profile completeness
   const fields = [p?.display_name || p?.full_name, p?.bio, p?.location_area, p?.avatar_url];
@@ -71,6 +74,12 @@ export default async function AccountOverview() {
         ))}
         {/* Only when EVENT_FRONT_DOOR === "on"; renders nothing otherwise. */}
         <AddEventEntry variant="card" description={ADD_EVENT_ACCOUNT_DESC} />
+        {myEvents && (
+          <Link href={MY_EVENTS_HREF} className="rounded-card border border-line bg-paper p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
+            <p className="font-display font-bold text-ink">{MY_EVENTS_LABEL}</p>
+            <p className="mt-0.5 text-sm text-ink-muted">{MY_EVENTS_DESC}</p>
+          </Link>
+        )}
       </div>
 
       {/* Businesses */}

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { adminReviewChange, adminSetTrust, type Sb } from "@/lib/event-submissions-client";
 import type { ChangeLine } from "@/lib/event-submissions-shape";
+import Link from "next/link";
+import { communityEventHref } from "@/lib/event-community-admin";
 import { Card, StatusPill } from "@/components/admin/AdminUI";
 import { Field, Notice, TextArea, TextInput, focusRing } from "@/components/events/submit-ui";
 
@@ -49,6 +51,12 @@ function ChangeCard({ c }: { c: Item }) {
         <StatusPill label={c.status === "pending" ? "Waiting" : "Applied automatically"} tone={c.status === "pending" ? "amber" : "green"} />
       </div>
       <p className="mt-1 text-sm text-ink-soft">Asked by {c.requester}{c.trusted ? " (trusted organiser)" : ""}</p>
+      {c.event_id && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-1">
+          <Link href={`/whats-on/${c.event_id}`} className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline">View public page<span className="sr-only">: {c.event_title}</span></Link>
+          <Link href={communityEventHref(c.event_id, c.event_title)} className="inline-flex min-h-11 items-center text-sm font-semibold text-navy underline">Manage on Community events<span className="sr-only">: {c.event_title}</span></Link>
+        </p>
+      )}
       <ul className="mt-3 space-y-3">
         {c.lines.map((l) => (
           <li key={l.field} className="rounded-xl bg-cream p-3">

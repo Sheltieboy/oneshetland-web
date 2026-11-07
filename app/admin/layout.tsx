@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdmin, getAdminStats } from "@/lib/admin-data.server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { eventQueueBadgeCounts } from "@/lib/event-submissions-admin.server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin" };
@@ -12,6 +13,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     pendingDrivers: stats.pendingDrivers, pendingEvents: stats.pendingEvents,
     pendingClaims: stats.pendingClaims, pendingAlerts: stats.pendingAlerts, pendingSpik: stats.pendingSpik,
     openReports: stats.openReports, pendingVesselPhotos: stats.pendingVesselPhotos,
+    // Community event queues (submissions, change requests): a part the database cannot answer has no key, hence no badge.
+    ...(await eventQueueBadgeCounts()),
   };
 
   return (

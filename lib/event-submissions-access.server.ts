@@ -7,7 +7,7 @@ import "server-only";
 import { notFound, redirect } from "next/navigation";
 import { getAccount, type Account } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin-data.server";
-import { frontDoorAccess } from "@/lib/event-front-door";
+import { frontDoorAccess, myEventsEntryVisible, myEventsProps } from "@/lib/event-front-door";
 import { createClient } from "@/lib/supabase/server";
 import { isSubmissionTester, type Sb } from "@/lib/event-submissions-client";
 
@@ -18,13 +18,29 @@ export type FeatureGate = { access: "open" | "staff_preview" | "tester"; account
  * The tester check is one cheap call, made only for a signed-in non-admin when the public flag is off, and a missing function counts as "not a tester".
  */
 export async function gateFeature(): Promise<FeatureGate> {
+  const { access, account } = await resolveAccess();
+  if (access === "hidden") notFound();
+  return { access, account };
+}
+
+/** The one place the gate's inputs are gathered and the rule applied (shared by gateFeature and myEventsEntry, so they can never disagree). */
+async function resolveAccess(): Promise<{ access: "open" | "staff_preview" | "tester" | "hidden"; account: Account | null; inputs: { flag: string | undefined; isStaff: boolean; isTester: boolean } }> {
   const flag = process.env.EVENT_FRONT_DOOR;
   const isStaff = flag === "on" ? false : await isAdmin();
   const account = await getAccount();
   const isTester = flag === "on" || isStaff || !account ? false : await isSubmissionTester(await serverSb());
-  const access = frontDoorAccess({ flag, isStaff, isTester });
-  if (access === "hidden") notFound();
-  return { access, account };
+  return { access: frontDoorAccess({ flag, isStaff, isTester }), account, inputs: { flag, isStaff, isTester } };
+}
+
+/**
+ * For the account area: props to spread onto the sidebar / overview so "My events & submissions" appears exactly when the page itself would open
+ * (flag on, or admin, or allowlisted tester) and only for a signed-in person. Never throws and never 404s: any failure means no link.
+ */
+export async function myEventsEntry(): Promise<{ myEvents?: true }> {
+  try {
+    const { account, inputs } = await resolveAccess();
+    return myEventsProps(!!account && myEventsEntryVisible(inputs));
+  } catch { return {}; }
 }
 
 /** As gateFeature, then send a signed-out person to sign in and straight back to `returnPath`. */

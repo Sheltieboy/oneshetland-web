@@ -10,7 +10,7 @@ import { HubSuggestion } from "@/components/events/front-door/HubSuggestion";
 import { MySubmissionsList } from "@/components/events/contributor/MySubmissionsList";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "My event submissions", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "My events & submissions", robots: { index: false, follow: false } };
 
 /** HIDDEN with the rest of the community-event feature: a 404 unless it is switched on (or an admin is previewing). Not in any navigation. */
 export default async function MyEventSubmissionsPage() {
@@ -38,8 +38,8 @@ export default async function MyEventSubmissionsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl font-bold text-ink">My event submissions</h1>
-      <p className="mt-2 text-lg text-ink-soft">The events you have sent to us, and how each one is getting on.</p>
+      <h1 className="font-display text-3xl font-bold text-ink">My events &amp; submissions</h1>
+      <p className="mt-2 text-lg text-ink-soft">The events you have sent to us, how each one is getting on, and the ones you look after.</p>
       {!res.ok ? (
         <p role="status" className="mt-6 rounded-2xl border border-line-strong bg-cream p-5 text-lg text-ink">
           {res.error.kind === "unavailable" ? PAGE_NOT_AVAILABLE_YET : res.error.message}
