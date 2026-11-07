@@ -176,6 +176,25 @@ describe("contributor self-service", () => {
   });
 });
 
+describe("trusted organiser, and the contributor view with and without the new read policy", () => {
+  test("true / false / unknown (missing function or a surprising answer is unknown, never a guess)", async () => {
+    assert.equal(await C.myOrganiserTrusted(fake({ rpc: { my_event_organiser_trusted: ok(true) } })), true);
+    assert.equal(await C.myOrganiserTrusted(fake({ rpc: { my_event_organiser_trusted: ok(false) } })), false);
+    assert.equal(await C.myOrganiserTrusted(fake()), null);
+    assert.equal(await C.myOrganiserTrusted(fake({ rpc: { my_event_organiser_trusted: ok("yes") } })), null);
+    assert.equal(await C.myOrganiserTrusted(fake({ rpc: { my_event_organiser_trusted: err("42501", "Please sign in.") } })), null);
+  });
+  const tables = { event_submissions: [{ id: "s", submitter_id: "u", status: "approved", event_id: "e", title: "T", organiser_name: "G" }], events: [{ id: "e", title: "Fair", status: "cancelled" }], event_occurrences: [{ id: "o", event_id: "e", starts_at: "2026-12-05T19:00:00Z", status: "scheduled" }] };
+  test("with the policy the hidden event and its dates load, and trusted comes through", async () => {
+    const r = await C.loadContributorView(fake({ tables, rpc: { my_event_organiser_trusted: ok(true) } }), "u", "e");
+    assert.equal(r.data.event.status, "cancelled"); assert.equal(r.data.occurrences.length, 1); assert.equal(r.data.trusted, true);
+  });
+  test("without the policy (event unreadable) and without the function it still loads from the submission, trusted unknown", async () => {
+    const r = await C.loadContributorView(fake({ tables: { ...tables, events: [], event_occurrences: [] } }), "u", "e");
+    assert.equal(r.ok, true); assert.equal(r.data.event, null); assert.equal(r.data.trusted, null); assert.equal(r.data.submission.id, "s");
+  });
+});
+
 describe("poster upload", () => {
   const file = { name: "p.png", type: "image/png", size: 1000 };
   const storage = (log, fail) => ({ from: (b) => ({ upload: async (path, f, o) => { log.push([b, path, o]); return { error: fail ? { message: "x" } : null }; }, getPublicUrl: (p) => ({ data: { publicUrl: `https://nkrtmakxygkvxuxriiil.supabase.co/storage/v1/object/public/event-media/${p}` } }) }) });

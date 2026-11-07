@@ -11,8 +11,8 @@ import { blankRow, describeOccurrence, rowsFromOccurrences, utcToLondonParts, ty
 import { buildChange, currentFutureDates, isPast, restoreOption } from "@/lib/event-contributor-logic";
 import { describeChange, publicCredit } from "@/lib/event-submissions-shape";
 import {
-  CANCEL_CONFIRM_PROMPT, CHANGE_FORM_INTRO, CHANGE_FORM_NOTHING, EVENT_CANCELLED_BUTTON, HIDDEN_EVENT_LINE, PERFORMANCE_CANCELLED_BUTTON, RESTORE_HINT,
-  cancelledReportedLine, changeDeclinedLine, changeOutcomeLine, historyLine, POSTER_HELP,
+  CANCEL_EVENT_CONFIRM, CANCEL_PERFORMANCE_CONFIRM, TRUSTED_CHANGE_INTRO, CHANGE_FORM_INTRO, CHANGE_FORM_NOTHING, EVENT_CANCELLED_BUTTON, HIDDEN_EVENT_LINE, PERFORMANCE_CANCELLED_BUTTON, RESTORE_HINT,
+  cancelledReportedLine, changeRouteLine, changeDeclinedLine, changeOutcomeLine, historyLine, POSTER_HELP,
 } from "@/lib/contributor-copy";
 import { DatesBuilder } from "@/components/events/DatesBuilder";
 import { ErrorSummary, Field, Notice, PrimaryButton, SecondaryButton, StatusChip, TextArea, TextInput, dangerBtn, focusRing, textBtn } from "@/components/events/submit-ui";
@@ -22,7 +22,7 @@ const sb = () => createClient() as unknown as Sb;
 export function ContributorEvent({ eventId, view }: { eventId: string; view: ContributorView }) {
   const router = useRouter();
   const [nowMs] = useState(() => Date.now());
-  const { submission, event, occurrences, log, changes } = view;
+  const { submission, event, occurrences, log, changes, trusted } = view;
   const [message, setMessage] = useState<{ text: string; good: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<{ kind: "performance"; id: string } | { kind: "event" } | null>(null);
@@ -68,7 +68,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
         </Notice>
       )}
 
-      {event && (
+      {event && event.status !== "cancelled" && (
         <section aria-labelledby="ce-perf" className="mt-8">
           <h2 id="ce-perf" className="text-2xl font-bold text-ink">{occurrences.length > 1 ? "Performances" : "Date"}</h2>
           <ul className="mt-3 space-y-3">
@@ -90,7 +90,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
               <h3 id="ce-confirm-h" ref={confirmHeading} tabIndex={-1} className="text-xl font-bold text-rose-950 outline-none">
                 {confirm.kind === "event" ? "Cancel the whole event?" : "Cancel this performance?"}
               </h3>
-              <p className="mt-2 text-base text-rose-950">{CANCEL_CONFIRM_PROMPT}</p>
+              <p className="mt-2 text-base text-rose-950">{confirm.kind === "event" ? CANCEL_EVENT_CONFIRM : CANCEL_PERFORMANCE_CONFIRM}</p>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <button type="button" className={dangerBtn} disabled={busy} onClick={() => run(() => (confirm.kind === "event" ? reportEventCancelled(sb(), eventId) : reportPerformanceCancelled(sb(), confirm.id)), cancelledReportedLine(confirm.kind))}>
                   {busy ? "Please wait..." : confirm.kind === "event" ? "Yes, cancel the whole event" : "Yes, cancel it"}
@@ -112,7 +112,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
           <p className="mt-1 text-base text-ink-soft">Dates, place, description, ticket link or contact details. You don&apos;t need to email anyone.</p>
           {!showChange
             ? <p className="mt-3"><SecondaryButton onClick={() => setShowChange(true)}>Ask for a change</SecondaryButton></p>
-            : <ChangeForm eventId={eventId} event={event} future={future} nowMs={nowMs} userId={submission.submitter_id}
+            : <ChangeForm trusted={trusted} eventId={eventId} event={event} future={future} nowMs={nowMs} userId={submission.submitter_id}
                 onClose={() => setShowChange(false)} onDone={(text) => { setMessage({ text, good: true }); setShowChange(false); router.refresh(); }} />}
         </section>
       )}
@@ -193,8 +193,8 @@ function Performance({ o, nowMs, busy, restorable, onCancel, onRestore, onNote }
   );
 }
 
-function ChangeForm({ eventId, event, future, nowMs, userId, onClose, onDone }: {
-  eventId: string; event: NonNullable<ContributorView["event"]>; future: ReturnType<typeof currentFutureDates>; nowMs: number; userId: string; onClose: () => void; onDone: (text: string) => void;
+function ChangeForm({ trusted, eventId, event, future, nowMs, userId, onClose, onDone }: {
+  trusted: boolean | null; eventId: string; event: NonNullable<ContributorView["event"]>; future: ReturnType<typeof currentFutureDates>; nowMs: number; userId: string; onClose: () => void; onDone: (text: string) => void;
 }) {
   const [f, setF] = useState({ title: event.title ?? "", description: event.description ?? "", venue: event.venue ?? "", price_text: event.price_text ?? "", contact_info: event.contact_info ?? "", ticket_url: event.ticket_url ?? "", cover_url: event.cover_url ?? null as string | null });
   const [rows, setRows] = useState<DateRow[]>(() => (future.length ? rowsFromOccurrences(future) : [blankRow()]));
@@ -255,7 +255,7 @@ function ChangeForm({ eventId, event, future, nowMs, userId, onClose, onDone }: 
   return (
     <div className="mt-4 rounded-2xl border border-line-strong bg-paper p-5">
       <h3 id="cf-head" ref={heading} tabIndex={-1} className="text-xl font-bold text-ink outline-none">Ask for a change</h3>
-      <p className="mt-1 text-base text-ink-soft">{CHANGE_FORM_INTRO}</p>
+      <p className="mt-1 text-base text-ink-soft">{trusted === true ? TRUSTED_CHANGE_INTRO : trusted === false ? changeRouteLine("after_approval") : CHANGE_FORM_INTRO}</p>
       <ErrorSummary ref={summary} items={items} />
       {text("title", "Event name", "A new name is checked by us before it goes live.")}
       <Field id="cf-description" label="Description" error={errors.description}>

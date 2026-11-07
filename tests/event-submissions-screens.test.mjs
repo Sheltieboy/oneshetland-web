@@ -10,6 +10,7 @@ import { buildChange, currentFutureDates, restoreOption, sameDates, isPast } fro
 import { adminEventLabel, describeChange, viewSubmission, queueBadge, ageLabel, publicCredit, CURATED_LABEL, OFFICIAL_LABEL } from "../lib/event-submissions-shape.ts";
 import * as copy from "../lib/contributor-copy.ts";
 import { frontDoorAccess } from "../lib/event-front-door.ts";
+import { eventSubmissionsSignInRedirect } from "../lib/event-submissions-return.ts";
 import { blankRow } from "../lib/event-dates-builder.ts";
 
 const read = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
@@ -142,6 +143,28 @@ describe("copy", () => {
       assert.doesNotMatch(s, /\bwee\b|payload|\bAPI\b|\bRPC\b|whitelist|moderat|queue|trusted organiser/i, s);
     }
     assert.doesNotMatch(copy.CANCEL_CONFIRM_PROMPT, /will be told|notified/i);
+  });
+  test("cancellation wording is accurate: a performance stays visible as cancelled, the whole event comes off the site, nobody is said to be notified", () => {
+    assert.equal(copy.CANCEL_PERFORMANCE_CONFIRM, "This performance will show as cancelled on OneShetland straight away.");
+    assert.equal(copy.CANCEL_EVENT_CONFIRM.startsWith("This takes the event off OneShetland straight away."), true);
+    assert.match(copy.cancelledReportedLine("event"), /taken it off OneShetland/);
+    assert.match(copy.HIDDEN_EVENT_LINE, /off OneShetland/);
+    assert.doesNotMatch(copy.changeRouteLine("after_approval"), /we'll tell you|notif/i);
+    for (const s of [copy.CANCEL_PERFORMANCE_CONFIRM, copy.CANCEL_EVENT_CONFIRM, copy.cancelledReportedLine("event"), copy.cancelledReportedLine("performance"), copy.RESTORE_HINT]) assert.doesNotMatch(s, /\b(will be told|notified|emailed)\b/i, s);
+    const c = read("components/events/contributor/ContributorEvent.tsx");
+    assert.match(c, /confirm\.kind === "event" \? CANCEL_EVENT_CONFIRM : CANCEL_PERFORMANCE_CONFIRM/);
+  });
+  test("trusted wording: says changes go live straight away only when the database said trusted", () => {
+    assert.match(copy.TRUSTED_CHANGE_INTRO, /dates, description, place, ticket link and contact details go live straight away/);
+    assert.match(copy.TRUSTED_CHANGE_INTRO, /name, poster or price is always checked/);
+    const c = read("components/events/contributor/ContributorEvent.tsx");
+    assert.match(c, /trusted === true \? TRUSTED_CHANGE_INTRO : trusted === false \? changeRouteLine\("after_approval"\) : CHANGE_FORM_INTRO/);
+  });
+  test("signed-out return path for the community-event account pages only", () => {
+    assert.equal(eventSubmissionsSignInRedirect("/account/event-submissions"), "/sign-in?next=%2Faccount%2Fevent-submissions");
+    assert.equal(eventSubmissionsSignInRedirect("/account/event-submissions/event/abc", "?x=1"), "/sign-in?next=%2Faccount%2Fevent-submissions%2Fevent%2Fabc%3Fx%3D1");
+    for (const p of ["/account", "/account/tickets", "/account/event-submissionsX", "/whats-on/add"]) assert.equal(eventSubmissionsSignInRedirect(p), null, p);
+    assert.match(read("proxy.ts"), /eventSubmissionsSignInRedirect\(/);
   });
   test("change outcomes are honest", () => {
     assert.equal(copy.changeOutcomeLine("auto_approved"), copy.CHANGE_APPLIED_LINE);

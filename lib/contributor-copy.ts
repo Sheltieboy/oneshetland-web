@@ -12,14 +12,14 @@ export const AFTER_APPROVAL_NOTE =
 export function cancelledReportedLine(scope: "performance" | "event"): string {
   return scope === "performance"
     ? "Thank you for letting us know. We've marked that performance as cancelled so nobody turns up for it."
-    : "Thank you for letting us know. We've marked the whole event as cancelled so nobody turns up for it.";
+    : "Thank you for letting us know. We've marked the whole event as cancelled and taken it off OneShetland, so nobody turns up for it.";
 }
 
 /** Shown on the change-request form: which route this change will take. */
 export function changeRouteLine(route: ChangeRoute): string {
   return route === "automatic"
     ? "As we know you, this change goes live straight away."
-    : "We'll take a quick look before this change goes live. We'll tell you as soon as it has.";
+    : "We'll take a quick look before this change goes live. You can check how it's getting on on this page.";
 }
 
 /** Explains a request that is still waiting for a look. */
@@ -35,8 +35,12 @@ export function changeDeclinedLine(reason?: string | null): string {
     : "We couldn't make that change, so the event stays as it was. You're welcome to send another request.";
 }
 
-// We do not send notifications about a cancellation (nothing in the system contacts anyone), so the prompt says only what really happens.
-export const CANCEL_CONFIRM_PROMPT = "Are you sure? It will show as cancelled on OneShetland straight away.";
+// Nothing in the system notifies anyone about a cancellation, so these say only what really happens: one performance stays visible marked Cancelled;
+// a whole-event cancellation takes the event page off the public site (visitors with a link see "not found").
+export const CANCEL_PERFORMANCE_CONFIRM = "This performance will show as cancelled on OneShetland straight away.";
+export const CANCEL_EVENT_CONFIRM = "This takes the event off OneShetland straight away. People with a link will find it isn't there.";
+/** Kept for older callers: the performance wording. */
+export const CANCEL_CONFIRM_PROMPT = CANCEL_PERFORMANCE_CONFIRM;
 
 /* ── Phase 2 screens: submitting, My submissions, looking after an approved event ─────────────────────────────────────────────── */
 
@@ -88,7 +92,7 @@ export const CHANGE_FORM_NOTHING = "Nothing has changed yet. Change at least one
 export const PERFORMANCE_CANCELLED_BUTTON = "This performance is cancelled";
 export const EVENT_CANCELLED_BUTTON = "The whole event is cancelled";
 export const RESTORE_HINT = "Changed your mind? You can undo this for 24 hours, as long as nothing else has changed.";
-export const HIDDEN_EVENT_LINE = "This event is cancelled, so it isn't showing to the public.";
+export const HIDDEN_EVENT_LINE = "This event is cancelled, so it is off OneShetland.";
 
 /** Why a particular status can't be acted on. */
 export function cannotChangeLine(reason: "past" | "decided" | "restore_window"): string {
@@ -119,3 +123,6 @@ export function historyLine(entry: { action: string; actor_kind: string }): stri
 /** Staff-facing: what approving does. Never OneShetland's own event. */
 export const APPROVE_CONFIRM = (organiser: string) =>
   `Approving publishes this as a community event credited to ${organiser.trim() || "the named organiser"}. It will not be shown as organised by OneShetland.`;
+
+/** Shown on the change form when the database says this organiser is trusted. */
+export const TRUSTED_CHANGE_INTRO = "Changes to dates, description, place, ticket link and contact details go live straight away. A new name, poster or price is always checked by us first.";

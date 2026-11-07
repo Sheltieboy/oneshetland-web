@@ -203,6 +203,12 @@ export type ChangeRow = { id: string; status: string; kind: string; payload: Rec
 
 const EVENT_COLUMNS = "id, title, description, venue, locality, status, starts_at, ends_at, ticket_url, contact_info, price_text, cover_url, organiser_name, is_dated_run";
 
+/** Is the signed-in person a trusted organiser? Missing function or any error => the caller treats it as "unknown" (null) and keeps the cautious wording. */
+export async function myOrganiserTrusted(sb: Sb): Promise<boolean | null> {
+  const r = await call(sb, "my_event_organiser_trusted", undefined, (d) => (typeof d === "boolean" ? d : null));
+  return r.ok ? r.data : null;
+}
+
 export type ContributorView = {
   submission: SubmissionRow;
   /** null when the database does not show the event to its contributor (it is hidden, for example once cancelled). */
@@ -210,6 +216,8 @@ export type ContributorView = {
   occurrences: OccurrenceRow[];
   log: LogRow[] | null;          // null = history not available
   changes: ChangeRow[] | null;   // null = not available
+  /** true / false from the database, null = unknown (function missing): say nothing in advance. */
+  trusted: boolean | null;
 };
 
 /** Everything the contributor page needs. Each part degrades on its own: a missing history table hides only the history. */
@@ -217,7 +225,7 @@ export async function loadContributorView(sb: Sb, userId: string, eventId: strin
   const sub = await getMySubmissionForEvent(sb, userId, eventId);
   if (!sub.ok) return sub;
   if (!sub.data) return { ok: true, data: null };
-  const [ev, occ, log, ch] = await Promise.all([
+  const [ev, occ, log, ch, trusted] = await Promise.all([
     read(() => sb.from("events").select(EVENT_COLUMNS).eq("id", eventId).limit(1), (d) => {
       const r = rows(d)[0];
       return r && str(r.id) ? ({ id: str(r.id)!, title: str(r.title) ?? "", description: str(r.description), venue: str(r.venue), locality: str(r.locality), status: str(r.status) ?? "", starts_at: str(r.starts_at), ends_at: str(r.ends_at), ticket_url: str(r.ticket_url), contact_info: str(r.contact_info), price_text: str(r.price_text), cover_url: str(r.cover_url), organiser_name: str(r.organiser_name), is_dated_run: r.is_dated_run === true } satisfies EventRow) : null;
@@ -228,10 +236,11 @@ export async function loadContributorView(sb: Sb, userId: string, eventId: strin
       (d) => rows(d).map((l) => ({ id: num(l.id), occurrence_id: str(l.occurrence_id), actor_kind: str(l.actor_kind) ?? "", action: str(l.action) ?? "", detail: obj(l.detail) ?? {}, created_at: str(l.created_at) ?? "" }))),
     read(() => sb.from("event_change_requests").select("id, status, kind, payload, before, review_reason, created_at").eq("event_id", eventId).order("created_at", { ascending: false }).limit(20),
       (d) => rows(d).map((c) => ({ id: str(c.id) ?? "", status: str(c.status) ?? "", kind: str(c.kind) ?? "", payload: obj(c.payload) ?? {}, before: obj(c.before) ?? {}, review_reason: str(c.review_reason), created_at: str(c.created_at) ?? "" }))),
+    myOrganiserTrusted(sb),
   ]);
   return {
     ok: true,
-    data: { submission: sub.data, event: ev.ok ? ev.data : null, occurrences: occ.ok ? occ.data : [], log: log.ok ? log.data : null, changes: ch.ok ? ch.data : null },
+    data: { submission: sub.data, event: ev.ok ? ev.data : null, occurrences: occ.ok ? occ.data : [], log: log.ok ? log.data : null, changes: ch.ok ? ch.data : null, trusted },
   };
 }
 

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { inviteHandoff } from "./lib/launch-preview/invite.ts";
+import { eventSubmissionsSignInRedirect } from "./lib/event-submissions-return.ts";
 
 /**
  * Next 16 "proxy" (formerly middleware): keeps the Supabase auth session fresh
@@ -49,7 +50,13 @@ export async function proxy(request: NextRequest) {
   );
 
   // Touch the user to trigger a token refresh if needed.
-  await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  // Community-event pages only: a signed-out visitor returns to the page they asked for after signing in (the account layout would send them to /account).
+  if (!user) {
+    const to = eventSubmissionsSignInRedirect(request.nextUrl.pathname, request.nextUrl.search);
+    if (to) return NextResponse.redirect(new URL(to, request.url));
+  }
 
   return response;
 }
