@@ -16,7 +16,7 @@ const good = () => ({
 });
 
 test("the confirmation wording is exactly the owner-specified sentence", () => {
-  assert.equal(ADULT_CONFIRM_TEXT, "I am 18 or over, and I have the organiser's permission to submit this");
+  assert.equal(ADULT_CONFIRM_TEXT, "I confirm I am 18 or over and am authorised to submit this event.");
 });
 
 describe("whole form", () => {

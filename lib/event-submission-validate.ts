@@ -5,7 +5,9 @@
  */
 import { buildOccurrences, type DateRow, type UtcOccurrence, type RowIssue } from "./event-dates-builder";
 
-export const ADULT_CONFIRM_TEXT = "I am 18 or over, and I have the organiser's permission to submit this";
+/** Shown when the box is not ticked. Same words as the database error, so a server refusal reads the same. */
+export const ADULT_CONFIRM_ERROR = "Please confirm you are 18 or over and are authorised to submit this event.";
+export const ADULT_CONFIRM_TEXT = "I confirm I am 18 or over and am authorised to submit this event.";
 
 /** The only place a poster may live: this project's event-media bucket, in the person's own folder. Mirrors the database check. */
 export const COVER_URL_PREFIX = "https://nkrtmakxygkvxuxriiil.supabase.co/storage/v1/object/public/event-media/";
@@ -121,7 +123,7 @@ export function validateSubmission(f: SubmissionForm, now: Date | number = new D
       : f.cover_url.startsWith(COVER_URL_PREFIX);
     if (!ok) errors.cover_url = "Please upload the poster again.";
   }
-  if (!f.adult_confirmed) errors.adult_confirmed = "Please tick the box to confirm.";
+  if (!f.adult_confirmed) errors.adult_confirmed = ADULT_CONFIRM_ERROR;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(f.request_id)) errors.occurrences = "Something went wrong on this page. Please reload it and try again.";
 
   const built = buildOccurrences(f.rows, now);

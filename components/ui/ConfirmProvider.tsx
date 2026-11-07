@@ -44,7 +44,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     if (!dialog) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") close(false);
-      if (e.key === "Enter") close(true);
+      // Enter confirms only when it is not already activating a link or button inside the dialog (a link in the body must not confirm the action).
+      if (e.key === "Enter" && !(e.target instanceof Element && e.target.closest("a, button, input, textarea, select"))) close(true);
     };
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
@@ -62,7 +63,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       {mounted && dialog && createPortal(
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
           <button aria-label="Close" className="absolute inset-0 cursor-default bg-black/50 backdrop-blur-[1px]" onClick={() => close(false)} />
-          <div role="dialog" aria-modal="true" className="relative w-full max-w-sm animate-[dlgIn_.16s_ease-out] rounded-2xl border border-line bg-paper p-6 shadow-lift">
+          <div role="dialog" aria-modal="true" aria-label={dialog.title ?? (dialog.kind === "confirm" ? "Please confirm" : "Notice")} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm animate-[dlgIn_.16s_ease-out] overflow-y-auto rounded-2xl border border-line bg-paper p-6 shadow-lift">
             {dialog.title && <h2 className="font-display text-xl font-bold text-ink">{dialog.title}</h2>}
             <div className={"whitespace-pre-line text-sm leading-relaxed text-ink-soft" + (dialog.title ? " mt-1.5" : "")}>{dialog.body}</div>
             <div className="mt-5 flex justify-end gap-2">

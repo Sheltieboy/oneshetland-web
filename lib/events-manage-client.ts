@@ -9,6 +9,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { errorMessage } from "@/lib/errors";
 import type { EventStatus, EventUpdateKind } from "./events-data";
+import { summariseBuyers, type BuyerSummary } from "@/lib/event-cancel-panel";
 import { normalisePerOrderMax, type PerOrderMaxDraft } from "@/lib/event-ticket-utils";
 
 export type TicketMode = "none" | "oneshetland" | "external";
@@ -253,5 +254,19 @@ export async function postEventUpdate(input: {
   // Tell every ticket-holder (fire-and-forget, same edge fn as the app).
   if (data?.id) {
     sb.functions.invoke("notify-event-update", { body: { update_id: data.id } }).catch(() => {});
+  }
+}
+
+/**
+ * How many people hold tickets, for the "before you cancel" panel. Uses the organiser's own read (get_event_orders, which refuses anyone who may not
+ * manage the event). Never throws: any failure is "not known", and the panel says so rather than guessing.
+ */
+export async function fetchBuyerSummary(eventId: string): Promise<BuyerSummary> {
+  try {
+    const { data, error } = await createClient().rpc("get_event_orders", { p_event_id: eventId });
+    if (error) return { known: false };
+    return summariseBuyers(data);
+  } catch {
+    return { known: false };
   }
 }

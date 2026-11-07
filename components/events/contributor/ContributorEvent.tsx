@@ -11,9 +11,10 @@ import { blankRow, describeOccurrence, rowsFromOccurrences, utcToLondonParts, ty
 import { buildChange, currentFutureDates, isPast, restoreOption } from "@/lib/event-contributor-logic";
 import { describeChange, publicCredit } from "@/lib/event-submissions-shape";
 import {
-  CANCEL_EVENT_CONFIRM, CANCEL_PERFORMANCE_CONFIRM, TRUSTED_CHANGE_INTRO, CHANGE_FORM_INTRO, CHANGE_FORM_NOTHING, EVENT_CANCELLED_BUTTON, HIDDEN_EVENT_LINE, PERFORMANCE_CANCELLED_BUTTON, RESTORE_HINT,
+  CANCEL_EVENT_CONFIRM, CANCEL_NO_NOTIFY_LINE, CANCEL_PERFORMANCE_CONFIRM, EVENT_RESTORED_LINE, PERFORMANCE_RESTORED_LINE, TRUSTED_CHANGE_INTRO, CHANGE_FORM_INTRO, CHANGE_FORM_NOTHING, EVENT_CANCELLED_BUTTON, HIDDEN_EVENT_LINE, PERFORMANCE_CANCELLED_BUTTON, RESTORE_HINT,
   cancelledReportedLine, changeRouteLine, changeDeclinedLine, changeOutcomeLine, historyLine, POSTER_HELP,
 } from "@/lib/contributor-copy";
+import { TicketBuyersPanel } from "@/components/events/contributor/TicketBuyersPanel";
 import { DatesBuilder } from "@/components/events/DatesBuilder";
 import { ErrorSummary, Field, Notice, PrimaryButton, SecondaryButton, StatusChip, TextArea, TextInput, dangerBtn, focusRing, textBtn } from "@/components/events/submit-ui";
 
@@ -25,6 +26,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
   const { submission, event, occurrences, log, changes, trusted } = view;
   const [message, setMessage] = useState<{ text: string; good: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [buyersPanel, setBuyersPanel] = useState(false);
   const [confirm, setConfirm] = useState<{ kind: "performance"; id: string } | { kind: "event" } | null>(null);
   const [showChange, setShowChange] = useState(false);
   const live = useRef<HTMLDivElement>(null);
@@ -37,10 +39,11 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
   const cancelledEvent = !event || event.status === "cancelled";
 
   async function run(fn: () => Promise<Result<unknown>>, ok: string) {
-    setBusy(true); setMessage(null);
+    setBusy(true); setMessage(null); setBuyersPanel(false);
     const r = await fn();
     setBusy(false); setConfirm(null);
     if (r.ok) { setMessage({ text: ok, good: true }); router.refresh(); }
+    else if (r.error.kind === "has_ticket_buyers") setBuyersPanel(true);
     else setMessage({ text: r.error.message, good: false });
   }
 
@@ -62,11 +65,13 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
           {restore ? (
             <>
               <p className="mt-2">{RESTORE_HINT}</p>
-              <div className="mt-3"><PrimaryButton disabled={busy} onClick={() => run(() => (restore.kind === "event" ? reportEventRestored(sb(), eventId) : reportPerformanceRestored(sb(), restore.occurrenceId)), "Done. It's back on OneShetland.")}>Undo the cancellation</PrimaryButton></div>
+              <div className="mt-3"><PrimaryButton disabled={busy} onClick={() => run(() => (restore.kind === "event" ? reportEventRestored(sb(), eventId) : reportPerformanceRestored(sb(), restore.occurrenceId)), EVENT_RESTORED_LINE)}>Undo the cancellation</PrimaryButton></div>
             </>
           ) : <p className="mt-2">It&apos;s too late to undo this here. Please ask OneShetland and we&apos;ll sort it out.</p>}
+          <p className="mt-2">{CANCEL_NO_NOTIFY_LINE}</p>
         </Notice>
       )}
+      {buyersPanel && <TicketBuyersPanel title={title} onClose={() => setBuyersPanel(false)} />}
 
       {event && event.status !== "cancelled" && (
         <section aria-labelledby="ce-perf" className="mt-8">
@@ -80,7 +85,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
             {occurrences.map((o) => (
               <Performance key={o.id} o={o} nowMs={nowMs} busy={busy} restorable={restore?.kind === "performance" && restore.occurrenceId === o.id}
                 onCancel={() => setConfirm({ kind: "performance", id: o.id })}
-                onRestore={() => run(() => reportPerformanceRestored(sb(), o.id), "Done. That performance is back on.")}
+                onRestore={() => run(() => reportPerformanceRestored(sb(), o.id), PERFORMANCE_RESTORED_LINE)}
                 onNote={(n) => run(() => setPerformanceNote(sb(), o.id, n), "Saved.")} />
             ))}
           </ul>
@@ -91,6 +96,7 @@ export function ContributorEvent({ eventId, view }: { eventId: string; view: Con
                 {confirm.kind === "event" ? "Cancel the whole event?" : "Cancel this performance?"}
               </h3>
               <p className="mt-2 text-base text-rose-950">{confirm.kind === "event" ? CANCEL_EVENT_CONFIRM : CANCEL_PERFORMANCE_CONFIRM}</p>
+              <p className="mt-2 text-base text-rose-950">{CANCEL_NO_NOTIFY_LINE}</p>
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <button type="button" className={dangerBtn} disabled={busy} onClick={() => run(() => (confirm.kind === "event" ? reportEventCancelled(sb(), eventId) : reportPerformanceCancelled(sb(), confirm.id)), cancelledReportedLine(confirm.kind))}>
                   {busy ? "Please wait..." : confirm.kind === "event" ? "Yes, cancel the whole event" : "Yes, cancel it"}

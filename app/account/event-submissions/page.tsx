@@ -12,7 +12,19 @@ export const metadata: Metadata = { title: "My event submissions", robots: { ind
 /** HIDDEN with the rest of the community-event feature: a 404 unless it is switched on (or an admin is previewing). Not in any navigation. */
 export default async function MyEventSubmissionsPage() {
   const { account } = await gateFeatureSignedIn("/account/event-submissions");
-  const res = await listMySubmissions(await serverSb(), account.id);
+  const sb = await serverSb();
+  const res = await listMySubmissions(sb, account.id);
+  // Which approved events have since been cancelled. A read that fails or returns nothing just leaves the list as it was.
+  const cancelled = new Set<string>();
+  if (res.ok) {
+    const ids = res.data.flatMap((s) => (s.event_id ? [s.event_id] : []));
+    if (ids.length) {
+      try {
+        const { data } = await sb.from("events").select("id, status").in("id", ids);
+        for (const r of (data ?? []) as { id: string; status: string }[]) if (r.status === "cancelled") cancelled.add(r.id);
+      } catch { /* leave the list as it was */ }
+    }
+  }
 
   return (
     <div>
@@ -28,7 +40,7 @@ export default async function MyEventSubmissionsPage() {
           <p className="mt-3"><Link href="/whats-on/add" className="inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white">Tell us about an event</Link></p>
         </div>
       ) : (
-        <MySubmissionsList items={res.data.map((s) => viewSubmission(s))} eventIds={Object.fromEntries(res.data.filter((s) => s.event_id).map((s) => [s.id, s.event_id!]))} />
+        <MySubmissionsList items={res.data.map((s) => viewSubmission(s, s.event_id && cancelled.has(s.event_id) ? "cancelled" : null))} eventIds={Object.fromEntries(res.data.filter((s) => s.event_id).map((s) => [s.id, s.event_id!]))} />
       )}
     </div>
   );

@@ -86,7 +86,7 @@ test("contributor wording: warm, plain, no jargon, no 'wee'", () => {
   for (const s of all) { assert.doesNotMatch(s, /\bwee\b|moderat|queue|payload|\bAPI\b|trusted organiser|whitelist/i, s); assert.ok(s.length > 20, s); }
   assert.match(C.AFTER_APPROVAL_NOTE, /straight away/);
   assert.match(C.cancelledReportedLine("performance"), /performance/);
-  assert.match(C.cancelledReportedLine("event"), /whole event/);
+  assert.match(C.cancelledReportedLine("event"), /clearly marked Cancelled/);
   assert.match(C.changeRouteLine("automatic"), /straight away/);
   assert.match(C.changeRouteLine("after_approval"), /before this change goes live/);
   assert.match(C.changeDeclinedLine("The date was in the past."), /The date was in the past\./);

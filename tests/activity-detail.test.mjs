@@ -65,7 +65,8 @@ test("nothing is invented: description, venue, price, audience, owner and photo 
   assert.match(view, /\{a\.audience && /);
   assert.match(view, /const price = formatPrice\(a\.price_text\)/);
   assert.match(view, /const photo = safeHttps\(a\.cover_url\)/);
-  assert.match(view, /const ownerKnown = owner\.kind === "platform" \|\| !!owner\.name/);
+  assert.match(view, /const ownerKnown = owner\.kind !== "platform" && !!owner\.name/);
+  assert.doesNotMatch(view, /Listed by OneShetland/);
   const code = (view + data).replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
   assert.doesNotMatch(code, /"A business"|"A hub"|Run by a /, "no placeholder organiser");
 });
