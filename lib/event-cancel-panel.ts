@@ -6,10 +6,12 @@
  *    notify-event-update Edge Function WITHOUT waiting for it. That function, for every event_tickets row with status 'valid': sends an in-app notification
  *    (and a push if the person has the app) through the preference check (muted events/master switch => skipped; quiet hours ignored), and sends an EMAIL
  *    (template events.cancelled) to each holder with an address, regardless of notification preferences. Nobody reads back whether each arrived.
- *  - Hub event, "Cancel": updateHubEvent(id, {status:'cancelled'}) is ONLY a status change. No event_updates row, no email, no notification.
+ *  - Hub event, "Cancel": since 7 Nov 2026 this runs the SAME steps as a business (cancelEventReportingNotify -> setEventStatus). Before that it was only a
+ *    status change and told ticket holders nothing. A hub owner or active committee member is authorised: the event_updates insert policy uses is_hub_admin,
+ *    and notify-event-update uses can_scan_event (owner / active committee of the organising hub). Only the hub OWNER can refund.
  *  - Neither refunds anyone. Refunds are manual, one order at a time (refund-payment), allowed by can_refund_event_orders: platform admin, the business
  *    owner, or the hub OWNER (not committee members). A holder of a valid ticket can still open the cancelled event in My tickets (events_ticket_holder_read).
- * So the copy below may say "try to email" for a business and must say "does not message" for a hub. It never says anyone "will be notified".
+ * So the copy says "try to email" for both (delivery is not read back). It never says anyone "will be notified". Hubs differ only in who may refund.
  */
 import { SUPPORT_EMAIL } from "./contributor-copy";
 
@@ -52,12 +54,15 @@ function summaryLine(s: BuyerSummary): string {
 }
 
 const MARKED = "Mark the event Cancelled. People who hold a ticket will see it marked Cancelled in My tickets.";
-const BUSINESS_MSG = "Try to email everyone who holds a valid ticket, and add a note to their OneShetland notifications. We can't see afterwards whether each message arrived.";
-const HUB_NO_MSG = "Message ticket holders. Cancelling a hub event does not email them or send them a notification, so please tell them yourself. Ticket orders shows who bought.";
+const TELL_HOLDERS = "Try to email everyone who holds a valid ticket, and add a note to their OneShetland notifications. We can't see afterwards whether each message arrived.";
 
 function refundLine(host: CancelHost, s: BuyerSummary): string {
   const manual = "Refund anyone automatically. Refunds are made one order at a time on the Ticket orders screen, and each refund also makes that order's tickets invalid.";
-  if (host === "hub") return `${manual} Only the hub owner can refund orders.`;
+  if (host === "hub") {
+    if (s.known && s.canRefund) return `${manual} As the hub owner you can refund them.`;
+    if (s.known) return `${manual} Only the hub owner can refund orders, and you can't, so please ask the hub owner or contact OneShetland.`;
+    return `${manual} Only the hub owner can refund orders.`;
+  }
   return s.known && !s.canRefund ? `${manual} You can't refund orders yourself, so please contact OneShetland.` : manual;
 }
 
@@ -67,8 +72,8 @@ export function cancelPanel(host: CancelHost, s: BuyerSummary): CancelPanel {
   return {
     title: "People may have bought tickets for this event",
     summary: summaryLine(s),
-    willDo: nobody ? [MARKED] : host === "business" ? [MARKED, BUSINESS_MSG] : [MARKED],
-    willNot: nobody ? [] : host === "business" ? [refundLine(host, s)] : [HUB_NO_MSG, refundLine(host, s)],
+    willDo: nobody ? [MARKED] : [MARKED, TELL_HOLDERS],
+    willNot: nobody ? [] : [refundLine(host, s)],
     refund: "To refund, open Ticket orders, choose an order and refund it.",
     supportLead: "Need help telling people or arranging refunds? Email",
     support: `Need help telling people or arranging refunds? Email ${SUPPORT_EMAIL}.`,
@@ -84,13 +89,9 @@ export function afterCancel(host: CancelHost, s: BuyerSummary, notifyError?: str
   const lines = ["The event is now marked Cancelled."];
   const nobody = s.known && s.liveOrders === 0;
   if (!nobody) {
-    if (host === "business") {
-      lines.push(notifyError
-        ? `We couldn't send the cancellation message to ticket holders (${notifyError.trim().replace(/[.\s]+$/, "")}). Please tell them yourself, or post an update from this page.`
-        : "We've asked for the cancellation to be emailed to everyone who holds a valid ticket, with a note in their OneShetland notifications. We can't see afterwards whether each one arrived.");
-    } else {
-      lines.push("OneShetland has not messaged ticket holders. Please tell them yourself.");
-    }
+    lines.push(notifyError
+      ? `We couldn't send the cancellation message to ticket holders (${notifyError.trim().replace(/[.\s]+$/, "")}). Please tell them yourself${host === "business" ? ", or post an update from this page" : ""}.`
+      : "We've asked for the cancellation to be emailed to everyone who holds a valid ticket, with a note in their OneShetland notifications. We can't see afterwards whether each one arrived.");
     lines.push("No one has been refunded. Refund each order on the Ticket orders screen.");
   }
   return { title: "Event cancelled", lines, ordersLabel: "Open Ticket orders", supportLead: "Need help? Email", supportLine: `Need help? Email ${SUPPORT_EMAIL}.` };

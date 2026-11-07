@@ -34,13 +34,18 @@ test("business panel: states what happens, what does not, the refund path and th
   assert.ok(p.support.includes(SUPPORT_EMAIL));
   assert.doesNotMatch(flat(p), NO_PROMISE);
 });
-test("hub panel says plainly that a hub cancel does NOT message ticket holders, and that only the owner can refund", () => {
-  const p = cancelPanel("hub", summariseBuyers({ can_refund: false, total_orders: 1, orders: [order("paid", 800)] }));
-  assert.equal(p.willDo.length, 1);
-  assert.ok(p.willNot.some((t) => /does not email them or send them a notification, so please tell them yourself/.test(t)));
-  assert.ok(p.willNot.some((t) => /Only the hub owner can refund/.test(t)));
-  assert.ok(!p.willDo.some((t) => /email|notif/i.test(t)));
-  assert.doesNotMatch(flat(p), NO_PROMISE);
+test("hub panel: same message wording as business (it now really sends), refund wording depends on who is asking", () => {
+  const live = [order("paid", 800)];
+  const committee = cancelPanel("hub", summariseBuyers({ can_refund: false, total_orders: 1, orders: live }));
+  const owner = cancelPanel("hub", summariseBuyers({ can_refund: true, total_orders: 1, orders: live }));
+  const biz = cancelPanel("business", summariseBuyers({ can_refund: true, total_orders: 1, orders: live }));
+  assert.deepEqual(committee.willDo, biz.willDo);
+  assert.ok(committee.willDo.some((t) => /Try to email everyone who holds a valid ticket/.test(t)));
+  assert.ok(committee.willNot.some((t) => /Only the hub owner can refund orders, and you can't, so please ask the hub owner or contact OneShetland/.test(t)));
+  assert.ok(owner.willNot.some((t) => /As the hub owner you can refund them/.test(t)));
+  assert.ok(!owner.willNot.some((t) => /you can't/.test(t)) && !biz.willNot.some((t) => /hub owner/.test(t)));
+  assert.ok(cancelPanel("hub", { known: false }).willNot.some((t) => /Only the hub owner can refund orders\./.test(t)));
+  for (const p of [committee, owner]) { assert.doesNotMatch(flat(p), NO_PROMISE); assert.doesNotMatch(flat(p), /does not email|does not message|not messaged/i); }
 });
 test("unknown count is said, not guessed; a business that cannot refund is pointed to support; nobody-holds says so and drops the warnings", () => {
   const u = cancelPanel("business", { known: false });
@@ -58,9 +63,11 @@ test("after cancelling: same facts; a failed business message is reported, never
   const bad = afterCancel("business", live, "network down");
   assert.ok(bad.lines.some((l) => /couldn't send the cancellation message to ticket holders \(network down\)/.test(l)));
   assert.ok(!bad.lines.some((l) => /asked for the cancellation to be emailed/.test(l)));
-  const h = afterCancel("hub", live);
-  assert.ok(h.lines.includes("OneShetland has not messaged ticket holders. Please tell them yourself."));
-  for (const a of [b, bad, h, afterCancel("business", { known: false }), afterCancel("hub", { known: false })]) assert.doesNotMatch(a.lines.join(" "), NO_PROMISE);
+  const h = afterCancel("hub", live), hBad = afterCancel("hub", live, "network down");
+  assert.ok(h.lines.some((l) => /asked for the cancellation to be emailed/.test(l)));
+  assert.ok(hBad.lines.some((l) => /couldn't send the cancellation message to ticket holders \(network down\)\. Please tell them yourself\.$/.test(l)) && !hBad.lines.some((l) => /post an update/.test(l)));
+  assert.ok(bad.lines.some((l) => /post an update from this page/.test(l)));
+  for (const a of [b, bad, h, hBad, afterCancel("business", { known: false }), afterCancel("hub", { known: false })]) assert.doesNotMatch(a.lines.join(" "), NO_PROMISE);
   assert.deepEqual(afterCancel("hub", summariseBuyers({ orders: [], total_orders: 0 })).lines, ["The event is now marked Cancelled."]);
 });
 test("sellsOneShetlandTickets: external-link and free events do not get the panel", () => {
@@ -79,7 +86,12 @@ test("wiring: both screens fetch the count tolerantly, confirm BEFORE the cancel
   assert.match(biz, /onClick=\{cancelEvent\}/);
   const hub = read("components/hubs/admin/EventsManager.tsx");
   assert.match(hub, /fetchBuyerSummary\(id\)/);
-  assert.ok(hub.indexOf("<CancelBefore") < hub.lastIndexOf('updateHubEvent(id, { status: "cancelled" })'));
+  assert.ok(hub.indexOf("<CancelBefore") < hub.lastIndexOf("cancelEventReportingNotify(id)"));
+  assert.match(hub, /Cancel runs|same steps as a business cancel/);
+  assert.doesNotMatch(hub, /updateHubEvent\(id, \{ status: "cancelled" \}\)/);
+  assert.doesNotMatch(hub, /Members will still see it marked as cancelled/);
+  assert.match(hub, /stays private to members/);
+  assert.match(read("lib/events-manage-client.ts"), /export async function cancelEventReportingNotify[\s\S]*await setEventStatus\(eventId, "cancelled"\)/);
   const cl = read("lib/events-manage-client.ts");
   assert.match(cl, /export async function fetchBuyerSummary[\s\S]*catch \{\s*return \{ known: false \}/);
   assert.match(cl, /const \{ error \} = await sb\.from\("events"\)\.update\(\{ status \}\)\.eq\("id", eventId\)/);   // setEventStatus untouched

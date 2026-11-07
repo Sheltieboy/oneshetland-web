@@ -270,3 +270,22 @@ export async function fetchBuyerSummary(eventId: string): Promise<BuyerSummary> 
     return { known: false };
   }
 }
+
+/**
+ * Cancel an event and tell the organiser the truth about the ticket-holder message. Used by the HUB screen (the business screen does the same steps inline).
+ * Runs setEventStatus (status, event_updates row kind 'cancellation', notify-event-update without waiting). Throws if the cancel itself failed.
+ * Returns { notifyError } = null when the update was recorded and the function was called, or the reason the update could not be recorded (the event IS cancelled).
+ * Authorised for a hub owner and active committee members: the event_updates insert policy uses is_hub_admin, and notify-event-update uses can_scan_event.
+ */
+export async function cancelEventReportingNotify(eventId: string): Promise<{ notifyError: string | null }> {
+  try {
+    await setEventStatus(eventId, "cancelled");
+    return { notifyError: null };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "";
+    if (/^The event is cancelled, but we couldn't notify ticket holders: /.test(m)) {
+      return { notifyError: m.replace(/^The event is cancelled, but we couldn't notify ticket holders: /, "").replace(/\. Please post an update manually\.$/, "") || "unknown error" };
+    }
+    throw e;
+  }
+}
