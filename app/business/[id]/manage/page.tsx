@@ -8,6 +8,9 @@ import { getMyManagedBusinesses } from "@/lib/business-data.server";
 import { BIZ, TIER_LABELS } from "@/lib/business-data";
 import { getDashboardData } from "@/lib/business-dashboard.server";
 import { GetItDoneInvite } from "@/components/business/GetItDoneInvite";
+import { Launch50Invite } from "@/components/business/Launch50Invite";
+import { getLaunch50Status, getMyLaunch50Place } from "@/lib/launch50";
+import { launch50InviteVisible, fmtDayMonth } from "@/lib/launch50-core";
 import { isGetItDoneCategory } from "@/lib/get-it-done-eligibility";
 import { jobMatchingActive } from "@/lib/get-it-done-entitlement";
 import { AVAILABILITY_LABEL, availabilityIsFresh } from "@/lib/trades";
@@ -27,6 +30,12 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const { id } = await params;
   const { business, account } = await requireBusinessOwner(id);
   const dashboard = await getDashboardData(business.id);
+  // OneShetland Launch 50 invitation: tolerant reads; any failure means no invitation, never an error.
+  const [l50Status, l50Place, l50Row] = await Promise.all([
+    getLaunch50Status(), getMyLaunch50Place(business.id),
+    createServerClient().then((sb) => sb.from("local_businesses").select("owner_activated_at").eq("id", business.id).maybeSingle()).then((r) => (r.data?.owner_activated_at as string | null) ?? null).catch(() => null),
+  ]);
+  const showL50 = launch50InviteVisible({ phase: l50Status.phase, opensAt: l50Status.opens_at, claimedAt: l50Row, isActive: business.is_active !== false, tier: business.subscription_tier, subscriptionConnected: !!business.subscription_connected, place: l50Place });
   // Launch-partner onboarding is READ from the real campaign, claim, grant and version records (owner-only; null for anyone else).
   const launch = (await getOwnerLaunchSetup(business.id)).launch;
   const launchPrompt = launch.state === "review" || launch.state === "edited";
@@ -77,6 +86,8 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
 
       {/* The dashboard proper: what needs you, how the week went, the code. */}
       <div className="mb-8"><DashboardTop data={dashboard} base={base} next={next} listingDone={listingDone} launchOnboarding={launchPrompt} /></div>
+
+      {showL50 && <div className="mb-8"><Launch50Invite businessId={business.id} base={base} firstAccessUntil={fmtDayMonth(l50Status.public_opens_at)} publicOpen={l50Status.phase === "open"} /></div>}
 
       <div className="mb-8">
         <GetItDoneInvite

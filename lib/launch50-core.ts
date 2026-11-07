@@ -134,6 +134,28 @@ export function launch50CardState(args: { phase: Launch50Phase; tier: string; su
   return reservationLive(place, args.nowMs) ? "held" : "choose";
 }
 
+/**
+ * Should the Business Suite dashboard invite THIS business to Launch 50? Only when the programme is open to it right now: the business can
+ * actually reserve (the billing card would show the choose state), it is listed, it holds no place (active/pending/ended/held all hide it),
+ * and, during the exclusive first-access phase, it was claimed before the programme opened (the same rule the database enforces).
+ */
+export function launch50InviteVisible(args: { phase: Launch50Phase; opensAt: string | null; claimedAt: string | null; isActive: boolean; tier: string; subscriptionConnected: boolean; hasLaunchGrant?: boolean; place: Launch50Place | null; nowMs?: number }): boolean {
+  if (!args.isActive) return false;
+  if (launch50CardState({ phase: args.phase, tier: args.tier, subscriptionConnected: args.subscriptionConnected, hasLaunchGrant: args.hasLaunchGrant, place: args.place, nowMs: args.nowMs ?? Date.now() }) !== "choose") return false;
+  if (args.phase === "claimed_only") {
+    const claimed = args.claimedAt ? Date.parse(args.claimedAt) : NaN, opens = args.opensAt ? Date.parse(args.opensAt) : NaN;
+    if (!Number.isFinite(claimed) || !Number.isFinite(opens) || claimed >= opens) return false;
+  }
+  return true;
+}
+
+/** "21 November" for the first-access deadline (no year: it is always the next few weeks). */
+export function fmtDayMonth(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : new Date(t).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Europe/London" });
+}
+
 /** A business holding an active or pending place may not change plan. */
 export const launch50PlanLocked = (place: Launch50Place | null | undefined) => place?.status === "active" || place?.status === "pending_payment";
 

@@ -15,6 +15,7 @@ const actions = await import("../lib/launch50-actions.ts");
 const { getLaunch50Status, getLaunch50Showcase, getMyLaunch50Place } = await import("../lib/launch50.ts");
 const { default: Launch50Page } = await import("../app/launch-50/page.tsx");
 const { ShowcaseCard, ShowcaseGrid } = await import("../components/launch50/ShowcaseCard.tsx");
+const { Launch50Invite } = await import("../components/business/Launch50Invite.tsx");
 const { Launch50Card } = await import("../components/business/Launch50Card.tsx");
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
@@ -318,4 +319,36 @@ describe("Launch 50 page polish", () => {
     const g = renderToStaticMarkup(h(ShowcaseGrid, { members: [{ id: "a", name: "A", slug: "a", category: null, description: null, logo_url: null, cover_url: null, website: null, address: null }] }));
     assert.match(g, /grid-cols-1[^"]*md:grid-cols-2/);
   });
+});
+
+describe("Business Suite Launch 50 invitation", () => {
+  const OPENS = "2026-11-07T13:25:07Z", BEFORE = "2026-11-06T23:12:00Z", AFTER = "2026-11-08T09:00:00Z";
+  const base = { phase: "claimed_only", opensAt: OPENS, claimedAt: BEFORE, isActive: true, tier: "free", subscriptionConnected: false, place: null, nowMs: Date.parse("2026-11-08T10:00:00Z") };
+  const vis = (o) => core.launch50InviteVisible({ ...base, ...o });
+  const pl = (status) => ({ business_id: BIZ, tier: "pro", status, reservation_expires_at: null, activated_at: null, discount_ends_at: null, showcase_opt_in: false });
+  test("shown to a free, listed business that was claimed before opening, during first access", () => { assert.equal(vis({}), true); });
+  test("hidden when closed, when claimed after opening (first-access phase), when unlisted, or without a claim date", () => {
+    assert.equal(vis({ phase: "closed" }), false); assert.equal(vis({ claimedAt: AFTER }), false); assert.equal(vis({ claimedAt: null }), false); assert.equal(vis({ isActive: false }), false);
+  });
+  test("after first access (open to everyone) a later-claimed free business sees it", () => { assert.equal(vis({ phase: "open", claimedAt: AFTER }), true); });
+  test("hidden for businesses already enrolled or paying: active, pending, ended place, a plan, a Stripe subscription, a launch grant", () => {
+    for (const s of ["active", "pending_payment", "ended"]) assert.equal(vis({ place: pl(s) }), false, s);
+    assert.equal(vis({ tier: "pro" }), false); assert.equal(vis({ tier: "premium" }), false); assert.equal(vis({ subscriptionConnected: true }), false); assert.equal(vis({ hasLaunchGrant: true }), false);
+    assert.equal(vis({ place: { ...pl("reserved"), reservation_expires_at: new Date(Date.now() + 600000).toISOString() }, nowMs: Date.now() }), false, "a held place is mid-purchase: no second invitation");
+  });
+  test("an expired reservation is not enrolment: the invitation is shown again", () => {
+    assert.equal(vis({ place: { ...pl("reserved"), reservation_expires_at: "2026-11-08T09:00:00Z" } }), true);
+  });
+  test("the card shows both prices, 12 months then normal prices, the first-access date, the billing link and the showcase link", () => {
+    const o = renderToStaticMarkup(h(Launch50Invite, { businessId: BIZ, base: `/business/${BIZ}/manage`, firstAccessUntil: "21 November", publicOpen: false }));
+    for (const t of ["Launch Pro", "£9", "Launch Premium", "£22", "12 months", "£12 and £29", "21 November", "Not now"]) assert.ok(o.includes(t), t);
+    assert.match(o, new RegExp(`href="/business/${BIZ}/manage/billing#launch-50"[^>]*>See the Launch 50 plans`)); assert.match(o, /href="\/launch-50"[^>]*>See the showcase/);
+    assert.doesNotMatch(o, /[Ff]ounding|VAT/);
+    assert.doesNotMatch(renderToStaticMarkup(h(Launch50Invite, { businessId: BIZ, base: "/x", firstAccessUntil: "21 November", publicOpen: true })), /21 November/, "no deadline once it is open to everyone");
+  });
+  test("wired into the dashboard behind the visibility rule, tolerant of failed reads", () => {
+    const src = read("app/business/[id]/manage/page.tsx");
+    assert.match(src, /const showL50 = launch50InviteVisible\(/); assert.match(src, /\{showL50 && <div className="mb-8"><Launch50Invite/); assert.match(src, /\.catch\(\(\) => null\)/);
+  });
+  test("day/month formatter", () => { assert.equal(core.fmtDayMonth("2026-11-21T13:25:07Z"), "21 November"); assert.equal(core.fmtDayMonth(null), null); assert.equal(core.fmtDayMonth("nope"), null); });
 });
