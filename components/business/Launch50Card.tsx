@@ -87,7 +87,13 @@ export function Launch50Card({ businessId, phase, tier, subscriptionConnected, h
       <section id="launch-50" className={card}>
         {heading}
         <p className="mt-2 text-sm text-ink-soft">Your Launch 50 payment is being confirmed. This page will update when it is done.</p>
+        <label className="mt-4 flex items-start gap-3 text-sm text-ink">
+          <input type="checkbox" className="mt-0.5 h-4 w-4" checked={place!.showcase_opt_in} disabled={working}
+            onChange={(e) => { const v = e.target.checked; run(() => setShowcase(businessId, v), () => setPlace({ ...place!, showcase_opt_in: v })); }} />
+          <span>Show my business on the Launch 50 page (optional). You can change this at any time.</span>
+        </label>
         <p className="mt-2 text-xs text-ink-muted">{LAUNCH50_LOCKED_NOTE}</p>
+        {errorBox}
       </section>
     );
   }
@@ -104,7 +110,7 @@ export function Launch50Card({ businessId, phase, tier, subscriptionConnected, h
         <label className="mt-4 flex items-start gap-3 text-sm text-ink">
           <input type="checkbox" className="mt-0.5 h-4 w-4" checked={place.showcase_opt_in} disabled={working}
             onChange={(e) => { const v = e.target.checked; run(() => setShowcase(businessId, v), () => setPlace({ ...place, showcase_opt_in: v })); }} />
-          <span>Show my business on the Launch 50 page (optional)</span>
+          <span>Show my business on the Launch 50 page (optional). You can change this at any time.</span>
         </label>
         <p className="mt-3 text-xs text-ink-muted">{LAUNCH50_LOCKED_NOTE}</p>
         {errorBox}
@@ -123,6 +129,11 @@ export function Launch50Card({ businessId, phase, tier, subscriptionConnected, h
           Place held for {LAUNCH50_RESERVATION_MINUTES} minutes{mm ? `: ${mm} left` : ""}
         </p>
         <p className="mt-3 text-sm text-ink-soft">{LAUNCH50_NAME[t]}: {launch50Price(t)}/month for {LAUNCH50_DISCOUNT_MONTHS} months, then {standardPrice(t)}/month. Monthly billing only.</p>
+        <label className="mt-4 flex items-start gap-3 text-sm text-ink">
+          <input type="checkbox" className="mt-0.5 h-4 w-4" checked={place.showcase_opt_in} disabled={working}
+            onChange={(e) => { const v = e.target.checked; run(() => setShowcase(businessId, v), () => setPlace({ ...place, showcase_opt_in: v })); }} />
+          <span>Show my business on the Launch 50 page (optional). You can change this at any time.</span>
+        </label>
         <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={() => onSubscribe(t)} disabled={busy || working}
             className="rounded-pill bg-navy px-5 py-2.5 text-sm font-semibold text-white shadow-soft transition hover:brightness-95 disabled:opacity-50">

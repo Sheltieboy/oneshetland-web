@@ -194,6 +194,14 @@ describe("billing card states", () => {
   test("(a) held: held-for-30-minutes, subscribe at the Launch 50 price and release", () => {
     const o = render({ place: place({}) }); assert.match(o, /Place held for 30 minutes/); assert.match(o, /Subscribe at the Launch 50 price/); assert.match(o, /Release my place/);
   });
+  test("the showcase preference can be changed in EVERY state after reserving: held, pending and active, reflecting the saved choice", () => {
+    for (const status of ["reserved", "pending_payment", "active"]) {
+      const on = render({ place: place({ status, showcase_opt_in: true, discount_ends_at: status === "active" ? FUT : null }) });
+      assert.match(on, /<input type="checkbox"[^>]*checked[^>]*>\s*<span>Show my business on the Launch 50 page \(optional\)\. You can change this at any time\./, status);
+      const off = render({ place: place({ status, showcase_opt_in: false, discount_ends_at: status === "active" ? FUT : null }) });
+      assert.match(off, /<input type="checkbox"(?![^>]*checked)[^>]*>\s*<span>Show my business on the Launch 50 page/, status);
+    }
+  });
   test("(a) a refused checkout shows the friendly message and points at the separate standard-price buttons", () => {
     const o = render({ message: core.launch50CheckoutMessage("LAUNCH50_NO_PLACE") }); assert.match(o, /no longer held/); assert.match(o, /standard price, separately/);
     for (const c of ["LAUNCH50_UNAVAILABLE", "LAUNCH50_NO_PLACE", "LAUNCH50_MONTHLY_ONLY", "LAUNCH50_PLAN_LOCKED"]) assert.ok(core.isLaunch50Code(c) && core.launch50CheckoutMessage(c).length > 20, c);
