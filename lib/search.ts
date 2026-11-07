@@ -53,11 +53,13 @@ export function parseHits(rows: unknown): SearchHit[] {
   return out;
 }
 
+const BUSINESS_CATEGORY_LABEL: Record<string, string> = { food_drink: "Food & drink", retail: "Retail", services: "Services", tourism: "Tourism", accommodation: "Accommodation", other: "Other", health_wellbeing: "Health & Wellbeing", sport_fitness: "Sport & Fitness", arts_creative: "Arts & Creative", community_voluntary: "Community & Voluntary" };
+
 /** Subtitle shown beside a result: category codes become words ("food_drink" -> "Food & drink"). */
 export function subtitleFor(h: SearchHit): string {
   const s = h.subtitle.trim();
   if (!s) return KIND_LABEL[h.kind];
-  if (h.kind === "business") return s.replace(/_/g, " ").replace(/^food drink$/i, "Food & drink").replace(/^./, (c) => c.toUpperCase());
+  if (h.kind === "business") return BUSINESS_CATEGORY_LABEL[s] ?? s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
   return s.length > 70 ? s.slice(0, 67) + "…" : s;
 }
 

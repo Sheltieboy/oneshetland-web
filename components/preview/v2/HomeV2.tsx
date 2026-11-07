@@ -185,7 +185,7 @@ export function RightNow({ events, cruise, showCruise, lead, activities = [] }: 
 
 /* ── Discover something local ──────────────────────────────────────────────── */
 
-const CAT_COLOR: Record<string, string> = { food_drink: "#c2410c", retail: "#7c3aed", services: "#0e7490", accommodation: "#15803d" };
+const CAT_COLOR: Record<string, string> = { food_drink: "#c2410c", retail: "#7c3aed", services: "#0e7490", accommodation: "#15803d", health_wellbeing: "#0f766e", sport_fitness: "#b45309", arts_creative: "#a21caf", community_voluntary: "#1d4ed8" };
 
 function Logo({ b, size = "h-16 w-16" }: { b: CuratedBusiness; size?: string }) {
   return (

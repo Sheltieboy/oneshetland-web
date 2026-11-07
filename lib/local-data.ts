@@ -25,14 +25,23 @@ export const SHETLAND_AREAS = [
 
 export type ShetlandArea = (typeof SHETLAND_AREAS)[number]["key"];
 
+/** The ten business categories (local_businesses_category_check). The first six are the originals; the four after them were added 7 Nov 2026. */
 export const CATEGORIES = [
   { key: "food_drink", label: "Food & Drink" },
   { key: "retail", label: "Retail" },
   { key: "services", label: "Services" },
+  { key: "health_wellbeing", label: "Health & Wellbeing" },
+  { key: "sport_fitness", label: "Sport & Fitness" },
+  { key: "arts_creative", label: "Arts & Creative" },
+  { key: "community_voluntary", label: "Community & Voluntary" },
   { key: "tourism", label: "Tourism" },
   { key: "accommodation", label: "Accommodation" },
   { key: "other", label: "Other" },
 ] as const;
+
+/** Shown wherever a category is chosen. Health & Wellbeing is a directory grouping, not a statement about anyone's qualifications. */
+export const HEALTH_CATEGORY_NOTE =
+  "Listing under Health & Wellbeing does not mean OneShetland has checked, verified or endorsed any treatment, therapy or qualification.";
 
 export const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
   CATEGORIES.map((c) => [c.key, c.label]),

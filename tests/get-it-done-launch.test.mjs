@@ -18,7 +18,7 @@ describe("category eligibility (by identifier, not keywords)", () => {
     for (const c of ["retail", "food_drink", "tourism", "accommodation", null, undefined, "", "Services", "plumber"]) assert.equal(isGetItDoneCategory(c), false);
   });
   test("every category the database allows is either invited or deliberately not", () => {
-    const allowed = ["food_drink", "retail", "services", "tourism", "accommodation", "other"]; // local_businesses_category_check
+    const allowed = ["food_drink", "retail", "services", "tourism", "accommodation", "other", "health_wellbeing", "arts_creative", "sport_fitness", "community_voluntary"]; // local_businesses_category_check
     assert.deepEqual(allowed.filter(isGetItDoneCategory).sort(), ["other", "services"]);
   });
   test("status text covers not joined / no availability / stale / live", () => {

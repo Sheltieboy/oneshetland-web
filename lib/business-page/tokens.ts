@@ -5,7 +5,7 @@ export const TEAL = "#12b3d6";
 export const LIME = "#c8f169";
 
 /** Tile / accent colour per real OneShetland category (same values as Home V2 / Local V2). */
-export const CAT_COLOR: Record<string, string> = { food_drink: "#c2410c", retail: "#7c3aed", services: "#0e7490", accommodation: "#15803d" };
+export const CAT_COLOR: Record<string, string> = { food_drink: "#c2410c", retail: "#7c3aed", services: "#0e7490", accommodation: "#15803d", health_wellbeing: "#0f766e", sport_fitness: "#b45309", arts_creative: "#a21caf", community_voluntary: "#1d4ed8" };
 export const catColorFor = (category: string | null | undefined): string => CAT_COLOR[category ?? ""] ?? "#4f46e5";
 
 export const gbp = (n: number): string => `£${n.toFixed(2)}`;

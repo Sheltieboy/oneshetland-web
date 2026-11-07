@@ -1,6 +1,7 @@
 "use client";
 
 import { isGetItDoneCategory } from "@/lib/get-it-done-eligibility";
+import { CATEGORIES, HEALTH_CATEGORY_NOTE } from "@/lib/local-data";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -15,10 +16,6 @@ import { type PlannerContext } from "@/lib/planner-context";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
 
-const CATEGORIES = [
-  { v: "food_drink", l: "Food & drink" }, { v: "retail", l: "Retail" }, { v: "services", l: "Services" },
-  { v: "tourism", l: "Tourism" }, { v: "accommodation", l: "Accommodation" }, { v: "other", l: "Other" },
-];
 
 export function ProfileManager({ business }: { business: ManagedBusiness }) {
   const router = useRouter();
@@ -128,8 +125,9 @@ export function ProfileManager({ business }: { business: ManagedBusiness }) {
       <div><label className={lab}>Business name</label><input className={field} value={f.name} onChange={(e) => set("name", e.target.value)} /></div>
       <div><label className={lab}>Category</label>
         <select className={field} value={f.category} onChange={(e) => set("category", e.target.value)}>
-          {CATEGORIES.map((c) => <option key={c.v} value={c.v}>{c.l}</option>)}
+          {CATEGORIES.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
         </select>
+        {f.category === "health_wellbeing" && <p className="mt-1.5 text-xs text-ink-faint">{HEALTH_CATEGORY_NOTE}</p>}
         {isGetItDoneCategory(f.category) && (
           <p className="mt-1.5 text-sm text-ink-soft">
             Do you do work for people, like repairs, building or cleaning?{" "}

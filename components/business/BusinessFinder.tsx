@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CATEGORY_LABEL } from "@/lib/local-data";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useOwner } from "@/components/business/OwnerProvider";
 import { findListed, claimHref, listingHref, addHref, type ListedBusiness, type MatchKind } from "@/lib/business-match";
 
 type Row = ListedBusiness & { kind: MatchKind };
-const CAT: Record<string, string> = { food_drink: "Food & Drink", retail: "Retail", services: "Services", tourism: "Tourism", accommodation: "Accommodation", other: "Other" };
+const CAT: Record<string, string> = CATEGORY_LABEL;
 
 /**
  * The /business page's main call to action: type your business name, see whether it is already listed, and go straight to claiming it (free).

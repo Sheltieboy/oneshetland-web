@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { CATEGORIES } from "@/lib/local-data";
+import { CATEGORIES, HEALTH_CATEGORY_NOTE } from "@/lib/local-data";
 import { findListed, likelyDuplicate, createDecision, claimHref, listingHref, type ListedBusiness, type MatchKind } from "@/lib/business-match";
 
 const DIR = "#4f46e5";
@@ -149,6 +149,7 @@ export function BusinessCreateForm({
             </button>
           ))}
         </div>
+        {category === "health_wellbeing" && <p className="mt-2 text-xs text-ink-faint">{HEALTH_CATEGORY_NOTE}</p>}
       </div>
 
       {/* Description */}

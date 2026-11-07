@@ -18,6 +18,10 @@ const CATEGORY_EMOJI: Record<string, string> = {
   tourism: "🌅",
   accommodation: "🛏",
   other: "📍",
+  health_wellbeing: "💚",
+  sport_fitness: "🏃",
+  arts_creative: "🎨",
+  community_voluntary: "🤝",
 };
 
 /** One-line summary of what a card earns you, in plain English. */
