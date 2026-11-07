@@ -92,6 +92,56 @@ export function blankRow(partial: Partial<DateRow> = {}): DateRow {
   return { id: newRowId(), date: "", start: "", end: "", note: "", ...partial };
 }
 
+/**
+ * "Add another day": a new row that starts with the START and END times of the last row (so a run of performances only needs dates picked).
+ * The date and note stay empty. Pure: existing rows are never touched. Null when the list is full.
+ */
+export function nextBlankRow(rows: readonly DateRow[]): DateRow | null {
+  if (rows.length >= MAX_DATES) return null;
+  const last = rows[rows.length - 1];
+  return blankRow(last ? { start: last.start, end: last.end } : {});
+}
+
+/** The rows after pressing "Add another day": the existing rows (same objects, same order) then the new row. Unchanged when full. */
+export function appendNextBlankRow(rows: readonly DateRow[]): DateRow[] {
+  const next = nextBlankRow(rows);
+  return next ? [...rows, next] : [...rows];
+}
+
+export const MINUTE_STEP_OPTIONS = ["00", "10", "20", "30", "40", "50"] as const;
+export const HOUR_OPTIONS: string[] = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0"));
+
+/** "19:05" -> { hour: "19", minute: "05" }; anything that is not a valid HH:MM -> both "". */
+export function splitTime(value: string): { hour: string; minute: string } {
+  const m = TIME_RE.exec(value ?? "");
+  return m ? { hour: m[1], minute: m[2] } : { hour: "", minute: "" };
+}
+
+/** Minute choices for a value: 00,10,...,50, plus the value's own minute (ordered, flagged current) when it is not a multiple of 10. */
+export function minuteOptions(value: string): { value: string; label: string; current: boolean }[] {
+  const { minute } = splitTime(value);
+  const list: { value: string; label: string; current: boolean }[] = MINUTE_STEP_OPTIONS.map((v) => ({ value: v, label: v, current: false }));
+  if (minute && !(MINUTE_STEP_OPTIONS as readonly string[]).includes(minute)) {
+    list.push({ value: minute, label: `${minute} (current)`, current: true });
+    list.sort((a, b) => Number(a.value) - Number(b.value));
+  }
+  return list;
+}
+
+/** The new "HH:MM" after choosing an hour. "" clears the time. An empty time gets minutes "00"; an existing minute (even an odd one) is kept. */
+export function timeAfterHour(value: string, hour: string): string {
+  if (!/^([01]\d|2[0-3])$/.test(hour)) return "";
+  const { minute } = splitTime(value);
+  return `${hour}:${minute || "00"}`;
+}
+
+/** The new "HH:MM" after choosing a minute. Needs an hour already: otherwise the value is returned unchanged. */
+export function timeAfterMinute(value: string, minute: string): string {
+  const { hour } = splitTime(value);
+  if (!hour || !/^[0-5]\d$/.test(minute)) return value;
+  return `${hour}:${minute}`;
+}
+
 /** "Copy the last row to the next day": same times and note, the following calendar day, placed right after it. Null when the list is full or the row has no date. */
 export function copyRowToNextDay(rows: readonly DateRow[], index: number): DateRow[] | null {
   const src = rows[index];

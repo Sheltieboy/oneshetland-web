@@ -1,7 +1,8 @@
 "use client";
 
-import { MAX_DATES, blankRow, copyRowToNextDay, describeOccurrence, londonToUtc, type DateRow, type RowIssue } from "@/lib/event-dates-builder";
+import { MAX_DATES, appendNextBlankRow, copyRowToNextDay, describeOccurrence, londonToUtc, type DateRow, type RowIssue } from "@/lib/event-dates-builder";
 import { TextInput, SecondaryButton, textBtn } from "@/components/events/submit-ui";
+import { TimeSelect } from "@/components/events/TimeSelect";
 
 /** The simple dates builder: one row per day. Add a row, copy the last row to the next day, remove a row. */
 export function DatesBuilder({ rows, onChange, issues, today, idBase = "dates" }: {
@@ -27,14 +28,8 @@ export function DatesBuilder({ rows, onChange, issues, today, idBase = "dates" }
                     <label htmlFor={`${p}-date`} className="block text-base font-semibold">Day</label>
                     <TextInput id={`${p}-date`} type="date" min={today} value={r.date} onChange={(e) => set(i, { date: e.target.value })} aria-invalid={dErr ? true : undefined} aria-describedby={dErr ? `${p}-date-err` : undefined} />
                   </div>
-                  <div>
-                    <label htmlFor={`${p}-start`} className="block text-base font-semibold">Starts at</label>
-                    <TextInput id={`${p}-start`} type="time" value={r.start} onChange={(e) => set(i, { start: e.target.value })} aria-invalid={sErr ? true : undefined} aria-describedby={sErr ? `${p}-start-err` : undefined} />
-                  </div>
-                  <div>
-                    <label htmlFor={`${p}-end`} className="block text-base font-semibold">Ends at <span className="font-normal text-ink-soft">(optional)</span></label>
-                    <TextInput id={`${p}-end`} type="time" value={r.end} onChange={(e) => set(i, { end: e.target.value })} aria-invalid={eErr ? true : undefined} aria-describedby={eErr ? `${p}-end-err` : undefined} />
-                  </div>
+                  <TimeSelect idBase={`${p}-start`} legend="Starts" value={r.start} onChange={(v) => set(i, { start: v })} errorId={sErr ? `${p}-start-err` : undefined} />
+                  <TimeSelect idBase={`${p}-end`} legend="Ends (optional)" optional value={r.end} onChange={(v) => set(i, { end: v })} errorId={eErr ? `${p}-end-err` : undefined} />
                 </div>
                 {dErr && <p id={`${p}-date-err`} className="mt-2 text-base font-semibold text-rose-700">{dErr}</p>}
                 {sErr && <p id={`${p}-start-err`} className="mt-2 text-base font-semibold text-rose-700">{sErr}</p>}
@@ -58,7 +53,7 @@ export function DatesBuilder({ rows, onChange, issues, today, idBase = "dates" }
         })}
       </ol>
       <div className="mt-4 flex flex-wrap items-center gap-4">
-        <SecondaryButton disabled={full} onClick={() => onChange([...rows, blankRow()])}>Add another day</SecondaryButton>
+        <SecondaryButton disabled={full} onClick={() => onChange(appendNextBlankRow(rows))}>Add another day</SecondaryButton>
         <span className="text-base text-ink-soft">{rows.length} of {MAX_DATES} days</span>
       </div>
     </div>
