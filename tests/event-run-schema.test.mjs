@@ -176,7 +176,7 @@ describe("hidden front door", () => {
   });
   test("the page is gated server-side, noindex, not a NEXT_PUBLIC flag, and linked from nowhere", () => {
     const r = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
-    const page = r("app/whats-on/add/page.tsx");
+    const page = r("app/whats-on/add/page.tsx") + r("lib/event-submissions-access.server.ts");   // the gate lives in the shared access module
     assert.match(page, /process\.env\.EVENT_FRONT_DOOR/); assert.doesNotMatch(page, /NEXT_PUBLIC/);
     assert.match(page, /notFound\(\)/); assert.match(page, /index: false/);
     assert.doesNotMatch(r("app/sitemap.ts"), /whats-on\/add/);
