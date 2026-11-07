@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { AlertType, ManagedBusiness, BusinessCode } from "@/lib/business-data";
 import { settleSavedCardPayment, type PaymentStart as ScaStart } from "./stripe-sca";
 import { retryAfterSecsFrom } from "./retry-after";
+import { subscriptionIntentBody } from "./launch50-core";
 
 async function invoke<T = Record<string, unknown>>(name: string, body?: Record<string, unknown>): Promise<T> {
   const sb = createClient();
@@ -149,6 +150,8 @@ export const createSubscriptionIntent = (
   period: BillingPeriod = "monthly",
   clientRequestId?: string,
   useSavedCard = true,
+  /** OneShetland Launch 50: asks the server for the founding price. Sent ONLY when true, so the standard request is unchanged. */
+  launch50 = false,
 ) =>
   invoke<{
     activated?: boolean; paymentIntent?: string; ephemeralKey?: string;
@@ -157,7 +160,7 @@ export const createSubscriptionIntent = (
     declined?: boolean; code?: string; error?: string;
   }>(
     "local-subscription-intent",
-    { business_id: businessId, tier, period, client_request_id: clientRequestId, use_saved_card: useSavedCard },
+    subscriptionIntentBody({ businessId, tier, period, clientRequestId, useSavedCard, launch50 }),
   );
 
 export const previewSubscriptionChange = (businessId: string, tier: "pro" | "premium", period: BillingPeriod = "monthly") =>

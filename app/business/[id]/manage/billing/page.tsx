@@ -6,6 +6,7 @@ import { BillingManager } from "@/components/business/BillingManager";
 import { createClient } from "@/lib/supabase/server";
 import { liveLaunchGrant, type LaunchGrantRow } from "@/lib/launch-grant";
 import { HelpTip } from "@/components/help/HelpTip";
+import { getLaunch50Status, getMyLaunch50Place } from "@/lib/launch50";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Plan, payments & payouts" };
@@ -36,6 +37,8 @@ export default async function BillingPage({
     .is("revoked_at", null)
     .is("superseded_at", null);
   const launchGrant = liveLaunchGrant(grantRows as LaunchGrantRow[] | null, business.subscription_connected);
+  // OneShetland Launch 50: both reads are tolerant, so a failure here only means the card does not appear.
+  const [l50Status, l50Place] = await Promise.all([getLaunch50Status(), getMyLaunch50Place(business.id)]);
   return (
     <div className="mx-auto max-w-2xl px-5 py-10 sm:py-12">
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
@@ -43,7 +46,7 @@ export default async function BillingPage({
           Plan, payments &amp; payouts
           <HelpTip topic="plans-tier" />
         </h1>
-      <BillingManager business={business} intentTier={intentTier} meter={meter} launchGrant={launchGrant} />
+      <BillingManager business={business} intentTier={intentTier} meter={meter} launchGrant={launchGrant} launch50={{ phase: l50Status.phase, place: l50Place }} />
     </div>
   );
 }

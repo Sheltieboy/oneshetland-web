@@ -26,14 +26,21 @@ import { newCheckoutAttemptId } from "@/lib/checkout-attempt";
 import { subscriptionConfirmCopy } from "@/lib/subscription-confirm";
 import { BoostCheckout } from "@/components/business/BoostCheckout";
 import { launchGrantCopy, type LaunchGrant } from "@/lib/launch-grant";
+import { Launch50Card } from "@/components/business/Launch50Card";
+import {
+  launch50ConfirmCopy, launch50PlanLocked, isLaunch50Code, launch50CheckoutMessage, LAUNCH50_LOCKED_NOTE,
+  type Launch50Phase, type Launch50Place, type Launch50Tier,
+} from "@/lib/launch50-core";
 
-export function BillingManager({ business, intentTier, meter, launchGrant }: {
+export function BillingManager({ business, intentTier, meter, launchGrant, launch50 }: {
   business: ManagedBusiness;
   intentTier?: "pro" | "premium";
   /** Pro only — bookings taken this month and what they cost. */
   meter?: { booked: number; billed: number; feePence: number; capped: boolean } | null;
   /** A manually granted launch-partner plan, if one is giving this business its access right now. */
   launchGrant?: LaunchGrant | null;
+  /** OneShetland Launch 50: the public phase and this business's own place (if any). Absent = no Launch 50 on this screen. */
+  launch50?: { phase: Launch50Phase; place: Launch50Place | null } | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -157,10 +164,13 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
    */
   // A refused saved card. Held so the message stays on screen until the owner
   // decides what to do, rather than being replaced by a card form.
-  const [declined, setDeclined] = useState<{ message: string; target: "pro" | "premium"; period: BillingPeriod } | null>(null);
+  const [declined, setDeclined] = useState<{ message: string; target: "pro" | "premium"; period: BillingPeriod; launch50?: boolean } | null>(null);
+  // A Launch 50 refusal from the checkout, shown inside the Launch 50 card (never charged at the standard price).
+  const [launch50Msg, setLaunch50Msg] = useState<string | null>(null);
+  const l50Locked = launch50PlanLocked(launch50?.place);
   const subAttempt = useRef<{ key: string; id: string } | null>(null);
-  function subAttemptId(target: string, period: string): string {
-    const key = `${target}:${period}`;
+  function subAttemptId(target: string, period: string, launch50Attempt = false): string {
+    const key = `${target}:${period}${launch50Attempt ? ":launch50" : ""}`;
     if (!subAttempt.current || subAttempt.current.key !== key) {
       subAttempt.current = { key, id: newCheckoutAttemptId() };
     }
@@ -179,16 +189,18 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
   function endSubAttempt() { subAttempt.current = null; }
 
   /* Upgrade / change plan */
-  async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly", useSavedCard = true) {
+  async function upgrade(target: "pro" | "premium", period: BillingPeriod = "monthly", useSavedCard = true, launch50Attempt = false) {
     const annual = target === "premium" && period === "annual";
-    const label = `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
-    setBusy(annual ? `${target}-annual` : target); setError(null);
+    const label = launch50Attempt ? `Founding ${TIER_LABELS[target]}` : `${TIER_LABELS[target]}${annual ? " (yearly)" : ""}`;
+    setBusy(launch50Attempt ? `launch50-${target}` : annual ? `${target}-annual` : target); setError(null); setLaunch50Msg(null);
     try {
+      if (launch50Attempt && period !== "monthly") throw Object.assign(new Error("Launch 50 is monthly billing only."), { code: "LAUNCH50_MONTHLY_ONLY" });
       // A business on FREE has no live subscription to change, whatever id the
       // row still carries. Trusting a stale id sent it down the "change plan"
       // path, which found the cancelled subscription still on the Pro price and
       // answered "you're already on Pro" — leaving it unable to buy anything.
       const hasLiveSubscription = b.subscription_connected && tier !== "free" && !isOnBoost(b);
+      if (launch50Attempt && hasLiveSubscription) throw Object.assign(new Error("Launch 50 is not available for a business that already has a subscription."), { code: "LAUNCH50_UNAVAILABLE" });
       if (hasLiveSubscription) {
         // Existing subscriber → prorated change on the saved card. Switching
         // monthly↔yearly on the same tier goes down this path too: the tier is
@@ -239,7 +251,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
         // file says how they would like to pay, not that they have agreed to
         // pay. This is also where the attempt reference is minted, so backing
         // out consumes nothing at all.
-        const copy = subscriptionConfirmCopy(target, period);
+        const copy = launch50Attempt ? launch50ConfirmCopy(target) : subscriptionConfirmCopy(target, period);
         const agreed = await confirm({
           title: copy.title,
           body: (
@@ -267,7 +279,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
         // second click created a second recurring subscription and a second
         // first charge.
         const intent = await createSubscriptionIntent(
-          b.id, target, period, subAttemptId(target, period), useSavedCard,
+          b.id, target, period, subAttemptId(target, period, launch50Attempt), useSavedCard, launch50Attempt,
         );
         if (intent.activated) { endSubAttempt(); setDeclined(null); router.refresh(); pollTier(); }
         else if (intent.declined) {
@@ -276,11 +288,11 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
           // with nothing on screen explaining why their saved one had gone.
           // The attempt is deliberately NOT ended: choosing another card
           // completes this same subscription.
-          setDeclined({ message: intent.error ?? "Your saved card was declined.", target, period });
+          setDeclined({ message: intent.error ?? "Your saved card was declined.", target, period, launch50: launch50Attempt });
         }
         else if (intent.paymentIntent) {
           setDeclined(null);
-          setPay({ clientSecret: intent.paymentIntent, amountPence: annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
+          setPay({ clientSecret: intent.paymentIntent, amountPence: launch50Attempt ? copy.amountPence : annual ? PREMIUM_ANNUAL_PENCE : TIER_PRICE_PENCE[target], label: `Subscribe to ${label}` });
         }
         else throw new Error("Could not start subscription.");
       }
@@ -290,6 +302,13 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
       // without reloading the page.
       const code = (e as { code?: string })?.code;
       if (code === 'ATTEMPT_TERMINAL' || code === 'ATTEMPT_CONFLICT') endSubAttempt();
+      // A Launch 50 refusal is explained in the Launch 50 card. Nothing is ever retried at the standard price on the owner's behalf.
+      if (isLaunch50Code(code)) {
+        if (code === "LAUNCH50_PLAN_LOCKED") setError(LAUNCH50_LOCKED_NOTE); else setLaunch50Msg(launch50CheckoutMessage(code));
+        if (code !== "LAUNCH50_MONTHLY_ONLY") endSubAttempt();
+        setBusy(null); router.refresh();
+        return;
+      }
       fail(e);
     } finally { setBusy(null); }
   }
@@ -399,13 +418,13 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              onClick={() => upgrade(declined.target, declined.period, true)}
+              onClick={() => upgrade(declined.target, declined.period, true, !!declined.launch50)}
               disabled={!!busy}
               className="rounded-pill border border-line-strong bg-white px-4 py-2 text-sm font-semibold text-ink hover:bg-sand disabled:opacity-50">
               Try that card again
             </button>
             <button
-              onClick={() => upgrade(declined.target, declined.period, false)}
+              onClick={() => upgrade(declined.target, declined.period, false, !!declined.launch50)}
               disabled={!!busy}
               className="rounded-pill bg-rose-600 px-5 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
               Use another card
@@ -437,6 +456,20 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
           <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">✓ Business bank connected — payouts go here.</p>
         )}
       </section>
+
+      {launch50 && (
+        <Launch50Card
+          businessId={b.id}
+          phase={launch50.phase}
+          tier={tier}
+          subscriptionConnected={b.subscription_connected}
+          hasLaunchGrant={!!launchGrant}
+          place={launch50.place}
+          busy={busy === "launch50-pro" || busy === "launch50-premium"}
+          message={launch50Msg}
+          onSubscribe={(t: Launch50Tier) => upgrade(t, "monthly", true, true)}
+        />
+      )}
 
       {/* Plan */}
       <section className={card}>
@@ -509,7 +542,11 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
             </p>
           )}
 
-          {tier === "free" && (
+          {/* Launch 50: plan changes are locked while a place is active or being paid for. The server refuses too (LAUNCH50_PLAN_LOCKED). */}
+          {l50Locked && (
+            <p className="rounded-lg bg-sand px-3 py-2 text-sm text-ink-soft" data-launch50-locked>{LAUNCH50_LOCKED_NOTE}</p>
+          )}
+          {tier === "free" && !l50Locked && (
             <>
               <button onClick={() => upgrade("pro")} disabled={!!busy} className={btn + " w-full" + (highlightTier === "pro" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")} style={{ background: BIZ }}>{busy === "pro" ? "…" : `Upgrade to Pro · ${TIER_PRICE.pro}`}</button>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className={"w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand" + (highlightTier === "premium" ? " ring-2 ring-offset-2 ring-[color:var(--color-line-strong)]" : "")}>{busy === "premium" ? "…" : `Or unlock everything with Premium · ${TIER_PRICE.premium}`}</button>
@@ -549,7 +586,7 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
             </div>
           )}
 
-          {tier === "pro" && (
+          {tier === "pro" && !l50Locked && (
             <>
               <button onClick={() => upgrade("premium")} disabled={!!busy} className={btn + " w-full"} style={{ background: BIZ }}>{busy === "premium" ? "…" : `Upgrade to Premium · ${TIER_PRICE.premium}`}</button>
               <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">{busy === "premium-annual" ? "…" : `Or yearly · ${PREMIUM_ANNUAL_PRICE} — two months free`}</button>
@@ -558,12 +595,12 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
           {tier === "premium" && (
             <>
               <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">👑 All features unlocked.</p>
-              {!annualSubscriber && (
+              {!annualSubscriber && !l50Locked && (
                 <button onClick={() => upgrade("premium", "annual")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
                   {busy === "premium-annual" ? "…" : `Switch to yearly · ${PREMIUM_ANNUAL_PRICE} — two months free`}
                 </button>
               )}
-              {annualSubscriber && (
+              {annualSubscriber && !l50Locked && (
                 <>
                   <p className="text-xs text-ink-muted">You&apos;re on yearly billing — two months free.</p>
                   <button onClick={() => upgrade("premium", "monthly")} disabled={!!busy} className="w-full rounded-pill border border-line-strong px-5 py-2.5 text-sm font-semibold text-ink hover:bg-sand">
@@ -574,13 +611,17 @@ export function BillingManager({ business, intentTier, meter, launchGrant }: {
               {/* Moving DOWN was only possible by cancelling, which loses the
                   renewal date and the card on file. Stepping back a tier is a
                   normal thing to want and shouldn't cost you your subscription. */}
-              <button onClick={() => upgrade("pro")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 transition hover:text-ink hover:underline disabled:opacity-50">
-                {busy === "pro" ? "…" : `Move down to Pro · ${TIER_PRICE.pro}`}
-              </button>
-              <p className="text-center text-xs text-ink-muted">
-                On Pro you keep the counter tools and bookings, at 95p a booking capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month.
-                You&apos;d lose products, passes and the featured spot.
-              </p>
+              {!l50Locked && (
+                <>
+                  <button onClick={() => upgrade("pro")} disabled={!!busy} className="w-full rounded-pill px-5 py-2 text-sm font-semibold text-ink-soft underline-offset-4 transition hover:text-ink hover:underline disabled:opacity-50">
+                    {busy === "pro" ? "…" : `Move down to Pro · ${TIER_PRICE.pro}`}
+                  </button>
+                  <p className="text-center text-xs text-ink-muted">
+                    On Pro you keep the counter tools and bookings, at 95p a booking capped at £{(BOOKING_CAP_PENCE / 100).toFixed(2)} a month.
+                    You&apos;d lose products, passes and the featured spot.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>

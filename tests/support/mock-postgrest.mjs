@@ -88,7 +88,35 @@ const U = (n) => `00000000-0000-4000-8000-0000000000${n}`;
 const sub = (n, status) => ({ id: `5b000000-0000-4000-8000-00000000000${n}`, submitter_id: "x", status, organiser_name: "Unst Quilters", title: `Winter Fair ${n}`, description: "Tea.", category: "Community", venue: "Hall", locality: "Unst",
   cover_url: null, contact_info: null, ticket_url: null, price_text: "Free", occurrences: [{ starts_at: iso(NOW + n * D), ends_at: iso(NOW + n * D + 2 * H), status: "scheduled", note: null }], review_reason: null, reviewed_at: null, event_id: null, created_at: iso(NOW - n * D) });
 const hubRow = (id, name, slug, role) => ({ role, hub: { id, name, slug, type: "community", logo_url: null, brand_color: null, is_active: true } });
+// ── OneShetland Launch 50 fixtures (rendering aid) ─────────────────────────────────────────────────────────────────────────────────────────────
+// GET /__l50?phase=closed|claimed_only|open&place=none|held|active|ended|pending&tier=pro|premium&left=37 sets what the Launch 50 functions answer.
+// Members: owner50 (owns ONE free-plan business), owner50b (owns TWO), admin50 (a platform admin, owns nothing). Showcase members are invented fixtures.
+const L50_BIZ = "50000000-0000-4000-8000-000000000001";
+export const L50 = { phase: "open", place: "none", tier: "pro", left: 37, showcaseOptIn: false, fn: "ok" };
+let LAST_FN = null;
+const l50Status = () => ({ phase: L50.phase, places_total: 50, places_left: L50.left, opens_at: iso(NOW - 3 * D), public_opens_at: iso(NOW + 11 * D) });
+const l50Showcase = [
+  { id: "50000000-0000-4000-8000-0000000000a1", name: "Fixture Bakery (not real)", slug: "fixture-bakery", category: "food_drink", description: "A fixture description. ".repeat(14), logo_url: null, cover_url: null, website: "https://example.org/bakery", address: "Commercial Street, Lerwick" },
+  { id: "50000000-0000-4000-8000-0000000000a2", name: "Fixture Knitwear (not real)", slug: null, category: "retail", description: "Short fixture text.", logo_url: null, cover_url: null, website: "javascript:alert(1)", address: null },
+  { id: "50000000-0000-4000-8000-0000000000a3", name: "Fixture Physio (not real)", slug: "fixture-physio", category: "health_wellbeing", description: "Another fixture description of moderate length, enough to wrap onto a couple of lines.", logo_url: null, cover_url: null, website: null, address: "Brae" },
+  { id: "50000000-0000-4000-8000-0000000000a4", name: "Fixture Guesthouse With A Rather Long Name Indeed (not real)", slug: "fixture-guesthouse", category: "accommodation", description: "Fixture.", logo_url: null, cover_url: null, website: "http://example.org", address: "Unst" },
+];
+const l50Place = () => {
+  if (L50.place === "none") return null;
+  const status = { held: "reserved", active: "active", ended: "ended", pending: "pending_payment" }[L50.place];
+  return { business_id: L50_BIZ, tier: L50.tier, status, reservation_expires_at: status === "reserved" ? iso(NOW + 24 * 60_000) : null,
+    activated_at: status === "active" ? iso(NOW - D) : null, discount_ends_at: status === "active" ? iso(NOW + 364 * D) : null, showcase_opt_in: L50.showcaseOptIn };
+};
+const l50Business = (ownerId) => ({ id: L50_BIZ, owner_id: ownerId, name: "Fixture Owner Shop (not real)", slug: "fixture-owner-shop", category: "retail", description: "x", address: "Lerwick", is_active: true,
+  subscription_tier: "free", subscription_connected: false, subscription_until: null, subscription_cancel_at_period_end: false, use_business_payment: false, use_business_payout: false,
+  has_business_payment_method: false, payout_enabled: false, nfc_status: "none", nfc_token: null, lat: null, lng: null });
+const MEMBERS_L50 = {
+  owner50: { id: U("21"), businesses: [{ id: L50_BIZ, name: "Fixture Owner Shop (not real)", slug: "fixture-owner-shop", logo_url: null, is_active: true }], hubs: [], subs: [] },
+  owner50b: { id: U("22"), businesses: [{ id: L50_BIZ, name: "Fixture Owner Shop (not real)", slug: null, logo_url: null, is_active: true }, { id: "50000000-0000-4000-8000-000000000002", name: "Second Fixture Shop", slug: null, logo_url: null, is_active: true }], hubs: [], subs: [] },
+  admin50: { id: U("23"), businesses: [], hubs: [], subs: [], role: "admin" },
+};
 export const MEMBERS = {
+  ...MEMBERS_L50,
   none: { id: U("11"), businesses: [], hubs: [], subs: [] },
   business: { id: U("12"), businesses: [{ id: "b1", name: "Ruth Archer Fitness", slug: "ruth-archer-fitness", logo_url: null, is_active: true }], hubs: [], subs: [] },
   hub: { id: U("13"), businesses: [], hubs: [hubRow("h1", "Bressay Hall Hub", "bressay-hall", "owner")], subs: [] },
@@ -142,6 +170,28 @@ http.createServer((req, res) => {
     const needle = u.searchParams.get("name").slice(6).replace(/%/g, "").toLowerCase();
     return send(200, BUSINESS_VENUES.filter((b) => b.name.toLowerCase().includes(needle)));
   }
+  if (u.pathname === "/__l50") {
+    for (const k of ["phase", "place", "tier", "fn"]) if (u.searchParams.get(k)) L50[k] = u.searchParams.get(k);
+    if (u.searchParams.get("left")) L50.left = Number(u.searchParams.get("left"));
+    if (u.searchParams.get("optin")) L50.showcaseOptIn = u.searchParams.get("optin") === "1";
+    return send(200, L50);
+  }
+  if (u.pathname.startsWith("/rest/v1/rpc/launch50_")) {
+    const fn = u.pathname.split("/").pop();
+    if (fn === "launch50_status") return send(200, l50Status());
+    if (fn === "launch50_showcase") return send(200, L50.phase === "closed" ? [] : l50Showcase);
+    if (fn === "launch50_reserve") { L50.place = "held"; return send(200, { status: "reserved", tier: "pro", expires_at: iso(NOW + 30 * 60_000) }); }
+    if (fn === "launch50_release") { L50.place = "none"; return send(200, null); }
+    if (fn === "launch50_set_showcase") { L50.showcaseOptIn = !L50.showcaseOptIn; return send(200, null); }
+  }
+  if (m && u.pathname === "/rest/v1/rpc/my_commercial_terms_status") return send(200, { accepted: true, version: "1" });
+  if (m && u.pathname === "/rest/v1/launch50_places") { const p = l50Place(); return /pgrst\.object/.test(req.headers.accept ?? "") ? (p ? send(200, p) : send(406, { code: "PGRST116", message: "no rows" })) : send(200, p ? [p] : []); }
+  if (m && ["owner50", "owner50b"].some((k) => MEMBERS[k] === m) && u.pathname === "/rest/v1/local_businesses") {
+    const one = /pgrst\.object/.test(req.headers.accept ?? "");
+    const byKey = u.searchParams.get("id") || u.searchParams.get("slug");   // a single-business read (maybeSingle asks for an array and takes the first)
+    return one ? send(200, l50Business(m.id)) : byKey ? send(200, [l50Business(m.id)]) : send(200, m.businesses);
+  }
+  if (m && m.role === "admin" && u.pathname === "/rest/v1/profiles") return send(200, { id: m.id, role: "admin", full_name: "Fixture Admin", display_name: null, phone: null, avatar_url: null, bio: null, location_area: null, is_active: true });
   if (u.pathname === "/auth/v1/user" && m) return send(200, { id: m.id, email: "member@example.com", aud: "authenticated", role: "authenticated" });
   if (m && u.pathname === "/rest/v1/local_businesses") return send(200, m.businesses);
   if (m && u.pathname === "/rest/v1/hub_members" && (u.searchParams.get("select") ?? "").replace(/\s/g, "") === "role,status") {
@@ -159,7 +209,15 @@ http.createServer((req, res) => {
   if (m && u.pathname === "/rest/v1/rpc/submit_event_submission") return send(200, "5b000000-0000-4000-8000-0000000000ff");
   if (m && u.pathname === "/rest/v1/profiles") return send(200, []);
   if (u.pathname === "/auth/v1/user") return send(200, { id: "00000000-0000-4000-8000-000000000001", email: "organiser@example.com", aud: "authenticated", role: "authenticated" });
-  if (u.pathname.startsWith("/functions/v1/")) return send(200, { ok: true });
+  if (u.pathname.startsWith("/functions/v1/")) {
+    let body = ""; req.on("data", (c) => { body += c; });
+    return req.on("end", () => {
+      LAST_FN = { fn: u.pathname.split("/").pop(), body: body ? JSON.parse(body) : null };
+      if (L50.fn === "noplace") return send(409, { error: "no place", code: "LAUNCH50_NO_PLACE" });   // rendering aid: the checkout's fail-closed answer
+      return send(200, { ok: true });
+    });
+  }
+  if (u.pathname === "/__lastfn") return send(200, LAST_FN);
   if (u.pathname === "/rest/v1/event_updates" && req.method === "POST") return send(201, { id: "upd1" });
   if (u.pathname === "/rest/v1/events" && req.method === "PATCH") { res.writeHead(204, { "access-control-allow-origin": "*" }); return res.end(); }
   const single = /pgrst\.object/.test(req.headers.accept ?? "");
