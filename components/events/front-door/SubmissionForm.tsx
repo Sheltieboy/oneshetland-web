@@ -126,7 +126,7 @@ export function SubmissionForm({ slug, categoryLabel, userId, staff, onRestart, 
       <section aria-labelledby="sf-done" className="mt-6 rounded-2xl border border-emerald-700 bg-emerald-50 p-6">
         <h2 id="sf-done" ref={heading} tabIndex={-1} className="text-2xl font-bold text-emerald-950 outline-none">{TITLES.done}</h2>
         <p className="mt-3 text-lg text-emerald-950">{SUBMIT_THANKS_BODY}</p>
-        <p className="mt-5"><Link href="/account/event-submissions" className={`inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white ${focusRing}`}>See my event submissions</Link></p>
+        <p className="mt-5"><Link href="/account/event-submissions" className={`inline-flex min-h-12 items-center rounded-pill bg-navy px-6 py-3 text-lg font-bold text-white ${focusRing}`}>See my events &amp; submissions</Link></p>
         <button type="button" className={`${textBtn} mt-3`} onClick={onRestart}>Add another event</button>
         {suggestHub && <HubSuggestion />}
       </section>

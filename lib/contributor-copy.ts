@@ -78,7 +78,7 @@ export const STATUS_EXPLAINER: Record<SubmissionStatusName, string> = {
 };
 
 export const SUBMIT_THANKS_TITLE = "Thank you, we'll look at this soon";
-export const SUBMIT_THANKS_BODY = "Your event has been sent to us. It isn't on OneShetland yet. We'll look at it, and you can check how it's getting on in My event submissions.";
+export const SUBMIT_THANKS_BODY = "Your event has been sent to us. It isn't on OneShetland yet. We'll look at it, and you can check how it's getting on in My events & submissions.";
 
 export const FORM_INTRO = "Tell us about your event. It takes a few minutes, and we look at every one before it goes on OneShetland.";
 export const ORGANISER_HELP = "The club, group or charity running it. This is the name people will see.";
@@ -110,7 +110,7 @@ export const RESTORE_HINT = "Changed your mind? You can undo this for 24 hours, 
 export const HIDDEN_EVENT_LINE = "This event is cancelled. Its page stays on OneShetland, clearly marked Cancelled, and it is off the lists and calendar.";
 export const EVENT_RESTORED_LINE = "Done. The event is back on the lists and calendar, and no longer marked Cancelled.";
 export const PERFORMANCE_RESTORED_LINE = "Done. That performance is back on.";
-/** My event submissions: an approved event that has since been cancelled. */
+/** My events & submissions: an approved event that has since been cancelled. */
 export const CANCELLED_EVENT_EXPLAINER = "This event is cancelled. Its page stays on OneShetland, clearly marked Cancelled.";
 
 /** Why a particular status can't be acted on. */
