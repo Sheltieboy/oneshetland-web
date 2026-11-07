@@ -118,6 +118,15 @@ export function submissionsOpen(sb: Sb): Promise<Result<boolean>> {
   return call(sb, "event_submissions_open", undefined, (d) => (typeof d === "boolean" ? d : null));
 }
 
+/**
+ * Is the signed-in account on the tester allowlist (switch value 'testers')? Anything unexpected is "no": the function missing (migration not applied),
+ * a network or permission error, a signed-out caller. It only ever WIDENS access for an allowlisted account, never for anyone else.
+ */
+export async function isSubmissionTester(sb: Sb): Promise<boolean> {
+  const r = await call(sb, "event_submissions_tester", undefined, (d) => (typeof d === "boolean" ? d : null));
+  return r.ok && r.data === true;
+}
+
 /* ── submissions ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export type SubmissionStatus = "pending" | "approved" | "changes_requested" | "rejected" | "withdrawn";

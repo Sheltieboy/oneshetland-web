@@ -6,11 +6,13 @@ import { routeForCategory, routeForAskAnswer, isSharedCategory } from "./event-c
 
 /**
  * The page is hidden. It opens only when the SERVER-ONLY switch EVENT_FRONT_DOOR is exactly "on" (never a NEXT_PUBLIC_ variable, which
- * would be public), or for a signed-in administrator previewing it. Everyone else gets a 404.
+ * would be public), or for a signed-in administrator previewing it, or for an ALLOWLISTED TESTER (controlled acceptance testing: the database switch is 'testers' and
+ * the account is on its list; see migration 20261230030000). Everyone else gets a 404.
  */
-export function frontDoorAccess(input: { flag: string | undefined | null; isStaff: boolean }): "open" | "staff_preview" | "hidden" {
+export function frontDoorAccess(input: { flag: string | undefined | null; isStaff: boolean; isTester?: boolean }): "open" | "staff_preview" | "tester" | "hidden" {
   if (input.flag === "on") return "open";
-  return input.isStaff ? "staff_preview" : "hidden";
+  if (input.isStaff) return "staff_preview";
+  return input.isTester === true ? "tester" : "hidden";
 }
 
 export type FrontDoorOutcome =
