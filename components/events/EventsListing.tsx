@@ -263,7 +263,7 @@ function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className={"truncate font-display text-lg font-bold leading-snug" + (cancelled ? " line-through" : "")}>{e.title}</h3>
+        <h3 className={"truncate font-display text-lg font-bold leading-snug group-has-[[data-save-button]]/save:line-clamp-2 group-has-[[data-save-button]]/save:whitespace-normal" + (cancelled ? " line-through" : "")}>{e.title}</h3>
         <p className="mt-0.5 truncate text-sm text-ink-muted">
           {meta.line}
         </p>

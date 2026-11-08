@@ -58,7 +58,12 @@ export function knownState(s: string): SavedState {
 }
 
 /** The date line of a row: "Tue 12 Nov, 19:00" (Europe/London). */
-export function whenLine(i: Pick<SavedItem, "starts_at">): string | null {
+export function whenLine(i: Pick<SavedItem, "starts_at"> & Partial<Pick<SavedItem, "ends_at" | "item_type">>): string | null {
+  // A job has no start: its closing time arrives in ends_at ("Closes Fri 20 Nov").
+  if (i.item_type === "job") {
+    if (!i.ends_at || !Number.isFinite(new Date(i.ends_at).getTime())) return null;
+    return `Closes ${dayShort(i.ends_at)}`;
+  }
   if (!i.starts_at || !Number.isFinite(new Date(i.starts_at).getTime())) return null;
   return `${dayShort(i.starts_at)}, ${clock(i.starts_at)}`;
 }

@@ -201,3 +201,14 @@ test("Clear past: a confirmation first, chunks of 200, no Undo", () => {
   assert.match(src, /for \(const part of chunk\(rows\)\)/);
   assert.match(src, /api\.announce\(CLEAR_PAST\.done\(cleared\)\)/, "announced without an Undo");
 });
+
+test("the provider never cancels the pending flags request in an unmount cleanup (React Strict Mode would then drop it)", () => {
+  const src = readFileSync(new URL("../components/saved/SavedProvider.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /useEffect\(\(\) => \(\) => \{[^}]*clearTimeout\(timer\.current\)/);
+});
+
+test("the bookmark never uses the disabled attribute while a save is in flight (a disabled button drops keyboard focus)", () => {
+  const src = readFileSync(new URL("../components/saved/SaveButton.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /\sdisabled=\{/);
+  assert.match(src, /aria-disabled=\{busy/);
+});

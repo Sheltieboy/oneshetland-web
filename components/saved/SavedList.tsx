@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { useSaved } from "@/components/saved/context";
 import {
-  SAVED_FILTERS, canUndoRemove, chunk, itemHref, itemRef, matchesFilter, refKey, saveOutcome, sectionize,
+  SAVED_FILTERS, applyShadows, canUndoRemove, chunk, itemHref, itemRef, matchesFilter, refKey, saveOutcome, sectionize,
   type SavedFilter, type SavedItem, type SavedListResult, type SavedType,
 } from "@/lib/saved";
 import { CLEAR_PAST, EMPTY, FILTER_LABEL, MORE_NOTE, MSG, SAVED_PRIVATE_NOTE, SNAPSHOT_NOTE, TYPE_LABEL, knownState, labelFor, savedOn, whenLine } from "@/lib/saved-copy";
@@ -88,7 +88,7 @@ export function SavedList({ initial }: { initial: SavedListResult }) {
   const [removed, setRemoved] = useState<ReadonlySet<string>>(() => new Set());
   const [busy, setBusy] = useState(false);
 
-  const items = useMemo(() => initial.items.filter((i) => !removed.has(refKey(itemRef(i)))), [initial.items, removed]);
+  const items = useMemo(() => applyShadows(initial.items.filter((i) => !removed.has(refKey(itemRef(i))))), [initial.items, removed]);
   const sections = useMemo(() => sectionize(items, filter), [items, filter]);
   const visible = sections.comingUp.length + sections.saved.length + sections.past.length;
   const hide = (keys: string[], on: boolean) => setRemoved((prev) => { const n = new Set(prev); for (const k of keys) { if (on) n.add(k); else n.delete(k); } return n; });

@@ -66,7 +66,8 @@ function Live({ signedIn, children }: { signedIn: boolean; children: React.React
     if (!timer.current) timer.current = setTimeout(() => { void flush(); }, TICK_MS);
   }, [signedIn, flush]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // No cleanup that cancels the pending flush: React Strict Mode (development) runs effects, cleans up, then runs them again, and cancelling the timer here
+  // while `seen` already holds the ids meant the question was never asked. A flush that fires after the provider unmounts is harmless.
 
   const mark = useCallback((ref: SavedRef, on: boolean) => {
     setSaved((prev) => { const n = new Set(prev); if (on) n.add(refKey(ref)); else n.delete(refKey(ref)); return n; });

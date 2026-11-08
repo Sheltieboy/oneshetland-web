@@ -6,6 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { applyShadows } from "../lib/saved.ts";
 import {
   STATE_LABEL, SNAPSHOT_NOTE, BUSINESS_SAVE_LINE, MSG, FILTER_LABEL, CLEAR_PAST, SAVED_MENU_LABEL, savedOn, changedLabel, labelFor, knownState, whenLine,
 } from "../lib/saved-copy.ts";
@@ -74,4 +75,18 @@ test("no em dashes or emoji in the copy file (plain English house style)", () =>
   const src = read("lib/saved-copy.ts");
   assert.doesNotMatch(src, /—/);
   assert.doesNotMatch(src, /\p{Extended_Pictographic}/u);
+});
+
+test("a job's date line is its closing day (the closing time arrives in ends_at; a job has no start)", () => {
+  assert.equal(whenLine({ item_type: "job", starts_at: null, ends_at: "2026-11-20T23:59:59Z" }), "Closes Fri 20 Nov");
+  assert.equal(whenLine({ item_type: "job", starts_at: null, ends_at: null }), null);
+  assert.equal(whenLine({ item_type: "event", starts_at: "2026-11-17T19:30:00Z", ends_at: null }), "Tue 17 Nov, 19:30");
+});
+
+test("a saved date is hidden only while the whole item is also saved (removing the whole shows the dates straight away)", () => {
+  const whole = { item_type: "activity", item_id: "a", occurrence_key: null };
+  const date = { item_type: "activity", item_id: "a", occurrence_key: "rule:x:2026-11-11" };
+  const other = { item_type: "event", item_id: "a", occurrence_key: "k" };
+  assert.deepEqual(applyShadows([whole, date, other]).map((i) => i.shadowed), [false, true, false]);
+  assert.deepEqual(applyShadows([date, other]).map((i) => i.shadowed), [false, false]);
 });

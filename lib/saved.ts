@@ -239,6 +239,15 @@ export const BUCKET = { attention: 0, dated: 1, undated: 2, past: 3 } as const;
 export type SavedSections = { comingUp: SavedItem[]; saved: SavedItem[]; past: SavedItem[] };
 
 /**
+ * A date row is "shadowed" when the same item is also saved as a whole. The database says so on load; the page recomputes it from the rows it still has
+ * so that removing the whole item shows its saved dates straight away (and not only after a reload).
+ */
+export function applyShadows<T extends Pick<SavedItem, "item_type" | "item_id" | "occurrence_key">>(items: readonly T[]): (T & { shadowed: boolean })[] {
+  const wholes = new Set(items.filter((i) => i.occurrence_key == null).map((i) => `${i.item_type}|${i.item_id}`));
+  return items.map((i) => ({ ...i, shadowed: i.occurrence_key != null && wholes.has(`${i.item_type}|${i.item_id}`) }));
+}
+
+/**
  * Hide the shadowed rows (a date that is also saved as a whole), apply the filter, and split by the bucket the database computed:
  * 0 and 1 are "Coming up", 2 is "Saved", 3 is "Past and unavailable". The database order is kept.
  */

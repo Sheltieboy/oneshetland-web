@@ -11,7 +11,7 @@ export type SaveVariant =
   | "light"   // a bordered pill on a light surface, with the word "Save"
   | "row";    // an icon-only bookmark inside a list row
 
-const BASE = "inline-flex shrink-0 items-center justify-center gap-2 font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 motion-reduce:transition-none";
+const BASE = "inline-flex shrink-0 items-center justify-center gap-2 font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 aria-disabled:opacity-60 motion-reduce:transition-none";
 const LOOK: Record<SaveVariant, string> = {
   icon: "h-11 w-11 rounded-full bg-paper/95 text-navy shadow-soft hover:bg-paper focus-visible:outline-navy",
   dark: "min-h-[44px] rounded-pill bg-black/40 px-4 py-2 text-sm text-paper backdrop-blur-sm hover:bg-black/55 focus-visible:outline-white",
@@ -71,14 +71,14 @@ export function SaveButton({
       type="button"
       data-save-button=""
       onClick={() => void onClick()}
-      disabled={busy}
+      aria-disabled={busy || undefined}   // not `disabled`: a disabled button drops keyboard focus, and onClick already ignores a tap while busy
       aria-pressed={saved}
       aria-label={bookmarkName(title, dateLabel)}
       title={hint}
       className={`${BASE} ${LOOK[variant]} ${className}`}
     >
       <Bookmark filled={saved} />
-      {showText && <span aria-hidden>{label}</span>}
+      {showText && <span aria-hidden>{saved ? "Saved" : label}</span>}   {/* the visible word follows the state; the accessible name stays constant */}
     </button>
   );
 }
