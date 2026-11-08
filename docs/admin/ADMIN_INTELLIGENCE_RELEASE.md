@@ -55,7 +55,7 @@ Update the registered-migrations snapshot and memory notes, and leave the branch
 
 | Layer | Action | Effect |
 |---|---|---|
-| Website | Netlify "Publish deploy" on `main@5729f2d`, or `git revert d97e6c7..HEAD` on the branch and push | Admin pages go back to the old dashboard |
+| Website | Netlify "Publish deploy" on `main@5729f2d`, or `git revert 5729f2d..HEAD` on the branch and push | Admin pages go back to the old dashboard |
 | Database | `supabase db query --linked -f supabase/rollbacks/20261231000000_admin_intelligence.rollback.sql`, then `supabase migration repair --status reverted 20261231000000` (YOU, from the backend worktree) | Drops the 2 tables and 5 functions. Only Useful Actions history is lost. Nothing else depends on them. |
 | Just reset one action | Claude runs `delete from admin_action_state where action_key = '<key>'` after your OK | The action reappears |
 
