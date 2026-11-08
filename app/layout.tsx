@@ -14,6 +14,8 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
 import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
 import { entryPointProps } from "@/lib/event-entry-points";
+import { SavedProvider } from "@/components/saved/SavedProvider";
+import { getSavedEnabled } from "@/lib/saved.server";
 
 const fraunces = Fraunces({
   variable: "--font-fraunces",
@@ -69,6 +71,8 @@ export default async function RootLayout({
   const fetchStatus = account
     ? { userId: account.id, ...(await getFetchStatusSummary(account.id)) }
     : null;
+  // My Saved: read once here. Off (the default) means nothing about it renders anywhere.
+  const savedEnabled = await getSavedEnabled();
 
   return (
     <html
@@ -121,10 +125,12 @@ export default async function RootLayout({
             moves with it — it never gated any of them, it only covered them. */}
         <ChargeApprovalListener>
           <ConfirmProvider>
+           <SavedProvider enabled={savedEnabled} signedIn={!!account}>
             <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
             <HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes>
             <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
+           </SavedProvider>
           </ConfirmProvider>
         </ChargeApprovalListener>
       </body>

@@ -10,11 +10,14 @@ import { NotificationBell } from "@/components/site/NotificationBell";
 import { BasketPill } from "@/components/shop/BasketPill";
 import { SiteSearch } from "@/components/search/SiteSearch";
 import { MobileMenu } from "@/components/site/MobileMenu";
+import { useSaved } from "@/components/saved/context";
+import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
 export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean }) {
+  const savedOn = useSaved().enabled;   // My Saved menu entry: only when the feature is on
   // The mobile menu is open only on the page it was opened on, so any navigation closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
@@ -129,6 +132,11 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }
                     <Link href="/account" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-sand">
                       My account
                     </Link>
+                    {savedOn && (
+                      <Link href="/account/saved" onClick={() => setMenu(false)} className="block px-4 py-2.5 text-sm font-medium text-ink hover:bg-sand">
+                        {SAVED_MENU_LABEL}
+                      </Link>
+                    )}
                     <form action="/auth/sign-out" method="post">
                       <button type="submit" className="block w-full px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-sand">
                         Sign out

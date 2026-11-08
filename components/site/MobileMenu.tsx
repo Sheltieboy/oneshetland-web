@@ -7,6 +7,8 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
 import { mobileNavGroups } from "@/lib/nav-groups";
 import { ADD_EVENT_HREF, ADD_EVENT_MENU_LABEL } from "@/lib/event-entry-points";
+import { useSaved } from "@/components/saved/context";
+import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 
@@ -24,6 +26,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
   onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean;
 }) {
   const panel = useRef<HTMLDivElement>(null);
+  const savedOn = useSaved().enabled;   // My Saved entry: only when the feature is on
   const [top, setTop] = useState<number | null>(null);
 
   // Sit exactly under the header, wherever it is (a banner above it, a scrolled page, a rotated phone).
@@ -97,6 +100,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
             <div className="mt-2 grid grid-cols-2 gap-2">
               <Link href="/notifications" onClick={onClose} className={pill + " border border-line-strong text-ink hover:bg-sand"}>Notifications</Link>
               <Link href="/business" onClick={onClose} className={pill + " border border-line-strong text-ink hover:bg-sand"}>For businesses</Link>
+              {savedOn && <Link href="/account/saved" onClick={onClose} className={pill + " col-span-2 border border-line-strong text-ink hover:bg-sand"}>{SAVED_MENU_LABEL}</Link>}
             </div>
           </section>
         ) : (
