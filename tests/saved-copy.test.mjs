@@ -18,6 +18,7 @@ test("the label table is exactly the approved one", () => {
     ok: null,
     changed: "Changed",
     cancelled: "Cancelled",
+    postponed: "Postponed. A new date will follow.",
     break: "Break: no session",
     past: "Past",
     date_gone: "This date is no longer scheduled",

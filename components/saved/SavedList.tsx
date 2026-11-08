@@ -20,7 +20,7 @@ const ICON: Record<SavedType, string> = {
 };
 
 /** The reasons a row is shown in a warning colour. Words carry the meaning; colour is only a hint. */
-const WARN = new Set(["cancelled", "break", "changed", "date_gone", "no_upcoming", "closed", "filled", "snapshot_postponed"]);
+const WARN = new Set(["cancelled", "postponed", "break", "changed", "date_gone", "no_upcoming", "closed", "filled", "snapshot_postponed"]);
 
 function Row({ item, onRemove, busy }: { item: SavedItem; onRemove: (i: SavedItem) => void; busy: boolean }) {
   const state = knownState(item.state);

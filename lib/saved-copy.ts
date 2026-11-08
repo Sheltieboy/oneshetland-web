@@ -13,6 +13,7 @@ export const STATE_LABEL: Record<SavedState, string | null> = {
   ok: null,
   changed: "Changed",              // a moved session reads "Moved to {time}" (see changedLabel)
   cancelled: "Cancelled",
+  postponed: "Postponed. A new date will follow.",   // a postponed event the member can still read (organiser, hub admin, ticket holder)
   break: "Break: no session",
   past: "Past",
   date_gone: "This date is no longer scheduled",

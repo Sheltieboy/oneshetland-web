@@ -186,7 +186,7 @@ export function chunk<T>(items: readonly T[], size = MAX_BATCH): T[][] {
 /* ── the list ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export type SavedState =
-  | "upcoming" | "ok" | "changed" | "cancelled" | "break" | "past" | "date_gone" | "no_upcoming" | "closed" | "filled"
+  | "upcoming" | "ok" | "changed" | "cancelled" | "postponed" | "break" | "past" | "date_gone" | "no_upcoming" | "closed" | "filled"
   | "snapshot_expired" | "snapshot_postponed" | "snapshot_ended" | "unavailable";
 
 export type SavedItem = {
