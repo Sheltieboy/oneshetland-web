@@ -68,7 +68,7 @@ Every page shows when it was updated and when the last analytics event arrived, 
 | Listing "last updated" / stale listings | `local_businesses` has no `updated_at` | Add the column with a trigger, then a "not updated in 12 months" rule |
 | Per-listing profile views in the overview | Needs per-business aggregation; the existing `business_analytics` RPC does it per business | Add a top-listings table later |
 
-**Existing analytics problems found (not changed here):** migration `20261130000000_analytics_phase0_accuracy.sql` ("accuracy: excludes admin and test traffic") is **not applied** in any environment, so the older Analytics page still counts internal traffic; `log_events` accepts client-supplied fields with no rate limit; the old `by_day` buckets are UTC (the new reports use UK days); web `user_type` is always "visitor". See the audit.
+**Existing analytics problems found (not changed here):** `log_events` accepts client-supplied fields with no rate limit; the old `by_day` buckets are UTC (the new reports use UK days); web `user_type` is always "visitor". See the audit. *(Correction: an earlier version of this report said migration `20261130000000` was not applied. It is applied in production, so the older Analytics page already excludes internal and test traffic.)*
 
 ## 4. Tests
 
@@ -116,6 +116,6 @@ Order matters: **database first, then web.** The web pages degrade safely if the
 
 1. **Apply order and timing** (section 6), and a sign-off to apply the migration.
 2. **Consent/privacy decision** before adding onboarding and notification-open tracking (section 3).
-3. **Whether to also apply the pending analytics accuracy migration** (`20261130000000`). It makes the older Analytics page exclude admin/test traffic; it is separate and untested against production here.
+3. ~~Apply the analytics accuracy migration~~ Not needed: `20261130000000` is already applied (verified).
 4. **Thresholds are judgement calls** and easy to change in `admin_intel_rules_raw()`: event coverage (8 in 14 days), notification errors (5), unclaimed listings (25), claim ageing (3 days).
 5. **Possible follow-ups** (not built): a daily email or push digest of the top actions (reuse `reminder-runner`'s once-a-day pattern); per-listing view counts; subscription event history.

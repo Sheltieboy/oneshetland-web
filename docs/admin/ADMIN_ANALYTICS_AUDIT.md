@@ -1,3 +1,5 @@
+> **CORRECTION (8 Nov 2026, verified read-only against production):** migration `20261130000000_analytics_phase0_accuracy` IS applied (registered in migration history, and the live `analytics_overview` contains the Phase 0 internal/test exclusion and `signups_confirmed`). Wherever this audit calls it "not applied" or "LOCAL", that came from a stale file header and is wrong. The other findings stand.
+
 # Admin analytics audit (read-only, 8 Nov 2026)
 
 Scope: WEB worktree `oneshetland-web-admin-intel` (= live main), BE worktree `oneshetland-be-admin-intel`, app `oneshetland-delivers` (reference only). Nothing was run against production; everything below is from source. Items I could not confirm from source are marked UNVERIFIED.
