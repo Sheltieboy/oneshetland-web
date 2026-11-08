@@ -8,6 +8,7 @@ import { rowMeta, whenText } from "@/lib/event-display";
 import { splitByState } from "@/lib/event-state";
 import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { SaveButton } from "@/components/saved/SaveButton";
 import {
   type EventListItem,
   type DateRange,
@@ -155,10 +156,11 @@ export function FeaturedStrip({ events, nowIso }: { events: EventListItem[]; now
       <h2 className="mb-4 font-display text-2xl font-bold">Featured</h2>
       <div className="-mx-5 flex snap-x gap-4 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {events.map((e) => (
+          <div key={e.id} className="relative shrink-0 snap-start">
+          <SaveButton type="event" id={e.id} title={e.title} variant="icon" className="absolute right-3 top-3 z-10" />
           <Link
-            key={e.id}
             href={`/whats-on/${e.id}`}
-            className="group relative block h-56 w-72 shrink-0 snap-start overflow-hidden rounded-xl border border-line bg-events/10 shadow-soft sm:w-80"
+            className="group relative block h-56 w-72 overflow-hidden rounded-xl border border-line bg-events/10 shadow-soft sm:w-80"
           >
             {e.cover_url ? (
               <SafeImage
@@ -184,6 +186,7 @@ export function FeaturedStrip({ events, nowIso }: { events: EventListItem[]; now
               </p>
             </div>
           </Link>
+          </div>
         ))}
       </div>
     </section>
@@ -206,10 +209,11 @@ export function OnSaleStrip({ events, nowIso }: { events: EventListItem[]; nowIs
         {events.map((e) => {
           const label = priceLabel(e);
           return (
+            <div key={e.id} className="relative flex w-52 shrink-0 snap-start">
+            <SaveButton type="event" id={e.id} title={e.title} variant="icon" className="absolute right-2 top-2 z-10" />
             <Link
-              key={e.id}
               href={`/whats-on/${e.id}`}
-              className="group flex w-52 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+              className="group flex w-full flex-col overflow-hidden rounded-xl border border-line bg-paper shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
             >
               <div className="h-28 w-full overflow-hidden bg-events/10">
                 {e.cover_url ? (
@@ -229,6 +233,7 @@ export function OnSaleStrip({ events, nowIso }: { events: EventListItem[]; nowIs
                 </span>
               </div>
             </Link>
+            </div>
           );
         })}
       </div>
@@ -243,9 +248,12 @@ function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
   const label = priceLabel(e);
   const cancelled = e.cancelled === true;
   return (
+    <div className="group/save relative">
+    {/* My Saved: a sibling of the link. Renders nothing unless the feature is on; the link then leaves room for it. */}
+    <SaveButton type="event" id={e.id} title={e.title} variant="icon" className="absolute right-2 top-2 z-10" />
     <Link
       href={`/whats-on/${e.id}`}
-      className="group flex items-center gap-4 rounded-xl border border-line bg-paper p-3 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+      className="group flex items-center gap-4 rounded-xl border border-line bg-paper p-3 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift group-has-[[data-save-button]]/save:pr-14"
     >
       <div className="h-20 w-24 shrink-0 overflow-hidden rounded-lg bg-events/10 sm:w-32">
         {e.cover_url ? (
@@ -298,6 +306,7 @@ function EventRow({ e, nowIso }: { e: EventListItem; nowIso?: string }) {
         ›
       </span>
     </Link>
+    </div>
   );
 }
 

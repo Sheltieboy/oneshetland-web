@@ -3,6 +3,7 @@ import { CATEGORY_LABEL, activityHref, nextLine, patternText, safeHttps, type Li
 import { activityOrganiserLabel } from "@/lib/activity-organiser";
 import { HERO, REGULAR } from "./tokens";
 import { ActivityImage } from "./ActivityImage";
+import { SaveButton } from "@/components/saved/SaveButton";
 
 /** ONE card per activity, however many sessions it runs. */
 export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow[]; now?: Date }) {
@@ -11,7 +12,9 @@ export function ActivityCard({ a, rules, now }: { a: ListingRow; rules?: RuleRow
   const place = [a.venue, a.locality].filter(Boolean).join(", ");
   const drop = a.booking_mode === "drop_in";
   return (
-    <li className="list-none">
+    <li className="relative list-none">
+      {/* My Saved: the whole activity. A sibling of the link, over the cover. Renders nothing unless the feature is on. */}
+      <SaveButton type="activity" id={a.id} title={a.title} variant="icon" className="absolute right-3 top-3 z-10" />
       <Link
         href={activityHref(a.slug)}
         className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"

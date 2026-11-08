@@ -32,6 +32,7 @@ import { getAccount } from "@/lib/auth";
 import { canScanEvent } from "@/lib/events-server";
 import { TicketButton } from "@/components/events/TicketModal";
 import { ShareButton } from "@/components/events/ShareButton";
+import { SaveButton } from "@/components/saved/SaveButton";
 import { TrackView } from "@/components/analytics/TrackView";
 import { TicketLink } from "@/components/analytics/TicketLink";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -142,7 +143,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             >
               <span aria-hidden>‹</span> What&apos;s On
             </Link>
-            {wholeCancelled ? null : <ShareButton title={e.title} text={`${e.title} — ${dated ? "next: " : ""}${fmtLongDateTime(whenStart)}`} />}
+            {wholeCancelled ? null : (
+              <div className="flex items-center gap-2">
+                {/* My Saved: saves the whole event (or the whole run). Renders nothing unless the feature is on. */}
+                <SaveButton type="event" id={e.id} title={e.title} variant="dark" />
+                <ShareButton title={e.title} text={`${e.title} — ${dated ? "next: " : ""}${fmtLongDateTime(whenStart)}`} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -298,7 +305,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             {e.accessibility_info ? <InfoCard label="Accessibility">{e.accessibility_info}</InfoCard> : null}
           </div>
 
-          {dated ? <PerformancesList occurrences={occ} defaultVenue={e.venue} now={now} /> : null}
+          {dated ? <PerformancesList occurrences={occ} defaultVenue={e.venue} now={now} save={{ eventId: e.id, title: e.title }} /> : null}
 
           {/* Getting there — Shetland context (ferry, weather, daylight) */}
           {isLive && conditions ? (

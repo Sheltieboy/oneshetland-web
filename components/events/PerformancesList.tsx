@@ -1,4 +1,6 @@
 import { displayOccurrences, nextOccurrence, liveOccurrence, type Occurrence } from "@/lib/event-occurrences";
+import { SaveButton } from "@/components/saved/SaveButton";
+import { eventDateKey } from "@/lib/saved";
 
 const TZ = "Europe/London";
 /** Text-safe darker shade of the What's On amber (the bright one is for fills; on white it is under 3:1). */
@@ -18,10 +20,13 @@ export function PerformancesList({
   occurrences,
   defaultVenue,
   now = new Date(),
+  save,
 }: {
   occurrences: readonly Occurrence[];
   defaultVenue?: string | null;
   now?: Date;
+  /** My Saved: when given, each coming, un-cancelled date gets its own "Save this date" bookmark (key = the date's id). Shows nothing while the feature is off. */
+  save?: { eventId: string; title: string };
 }) {
   const all = displayOccurrences(occurrences);
   if (all.length === 0) return null;
@@ -68,6 +73,9 @@ export function PerformancesList({
             <span className="rounded-pill px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-paper" style={{ background: ACCENT_TEXT }}>
               {liveOccurrence(all, now) ? "On now" : "Next"}
             </span>
+          ) : null}
+          {save && o.id && !past && !cancelled ? (
+            <SaveButton type="event" id={save.eventId} occurrenceKey={eventDateKey(o.id)} title={save.title} dateLabel={dateLabel(o.starts_at)} variant="row" hint="Save this date" />
           ) : null}
         </div>
       </li>

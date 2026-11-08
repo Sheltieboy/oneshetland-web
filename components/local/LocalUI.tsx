@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { tierUnlocks } from "@/lib/listing-tiers";
 import { CATEGORY_LABEL, offerBadge, type Business, type Offer } from "@/lib/local-data";
+import { SaveButton } from "@/components/saved/SaveButton";
 
 const LOCAL = "#7c3aed";
 
@@ -60,7 +61,9 @@ export function BusinessCard({ b, productThumbs }: { b: Business; productThumbs?
     ? (b.brand_color.startsWith("#") ? b.brand_color : `#${b.brand_color}`)
     : LOCAL;
   return (
-    <div className="group flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift">
+    <div className="group relative flex flex-col overflow-hidden rounded-card border border-line bg-paper shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift">
+      {/* My Saved: a sibling of the link, not inside it. Renders nothing unless the feature is on. */}
+      <SaveButton type="business" id={b.id} title={b.name} variant="icon" className="absolute left-3 top-3 z-10" />
       <Link href={href} className="flex flex-1 flex-col">
         <div className="relative h-32 overflow-hidden" style={{ background: `${accent}1a` }}>
           {b.cover_url ? (

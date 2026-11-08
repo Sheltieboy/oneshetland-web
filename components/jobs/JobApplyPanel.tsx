@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { SaveButton } from "@/components/saved/SaveButton";
+import { useSaved } from "@/components/saved/context";
 
 const JOBS = "#2a8b5c";
 
@@ -15,11 +17,12 @@ type Snapshot = {
 } | null;
 
 export function JobApplyPanel({
-  jobId, isLoggedIn, alreadyApplied, isSaved, snapshot,
+  jobId, isLoggedIn, alreadyApplied, isSaved, snapshot, jobTitle,
 }: {
-  jobId: string; isLoggedIn: boolean; alreadyApplied: boolean; isSaved: boolean; snapshot: Snapshot;
+  jobId: string; jobTitle?: string; isLoggedIn: boolean; alreadyApplied: boolean; isSaved: boolean; snapshot: Snapshot;
 }) {
   const router = useRouter();
+  const savedOn = useSaved().enabled;   // My Saved on: the shared bookmark replaces the old button below. Off: exactly as before.
   const [applied, setApplied] = useState(alreadyApplied);
   const [saved, setSaved] = useState(isSaved);
   const [open, setOpen] = useState(false);
@@ -150,9 +153,13 @@ export function JobApplyPanel({
         </div>
       )}
 
-      <button onClick={toggleSave} className="mt-3 block w-full rounded-pill border border-line-strong px-4 py-2.5 text-center text-sm font-semibold text-ink hover:bg-sand">
-        {saved ? "★ Saved" : "☆ Save job"}
-      </button>
+      {savedOn ? (
+        <SaveButton type="job" id={jobId} title={jobTitle ?? "this job"} variant="light" className="mt-3 w-full" />
+      ) : (
+        <button onClick={toggleSave} className="mt-3 block w-full rounded-pill border border-line-strong px-4 py-2.5 text-center text-sm font-semibold text-ink hover:bg-sand">
+          {saved ? "★ Saved" : "☆ Save job"}
+        </button>
+      )}
     </div>
   );
 }

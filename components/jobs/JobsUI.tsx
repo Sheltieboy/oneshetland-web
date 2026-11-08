@@ -6,6 +6,7 @@ import {
   URGENCY_CONFIG, SHIFT_CATEGORY_LABELS,
 } from "@/lib/jobs-data";
 import { closingLabel } from "@/lib/job-taxonomy";
+import { SaveButton } from "@/components/saved/SaveButton";
 
 export const JOBS = "#2a8b5c";
 export const SHIFTS = "#e8a020";
@@ -43,11 +44,14 @@ export function JobCard({ job }: { job: Job }) {
   const closing = closingLabel(job.expires_at);
   const urgent = /^Closes (today|tomorrow|in )/.test(closing);
   return (
+    <div className="group/save relative h-full">
+    {/* My Saved: a sibling of the link. Renders nothing unless the feature is on; the title row then leaves room for it. */}
+    <SaveButton type="job" id={job.id} title={job.title} variant="icon" className="absolute right-2 top-2 z-10" />
     <Link
       href={`/jobs/${job.id}`}
-      className="group flex flex-col gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
+      className="group flex h-full flex-col gap-3 rounded-card border border-line bg-paper p-4 shadow-soft transition duration-300 hover:-translate-y-1 hover:shadow-lift"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-3 group-has-[[data-save-button]]/save:pr-9">
         <Logo url={disp.logo_url} name={name} accent={JOBS} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
@@ -78,6 +82,7 @@ export function JobCard({ job }: { job: Job }) {
         <p className={"text-xs font-semibold " + (urgent ? "text-amber-700" : "text-ink-muted")} data-testid="job-closing" data-urgent={urgent ? "true" : undefined}>{closing}</p>
       )}
     </Link>
+    </div>
   );
 }
 

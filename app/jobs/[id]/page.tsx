@@ -7,6 +7,7 @@ import { JOBS } from "@/components/jobs/JobsUI";
 import { JobApplyPanel } from "@/components/jobs/JobApplyPanel";
 import { closingLabel } from "@/lib/job-taxonomy";
 import { TrackView } from "@/components/analytics/TrackView";
+import { SaveButton } from "@/components/saved/SaveButton";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,11 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
       <section className="relative isolate overflow-hidden" style={{ background: JOBS }}>
         <div className="absolute inset-0" style={{ background: `linear-gradient(160deg,${JOBS}f0 30%,${JOBS}c0)` }} />
         <div className="relative mx-auto max-w-4xl px-5 py-10 sm:py-12">
-          <Link href="/jobs" className="text-sm font-semibold text-white/80 hover:text-white">← Work · Jobs</Link>
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/jobs" className="text-sm font-semibold text-white/80 hover:text-white">← Work · Jobs</Link>
+            {/* My Saved: in the hero so a signed-out visitor sees it too (the apply panel is not shown to them). Nothing renders unless the feature is on. */}
+            {!isOwner && <SaveButton type="job" id={job.id} title={job.title} variant="dark" />}
+          </div>
           <div className="mt-4 flex items-start gap-4">
             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl border border-white/30 bg-white/10">
               {disp.logo_url
@@ -146,6 +151,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
           ) : (
             <JobApplyPanel
               jobId={job.id}
+              jobTitle={job.title}
               isLoggedIn={!!account}
               alreadyApplied={applied}
               isSaved={savedIds.has(job.id)}

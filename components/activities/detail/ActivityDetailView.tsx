@@ -2,10 +2,12 @@ import Link from "next/link";
 import { SafeImage } from "@/components/ui/SafeImage";
 import { FollowButton } from "@/components/activities/FollowButton";
 import { WhatsOnTabs } from "@/components/activities/WhatsOnTabs";
+import { SaveButton } from "@/components/saved/SaveButton";
+import { sessionKey } from "@/lib/saved";
 import { HERO, REGULAR } from "@/components/activities/tokens";
 import {
   CATEGORY_LABEL, SESSION_STATUS_LABEL, changeLine, changedAhead, dayLabel, dayLong, dayShort, formatPrice, joinSummary, monthGroups, movedFrom,
-  nextLiveSession, patternText, safeHttps, stillToCome, timeHM, timeRange, type RuleRow, type SessionRow,
+  nextLiveSession, londonDate, patternText, safeHttps, stillToCome, timeHM, timeRange, type RuleRow, type SessionRow,
 } from "@/lib/activities";
 import type { ActivityDetail, Owner } from "@/lib/activities-data";
 
@@ -26,6 +28,8 @@ const BADGE: Record<string, string> = {
 export type DetailViewProps = {
   activity: ActivityDetail; owner: Owner; rules: RuleRow[]; sessions: SessionRow[]; now: Date;
   isPublic: boolean; canManage: boolean; manageHref: string | null; signedIn: boolean; following: boolean;
+  /** `?session=<YYYY-MM-DD>` from a My Saved link: that session is highlighted. */
+  highlightSession?: string | null;
 };
 
 /**
@@ -33,7 +37,7 @@ export type DetailViewProps = {
  * (no invented descriptions, venues, prices or dates). Without a photo the page uses a coloured hero chosen by the kind of activity; with one, the
  * photo sits under a legible gradient. No animation, and every control is a real link, button or <details>.
  */
-export function ActivityDetailView({ activity: a, owner, rules, sessions, now, isPublic, canManage, manageHref, signedIn, following }: DetailViewProps) {
+export function ActivityDetailView({ activity: a, owner, rules, sessions, now, isPublic, canManage, manageHref, signedIn, following, highlightSession = null }: DetailViewProps) {
   const [c1, c2] = HERO[a.category] ?? HERO.other;
   const photo = safeHttps(a.cover_url);
   const place = [a.venue, a.locality].filter(Boolean).join(", ");
@@ -47,6 +51,9 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
   const ownerKnown = owner.kind !== "platform" && !!owner.name;   // platform-owned or unreadable owner: say nothing about who runs it
   const nextPlace = next ? [next.venue, next.locality].filter(Boolean).join(", ") || place : place;
   const nextMoved = next ? movedFrom(next) : null;
+  const isHi = (s: SessionRow) => !!highlightSession && (s.occurrence_date === highlightSession || londonDate(s.starts_at) === highlightSession);
+  const HI = " ring-2 ring-[color:var(--color-events)]";
+  const hiInFull = !!highlightSession && ahead.slice(preview.length).some(isHi);
 
   return (
     <div className="pb-16">
@@ -92,6 +99,8 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
             {place && <li className="flex items-center gap-2"><Icon d={PIN} /><span>{place}</span></li>}
           </ul>
           <div className="mt-6 flex flex-wrap items-start gap-4">
+            {/* My Saved: the whole activity. Renders nothing unless the feature is on. */}
+            {isPublic && <SaveButton type="activity" id={a.id} title={a.title} variant="dark" />}
             {isPublic && <FollowButton activityId={a.id} slug={a.slug} signedIn={signedIn} following={following} tone="onDark" />}
             {canManage && manageHref && isPublic && <Link href={manageHref} className="rounded-pill border border-white/60 px-5 py-3 text-sm font-bold text-white hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">Manage this activity</Link>}
           </div>
@@ -116,6 +125,9 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
         {/* ── Next session ────────────────────────────────────────────────────────────────────────────────────────────────── */}
         <section aria-labelledby="next-h" className={"relative z-10 rounded-card border border-t-[3px] border-[color-mix(in_srgb,var(--color-jobs)_26%,#fff)] border-t-[color:var(--color-jobs)] bg-[color-mix(in_srgb,var(--color-jobs)_7%,#fff)] p-5 shadow-lift sm:p-6 " + (changes.length > 0 ? "mt-4" : "-mt-10 sm:-mt-12")}>
           <p id="next-h" className="text-[11px] font-bold uppercase tracking-widest" style={{ color: REGULAR }}>Next session</p>
+          {next && isPublic && sessionKey(next) && (
+            <SaveButton type="activity" id={a.id} occurrenceKey={sessionKey(next)} title={a.title} dateLabel={`${dayShort(next.starts_at)}, ${timeRange(next.starts_at, next.ends_at)}`} variant="row" hint="Save this session" className="absolute right-3 top-3" />
+          )}
           {next ? (
             <div className="mt-2 grid gap-5 md:grid-cols-[1fr_auto] md:items-center">
               <div>
@@ -154,7 +166,7 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
               {preview.map((s, i) => {
                 const off = s.status === "cancelled" || s.status === "break";
                 return (
-                  <li key={`${s.starts_at}-${i}`} className={"w-[7.5rem] shrink-0 snap-start rounded-xl border p-3 sm:w-auto " + (off ? "border-rose-200 bg-rose-50" : s.status === "moved" || s.status === "changed" ? "border-amber-200 bg-amber-50" : "border-line bg-paper")}>
+                  <li key={`${s.starts_at}-${i}`} aria-current={isHi(s) ? "true" : undefined} className={"w-[7.5rem] shrink-0 snap-start rounded-xl border p-3 sm:w-auto " + (off ? "border-rose-200 bg-rose-50" : s.status === "moved" || s.status === "changed" ? "border-amber-200 bg-amber-50" : "border-line bg-paper") + (isHi(s) ? HI : "")}>
                     <p className={"text-sm font-bold text-ink " + (off ? "line-through opacity-70" : "")}>{dayShort(s.starts_at)}</p>
                     <p className={"text-xs text-ink-soft " + (off ? "line-through opacity-70" : "")}>{timeHM(s.starts_at)}</p>
                     {SESSION_STATUS_LABEL[s.status] && <p className={"mt-1 inline-block rounded-pill px-2 py-0.5 text-[11px] font-bold " + BADGE[s.status]}>{SESSION_STATUS_LABEL[s.status]}</p>}
@@ -163,7 +175,7 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
               })}
             </ol>
             {ahead.length > preview.length && (
-              <details className="group mt-3 rounded-card border border-line bg-paper shadow-soft">
+              <details className="group mt-3 rounded-card border border-line bg-paper shadow-soft" open={hiInFull || undefined}>
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-card px-4 py-3 text-sm font-bold text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 [&::-webkit-details-marker]:hidden">
                   <span>See the full schedule ({ahead.length} sessions)</span>
                   <span aria-hidden className="text-lg leading-none transition group-open:rotate-45 motion-reduce:transition-none">+</span>
@@ -177,12 +189,15 @@ export function ActivityDetailView({ activity: a, owner, rules, sessions, now, i
                           const off = s.status === "cancelled" || s.status === "break";
                           const note = [movedFrom(s), s.venue && s.venue !== a.venue ? `At ${s.venue}` : null, s.note].filter(Boolean).join(" · ");
                           return (
-                            <li key={`${s.starts_at}-${i}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
+                            <li key={`${s.starts_at}-${i}`} aria-current={isHi(s) ? "true" : undefined} className={"flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5" + (isHi(s) ? HI + " rounded-lg px-2" : "")}>
                               <div className="min-w-0">
                                 <p className={"text-sm font-semibold text-ink " + (off ? "line-through opacity-60" : "")}>{dayLong(s.starts_at)} · {timeRange(s.starts_at, s.ends_at)}</p>
                                 {note && <p className="text-xs text-ink-soft">{note}</p>}
                               </div>
-                              {SESSION_STATUS_LABEL[s.status] && <span className={"shrink-0 rounded-pill px-2.5 py-0.5 text-xs font-bold " + BADGE[s.status]}>{SESSION_STATUS_LABEL[s.status]}</span>}
+                              <div className="flex shrink-0 items-center gap-2">
+                                {SESSION_STATUS_LABEL[s.status] && <span className={"shrink-0 rounded-pill px-2.5 py-0.5 text-xs font-bold " + BADGE[s.status]}>{SESSION_STATUS_LABEL[s.status]}</span>}
+                                {isPublic && !off && sessionKey(s) && <SaveButton type="activity" id={a.id} occurrenceKey={sessionKey(s)} title={a.title} dateLabel={`${dayLong(s.starts_at)}, ${timeRange(s.starts_at, s.ends_at)}`} variant="row" hint="Save this session" />}
+                              </div>
                             </li>
                           );
                         })}

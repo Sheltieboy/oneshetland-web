@@ -10,6 +10,7 @@ import { TrackView } from "@/components/analytics/TrackView";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { businessSchema, breadcrumbSchema } from "@/lib/seo-schema";
 import { FollowButton } from "@/components/local/FollowButton";
+import { SaveButton } from "@/components/saved/SaveButton";
 import { OfferClaimList } from "@/components/local/OfferClaimList";
 import { UnitItemsSection } from "@/components/local/UnitItemsSection";
 import { ServicesSection } from "@/components/local/ServicesSection";
@@ -58,7 +59,7 @@ export async function PublishedBusinessPage({ b, draft, searchParams }: { b: Bus
         slots={{
           follow: ({ businessId }) => isOwner
             ? <Link href={`/business/${businessId}/manage`} className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-pill px-4 py-2.5 text-sm font-bold text-white shadow-soft hover:brightness-110" style={{ background: accent }}>Manage business →</Link>
-            : <FollowButton businessId={businessId} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />,
+            : <><FollowButton businessId={businessId} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} /><SaveButton type="business" id={businessId} title={b.name} variant="dark" /></>,
         }}
       />
       {(showOffers || showPasses || showLoyalty || showServices || cashback > 0 || showHiring) && (

@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { getActivityDetail } from "@/lib/activities-data";
 import { ActivityDetailView } from "@/components/activities/detail/ActivityDetailView";
 import { patternText, safeHttps } from "@/lib/activities";
+import { parseSessionParam } from "@/lib/saved";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return { ...(og ? { openGraph: { images: [{ url: og }] } } : {}), title: `${d.activity.title} · Regular activities`, description: d.activity.description?.slice(0, 160) ?? `${patternText(d.rules)}${d.activity.venue ? ` at ${d.activity.venue}` : ""}.` };
 }
 
-export default async function ActivityPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ActivityPage({ params, searchParams }: { params: Promise<{ slug: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { slug } = await params;
+  const highlightSession = parseSessionParam((await searchParams)?.session);   // ?session=<date> from a My Saved link: highlight that session
   const now = new Date();
   const d = await getActivityDetail(slug, now);
   if (!d) notFound();
@@ -27,7 +29,7 @@ export default async function ActivityPage({ params }: { params: Promise<{ slug:
     : null;
   return (
     <>
-      <ActivityDetailView activity={a} owner={owner} rules={d.rules} sessions={d.sessions} now={now} isPublic={isPublic} canManage={d.canManage} manageHref={manageHref} signedIn={d.signedIn} following={d.following} />
+      <ActivityDetailView activity={a} owner={owner} rules={d.rules} sessions={d.sessions} now={now} isPublic={isPublic} canManage={d.canManage} manageHref={manageHref} signedIn={d.signedIn} following={d.following} highlightSession={highlightSession} />
       {isPublic && <div className="mx-auto max-w-5xl px-5 pb-12"><AccessibilitySection type="activity" id={a.id} heading="Access and assistance at this activity" /></div>}
     </>
   );

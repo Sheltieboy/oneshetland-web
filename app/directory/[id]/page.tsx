@@ -20,6 +20,7 @@ import { UnitItemsSection } from "@/components/local/UnitItemsSection";
 import { ServicesSection } from "@/components/local/ServicesSection";
 import { WalletTopUpButton } from "@/components/local/WalletTopUpButton";
 import { FollowButton } from "@/components/local/FollowButton";
+import { SaveButton } from "@/components/saved/SaveButton";
 import { LoyaltyProgress } from "@/components/local/LoyaltyProgress";
 import { BusinessLocationMap } from "@/components/local/BusinessLocationMap";
 import { tierUnlocks, galleryLimit } from "@/lib/listing-tiers";
@@ -183,7 +184,11 @@ export default async function BusinessPage({
                 Manage business <span aria-hidden>→</span>
               </Link>
             ) : (
-              <FollowButton businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+              <>
+                <FollowButton businessId={b.id} accent={accent} isLoggedIn={isLoggedIn} signInHref={signInHref} />
+                {/* My Saved: private, no updates (that is what Follow is for). Non-owners only; renders nothing unless the feature is on. */}
+                <SaveButton type="business" id={b.id} title={b.name} variant="dark" className="ml-2" />
+              </>
             )}
           </div>
         </div>
