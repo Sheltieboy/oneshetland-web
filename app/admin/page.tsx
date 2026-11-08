@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { getAdminStats } from "@/lib/admin-data.server";
 import { AdminHeader, StatCard } from "@/components/admin/AdminUI";
+import { IntelKpi } from "@/components/admin/IntelUI";
+import { UsefulActions } from "@/components/admin/UsefulActions";
+import { getAdminIntelOverview, getUsefulActions } from "@/lib/admin-intel.server";
+import { pct, ago } from "@/lib/admin-intel";
 import { eventQueueBadgeCounts } from "@/lib/event-submissions-admin.server";
 import { COMMUNITY_EVENTS_HREF, CHANGES_BADGE_KEY, CHANGES_HREF, SUBMISSIONS_BADGE_KEY, SUBMISSIONS_HREF } from "@/lib/event-community-admin";
 
@@ -23,6 +27,7 @@ const TOOLS = [
   { href: COMMUNITY_EVENTS_HREF, label: "Community events", desc: "Find published community events, open them, cancel or restore a date or the whole event" },
   { href: "/admin/launch-partners", label: "Launch partners", desc: "Prepare previews and business pages, invite businesses, follow each to going live" },
   { href: "/admin/launch-readiness", label: "Launch readiness", desc: "What's done, what's left and what still blocks launch" },
+  { href: "/admin/intelligence", label: "Admin Intelligence", desc: "How the platform is doing, what members and businesses are doing, and what to do next" },
   { href: "/admin/analytics", label: "Analytics", desc: "Behaviour, conversions and revenue across the platform" },
   { href: "/admin/operations", label: "Operations", desc: "Delivery requests, runs, disputes" },
   { href: "/admin/payments", label: "Payments", desc: "Membership payments and refunds" },
@@ -33,13 +38,35 @@ const TOOLS = [
 ];
 
 export default async function AdminDashboard() {
-  const s = await getAdminStats();
+  const [s, intel, useful] = await Promise.all([getAdminStats(), getAdminIntelOverview(30), getUsefulActions()]);
   const counts: Record<string, number> = { ...(s as unknown as Record<string, number>), ...(await eventQueueBadgeCounts()) };
 
   return (
     <>
       <AdminHeader title="Dashboard" sub="Everything that needs your attention across OneShetland." />
 
+      {/* Key performance summary (last 30 days vs the 30 before). Full detail: Intelligence. */}
+      {intel && (
+        <section aria-label="Key performance summary">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+            <IntelKpi label="Members" value={intel.members.total} hint={`${intel.members.new_today} today`} />
+            <IntelKpi label="New (30d)" value={intel.members.new_period} cur={intel.members.new_period} prev={intel.members.new_prev} days={30} />
+            <IntelKpi label="Active listings" value={intel.businesses.active} hint={`${pct(intel.businesses.claimed, intel.businesses.active)} claimed`} />
+            <IntelKpi label="Paid plans" value={intel.commercial.paid_active} />
+            <IntelKpi label="Upcoming events" value={intel.content.events.upcoming} hint={`${intel.content.events.next_14d} in 14 days`} />
+            <IntelKpi label="Open jobs" value={intel.content.jobs.open} />
+          </div>
+          <p className="mt-2 text-xs text-ink-muted">Updated {ago(intel.generated_at)} · <Link href="/admin/intelligence" className="font-bold text-teal-700 underline">Open Admin Intelligence →</Link></p>
+        </section>
+      )}
+
+      <div className="mt-6">
+        {useful ? <UsefulActions actions={useful.actions} generatedAt={useful.generated_at} initial={3} /> : (
+          <p className="rounded-card border border-dashed border-line bg-paper/60 px-4 py-4 text-sm text-ink-muted">Useful Actions will appear here once the Admin Intelligence database functions are applied.</p>
+        )}
+      </div>
+
+      <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Operations snapshot</h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="Total users" value={s.users} />
         <StatCard label="Pending drivers" value={s.pendingDrivers} alert />

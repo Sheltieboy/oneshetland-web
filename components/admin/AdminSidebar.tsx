@@ -7,6 +7,7 @@ import { STAFF_EVENT_NAV, adminNavActive } from "@/lib/event-community-admin";
 const NAV: { group: string; items: { href: string; label: string; badgeKey?: string; exact?: boolean }[] }[] = [
   { group: "Overview", items: [
     { href: "/admin", label: "Dashboard" },
+    { href: "/admin/intelligence", label: "Intelligence" },
     { href: "/admin/launch-readiness", label: "Launch readiness" },
     { href: "/admin/launch-testing", label: "Launch testing" },
   ] },
