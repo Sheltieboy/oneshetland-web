@@ -23,14 +23,26 @@ import { HeroActions } from "@/components/home/HomeSections";
 import { PlanDayTile } from "@/components/home/PlanDayTile";
 import { buildWork } from "@/lib/preview-work";
 import { loadLiveShifts, mapLiveJobs } from "@/lib/preview-work-live";
-import { JoinBusinessCta } from "@/components/business/JoinBusinessCta";
+import { JOIN_ADD_HREF, JOIN_CLAIM_HREF } from "@/components/business/JoinBusinessCta";
+import { ContributeCard } from "@/components/home/ContributeCard";
+import { NewThisWeek } from "@/components/home/NewThisWeek";
+import { TomorrowStrip } from "@/components/home/TomorrowStrip";
+import { LatestEditorial } from "@/components/home/LatestEditorial";
+import { planNewThisWeek } from "@/lib/home-new-this-week";
+import { getHomeNewCandidates } from "@/lib/home-new.server";
+import { getHomeAnnouncements } from "@/lib/home-announcements";
+import { getTomorrowEvents } from "@/lib/home-tomorrow.server";
+import { tomorrowItems, tomorrowWindow } from "@/lib/home-tomorrow";
+import { offersContribution } from "@/lib/home-contribute";
+import { ADD_EVENT_HREF, ADD_EVENT_LABEL, ADD_EVENT_SHORT_DESC, entryPointsEnabled } from "@/lib/event-entry-points";
+import { getMyBusinesses } from "@/lib/jobs-data.server";
 import { GetItDoneHome } from "@/components/home/GetItDoneHome";
 import { HomeWork } from "@/components/preview/v2/WorkV2";
 import { ForYou } from "@/components/home/ForYou";
 import { getHomePin } from "@/lib/home-pin";
 import { getAccount, accountName } from "@/lib/auth";
 import { getForYou } from "@/lib/for-you.server";
-import { LivePills, RightNow, DiscoverLocal, CommerceGateway, IslandMosaic, CommunityV2, ExploreV2 } from "@/components/preview/v2/HomeV2";
+import { Heading, LivePills, RightNow, DiscoverLocal, CommerceGateway, IslandMosaic, CommunityV2, ExploreV2 } from "@/components/preview/v2/HomeV2";
 
 // Live community content — always fetch fresh.
 export const dynamic = "force-dynamic";
@@ -52,7 +64,10 @@ export default async function Home() {
   const emptyData: HomeData = { events: [], businesses: [], offers: [], notices: [], campaigns: [], jobs: [], shifts: [], alerts: [], spik: null };
   const emptyShelves: HomeShelves = { freshProducts: [], hiring: [], boat: null, story: null, spik: null };
   const accountP = getAccount();
-  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin, activityData] = await Promise.all([
+  // Regular activities for the "What's happening" tabs: anonymous, one listing read + one rules read, kept for two minutes. Started first so "New this week"
+  // (which needs its genuine upcoming sessions) and "Tomorrow" can follow it without waiting for the other loaders.
+  const activityP = resilient<{ rows: ListingRow[]; rules: Record<string, RuleRow[]> }>("home:activities", { ...R(120_000, 5000, 15 * 60_000), fallback: { rows: [], rules: {} }, isEmpty: (v) => v.rows.length === 0 }, () => getHomeActivities(now));
+  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin, activityData, announcements, newCandidates, tomorrowEvents, myBusinesses] = await Promise.all([
     resilient("home:data", { ...R(60_000, 6000, 10 * 60_000), fallback: emptyData }, () => getHomeData({ legacyNotices: false, homepageOnly: true })),
     resilient("home:hero", { ...R(5 * 60_000, 3000, 60 * 60_000), fallback: DEFAULT_HERO_IMAGE }, () => getHeroImage()),
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
@@ -68,10 +83,21 @@ export default async function Home() {
     accountP.then((a) => (a ? getForYou(a.id).catch(() => []) : [])).catch(() => []),
     // The admin-managed pinned launch card: signed-in members only, one cached read of a one-row table.
     accountP.then((a) => (a ? getHomePin().catch(() => null) : null)).catch(() => null),
-    // Regular Activities for the "What's happening" tabs: anonymous, one listing read + one rules read, kept for two minutes.
-    resilient<{ rows: ListingRow[]; rules: Record<string, RuleRow[]> }>("home:activities", { ...R(120_000, 5000, 15 * 60_000), fallback: { rows: [], rules: {} }, isEmpty: (v) => v.rows.length === 0 }, () => getHomeActivities(now)),
+    activityP,
+    // Latest from OneShetland: live announcements only (published, started, not expired); failure means the section does not appear.
+    getHomeAnnouncements(),
+    // New in Shetland this week: real publication dates; the pure rules (7 days, no expired content, no shelf duplicates) apply below.
+    activityP.then((a) => getHomeNewCandidates(a.rows, now)).catch(() => []),
+    getTomorrowEvents(now),
+    // Businesses this member owns: only used to send an owner straight to their own offer manager.
+    accountP.then((a) => (a ? getMyBusinesses(a.id).catch(() => []) : [])).catch(() => []),
   ]);
   const homeActivities = homeActivityPlan(activityData.rows, activityData.rules, now);
+  // New in Shetland this week: never a business already on the Discover shelf (no double exposure), never expired or stale content.
+  const shelfIds = new Set([...businesses.main, ...businesses.recent].map((b) => b.id));
+  const newPlan = planNewThisWeek(newCandidates, now.getTime(), shelfIds);
+  const tomorrow = tomorrowItems(tomorrowEvents, activityData.rows.map((r) => ({ id: r.id, slug: r.slug, title: r.title, next_starts_at: r.next_starts_at, venue: r.venue, locality: r.locality })), now);
+  const offersCard = offersContribution(myBusinesses);
   const work = buildWork("live", undefined, { jobs: mapLiveJobs(shelves.hiring), shifts: liveShifts }, now);
   // For you — personal, signed-in only, and only when there is something genuine to say.
   const visiting = audience === "visiting";
@@ -112,18 +138,36 @@ export default async function Home() {
 
       {account && (forYou.length > 0 || pin) && <ForYou name={accountName(account).split(" ")[0]} items={forYou} pin={pin} />}
 
-      {/* 3 · RIGHT NOW */}
-      <RightNow events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} activities={homeActivities} />
+      {/* 3 · NEW IN SHETLAND THIS WEEK — what was newly published (real dates; hides itself in a quiet week) */}
+      <NewThisWeek plan={newPlan} now={now.getTime()} />
 
-      {/* 4 · DISCOVER SOMETHING LOCAL */}
+      {/* 4 · WHAT'S HAPPENING — what is coming up, with tomorrow's preview and the add-an-event invitation (only when the front door is on) */}
+      <RightNow
+        events={data.events} cruise={cruise} showCruise={showCruise} lead={commerce.experiences[0]} activities={homeActivities}
+        header={<Heading eyebrow="Coming up" title="What's happening" color="#d4921a" />}
+        footer={<>
+          <TomorrowStrip date={tomorrowWindow(now).label} items={tomorrow} />
+          {entryPointsEnabled() && (
+            <div className="mt-8"><ContributeCard id="c-events" color="#9a6409" icon="calendar" title="Got something happening?" body={ADD_EVENT_SHORT_DESC} note="Our team checks independent events before they appear." actions={[{ label: ADD_EVENT_LABEL, href: ADD_EVENT_HREF, primary: true }]} /></div>
+          )}
+        </>}
+      />
+
+      {/* 5 · LATEST FROM ONESHETLAND — admin-managed (Admin → Announcements) */}
+      <LatestEditorial items={announcements} />
+
+      {/* 6 · DISCOVER SOMETHING LOCAL — paid placement, rotation and Recently joined are unchanged */}
       <DiscoverLocal businesses={businesses.main} recent={businesses.recent} />
-      <JoinBusinessCta variant="compact" />
+      {/* The one business invitation (it replaces the old "Is your business on OneShetland?" band: same two journeys, same links). */}
+      <div className="mx-auto max-w-6xl px-5 pb-2 pt-7"><ContributeCard id="c-business" color="#6d28d9" icon="shop" title="Is your business on OneShetland?" body="Already listed? Claim it and take control of your details. Not listed yet? Add it for free, so folk across Shetland can find you." actions={[{ label: "Claim your business", href: JOIN_CLAIM_HREF }, { label: "Add your business, free", href: JOIN_ADD_HREF, primary: true }]} /></div>
 
       {/* 5 · SHOP · OFFERS · BOOK · EXPERIENCES */}
-      <CommerceGateway commerce={commerce} />
+      <CommerceGateway commerce={commerce} footer={offersCard && (
+        <div className="mx-auto mt-8 max-w-6xl px-5 pb-10"><ContributeCard id="c-offers" color="#b45309" icon="offer" title={offersCard.title} body={offersCard.body} note={offersCard.note} actions={[{ label: offersCard.label, href: offersCard.href, primary: true }]} /></div>
+      )} />
 
       {/* 6 · WORK */}
-      <HomeWork work={work} now={now} />
+      <HomeWork work={work} now={now} footer={<div className="mt-8"><ContributeCard id="c-work" color="#1f7a4d" icon="work" title="Looking for someone?" body="Post a job or a shift. It is free to post, and you manage applicants in one place." actions={[{ label: "Post a shift", href: "/shifts/new" }, { label: "Post a job", href: "/jobs/new", primary: true }]} /></div>} />
 
       {/* 6b · GET IT DONE — static, honest entry for residents and trades */}
       <GetItDoneHome />
@@ -132,7 +176,7 @@ export default async function Home() {
       <IslandMosaic boat={shelves.boat} story={shelves.story} spik={shelves.spik} game={getTodaysGame()} />
 
       {/* 8 · COMMUNITY */}
-      <CommunityV2 notices={noticeBundle.notices} campaigns={data.campaigns} partnerAlerts={data.alerts} />
+      <CommunityV2 notices={noticeBundle.notices} campaigns={data.campaigns} partnerAlerts={data.alerts} footer={<div className="mt-8"><ContributeCard id="c-notices" color="#6b47bf" icon="notice" title="Something the community should know?" body="Tell your neighbours about something that matters locally." note="Our team reads every notice before it appears." actions={[{ label: "Post a notice", href: "/notices/post", primary: true }]} /></div>} />
 
       {/* 9 · EXPLORE */}
       <ExploreV2 />

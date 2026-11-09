@@ -252,3 +252,35 @@ export async function countShopProducts(): Promise<number> {
     return 0;
   }
 }
+
+/**
+ * Newly owner-managed businesses for "New in Shetland this week": the SAME eligibility as the Recently joined strip (commercial categories, the
+ * administrator's homepage exclusion honoured, reasonably complete, one card per trading name), over the last `days` days, newest first. Ordering
+ * ignores subscription tier entirely, so this can neither sell nor hide commercial placement. The caller skips any id already on the Discover shelf.
+ */
+export async function getNewBusinessCandidates(days = 7, now: Date = new Date()): Promise<CuratedBusiness[]> {
+  try {
+    const cutoff = new Date(now.getTime() - days * 86_400_000).toISOString();
+    const { data, error } = await publicClient()
+      .from("local_businesses_public")
+      .select(COLS)
+      .eq("is_active", true)
+      .in("category", [...COMMERCIAL_CATEGORIES])
+      .gte("owner_activated_at", cutoff)
+      .order("owner_activated_at", { ascending: false })
+      .limit(40);
+    if (error) throw error;
+    const seen = new Set<string>();
+    const out: (CuratedBusiness & { owner_activated_at: string })[] = [];
+    for (const b of (data ?? []) as unknown as CuratedRow[]) {
+      if (!isCommercial(b) || b.homepage_excluded || !isShowable(b) || !isRecentlyJoined(b, now, days)) continue;
+      const key = norm(b.name);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({ ...toCard(b), owner_activated_at: b.owner_activated_at as string });
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}

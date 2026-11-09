@@ -229,5 +229,6 @@ const ICONS: Record<string, React.ReactNode> = {
   play: <><circle cx="12" cy="12" r="9" /><path d="M10 8l6 4-6 4V8Z" fill="currentColor" stroke="none" /></>,
   hub: <><path d="M3 21V8l9-5 9 5v13M9 21v-6h6v6" /></>,
   story: <><path d="M12 21s-7-4.35-9.5-8.5C.5 8.5 3 5 6.5 5 9 5 12 8 12 8s3-3 5.5-3C21 5 23.5 8.5 21.5 12.5 19 16.65 12 21 12 21Z" /></>,
+  saved: <><path d="M6 4h12v17l-6-4-6 4V4Z" /></>,
   boat: <><path d="M3 14h18l-2 5a3 3 0 0 1-2.8 2H7.8A3 3 0 0 1 5 19l-2-5ZM6 14V6l6-3 6 3v8" /></>,
 };

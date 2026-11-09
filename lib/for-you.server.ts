@@ -24,6 +24,8 @@
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { levelFromXp } from "@/lib/games-data";
 import { OWNED_TICKET_STATUSES } from "@/lib/event-ticket-utils";
+import { readSavedList } from "@/lib/saved";
+import { savedToForYou } from "@/lib/saved-for-you";
 
 export type ForYouKind =
   | "fetch"
@@ -36,7 +38,8 @@ export type ForYouKind =
   | "game"
   | "hub"
   | "story"
-  | "boat";
+  | "boat"
+  | "saved";
 
 export type ForYouItem = {
   id: string;
@@ -115,6 +118,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
     shiftItems,
     gameItems,
     hubItems,
+    savedItems,
   ] = await Promise.all([
     safe(fetchDeliveries(sb, userId)),
     safe(fetchBookings(sb, userId)),
@@ -126,6 +130,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
     safe(fetchShiftApps(sb, userId)),
     safe(fetchGames(sb, userId)),
     safe(fetchHubs(sb, userId)),
+    safe(fetchSaved(sb)),
   ]);
 
   const all = [
@@ -139,6 +144,7 @@ export async function getForYou(userId: string): Promise<ForYouItem[]> {
     ...shiftItems,
     ...gameItems,
     ...hubItems,
+    ...savedItems,
   ];
 
   all.sort((a, b) => a.priority - b.priority || (b.ts ?? 0) - (a.ts ?? 0));
@@ -647,4 +653,16 @@ async function fetchHubs(sb: SB, userId: string): Promise<ForYouItem[]> {
   }
 
   return out.slice(0, 2);
+}
+
+/**
+ * My Saved items that are coming up (see lib/saved-for-you.ts). saved_enabled() is the same switch My Saved itself obeys: off (or any error) means
+ * nothing is added, so no saved item can appear on the homepage before My Saved is open to this member. my_saved_list runs with the member's own rights.
+ */
+async function fetchSaved(sb: Awaited<ReturnType<typeof createServerClient>>): Promise<ForYouItem[]> {
+  const on = await sb.rpc("saved_enabled");
+  if (on.error || on.data !== true) return [];
+  const { data, error } = await sb.rpc("my_saved_list");
+  if (error) return [];
+  return savedToForYou(readSavedList(data).items);
 }

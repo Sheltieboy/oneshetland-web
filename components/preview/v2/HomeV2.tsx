@@ -116,7 +116,7 @@ function EventCard({ c, kind }: { c: HomeCard; kind: Kind }) {
 
 const TILE_COLS: Record<number, string> = { 1: "lg:grid-cols-1", 2: "lg:grid-cols-2", 3: "lg:grid-cols-3" };
 
-export function RightNow({ events, cruise, showCruise, lead, activities = [] }: { events: HomeEvent[]; cruise: CruiseHomeCard | null; showCruise: boolean; lead?: Merch; activities?: HomeActivityCard[] }) {
+export function RightNow({ events, cruise, showCruise, lead, activities = [], header, footer }: { events: HomeEvent[]; cruise: CruiseHomeCard | null; showCruise: boolean; lead?: Merch; activities?: HomeActivityCard[]; header?: ReactNode; footer?: ReactNode }) {
   const cards = homeMosaicPlan(events, new Date());
   const [c0, c1, c2, c3, ...tiles] = cards;
   const hasActivities = activities.length > 0;
@@ -170,7 +170,7 @@ export function RightNow({ events, cruise, showCruise, lead, activities = [] }: 
   );
   return (
     <Band>
-      <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={hasActivities ? undefined : { label: "Full calendar", href: "/whats-on" }} />
+      {header ?? <Heading eyebrow="Right now in Shetland" title="What's happening" color={EVENTS} cta={hasActivities ? undefined : { label: "Full calendar", href: "/whats-on" }} />}
       {hasActivities ? (
         <HappeningTabs
           events={c0 || (showCruise && cruise) ? eventsMosaic : <p className="rounded-card border border-line bg-paper p-6 text-ink-soft">No upcoming events are listed just now. The full calendar has everything coming up.</p>}
@@ -179,6 +179,7 @@ export function RightNow({ events, cruise, showCruise, lead, activities = [] }: 
           activitiesCta={{ label: "Explore all regular activities", href: "/whats-on/regular" }}
         />
       ) : eventsMosaic}
+      {footer}
     </Band>
   );
 }
@@ -264,7 +265,7 @@ const NOUN: Record<Pillar, [string, string]> = { shop: ["product", "products"], 
 /** Shown while a pillar has nothing published yet. The features are live; they are waiting for businesses to publish. */
 export const AWAITING: Record<Pillar, string> = { shop: "Awaiting first products", offers: "Awaiting first offers", book: "Awaiting first services", experiences: "Awaiting first experiences" };
 
-export function CommerceGateway({ commerce }: { commerce: Record<Pillar, Merch[]> }) {
+export function CommerceGateway({ commerce, footer }: { commerce: Record<Pillar, Merch[]>; footer?: ReactNode }) {
   const total = PILLAR_ORDER.reduce((n, p) => n + commerce[p].length, 0);
   // A mixed rail of the best of each pillar: first of each, then second of each …
   const mixed: Merch[] = [];
@@ -311,6 +312,7 @@ export function CommerceGateway({ commerce }: { commerce: Record<Pillar, Merch[]
           )}
         </div>
       </div>
+      {footer}
     </section>
   );
 }
@@ -368,8 +370,8 @@ export function IslandMosaic({ boat, story, spik, game }: { boat: ShelfBoat; sto
 
 /* ── Community ─────────────────────────────────────────────────────────────── */
 
-export function CommunityV2({ notices, campaigns, partnerAlerts = [] }: { notices: NoticeCardModel[]; campaigns: HomeCampaign[]; partnerAlerts?: HomeAlert[] }) {
-  if (notices.length === 0 && campaigns.length === 0 && partnerAlerts.length === 0) return null;
+export function CommunityV2({ notices, campaigns, partnerAlerts = [], footer }: { notices: NoticeCardModel[]; campaigns: HomeCampaign[]; partnerAlerts?: HomeAlert[]; footer?: ReactNode }) {
+  if (notices.length === 0 && campaigns.length === 0 && partnerAlerts.length === 0 && !footer) return null;
   return (
     <Band>
       <Heading eyebrow="Community" title="Notices and community" color="#6b47bf" cta={{ label: "View all notices", href: "/notices" }} />
@@ -396,6 +398,7 @@ export function CommunityV2({ notices, campaigns, partnerAlerts = [] }: { notice
           })}
         </div>
       )}
+      {footer}
     </Band>
   );
 }

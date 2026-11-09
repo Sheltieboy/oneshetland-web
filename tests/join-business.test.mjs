@@ -26,7 +26,11 @@ test("accessible: labelled section, real headings and links, 44px targets, visib
 });
 test("placement: homepage (after Discover local), Directory banner, Directory zero-results card", () => {
   const home = read("app/page.tsx");
-  assert.ok(home.indexOf("<DiscoverLocal") < home.indexOf('<JoinBusinessCta variant="compact"'));
+  // The homepage invitation is now the shared ContributeCard (same two journeys, same links, same words), directly after Discover local; the old band is gone.
+  assert.ok(home.indexOf("<DiscoverLocal") < home.indexOf('id="c-business"'));
+  assert.doesNotMatch(home, /<JoinBusinessCta/);
+  assert.match(home, /JOIN_CLAIM_HREF/); assert.match(home, /JOIN_ADD_HREF/);
+  assert.match(home, /Is your business on OneShetland\?/);
   const dir = read("app/directory/page.tsx");
   assert.match(dir, /!\(q && all\.length === 0\) && <JoinBusinessCta variant="banner"/);
   assert.match(dir, /<JoinBusinessCta variant="empty" name=\{q\}/);

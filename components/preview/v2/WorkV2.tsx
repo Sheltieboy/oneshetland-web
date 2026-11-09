@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { Band, Heading } from "@/components/preview/v2/HomeV2";
 import { CropImg } from "@/components/preview/v2/Merch";
@@ -98,7 +99,7 @@ export function WorkGateway() {
 
 /* ── Home: the curated Work module ──────────────────────────────────────────── */
 
-export function HomeWork({ work, now = new Date() }: { work: WorkSet; now?: Date }) {
+export function HomeWork({ work, now = new Date(), footer }: { work: WorkSet; now?: Date; footer?: ReactNode }) {
   if (work.jobs.length === 0 && work.shifts.length === 0) return <WorkGateway />;
   const { shifts, jobs, moreShifts } = curateHome(work);
   const [lead, ...rest] = jobs;
@@ -135,6 +136,7 @@ export function HomeWork({ work, now = new Date() }: { work: WorkSet; now?: Date
           </div>
         </div>
       )}
+    {footer}
     </Band>
   );
 }
