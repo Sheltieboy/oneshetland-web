@@ -32,6 +32,7 @@ export function LatestEditorial({ items }: { items: Announcement[] }) {
   const { lead, second } = pickLatest(items);
   if (!lead) return null;
   const hasVisual = lead.visual !== "photo" || !!lead.image;
+  const photoLead = lead.visual === "photo" && !!lead.image;
   return (
     <section aria-labelledby="latest-h" className="border-y border-line bg-paper">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:py-16">
@@ -44,20 +45,29 @@ export function LatestEditorial({ items }: { items: Announcement[] }) {
         </Reveal>
 
         <div className="grid gap-4 sm:gap-5 lg:grid-cols-12">
-          {/* Lead: the headline and a working miniature of the screen it describes. */}
-          <Reveal className="lg:col-span-7"><article className="relative isolate h-full overflow-hidden rounded-3xl bg-navy text-white shadow-lift">
+          {/* Lead. A PHOTOGRAPH is a normal block at the top of the card (16:10 on a phone, 2:1 from tablet up), followed by the text. It is never positioned over
+              the text, so it cannot overlap the headline, description or button at any width, and it is cropped to fit (object-cover, slightly above centre) so the picture keeps its proportions. A product DEMO (the My Saved
+              phone and the others) keeps its own right-hand panel, and its text is held to the space left beside it. */}
+          <Reveal className="lg:col-span-7"><article className={`relative isolate h-full overflow-hidden rounded-3xl bg-navy text-white shadow-lift ${photoLead ? "flex flex-col" : ""}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            {lead.image && <img src={lead.image} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-30" />}
+            {lead.image && !photoLead && <img src={lead.image} alt="" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-30" />}
             <div aria-hidden className="absolute inset-0 -z-10 [background:linear-gradient(160deg,rgba(3,47,76,.94),rgba(3,47,76,.82)),radial-gradient(70%_60%_at_85%_100%,rgba(18,179,214,.35),transparent)]" />
-            <div className={`p-6 sm:p-9 lg:flex lg:h-full lg:flex-col lg:items-start lg:justify-center ${hasVisual ? "lg:max-w-[54%]" : "lg:min-h-[320px] lg:max-w-[80%]"}`}>
+            {photoLead && (
+              <div className="relative aspect-[16/10] shrink-0 sm:aspect-[2/1]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={lead.image as string} alt="" loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-[50%_40%]" />
+                <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-navy/50 via-transparent to-transparent" />
+              </div>
+            )}
+            <div className={`min-w-0 max-w-full [overflow-wrap:anywhere] p-6 sm:p-9 ${photoLead ? "flex flex-1 flex-col items-start justify-center" : "lg:flex lg:flex-col lg:items-start lg:justify-center lg:px-7 xl:px-9"} ${photoLead ? "" : hasVisual ? "lg:h-full lg:max-w-[calc(100%-318px)] xl:max-w-[54%]" : "lg:h-full lg:min-h-[320px] lg:max-w-[80%]"}`}>
               <Tag k={lead.kind} dark />
-              <h3 className="mt-4 font-display text-4xl font-bold leading-[1.02] sm:text-5xl">{lead.title}</h3>
+              <h3 className={`mt-4 font-display font-bold leading-[1.02] ${photoLead ? "text-balance text-3xl sm:text-4xl xl:text-[2.6rem]" : "text-4xl sm:text-5xl lg:text-[1.75rem] xl:text-5xl"}`}>{lead.title}</h3>
               {lead.body && <p className="mt-4 text-base leading-relaxed text-white/85 sm:text-lg">{lead.body}</p>}
               <Link href={lead.href} className="mt-6 inline-block rounded-pill bg-white px-5 py-2.5 text-sm font-bold text-ink transition hover:bg-cream focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white">{lead.cta} →</Link>
             </div>
-            {hasVisual && (
+            {hasVisual && !photoLead && (
               <div className="mt-2 h-[300px] overflow-hidden sm:h-[330px] lg:absolute lg:inset-y-0 lg:right-6 lg:mt-0 lg:flex lg:h-auto lg:w-[264px] lg:items-center lg:overflow-visible">
-                {lead.visual === "save" ? <SavePreview /> : lead.visual === "photo" ? <div className="mx-5 h-full overflow-hidden rounded-2xl shadow-lift sm:mx-9 lg:mx-0 lg:h-[420px] lg:w-full"><Visual a={lead} /></div> : <div className="h-full w-full"><Visual a={lead} /></div>}
+                {lead.visual === "save" ? <SavePreview /> : <div className="h-full w-full"><Visual a={lead} /></div>}
               </div>
             )}
           </article></Reveal>

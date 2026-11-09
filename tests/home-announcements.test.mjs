@@ -128,3 +128,28 @@ describe("admin wiring", () => {
     assert.match(read("lib/home-announcements.ts"), /publicClient\(\)\.from\("home_announcements"\)/);
   });
 });
+
+describe("Latest from OneShetland: photograph layout (regression: the photo overlapped the headline at ~1024px)", () => {
+  const src = read("components/home/LatestEditorial.tsx");
+  test("a photograph lead is a normal block above the text, never positioned over it", () => {
+    assert.match(src, /const photoLead = lead\.visual === "photo" && !!lead\.image/);
+    assert.match(src, /photoLead \? "flex flex-col"/);
+    const photoBlock = src.slice(src.indexOf("{photoLead && ("), src.indexOf("{lead.image && !photoLead") > 0 ? src.indexOf("<div className={`min-w-0") : src.length);
+    assert.doesNotMatch(photoBlock.slice(0, 700), /absolute inset-y-0|lg:absolute|-right-/, "the photo block must not be absolutely placed beside the text");
+    assert.match(src, /aspect-\[16\/10\][^"]*sm:aspect-\[2\/1\]/);
+    assert.match(src, /object-cover object-\[50%_40%\]/);
+  });
+  test("the faint backdrop copy of the photo is not used when the photo is shown properly", () => {
+    assert.match(src, /lead\.image && !photoLead/);
+  });
+  test("text always wraps inside its column and is held beside a demo panel; the demo panel itself is unchanged", () => {
+    assert.match(src, /\[overflow-wrap:anywhere\]/);
+    assert.match(src, /lg:max-w-\[calc\(100%-318px\)\] xl:max-w-\[54%\]/, "from 1280px up the approved 54% width is unchanged");
+    assert.match(src, /lg:absolute lg:inset-y-0 lg:right-6 lg:mt-0 lg:flex lg:h-auto lg:w-\[264px\]/, "the demo panel keeps its approved position and size");
+    assert.match(src, /lead\.visual === "save" \? <SavePreview \/>/);
+  });
+  test("other demo types and a photo with no picture still render", () => {
+    for (const v of ["activities", "jobs", "claim"]) assert.match(read("components/home/ProductPreviews.tsx") + src, new RegExp(v));
+    assert.match(src, /const hasVisual = lead\.visual !== "photo" \|\| !!lead\.image/);
+  });
+});
