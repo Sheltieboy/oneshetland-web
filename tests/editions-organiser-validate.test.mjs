@@ -1,22 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  organiserCreate, organiserProfile, verificationEvidence, inviteInput, editionFields, editionSlug, pageFields, venueFields, sessionFields, updateFields, sponsorFields,
+  organiserProfile, inviteInput, editionFields, editionSlug, pageFields, venueFields, sessionFields, updateFields, sponsorFields,
   londonLocalToIso, isoToLondonLocal, sessionOutsideEdition, imageProblem, mediaPath, shiftYear, isHttpsUrl, isEmail, isUuid,
 } from "../lib/editions/validate.ts";
 
 const ED = { starts_on: "2027-05-01", ends_on: "2027-05-03" };
 const good = { title: "Spring Weekend", kind: "multi_day", starts_on: "2027-05-01", ends_on: "2027-05-03" };
-
-test("organiser creation validates name, slug and lengths with specific messages", () => {
-  assert.equal(organiserCreate({ name: "Spring Committee", slug: "spring-committee" }).ok, true);
-  assert.match(organiserCreate({ name: "A", slug: "abc" }).error, /Name/);
-  assert.match(organiserCreate({ name: "Okay", slug: "Bad Slug" }).error, /web address/);
-  assert.match(organiserCreate({ name: "Okay", slug: "ab" }).error, /web address/);
-  assert.match(organiserCreate({ name: "Okay", slug: "abc", tagline: "x".repeat(161) }).error, /Tagline/);
-  const v = organiserCreate({ name: "  Okay  ", slug: "OKAY-One" });
-  assert.equal(v.value.slug, "okay-one"); assert.equal(v.value.name, "Okay"); assert.equal(v.value.tagline, null);
-});
 
 test("organiser profile enforces https links, hex colours and email", () => {
   const base = { name: "Okay Co" };
@@ -28,11 +18,6 @@ test("organiser profile enforces https links, hex colours and email", () => {
   assert.equal(organiserProfile({ ...base, contact_email: "A@B.co" }).value.contact_email, "a@b.co");
 });
 
-test("verification evidence is 10..4000 characters", () => {
-  assert.equal(verificationEvidence("too short").ok, false);
-  assert.equal(verificationEvidence("We run the show every year.").ok, true);
-  assert.equal(verificationEvidence("x".repeat(4001)).ok, false);
-});
 
 test("invites accept only admin or editor and a real email", () => {
   assert.equal(inviteInput({ email: " Pat@Example.com ", role: "editor" }).value.email, "pat@example.com");

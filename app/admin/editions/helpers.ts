@@ -53,7 +53,7 @@ const ADMIN_SENTENCES: [RegExp, string][] = [
 ];
 
 /** Guard messages an administrator should see verbatim; everything else goes through friendlyError. */
-const KNOWN_GUARD = /admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already approved|more than 30 days|1 to 90 days|a note is required/i;
+const KNOWN_GUARD = /admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already approved|more than 30 days|1 to 90 days|a note is required|a free package has nothing to refund|only a paid order can be refunded|no card payment to refund|refund is already in progress|the refund must be more than nothing|give a reason of at least|order not found/i;
 export function adminError(message: string | null | undefined): string {
   const m = message ?? "";
   const hit = ADMIN_SENTENCES.find(([re]) => re.test(m));

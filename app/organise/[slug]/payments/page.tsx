@@ -15,7 +15,7 @@ export default async function PaymentsPage({ params }: { params: Promise<{ slug:
   const [blocker, payout, terms, ents, rows, statement] = await Promise.all([getCollectBlocker(organiser.id), getPayoutStatus(organiser.id), getTermsAccepted(organiser.id), getOrgEntitlements(organiser.id), getOrgPayments(organiser.id), getOrgStatement(organiser.id)]);
   return (
     <div className="mx-auto max-w-4xl">
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Organiser tools</Link> / <Link href={`/organise/${slug}`} className="hover:underline">{organiser.name}</Link></nav>
+      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Festivals and Editions</Link> / <Link href={`/organise/${slug}`} className="hover:underline">{organiser.name}</Link></nav>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Payments</h1>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">Get paid by the businesses that join you, see every payment, and refund when you need to. Memberships and Edition fees are set up on the Members page and each Edition&rsquo;s Participation tab.</p>
       <div className="mt-6 space-y-10">

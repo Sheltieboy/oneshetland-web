@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getEditionsAccess, getMyBusinessEditions, getMyHubEditions, getMyInvites, getMyOrganisers } from "@/lib/editions/data.server";
 import { ROLE_LABEL } from "@/lib/editions/types";
 import { AcceptInviteButton } from "@/components/editions-manage/AcceptInviteButton";
-import { entryStateText, type EntryState } from "@/components/editions-manage/EditionsEntryPanel";
+import { entryStateText, type EntryState } from "@/lib/editions/entry-state";
 import { StartEditionsButton } from "@/components/editions-manage/StartEditionsButton";
 import { Panel, TestPill, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
 import { startBusinessEditions } from "@/app/business/[id]/manage/editions/actions";

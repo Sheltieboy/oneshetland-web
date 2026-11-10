@@ -15,7 +15,7 @@ export default async function MembersPage({ params }: { params: Promise<{ slug: 
   const has = (f: string) => ents.some((e) => e.feature === f);
   return (
     <div className="mx-auto max-w-4xl">
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Organiser tools</Link> / <Link href={`/organise/${slug}`} className="hover:underline">{organiser.name}</Link></nav>
+      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Festivals and Editions</Link> / <Link href={`/organise/${slug}`} className="hover:underline">{organiser.name}</Link></nav>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Members</h1>
       <p className="mt-1 max-w-2xl text-sm text-ink-soft">Run your membership: set tiers and benefits, approve applications, invite businesses, record members who paid you directly, and keep track of renewals. Businesses stay in full control of their own listing and offers.</p>
       <p className="mt-2 text-sm"><Link href={`/organisers/${organiser.slug}/membership`} className="font-semibold text-navy hover:underline">See your public membership page</Link></p>

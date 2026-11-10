@@ -27,7 +27,7 @@ export default async function NewEditionPage({ params, searchParams }: { params:
     <div className="mx-auto max-w-3xl">
       <Link href={`/organise/${slug}`} className="text-sm text-ink-muted hover:underline">← {organiser.name}</Link>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">{seed ? "Next year's Edition" : "New Edition"}</h1>
-      <p className="mt-1 text-ink-soft">Start with the basics. It stays a private draft until you publish it; you can add pages, a programme and sponsors afterwards.</p>
+      <p className="mt-1 text-ink-soft">Start with the basics. It stays a private draft: you build it, preview it exactly as visitors will see it, then send it to OneShetland to review before you publish.</p>
       <div className="mt-6"><Panel><EditionForm mode="create" organiserSlug={slug} organiserId={organiser.id} series={(series ?? []) as { id: string; name: string }[]} seed={seed} canCreateSeries organiser={organiser} /></Panel></div>
     </div>
   );

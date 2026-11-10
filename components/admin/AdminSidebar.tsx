@@ -54,7 +54,7 @@ export function AdminSidebar({ badges }: { badges: Record<string, number> }) {
     <nav className="space-y-6">
       {NAV.map((g) => (
         <div key={g.group}>
-          <p className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-ink-faint">{g.group}</p>
+          <p className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-ink-muted">{g.group}</p>
           <div className="space-y-0.5">
             {g.items.map((it) => {
               const active = adminNavActive(path, it) && !(it.except ?? []).some((x) => path.startsWith(x));

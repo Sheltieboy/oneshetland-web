@@ -90,3 +90,28 @@ export async function voidEntitlementAction(input: { entitlementId: string; edit
     return { ok: true };
   } catch (e) { return fail(e); }
 }
+
+/**
+ * Refund a package order (all of what is left, or part of it). Administrators only; the database function validates, records the request and audits it, and OneShetland's refund worker
+ * performs the card refund. A full refund ends the package, so the Edition stops being public. Amount is entered in pounds.
+ */
+export async function requestOrderRefundAction(input: { orderId: string; editionId: string; amount?: string; reason?: string }): Promise<Result> {
+  await requireAdmin();
+  if (!isUuid(input.orderId) || !isUuid(input.editionId)) return { ok: false, error: "Unknown order." };
+  const reason = str(input.reason);
+  if (reason.length < 5) return { ok: false, error: "Say why you are refunding (at least 5 characters)." };
+  const raw = str(input.amount).replace(/^£/, "");
+  let pence: number | null = null;
+  if (raw) {
+    if (!/^\d+(\.\d{1,2})?$/.test(raw)) return { ok: false, error: "Enter an amount in pounds, like 20 or 20.50, or leave it empty to refund everything that is left." };
+    pence = Math.round(parseFloat(raw) * 100);
+    if (pence < 1) return { ok: false, error: "The refund must be more than nothing." };
+  }
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_request_edition_order_refund", { p_order: input.orderId, p_amount_pence: pence, p_reason: reason });
+    if (error) return fail(error.message);
+    refresh(`/admin/editions/${input.editionId}`);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}

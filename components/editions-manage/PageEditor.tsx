@@ -15,7 +15,7 @@ type Draft = { id: string | null; title: string; nav_label: string; slug: string
 const blank = (isFirst: boolean): Draft => ({ id: null, title: "", nav_label: "", slug: "", body: "", in_nav: true, is_home: isFirst });
 const fromPage = (p: EditionPage): Draft => ({ id: p.id, title: p.title, nav_label: p.nav_label, slug: p.slug, body: p.body, in_nav: p.in_nav, is_home: p.is_home });
 
-export function PageEditor({ organiserSlug, editionSlug, pages }: { organiserSlug: string; editionSlug: string; pages: EditionPage[] }) {
+export function PageEditor({ organiserSlug, editionSlug, pages, summary }: { organiserSlug: string; editionSlug: string; pages: EditionPage[]; summary?: string | null }) {
   const router = useRouter();
   const confirm = useConfirm();
   const save = useAction();
@@ -55,7 +55,8 @@ export function PageEditor({ organiserSlug, editionSlug, pages }: { organiserSlu
           <button type="button" className={btnSecondary + " !px-4 !py-1.5"} onClick={() => open(blank(pages.length === 0))}>New page</button>
         </div>
         {pages.length === 0 ? (
-          <div className="mt-3"><EmptyState>No pages yet. A welcome page gives visitors somewhere to start.</EmptyState></div>
+          <div className="mt-3 space-y-3"><EmptyState>No pages yet. A welcome page gives visitors somewhere to start.</EmptyState>
+            <button type="button" className={btnSecondary} onClick={() => open({ ...blank(true), title: "Welcome", nav_label: "Welcome", slug: "welcome", body: `${(summary ?? "").trim()}\n\nTell visitors what to expect, when and where to come, and how to take part.` })}>Start a welcome page from my summary</button></div>
         ) : (
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-card border border-line bg-paper">
             {pages.map((p, i) => (

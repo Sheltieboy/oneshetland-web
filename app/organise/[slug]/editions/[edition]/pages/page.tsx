@@ -12,7 +12,7 @@ export default async function PagesPage({ params }: { params: Promise<{ slug: st
     <>
       <EditionHeader organiser={organiser} edition={bundle.edition} active="pages" />
       <p className="mb-5 max-w-2xl text-sm text-ink-soft">Pages make up your Edition&apos;s menu. The programme and updates are added automatically, so you do not need pages for them.</p>
-      <PageEditor organiserSlug={slug} editionSlug={edSlug} pages={bundle.pages} />
+      <PageEditor organiserSlug={slug} editionSlug={edSlug} pages={bundle.pages} summary={bundle.edition.summary} />
     </>
   );
 }

@@ -46,15 +46,6 @@ function optMediaUrl(label: string, v: string): string | null {
 
 /* ── Organiser ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 
-export type OrganiserCreate = { name: string; slug: string; tagline: string | null; description: string | null };
-export function organiserCreate(i: { name?: unknown; slug?: unknown; tagline?: unknown; description?: unknown }): Checked<OrganiserCreate> {
-  const name = trim(i.name), slug = trim(i.slug).toLowerCase(), tagline = trim(i.tagline), description = trim(i.description);
-  const e = len("Name", name, 2, 120) ?? len("Tagline", tagline, 0, 160) ?? len("Description", description, 0, 4000);
-  if (e) return fail(e);
-  if (!validSlug(slug, 3, 60)) return fail("The web address needs 3 to 60 letters, numbers and single hyphens, for example my-festival.");
-  return { ok: true, value: { name, slug, tagline: orNull(tagline), description: orNull(description) } };
-}
-
 /** A cover photograph's focus point: "x% y%". Anything else is dropped (the database enforces the same shape). */
 const focusOrNull = (v: unknown): string | null => { const t = trim(v); return /^(100|[0-9]{1,2})% (100|[0-9]{1,2})%$/.test(t) && t !== "50% 50%" ? t : null; };
 
@@ -73,12 +64,6 @@ export function organiserProfile(i: Record<string, unknown>): Checked<OrganiserP
   return { ok: true, value: { name, tagline: orNull(tagline), description: orNull(description), logo_url: orNull(logo), cover_url: orNull(cover), cover_focus: orNull(cover) ? focusOrNull(i.cover_focus) : null, brand_color: orNull(color), website: orNull(website), contact_email: orNull(email) } };
 }
 
-export function verificationEvidence(raw: unknown): Checked<string> {
-  const v = trim(raw);
-  if (v.length < 10) return fail("Tell us a little more: at least 10 characters about who you are and how you run this event.");
-  if (v.length > 4000) return fail("Please keep this under 4000 characters.");
-  return { ok: true, value: v };
-}
 
 /* ── Team ──────────────────────────────────────────────────────────────────────────────────────────────────────── */
 

@@ -174,7 +174,7 @@ describe("retired tooling is gone from the admin area", () => {
     assert.deepEqual([...ORGANISER_DECISIONS], ["reinstate", "suspend"]);
     assert.deepEqual(decisionsFor("pending"), ["suspend"]); assert.deepEqual(decisionsFor("verified"), ["suspend"]); assert.deepEqual(decisionsFor("rejected"), ["reinstate"]); assert.deepEqual(decisionsFor("suspended"), ["reinstate"]); assert.deepEqual(decisionsFor("weird"), []);
     const a = read("app/admin/editions/actions.ts");
-    assert.deepEqual([...new Set(rpcs(a))].sort(), ["admin_decide_edition_organiser", "admin_grant_edition_entitlement", "admin_mark_edition_test", "admin_void_edition_entitlement", "edition_moderate"]);
+    assert.deepEqual([...new Set(rpcs(a))].sort(), ["admin_decide_edition_organiser", "admin_grant_edition_entitlement", "admin_mark_edition_test", "admin_request_edition_order_refund", "admin_void_edition_entitlement", "edition_moderate"]);
   });
   test("controls stay role-gated in the UI", () => {
     assert.match(read("components/admin/EditionsAdminForms.tsx"), /ADMIN_ONLY_DECISIONS\.includes\(d\)/);
@@ -264,4 +264,16 @@ test("entitlement state", () => {
   assert.equal(entitlementState({ starts_at: "2026-01-01T00:00:00Z", ends_at: "2026-02-01T00:00:00Z", voided_at: null }, now), "expired");
   assert.equal(entitlementState({ starts_at: "2027-01-01T00:00:00Z", ends_at: "2027-02-01T00:00:00Z", voided_at: "2027-01-02T00:00:00Z" }, now), "voided");
   assert.equal(entitlementState({ starts_at: "2027-03-01T00:00:00Z", ends_at: "2027-04-01T00:00:00Z", voided_at: null }, now), "scheduled");
+});
+
+test("refunding a package order is administrator-only, one database call, amounts in pounds, a reason is required, and the refund screen warns that a full refund ends the package", () => {
+  const src = read("app/admin/editions/actions.ts");
+  const body = src.slice(src.indexOf("export async function requestOrderRefundAction"));
+  assert.match(body, /^export async function requestOrderRefundAction[^\n]*\n  await requireAdmin\(\);/);
+  assert.equal((body.match(/\.rpc\("/g) ?? []).length, 1); assert.match(body, /rpc\("admin_request_edition_order_refund"/);
+  assert.doesNotMatch(body, /service|SERVICE|\.(insert|update|upsert|delete)\(/);
+  assert.match(body, /reason\.length < 5/); assert.match(body, /pence = Math\.round\(parseFloat\(raw\) \* 100\)/);
+  const ui = read("components/admin/EditionOrders.tsx");
+  assert.match(ui, /A full refund ends this package, so the Edition stops being public/); assert.match(ui, /Yes, request the refund/);
+  assert.doesNotMatch(ui, /[0-9a-f]{8}-[0-9a-f]{4}/i, "no id shown");
 });

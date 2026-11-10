@@ -113,3 +113,17 @@ export async function reviewCounts(): Promise<{ waiting: number; changes: number
     return { waiting: Number(d.waiting) || 0, changes: Number(d.changes) || 0 };
   } catch { return { waiting: 0, changes: 0 }; }
 }
+
+export type OrderRow = { order_id: string; package_name: string | null; status: string; amount_pence: number; refunded_pence: number; free: boolean; created_at: string; paid_at: string | null; buyer_name: string | null };
+export type RefundRow = { request_id: string; amount_pence: number; reason: string; status: "pending" | "submitted" | "done" | "failed"; attempts: number; last_error: string | null; created_at: string; resolved_at: string | null };
+/** A package order list for one Edition, with each order's refund requests (administrator only; the database refuses anyone else). */
+export async function editionOrders(editionId: string): Promise<{ rows: (OrderRow & { refunds: RefundRow[] })[]; error?: string }> {
+  try {
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("admin_edition_orders", { p_edition: editionId });
+    if (error) return { rows: [], error: "Orders could not be loaded." };
+    const orders = (data ?? []) as OrderRow[];
+    const refunds = await Promise.all(orders.map(async (o) => ((await sb.rpc("admin_edition_order_refunds", { p_order: o.order_id })).data ?? []) as RefundRow[]));
+    return { rows: orders.map((o, i) => ({ ...o, refunds: refunds[i] })) };
+  } catch { return { rows: [], error: "Orders could not be loaded." }; }
+}

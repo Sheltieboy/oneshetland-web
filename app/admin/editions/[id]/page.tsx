@@ -7,7 +7,8 @@ import { isAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { KIND_LABEL, type EditionKind } from "@/lib/editions/types";
 import { FEATURE_LABEL, entitlementState, isUuid } from "../helpers";
-import { auditRows, editionEntitlements, names } from "../queries";
+import { auditRows, editionEntitlements, editionOrders, names } from "../queries";
+import { OrderRefund } from "@/components/admin/EditionOrders";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edition · Editions · Admin" };
@@ -26,8 +27,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (error) return <ErrorNote>Could not load this Edition: {error.message}</ErrorNote>;
   if (!data) notFound();
   const e = data as unknown as Ed;
-  const [ents, audit, counts] = await Promise.all([
-    editionEntitlements(id), auditRows({ editionId: id }),
+  const [ents, audit, orders, counts] = await Promise.all([
+    editionEntitlements(id), auditRows({ editionId: id }), editionOrders(id),
     Promise.all(["edition_pages", "edition_sessions", "edition_updates", "edition_sponsors"].map((t) => sb.from(t).select("id", { count: "exact", head: true }).eq("edition_id", id))),
   ]);
   const who = await names(audit.rows.map((a) => a.actor));
@@ -68,6 +69,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
           </DataTable></div>
         )}
         {admin ? <><h3 className="mb-1 text-sm font-bold text-ink">Manual package adjustment</h3><p className="mb-2 text-sm text-ink-soft">An exception tool for refunds and goodwill. Organisers normally choose and pay for their own package once the Edition is approved.</p><GrantForm editionId={e.id} /></> : <p className="text-sm text-ink-muted">Only administrators can grant or void entitlements.</p>}
+      </Section>
+
+      <Section title="Package orders and refunds">
+        {orders.error ? <p className="text-sm text-ink-muted">{orders.error}</p> : !orders.rows.length ? <p className="text-sm text-ink-muted">No package has been chosen for this Edition yet.</p> : (
+          <ul className="space-y-3">{orders.rows.map((o) => <OrderRefund key={o.order_id} order={o} editionId={e.id} refunds={o.refunds} />)}</ul>
+        )}
       </Section>
 
       <Section title="Audit trail"><AuditList rows={audit.rows} who={who} /></Section>

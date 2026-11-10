@@ -5,17 +5,10 @@ import { useRouter } from "next/navigation";
 import { btnPrimary, Notice } from "./kit";
 import { useAction } from "./use-action";
 
-export type EntryState = { slug: string; editions: number; inReview: number } | null;
+import { entryStateText, plural, type EntryState } from "@/lib/editions/entry-state";
+export { entryStateText };
+export type { EntryState };
 type Start = (parentId: string) => Promise<{ ok: true; slug: string } | { ok: false; error: string }>;
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
-/** One short sentence about where a Business or Hub stands with Editions. */
-export function entryStateText(s: EntryState): string {
-  if (!s) return "Not started";
-  if (s.editions === 0) return "Ready: no Editions yet";
-  return s.inReview > 0 ? `${plural(s.editions, "Edition", "Editions")} · ${s.inReview} in review` : plural(s.editions, "Edition", "Editions");
-}
 
 /**
  * "Run your own festivals and Editions", the same for a Business owner and for a Hub's owner or committee. One primary button: start Editions for the Business or Hub (nothing to
