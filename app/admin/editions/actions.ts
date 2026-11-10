@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
-import { GRANT_FEATURES, ORGANISER_DECISIONS, adminError, grantEnd, isPilotSlug, isUuid, type OrganiserDecision } from "./helpers";
+import { GRANT_FEATURES, ORGANISER_DECISIONS, adminError, autoNote, grantEnd, isUuid, slugProblem, suggestOrganiserSlug, type OrganiserDecision } from "./helpers";
 
 /**
  * Admin actions for Editions. Each starts with requireAdmin() and then runs as the signed-in user (RLS + the SECURITY DEFINER functions check the caller
@@ -13,6 +13,8 @@ export type Result = { ok: true } | { ok: false; error: string };
 const fail = (e: unknown): Result => ({ ok: false, error: adminError(e instanceof Error ? e.message : typeof e === "string" ? e : "") });
 const refresh = (...paths: string[]) => { for (const p of ["/admin/editions", ...paths]) revalidatePath(p); };
 const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+/** The administrator's own name for audit notes (never their email). */
+const adminName = (a: { profile: { full_name: string | null; display_name?: string | null } | null }) => a.profile?.full_name?.trim() || a.profile?.display_name?.trim() || "";
 
 export async function decideOrganiserAction(input: { organiserId: string; decision: string; note?: string }): Promise<Result> {
   await requireAdmin();
@@ -108,35 +110,63 @@ export async function voidEntitlementAction(input: { entitlementId: string; edit
 /* ── Pilot (administrators only; each action is repeated and enforced by the database, and audited there) ───────────────────────────────────────────────── */
 
 export async function setPilotSwitchAction(input: { on: boolean; note?: string }): Promise<Result> {
-  await requireAdmin();
+  const admin = await requireAdmin();
+  const on = input.on === true;
   try {
     const sb = await createClient();
-    const { error } = await sb.rpc("admin_set_editions_pilot", { p_on: input.on === true, p_note: str(input.note) || null });
+    const { error } = await sb.rpc("admin_set_editions_pilot", { p_on: on, p_note: autoNote(on ? "pilot_on" : "pilot_off", adminName(admin), str(input.note)) });
     if (error) return fail(error.message);
     refresh();
     return { ok: true };
   } catch (e) { return fail(e); }
 }
 
-export async function setupHubOrganiserAction(input: { hubId: string; slug: string; name?: string; note?: string }): Promise<Result> {
+export type SetupResult = { ok: true; organiserId: string; slug: string; name: string } | { ok: false; error: string };
+
+/** Is this web address free for an organiser? Used while the administrator edits the suggestion. */
+export async function checkOrganiserSlugAction(input: { slug: string }): Promise<{ ok: boolean; message: string }> {
   await requireAdmin();
-  const hub = str(input.hubId), slug = str(input.slug).toLowerCase();
-  if (!isUuid(hub)) return { ok: false, error: "Enter a valid Hub id (a UUID)." };
-  if (!isPilotSlug(slug)) return { ok: false, error: "Choose a web address of 3 to 60 lowercase letters, numbers and hyphens." };
+  const slug = str(input.slug).toLowerCase();
   try {
     const sb = await createClient();
-    const { error } = await sb.rpc("admin_create_edition_organiser_for_hub", { p_hub: hub, p_slug: slug, p_name: str(input.name) || null, p_note: str(input.note) || null });
-    if (error) return fail(error.message);
+    const { data } = await sb.from("edition_organisers").select("slug").eq("slug", slug).limit(1);
+    const taken = ((data ?? []) as { slug: string }[]).map((r) => r.slug);
+    const problem = slugProblem(slug, taken);
+    return problem ? { ok: false, message: problem } : { ok: true, message: "Available." };
+  } catch { return { ok: false, message: "Could not check the address. Try again." }; }
+}
+
+/**
+ * Set up the Editions organiser for a Hub. The administrator picks the Hub; its name is read here (never typed), the address is suggested and checked, and the audit
+ * note is written for them. This only creates the verified organiser: it does not approve the pilot, grant publishing or publish anything.
+ */
+export async function setupHubOrganiserAction(input: { hubId: string; slug?: string; name?: string; note?: string }): Promise<SetupResult> {
+  const admin = await requireAdmin();
+  const hubId = str(input.hubId);
+  if (!isUuid(hubId)) return { ok: false, error: "Choose a Hub from the list." };
+  try {
+    const sb = await createClient();
+    const { data: hub } = await sb.from("hubs").select("id, name, is_active").eq("id", hubId).maybeSingle();
+    if (!hub || !hub.is_active) return { ok: false, error: "That Hub was not found or is not active." };
+    const { data: existing } = await sb.from("edition_organisers").select("id, name").eq("hub_id", hubId).neq("status", "rejected").limit(1);
+    if (existing?.length) return { ok: false, error: `${hub.name} already has an Editions organiser (${existing[0].name}). Open it instead of creating another.` };
+    const { data: slugs } = await sb.from("edition_organisers").select("slug").limit(5000);
+    const taken = ((slugs ?? []) as { slug: string }[]).map((r) => r.slug);
+    const name = str(input.name) || hub.name;
+    const slug = (str(input.slug) || suggestOrganiserSlug(name, taken)).toLowerCase();
+    const problem = slugProblem(slug, taken);
+    if (problem) return { ok: false, error: problem };
+    const { data, error } = await sb.rpc("admin_create_edition_organiser_for_hub", { p_hub: hubId, p_slug: slug, p_name: name, p_note: autoNote("hub_setup", adminName(admin), str(input.note), hub.name) });
+    if (error) return { ok: false, error: adminError(error.message) };
     refresh();
-    return { ok: true };
-  } catch (e) { return fail(e); }
+    return { ok: true, organiserId: String(data), slug, name };
+  } catch (e) { return { ok: false, error: adminError(e instanceof Error ? e.message : "") }; }
 }
 
 export async function approvePilotAction(input: { organiserId: string; note?: string }): Promise<Result> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (!isUuid(input.organiserId)) return { ok: false, error: "Unknown organiser." };
-  const note = str(input.note);
-  if (note.length < 5) return { ok: false, error: "Add a note saying why this organiser is approved (at least 5 characters)." };
+  const note = autoNote("approve", adminName(admin), str(input.note));
   try {
     const sb = await createClient();
     const { error } = await sb.rpc("admin_approve_edition_pilot", { p_org: input.organiserId, p_note: note });
@@ -147,10 +177,9 @@ export async function approvePilotAction(input: { organiserId: string; note?: st
 }
 
 export async function revokePilotAction(input: { organiserId: string; reason?: string }): Promise<Result> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (!isUuid(input.organiserId)) return { ok: false, error: "Unknown organiser." };
-  const reason = str(input.reason);
-  if (reason.length < 5) return { ok: false, error: "Add a reason (at least 5 characters)." };
+  const reason = autoNote("revoke", adminName(admin), str(input.reason));
   try {
     const sb = await createClient();
     const { error } = await sb.rpc("admin_revoke_edition_pilot", { p_org: input.organiserId, p_reason: reason });
@@ -161,10 +190,9 @@ export async function revokePilotAction(input: { organiserId: string; reason?: s
 }
 
 export async function grantPilotPublishAction(input: { editionId: string; reason?: string }): Promise<Result> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (!isUuid(input.editionId)) return { ok: false, error: "Unknown edition." };
-  const reason = str(input.reason);
-  if (reason.length < 5) return { ok: false, error: "Add a reason (at least 5 characters)." };
+  const reason = autoNote("grant", adminName(admin), str(input.reason));
   try {
     const sb = await createClient();
     const { error } = await sb.rpc("admin_grant_edition_pilot_publish", { p_edition: input.editionId, p_reason: reason, p_days: 90 });
@@ -176,12 +204,12 @@ export async function grantPilotPublishAction(input: { editionId: string; reason
 
 /** Verify, or remove verification from, a Hub. Administrators only; the database function checks again and writes the audit row. */
 export async function setHubVerifiedAction(input: { hubId: string; verified: boolean; note?: string }): Promise<Result> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   if (!isUuid(input.hubId)) return { ok: false, error: "Unknown Hub." };
-  const note = str(input.note);
-  if (note.length < 5) return { ok: false, error: "Add a note saying what you checked (at least 5 characters)." };
   try {
     const sb = await createClient();
+    const { data: hub } = await sb.from("hubs").select("name").eq("id", input.hubId).maybeSingle();
+    const note = autoNote(input.verified === true ? "hub_verify" : "hub_unverify", adminName(admin), str(input.note), hub?.name ?? "the Hub");
     const { error } = await sb.rpc("admin_set_hub_verified", { p_hub: input.hubId, p_verified: input.verified === true, p_note: note });
     if (error) return fail(error.message);
     refresh();

@@ -23,7 +23,7 @@ test("every action authenticates first, uses the user's client, never a service 
     assert.ok(fns.length > 0);
     for (const f of fns) {
       const afterSig = f.body.slice(f.body.indexOf("{\n") + 2).trimStart();
-      assert.ok(afterSig.startsWith("await requireAdmin();"), `${file}:${f.name} must call requireAdmin first`);
+      assert.ok(/^(const admin = )?await requireAdmin\(\);/.test(afterSig), `${file}:${f.name} must call requireAdmin first`);
     }
   }
 });

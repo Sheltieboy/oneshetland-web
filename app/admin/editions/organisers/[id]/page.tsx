@@ -28,6 +28,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     sb.from("edition_pilot_approvals").select("id, approved_at, note").eq("organiser_id", id).is("revoked_at", null).maybeSingle(),
     data.hub_id ? sb.from("hubs").select("name, is_active, is_verified").eq("id", data.hub_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const linkable = admin ? (((await sb.from("hubs").select("id, name, is_verified").eq("is_active", true).order("name").limit(200)).data ?? []) as { id: string; name: string; is_verified: boolean | null }[]).map((h) => ({ id: h.id, name: h.name, verified: !!h.is_verified })) : [];
   const pilot = pilotRes.data as { id: string; approved_at: string; note: string } | null;
   const hub = hubRes.data as { name: string; is_active: boolean; is_verified: boolean | null } | null;
   const [ver, mem, eds, audit] = await Promise.all([
@@ -83,10 +84,10 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       {admin && (
         <Section title="Pilot access">
-          <Facts rows={[["Pilot approval", pilot ? `Approved ${when(pilot.approved_at)}: ${pilot.note}` : "Not approved. Nothing from this organiser is public through the pilot."],
+          <Facts rows={[["Pilot approval", pilot ? `Approved ${when(pilot.approved_at)}. ${pilot.note}` : "Not approved. Nothing from this organiser is public through the pilot."],
             ...(o.hub_id ? [["Hub", hub ? `${hub.name} (${hub.is_active ? "active" : "NOT active"}, ${hub.is_verified ? "verified" : "NOT verified"})` : "Not found"] as [string, string]] : [])]} />
           {!pilot && o.hub_id && hub && !hub.is_verified && <p className="my-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">This Hub is not verified. Verify the Hub first; the database will not approve a Hub-run organiser until you have.</p>}
-          {o.hub_id && hub && hub.is_active && !hub.is_verified && <div className="my-3"><HubVerifyForm hubId={o.hub_id} verified={false} /></div>}
+          {o.hub_id && hub && hub.is_active && !hub.is_verified && <div className="my-3"><HubVerifyForm hubId={o.hub_id} verified={false} hubName={hub.name} /></div>}
           {!pilot && o.status !== "verified" && <p className="my-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Verify the organiser first.</p>}
           <div className="mt-3"><PilotApprovalForm organiserId={o.id} approved={!!pilot} /></div>
         </Section>
@@ -94,7 +95,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       {admin && (
         <>
-          <Section title="Link to a hub"><LinkHubForm organiserId={o.id} current={o.hub_id} /></Section>
+          <Section title="Link to a hub"><LinkHubForm organiserId={o.id} current={o.hub_id} hubs={linkable} /></Section>
           {!o.is_test && <Section title="Test organisation"><p className="mb-2 text-sm text-ink-soft">Marking an organiser as test hides it and its Editions from the public. It cannot be undone from here.</p><MarkTestButton organiserId={o.id} label="Mark organiser as test" /></Section>}
         </>
       )}

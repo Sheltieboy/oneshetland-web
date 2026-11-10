@@ -143,3 +143,67 @@ export const isStepKey = (s: string): s is StepKey => STEPS.some((x) => x.key ==
 export const isPilotSlug = (s: string) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s) && s.length >= 3 && s.length <= 60;
 /** A pilot Edition page is public through its direct link only: never search-indexed and never in the sitemap, until Editions is opened to everyone. */
 export const PILOT_PUBLIC_DAYS = 90;
+
+/* ── Pilot admin: nothing an administrator should have to type or copy ─────────────────────────────────────────────────────────────────────────────── */
+
+/** The addresses the database refuses for an organiser (kept in step with admin_create_edition_organiser_for_hub). */
+export const RESERVED_ORGANISER_SLUGS = ["new", "admin", "api", "edit", "manage", "organisers", "editions", "account", "sign-in", "sign-up", "dashboard", "test", "null", "undefined"] as const;
+
+/** A readable web address from a name: lower case, accents and apostrophes dropped, anything else becomes one hyphen, at most 60 characters. */
+export function slugify(name: string, max = 60): string {
+  const s = String(name ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/['’`]/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return s.slice(0, max).replace(/-+$/g, "");
+}
+
+/** Why a web address cannot be used, in words, or null when it can. `taken` is every organiser address already in use. */
+export function slugProblem(slug: string, taken: Iterable<string>): string | null {
+  const s = String(slug ?? "").trim().toLowerCase();
+  if (!isPilotSlug(s)) return "Use 3 to 60 lowercase letters, numbers and single hyphens.";
+  if ((RESERVED_ORGANISER_SLUGS as readonly string[]).includes(s)) return "That address is reserved. Choose another.";
+  for (const t of taken) if (t === s) return "That address is already used by another organiser.";
+  return null;
+}
+
+/** The first free, valid address for a Hub: its name, then name-editions, then name-editions-2, 3 … Never returns something the database would refuse. */
+export function suggestOrganiserSlug(name: string, taken: Iterable<string>): string {
+  const used = new Set([...taken].map((t) => String(t).toLowerCase()));
+  const fit = (base: string, suffix: string) => (slugify(base, 60 - suffix.length) + suffix);
+  const base = slugify(name) || "hub";
+  const candidates = [fit(base, ""), fit(base, "-editions")];
+  for (let i = 2; i < 100; i++) candidates.push(fit(base, `-editions-${i}`));
+  const ok = (c: string) => !slugProblem(c, used);
+  return candidates.find(ok) ?? `hub-${Date.now().toString(36)}`;
+}
+
+/** A Hub as the set-up list needs it: its own state, and the organiser already attached to it (if any). */
+export type HubChoice = {
+  id: string; name: string; verified: boolean;
+  organiser: { id: string; name: string; slug: string; status: string; approved: boolean } | null;
+  suggestedSlug: string;
+};
+
+/** Where a Hub is on the road to the pilot, for the chips and the one "next step" line. */
+export function hubStage(h: Pick<HubChoice, "verified" | "organiser">): { key: "verify" | "setup" | "approve" | "live"; label: string; next: string } {
+  if (h.organiser?.approved) return { key: "live", label: "Approved for the pilot", next: "Approved. Grant 90-day publishing from one of its Editions when it has one." };
+  if (h.organiser) return h.verified ? { key: "approve", label: "Ready to approve", next: "Open the organiser to approve it for the pilot." } : { key: "verify", label: "Needs verifying", next: "Verify the Hub, then approve the organiser." };
+  return h.verified ? { key: "setup", label: "Ready to set up", next: "Set up Editions for this Hub." } : { key: "setup", label: "Not set up", next: "Set up Editions, then verify the Hub before approving." };
+}
+
+/** Audit notes are written for the administrator, so routine actions need no typing. Anything they add is appended. */
+export const NOTE_KINDS = {
+  hub_setup: (subject: string) => `Editions organiser set up for ${subject}`,
+  hub_verify: (subject: string) => `${subject} verified`,
+  hub_unverify: (subject: string) => `Verification removed from ${subject}`,
+  pilot_on: () => "Pilot switched on",
+  pilot_off: () => "Pilot switched off",
+  approve: () => "Approved for the pilot",
+  revoke: () => "Pilot approval withdrawn",
+  grant: () => "90-day pilot publishing granted",
+} as const;
+export type NoteKind = keyof typeof NOTE_KINDS;
+export function autoNote(kind: NoteKind, admin: string, extra?: string, subject = "the Hub"): string {
+  const base = (NOTE_KINDS[kind] as (s: string) => string)(subject);
+  const who = (admin || "").trim() || "an administrator";
+  const more = String(extra ?? "").trim();
+  return `${base} by ${who} from the admin Pilot tab.${more ? ` ${more}` : ""}`.slice(0, 480);
+}
