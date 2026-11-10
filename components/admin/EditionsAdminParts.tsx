@@ -50,7 +50,7 @@ export function DataTable({ head, children }: { head: string[]; children: React.
   return (
     <div className="overflow-x-auto rounded-card border border-line bg-paper shadow-soft">
       <table className="w-full min-w-[640px] text-left text-sm">
-        <thead className="border-b border-line bg-sand/50 text-xs uppercase tracking-wider text-ink-muted"><tr>{head.map((h) => <th key={h} scope="col" className="px-4 py-2.5 font-bold">{h}</th>)}</tr></thead>
+        <thead className="border-b border-line bg-sand/50 text-xs uppercase tracking-wider text-ink-soft"><tr>{head.map((h) => <th key={h} scope="col" className="px-4 py-2.5 font-bold">{h}</th>)}</tr></thead>
         <tbody className="divide-y divide-line">{children}</tbody>
       </table>
     </div>
@@ -61,7 +61,7 @@ export const Td = ({ children, className = "" }: { children: React.ReactNode; cl
 export function Facts({ rows }: { rows: [string, React.ReactNode][] }) {
   return (
     <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-[10rem_1fr]">
-      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="font-bold text-ink-muted">{k}</dt><dd className="min-w-0 break-words text-ink">{v || <span className="text-ink-faint">None</span>}</dd></div>)}
+      {rows.map(([k, v]) => <div key={k} className="contents"><dt className="font-bold text-ink-muted">{k}</dt><dd className="min-w-0 break-words text-ink">{v || <span className="text-ink-muted">None</span>}</dd></div>)}
     </dl>
   );
 }

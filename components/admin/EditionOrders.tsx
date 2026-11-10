@@ -20,7 +20,7 @@ export function OrderRefund({ order, editionId, refunds }: { order: OrderRow; ed
     <li className="rounded-lg border border-line p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-bold text-ink">{order.package_name ?? "Package"}</span>
-        <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-bold text-ink-soft">{order.free ? "Free package" : STATUS_WORDS[order.status] ?? order.status}</span>
+        <span className="rounded-pill bg-sand px-2.5 py-0.5 text-xs font-bold text-ink">{order.free ? "Free package" : STATUS_WORDS[order.status] ?? order.status}</span>
         <span className="text-sm text-ink-soft">{order.free ? "No payment" : money(order.amount_pence)}{order.refunded_pence > 0 ? `, ${money(order.refunded_pence)} refunded` : ""}</span>
         {order.buyer_name && <span className="text-xs text-ink-muted">bought by {order.buyer_name}</span>}
       </div>

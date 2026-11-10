@@ -56,7 +56,7 @@ export function Notice({ msg }: { msg: { ok: boolean; text: string } | null }) {
 type Tone = "green" | "amber" | "red" | "blue" | "gray" | "purple";
 const TONE: Record<Tone, string> = {
   green: "bg-emerald-100 text-emerald-800", amber: "bg-amber-100 text-amber-800", red: "bg-rose-100 text-rose-700",
-  blue: "bg-sky-100 text-sky-800", gray: "bg-sand text-ink-soft", purple: "bg-violet-100 text-violet-800",
+  blue: "bg-sky-100 text-sky-800", gray: "bg-sand text-ink", purple: "bg-violet-100 text-violet-800",
 };
 export function Pill({ label, tone = "gray" }: { label: string; tone?: Tone }) {
   return <span className={`inline-block rounded-pill px-2.5 py-0.5 text-xs font-bold ${TONE[tone]}`}>{label}</span>;
