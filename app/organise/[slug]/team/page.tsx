@@ -10,7 +10,7 @@ export const metadata = { title: "Team" };
 
 export default async function TeamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { organiser, role, account, sb } = await organiserPage(slug, `/organise/${slug}/team`);
+  const { organiser, role, account, sb, parent } = await organiserPage(slug, `/organise/${slug}/team`);
   const isAdmin = can(role, "admin"), isOwner = can(role, "owner");
   const [team, inv] = await Promise.all([
     isAdmin ? sb.rpc("edition_org_team", { p_org: organiser.id }) : Promise.resolve({ data: [] }),
@@ -22,10 +22,10 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
     <div className="mx-auto max-w-3xl">
       <Link href={`/organise/${slug}`} className="text-sm text-ink-muted hover:underline">← {organiser.name}</Link>
       <h1 className="mt-2 font-display text-3xl font-bold text-ink">Team</h1>
-      <p className="mt-1 text-ink-soft">Owners manage people and verification. Administrators create and publish Editions. Editors change content. An organiser always keeps at least one owner.</p>
+      <p className="mt-1 text-ink-soft">Everyone with access to your Editions. Owners and committee come with your Business or Hub; you can invite helpers by email. Administrators can submit, publish and choose packages. Editors can edit content only.</p>
       <div className="mt-6">
-        {isAdmin ? <TeamManager slug={slug} role={role} selfId={account.id} members={members} invites={invites} />
-          : <Panel title="Your access"><p className="mb-3 text-sm text-ink-soft">You are an editor. Administrators and owners can see the full team.</p><LeaveOrganiser slug={slug} selfId={account.id} /></Panel>}
+        {isAdmin ? <TeamManager slug={slug} role={role} selfId={account.id} members={members} invites={invites} parentKind={parent?.kind ?? (organiser.business_id ? "business" : "hub")} />
+          : <Panel title="Your access"><p className="mb-3 text-sm text-ink-soft">You are an editor. Administrators and owners can see everyone with access.</p><LeaveOrganiser slug={slug} selfId={account.id} /></Panel>}
       </div>
     </div>
   );

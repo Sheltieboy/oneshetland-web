@@ -8,7 +8,7 @@ type FooterLink = { href: string; label: string };
  * "About this concept" or "Image credits", and the Journal archive) and the way back to other Editions. Beneath, understated: "Powered by OneShetland" and OneShetland's
  * legal links. On a demonstration deployment the disclosure is repeated here. The full OneShetland site footer is not drawn on Edition pages (HideOnEditionPages).
  */
-export function EditionFooter({ organiser, links, about = [], hub }: { organiser: { name: string; slug: string }; links: FooterLink[]; about?: FooterLink[]; hub?: { name: string; href: string } | null }) {
+export function EditionFooter({ organiser, links, about = [], hub }: { organiser: { name: string; slug: string }; links: FooterLink[]; about?: FooterLink[]; hub?: { name: string; href: string } | null /* the Hub or Business that runs these Editions */ }) {
   return (
     <footer className="ed-foot">
       <div className="ed-wrap ed-foot__in">
@@ -17,7 +17,7 @@ export function EditionFooter({ organiser, links, about = [], hub }: { organiser
           <p className="ed-foot__org" style={{ margin: "0.6rem 0 0" }}>
             <Link href={`/organisers/${organiser.slug}`} style={{ textDecoration: "none" }}>{organiser.name}</Link>
           </p>
-          {hub && <p className="ed-small" style={{ margin: "0.7rem 0 0", maxWidth: "34ch", color: "var(--ed-on-deep)" }}>A community Hub on OneShetland: <Link href={hub.href} style={{ color: "inherit" }}>{hub.name}</Link></p>}
+          {hub && <p className="ed-small" style={{ margin: "0.7rem 0 0", maxWidth: "34ch", color: "var(--ed-on-deep)" }}>Run by <Link href={hub.href} style={{ color: "inherit" }}>{hub.name}</Link></p>}
         </div>
         {about.length > 0 && (
           <nav aria-label="About this Edition" className="ed-foot__col">

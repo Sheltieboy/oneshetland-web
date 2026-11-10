@@ -2,7 +2,8 @@ import Link from "next/link";
 import type { Edition, Organiser } from "@/lib/editions/types";
 import { KIND_LABEL } from "@/lib/editions/types";
 import { dateRangeLabel, phaseOf } from "@/lib/editions/rules";
-import { EditionStatusPill, PhasePill, TestPill } from "./kit";
+import { PhasePill, TestPill } from "./kit";
+import { EditionStatePill } from "./JourneyPanels";
 
 export const EDITION_TABS = [
   { key: "overview", label: "Overview", path: "" },
@@ -27,7 +28,7 @@ export function EditionHeader({ organiser, edition, active }: { organiser: Organ
       </nav>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="font-display text-3xl font-bold text-ink">{edition.title}</h1>
-        <EditionStatusPill status={edition.status} />
+        <EditionStatePill edition={edition} showAttention />
         {edition.is_test && <TestPill />}
       </div>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-soft">

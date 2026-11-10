@@ -49,12 +49,21 @@ export interface AdminStats {
   users: number; pendingDrivers: number; openRequests: number; activeRuns: number;
   pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number; openReports: number;
   pendingVesselPhotos: number; pendingVesselSubmissions: number; nfcToPost: number;
-  /** Editions organiser verification requests waiting for a decision (0 when Editions is not set up). */
-  pendingEditionVerifications: number;
+  /** Editions waiting for OneShetland's approval (0 when Editions is not set up). */
+  pendingEditionApprovals: number;
+}
+
+/** Editions waiting for review, from the administrator-only counts function ({ waiting, changes }). */
+async function editionApprovalsWaiting(): Promise<number> {
+  try {
+    const { data, error } = await (await createServerClient()).rpc("admin_edition_review_counts");
+    if (error) { console.error("[admin-data] admin_edition_review_counts errored, reporting 0:", error.message); return 0; }
+    return Number((data as { waiting?: number } | null)?.waiting) || 0;
+  } catch (err) { console.error("[admin-data] admin_edition_review_counts threw, reporting 0:", err); return 0; }
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionVerifications] = await Promise.all([
+  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionApprovals] = await Promise.all([
     count("profiles"),
     count("driver_profiles", (q) => q.eq("driver_status", "pending")),
     count("delivery_requests", (q) => q.eq("status", "pending")),
@@ -67,10 +76,10 @@ export async function getAdminStats(): Promise<AdminStats> {
     count("media_assets", (q) => q.eq("approval_status", "pending")),
     count("vessel_submissions", (q) => q.eq("submission_status", "pending")),
     count("local_businesses", (q) => q.eq("nfc_status", "requested")),
-    // Tolerant: count() reports 0 (and logs) when the Editions table is absent, so the dashboard never breaks.
-    count("edition_organiser_verifications", (q) => q.eq("status", "pending")),
+    // Tolerant: reports 0 when the function is absent or refuses, so the dashboard never breaks. Same figure the Edition approvals page shows on its Waiting tab.
+    editionApprovalsWaiting(),
   ]);
-  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionVerifications };
+  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionApprovals };
 }
 
 /* ── Helper: attach profiles by id ───────────────────────────────────────── */

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { EDITION_COLUMNS, KIND_LABEL, ROLE_LABEL, type Edition, type EditionEntitlement } from "@/lib/editions/types";
 import { can, dateRangeLabel, phaseOf } from "@/lib/editions/rules";
-import { VerificationForm } from "@/components/editions-manage/VerificationForm";
-import { EditionStatusPill, EmptyState, OrganiserStatusPill, Panel, PhasePill, Pill, TestPill, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
+import { EmptyState, Panel, PhasePill, Pill, TestPill, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
 import { BrandPreview } from "@/components/editions-manage/brand-kit";
 import { normaliseFocus, TYPEFACE } from "@/lib/editions/brand";
-import { inheritFromHub, inheritedFields } from "@/lib/editions/hub-brand";
+import { inheritFromParent, inheritedFields } from "@/lib/editions/hub-brand";
+import { EditionStatePill } from "@/components/editions-manage/JourneyPanels";
+import { editionState } from "@/lib/editions/journey";
 import { organiserPage } from "../gate";
 
 export const dynamic = "force-dynamic";
@@ -17,63 +18,50 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function OrganiserDashboard({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { organiser, role, sb, hub } = await organiserPage(slug, `/organise/${slug}`);
+  const { organiser, role, sb, parent } = await organiserPage(slug, `/organise/${slug}`);
   // What the Edition really shows: the organiser's own choices, else the Hub's (read live). The checklist says which is which.
-  const shown = inheritFromHub(organiser, hub), loan = inheritedFields(organiser, hub);
+  const shown = inheritFromParent(organiser, parent), loan = inheritedFields(organiser, parent);
   const isAdmin = can(role, "admin"), isOwner = can(role, "owner");
 
-  const [eds, ents, ver, team] = await Promise.all([
+  const [eds, ents, team] = await Promise.all([
     sb.from("editions").select(EDITION_COLUMNS).eq("organiser_id", organiser.id).order("starts_on", { ascending: false }),
     sb.from("edition_entitlements").select("*").eq("organiser_id", organiser.id),
-    sb.from("edition_organiser_verifications").select("status, note, created_at").eq("organiser_id", organiser.id).order("created_at", { ascending: false }).limit(1),
     isAdmin ? sb.rpc("edition_org_team", { p_org: organiser.id }) : Promise.resolve({ data: null }),
   ]);
   const editions = (eds.data ?? []) as Edition[];
   const entitlements = (ents.data ?? []) as EditionEntitlement[];
   const now = Date.now();
   const entitledFor = (id: string) => entitlements.some((e) => e.edition_id === id && e.feature === "publish" && !e.voided_at && Date.parse(e.starts_at) <= now && Date.parse(e.ends_at) > now);
-  const latest = ((ver.data ?? []) as { status: string; note: string | null }[])[0] ?? null;
   const teamCount = Array.isArray(team.data) ? team.data.length : null;
-  const inReview = organiser.status === "pending" && latest?.status === "pending";
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="inline-block py-1.5 hover:underline">Organiser tools</Link></nav>
+      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="inline-block py-1.5 hover:underline">Festivals and Editions</Link></nav>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl font-bold text-ink">{organiser.name}</h1>
-        <OrganiserStatusPill status={organiser.status} />
         {organiser.is_test && <TestPill />}
       </div>
       <p className="mt-1 text-sm text-ink-soft">You are an {ROLE_LABEL[role]}. {organiser.tagline}</p>
       <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-navy">
         <Link href={`/organise/${organiser.slug}/brand`} className="inline-block py-1.5 hover:underline">Brand</Link>
-        <Link href={`/organise/${organiser.slug}/profile`} className="inline-block py-1.5 hover:underline">Profile</Link>
+        <Link href={`/organise/${organiser.slug}/profile`} className="inline-block py-1.5 hover:underline">Identity</Link>
         <Link href={`/organise/${organiser.slug}/team`} className="inline-block py-1.5 hover:underline">Team</Link>
-        {organiser.status === "verified" && <Link href={`/organise/${organiser.slug}/members`} className="inline-block py-1.5 hover:underline">Members</Link>}
-        {organiser.status === "verified" && isAdmin && <Link href={`/organise/${organiser.slug}/payments`} className="inline-block py-1.5 hover:underline">Payments</Link>}
-        {organiser.status === "verified" && isAdmin && <Link href={`/organise/${organiser.slug}/packages`} className="inline-block py-1.5 hover:underline">Packages</Link>}
-        {organiser.status === "verified" && <Link href={`/organisers/${organiser.slug}`} className="inline-block py-1.5 hover:underline">Public page</Link>}
+        <Link href={`/organise/${organiser.slug}/members`} className="inline-block py-1.5 hover:underline">Members</Link>
+        {isAdmin && <Link href={`/organise/${organiser.slug}/payments`} className="inline-block py-1.5 hover:underline">Payments</Link>}
+        {isAdmin && <Link href={`/organise/${organiser.slug}/packages`} className="inline-block py-1.5 hover:underline">Packages</Link>}
+        <Link href={`/organisers/${organiser.slug}`} className="inline-block py-1.5 hover:underline">Public page</Link>
       </div>
 
       <div className="mt-6 space-y-6">
-        {organiser.status === "verified" ? null : organiser.status === "suspended" ? (
-          <Panel tone="alert" title="This organiser is suspended"><p className="text-sm text-ink-soft">OneShetland has suspended this organiser, so none of its Editions are public. Contact support to resolve this.</p></Panel>
-        ) : inReview ? (
-          <Panel tone="warm" title="Verification is under review"><p className="text-sm text-ink-soft">We have your request and will review it. You can keep building your Editions in the meantime; they stay private until you are verified and have an active package.</p></Panel>
-        ) : (
-          <Panel tone="warm" title={organiser.status === "rejected" ? "Verification was not approved" : "Verify your organiser"}
-            sub={organiser.status === "rejected" ? (latest?.note ? `Reason given: ${latest.note}` : "You can send more detail and ask us to look again.") : "Editions can only be published by a verified organiser. You can build everything now and publish once we have verified you."}>
-            {isOwner ? <VerificationForm slug={organiser.slug} resubmit={organiser.status === "rejected"} /> : <p className="text-sm text-ink-soft">Only an owner can request verification.</p>}
-          </Panel>
-        )}
+        {organiser.status === "suspended" && <Panel tone="alert" title="Your Editions are paused"><p className="text-sm text-ink-soft">OneShetland has paused Editions for {parent?.name ?? "this Business or Hub"}, so none of them are public for now.</p></Panel>}
 
         <Panel title="Your brand" sub="Your logo, one colour and one cover photograph make every page feel like yours. We handle the rest."
           action={isAdmin ? <Link href={`/organise/${organiser.slug}/brand`} className={btnSecondary}>{shown.logo_url && shown.cover_url && shown.brand_color ? "Edit brand" : "Set up your brand"}</Link> : undefined}>
           <div className="grid items-start gap-5 sm:grid-cols-[minmax(0,22rem)_1fr]">
-            <BrandPreview name={organiser.name} tagline={organiser.tagline} logo={shown.logo_url} cover={shown.cover_url} focus={normaliseFocus(shown.cover_focus)} color={shown.brand_color} eyebrow="Organiser" />
+            <BrandPreview name={organiser.name} tagline={organiser.tagline} logo={shown.logo_url} cover={shown.cover_url} focus={normaliseFocus(shown.cover_focus)} color={shown.brand_color} eyebrow="Editions" />
             <ul className="space-y-2 text-sm text-ink-soft" aria-label="Brand checklist">
               {[["Logo", !!shown.logo_url, loan.logo], ["Brand colour", !!shown.brand_color, loan.color], ["Cover photograph", !!shown.cover_url, loan.cover], ["Tagline", !!organiser.tagline, false]].map(([label, ok, fromHub]) => (
-                <li key={String(label)} className="flex items-center gap-2"><span aria-hidden="true" className={ok ? "text-emerald-700" : "text-ink-faint"}>{ok ? "✓" : "○"}</span><span className={ok ? "text-ink" : ""}>{label as string}{ok ? (fromHub ? ` (from ${hub?.name ?? "your Hub"})` : "") : " (not added yet)"}</span></li>
+                <li key={String(label)} className="flex items-center gap-2"><span aria-hidden="true" className={ok ? "text-emerald-700" : "text-ink-faint"}>{ok ? "✓" : "○"}</span><span className={ok ? "text-ink" : ""}>{label as string}{ok ? (fromHub ? ` (from ${parent?.name ?? "your profile"})` : "") : " (not added yet)"}</span></li>
               ))}
               <li className="pt-1 text-ink-muted">Typeface: {TYPEFACE.name}, shared by every Edition.</li>
             </ul>
@@ -97,9 +85,9 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
                       <p className="text-sm text-ink-soft">{KIND_LABEL[e.kind]} · {dateRangeLabel(e.starts_on, e.ends_on)}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <EditionStatusPill status={e.status} />
+                      <EditionStatePill edition={e} showAttention />
                       {e.status !== "archived" && <PhasePill phase={phaseOf(e)} />}
-                      {isAdmin && e.status !== "archived" && <Pill label={entitledFor(e.id) ? "Package active" : "No package"} tone={entitledFor(e.id) ? "green" : "gray"} />}
+                      {isAdmin && editionState(e) === "approved" && <Pill label={entitledFor(e.id) ? "Package active" : "Choose a package"} tone={entitledFor(e.id) ? "green" : "amber"} />}
                       {e.is_test && <TestPill />}
                     </div>
                   </Link>
@@ -110,7 +98,7 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
         </section>
 
         <Panel title="Team" action={<Link href={`/organise/${organiser.slug}/team`} className={btnSecondary + " !px-4 !py-1.5"}>{isOwner ? "Manage team" : "View"}</Link>}>
-          <p className="text-sm text-ink-soft">{teamCount !== null ? `${teamCount} ${teamCount === 1 ? "person" : "people"} can work on this organiser.` : "Administrators and owners can see the team."} Owners manage people; administrators manage and publish Editions; editors change content.</p>
+          <p className="text-sm text-ink-soft">{teamCount !== null ? `${teamCount} ${teamCount === 1 ? "person" : "people"} can work on your Editions.` : "Administrators and owners can see everyone with access."} Owners invite helpers; administrators submit and publish Editions; editors edit content.</p>
         </Panel>
       </div>
     </>

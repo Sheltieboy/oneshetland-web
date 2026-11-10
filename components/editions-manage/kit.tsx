@@ -65,7 +65,7 @@ export function Pill({ label, tone = "gray" }: { label: string; tone?: Tone }) {
 const ED_TONE: Record<EditionStatus, [string, Tone]> = { draft: ["Draft", "gray"], published: ["Published", "green"], archived: ["Archived", "blue"], suspended: ["Suspended", "red"] };
 export const EditionStatusPill = ({ status }: { status: EditionStatus }) => <Pill label={ED_TONE[status][0]} tone={ED_TONE[status][1]} />;
 
-const ORG_TONE: Record<OrganiserStatus, [string, Tone]> = { pending: ["Verification pending", "amber"], verified: ["Verified", "green"], rejected: ["Not verified", "red"], suspended: ["Suspended", "red"] };
+const ORG_TONE: Record<OrganiserStatus, [string, Tone]> = { pending: ["Not yet approved", "amber"], verified: ["Approved", "green"], rejected: ["Not approved", "red"], suspended: ["Suspended", "red"] };
 export const OrganiserStatusPill = ({ status }: { status: OrganiserStatus }) => <Pill label={ORG_TONE[status][0]} tone={ORG_TONE[status][1]} />;
 
 const PH_TONE: Record<Phase, Tone> = { upcoming: "blue", running: "green", ended: "gray" };

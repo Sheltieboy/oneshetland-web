@@ -190,6 +190,6 @@ describe("source guards", () => {
     const r = read("app/organise/[slug]/payments/export.csv/route.ts");
     assert.match(r, /401/); assert.match(r, /csv_export/); assert.match(r, /role === "owner" \|\| role === "admin"/); assert.match(r, /status: 401|404/);
   });
-  test("moderators have no route to suspension: the admin decisions list is admin-only", () => { assert.match(read("app/admin/editions/helpers.ts"), /ADMIN_ONLY_DECISIONS: OrganiserDecision\[\] = \["verify", "reject", "reinstate", "suspend"\]/); });
+  test("moderators have no route to suspension: the admin decisions list is admin-only", () => { assert.match(read("app/admin/editions/helpers.ts"), /ADMIN_ONLY_DECISIONS: OrganiserDecision\[\] = \["reinstate", "suspend"\]/); });
 });
 

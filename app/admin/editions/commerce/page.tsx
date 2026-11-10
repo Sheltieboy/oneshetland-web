@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { EditionsCommerceAdmin } from "@/components/admin/EditionsCommerceAdmin";
 import { COMMERCE_KEYS } from "./config";
+import { EditionsTabs } from "@/components/admin/EditionsAdminParts";
+import { reviewCounts } from "../queries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Editions commerce" };
@@ -24,7 +25,7 @@ export default async function CommercePage() {
   const susp = new Set(((payouts.data ?? []) as { organiser_id: string; collection_suspended: boolean }[]).filter((p) => p.collection_suspended).map((p) => p.organiser_id));
   return (
     <div className="space-y-6">
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/admin/editions" className="hover:underline">Editions</Link></nav>
+      <EditionsTabs active="commerce" waiting={(await reviewCounts()).waiting} />
       <div><h1 className="font-display text-3xl font-bold text-ink">Commerce</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">The commercial model for organiser memberships, Edition participation and packages. Payments are off by default.</p></div>
       <EditionsCommerceAdmin config={config} packages={(pk.data ?? []) as never} organisers={((orgs.data ?? []) as { id: string; name: string; status: string }[]).map((o) => ({ ...o, collection_suspended: susp.has(o.id) }))} entitlements={(ents.data ?? []) as never} exceptions={(exc.data ?? []) as never} fees={(fees.data ?? []) as never} />
     </div>

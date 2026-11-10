@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { requireBusinessOwner } from "@/lib/business-server";
-import { getMyPartnerships } from "@/lib/editions/data.server";
+import { getMyBusinessEditions, getMyPartnerships } from "@/lib/editions/data.server";
 import { getMyMemberships, getMyParticipations, getMyPayments } from "@/lib/editions/commerce.server";
 import { BusinessCommerce } from "@/components/editions-commerce/BusinessCommerce";
+import { EditionsEntryPanel } from "@/components/editions-manage/EditionsEntryPanel";
 import { PartnershipInbox } from "@/components/editions-manage/PartnershipInbox";
+import { startBusinessEditions } from "./actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Festivals and Editions" };
@@ -12,7 +14,8 @@ export const metadata = { title: "Festivals and Editions" };
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { business } = await requireBusinessOwner(id, { returnPath: `/business/${id}/manage/editions` });
-  const [all, memberships, participations, payments] = await Promise.all([getMyPartnerships(), getMyMemberships(), getMyParticipations(), getMyPayments()]);
+  const [all, memberships, participations, payments, mineEd] = await Promise.all([getMyPartnerships(), getMyMemberships(), getMyParticipations(), getMyPayments(), getMyBusinessEditions()]);
+  const row = mineEd.find((b) => b.business_id === business.id) ?? null;
   // this business's own listing, plus the events and activities it organises
   const mine = all.filter((p) => p.subject_business_id === business.id);
   return (
@@ -20,6 +23,9 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <Link href={`/business/${business.id}/manage`} className="text-sm font-semibold text-ink-soft hover:text-ink">← {business.name}</Link>
       <h1 className="mt-3 font-display text-3xl font-bold text-ink">Festivals and Editions</h1>
       <div className="mt-6">
+        <EditionsEntryPanel kind="business" parentId={business.id} parentName={business.name} start={startBusinessEditions} state={row?.organiser_slug ? { slug: row.organiser_slug, editions: row.edition_count, inReview: row.in_review } : null} />
+      </div>
+      <div className="mt-10 border-t border-line pt-10">
         <PartnershipInbox partnerships={mine} businessId={business.id} businessName={business.name} billingHref={`/business/${business.id}/manage/billing`} />
       </div>
       <div className="mt-12 border-t border-line pt-10">

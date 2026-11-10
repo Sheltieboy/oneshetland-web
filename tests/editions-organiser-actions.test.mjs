@@ -35,7 +35,6 @@ test("each exported action resolves the organiser server-side and checks a minim
   const bodies = actions.split(/^export async function /m).slice(1);
   for (const b of bodies) {
     const name = b.slice(0, b.indexOf("("));
-    if (name === "createOrganiser") { assert.match(b, /getEditionsAccess\(\)/); continue; }
     if (name === "acceptInvite") { assert.match(b, /auth\.getUser\(\)/); continue; }
     assert.match(b, /(organiserCtx|editionCtx)\(/, `${name} lacks a role-checked context`);
   }
@@ -45,7 +44,7 @@ test("each exported action resolves the organiser server-side and checks a minim
 test("role minimums match the database: publish and create are admin+, team is owner, content is editor", () => {
   const body = (n) => actions.split(`export async function ${n}(`)[1].split(/\nexport async function /)[0];
   for (const n of ["createEdition", "setEditionStatus", "deleteEdition", "updateOrganiserProfile"]) assert.match(body(n), /"admin"\)/, n);
-  for (const n of ["inviteMember", "revokeInvite", "setMemberRole", "requestVerification"]) assert.match(body(n), /"owner"\)/, n);
+  for (const n of ["inviteMember", "revokeInvite", "setMemberRole"]) assert.match(body(n), /"owner"\)/, n);
   for (const n of ["updateEdition", "savePage", "saveSession", "saveVenue", "saveUpdate", "saveSponsor", "deletePage", "deleteSession", "deleteUpdate", "deleteSponsor"]) assert.match(body(n), /"editor"\)/, n);
   assert.match(body("removeMember"), /userId === c\.userId/);
   assert.match(body("removeMember"), /can\(c\.role, "owner"\)/);
@@ -56,8 +55,8 @@ test("status changes go only through the RPC; entitlements are never written", (
   assert.ok(!/\.update\(\{[^}]*status/.test(actions.replace(/is_home: false/g, "")) || !/from\("editions"\)\.update\(\{[^}]*status/.test(actions));
   assert.ok(!/from\("edition_entitlements"\)\s*\.(insert|update|delete|upsert)/.test(actions));
   assert.ok(!/from\("edition_organisers"\)\.insert/.test(actions));
-  assert.match(actions, /rpc\("create_edition_organiser"/);
-  for (const r of ["invite_edition_member", "revoke_edition_invite", "accept_edition_invite", "set_edition_member_role", "remove_edition_member", "request_edition_organiser_verification"]) assert.match(actions, new RegExp(`rpc\\("${r}"`), r);
+  assert.doesNotMatch(actions, /create_edition_organiser|request_edition_organiser_verification/, "the independent organiser and verification-request routes are retired");
+  for (const r of ["invite_edition_member", "revoke_edition_invite", "accept_edition_invite", "set_edition_member_role", "remove_edition_member"]) assert.match(actions, new RegExp(`rpc\\("${r}"`), r);
 });
 
 test("organiser_id and edition_id come from the server-resolved slug, never from client input", () => {
@@ -70,7 +69,7 @@ test("organiser_id and edition_id come from the server-resolved slug, never from
 });
 
 test("all writes validate first and revalidate affected routes", () => {
-  for (const fn of ["organiserCreate", "organiserProfile", "editionFields", "pageFields", "sessionFields", "venueFields", "updateFields", "sponsorFields", "inviteInput", "verificationEvidence"]) assert.match(actions, new RegExp(`${fn}\\(`), fn);
+  for (const fn of ["organiserProfile", "editionFields", "pageFields", "sessionFields", "venueFields", "updateFields", "sponsorFields", "inviteInput"]) assert.match(actions, new RegExp(`${fn}\\(`), fn);
   assert.match(actions, /friendlyError\(/);
   assert.ok((actions.match(/revalidatePath\(/g) ?? []).length >= 10);
 });
@@ -84,7 +83,9 @@ test("pages are gated by getEditionsAccess and requireOrganiser, and sign-in ret
   assert.match(gate, /can\(ctx\.role, min\)/);
   const pages = ownFiles.filter((p) => p.startsWith("app/organise/") && p.endsWith("page.tsx"));
   assert.ok(pages.length >= 11, `found ${pages.length} pages`);
-  for (const p of pages) assert.match(read(p), /(gate|organiserPage|editionPage)\(/, `${p} is not gated`);
+  // The Editions home only needs a signed-in person (the database decides what each button can do); /organise/new only redirects.
+  for (const p of pages.filter((x) => x !== "app/organise/page.tsx" && x !== "app/organise/new/page.tsx")) assert.match(read(p), /(gate|organiserPage|editionPage)\(/, `${p} is not gated`);
+  assert.match(read("app/organise/page.tsx"), /signedIn/);
 });
 
 test("controls are hidden for roles that cannot use them", () => {

@@ -3,21 +3,21 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
-import { friendlyError } from "@/lib/editions/rules";
+import { adminError } from "../helpers";
 import { isUuid } from "@/lib/editions/validate";
 import { COMMERCE_KEYS, validateConfigValue } from "./config";
 import { toPence } from "@/lib/editions/commerce";
 
 /** Admin commercial model. requireAdmin() first, then as the signed-in admin (the SQL functions check again and audit every change). No service key. */
 export type Result = { ok: true } | { ok: false; error: string };
-const fail = (e: unknown): Result => ({ ok: false, error: friendlyError(e instanceof Error ? e.message : String(e)) });
+const fail = (e: unknown): Result => ({ ok: false, error: adminError(e instanceof Error ? e.message : String(e)) });
 const refresh = () => revalidatePath("/admin/editions/commerce");
 
 export async function setCommerceConfig(key: string, value: string): Promise<Result> {
   await requireAdmin();
   const v = validateConfigValue(key, value); if (!v.ok) return v;
   const sb = await createClient(); const { error } = await sb.rpc("admin_set_edition_commerce_config", { p_key: key, p_value: v.value });
-  if (error) return { ok: false, error: /not allowed/.test(error.message) ? "That setting or value is not allowed." : friendlyError(error.message) };
+  if (error) return { ok: false, error: /not allowed/.test(error.message) ? "That setting or value is not allowed." : adminError(error.message) };
   refresh(); return { ok: true };
 }
 export async function upsertPackage(input: Record<string, unknown>): Promise<Result> {
@@ -29,8 +29,9 @@ export async function upsertPackage(input: Record<string, unknown>): Promise<Res
   if (price === null) return { ok: false, error: "Enter a price like 25 or 25.00 (0 for none)." };
   if (!Number.isInteger(days) || days < 1 || days > 800) return { ok: false, error: "Duration must be 1 to 800 days." };
   const max = String(input.max_members ?? "").trim() ? Number(input.max_members) : null; if (max !== null && (!Number.isInteger(max) || max < 1)) return { ok: false, error: "The member limit must be 1 or more." };
+  // A package at £0 is only ever offered on purpose: the database refuses it unless marked free, and refuses a free package with a price. Its words are shown as they come back.
   const sb = await createClient();
-  const { error } = await sb.rpc("admin_upsert_edition_package", { p_code: code, p_name: name, p_description: String(input.description ?? "").trim().slice(0, 600) || null, p_price: price, p_days: days, p_features: features, p_max_members: max, p_active: input.active === true, p_sort: Number(input.sort) || 0 });
+  const { error } = await sb.rpc("admin_upsert_edition_package", { p_code: code, p_name: name, p_description: String(input.description ?? "").trim().slice(0, 600) || null, p_price: price, p_days: days, p_features: features, p_max_members: max, p_active: input.active === true, p_sort: Number(input.sort) || 0, p_is_free: input.is_free === true });
   if (error) return fail(error.message);
   // The audience is a separate, admin-only setting (migration 20270102180000): a new package starts for everyone, a Community package is set to Hub-run Editions only.
   if (input.audience === "hub" || input.audience === "any") {

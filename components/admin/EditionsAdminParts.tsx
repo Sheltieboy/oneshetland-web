@@ -8,8 +8,11 @@ const TONES: Record<string, Tone> = {
   pending: "amber", verified: "green", rejected: "red", suspended: "red", draft: "gray", published: "green", archived: "gray",
   live: "green", expired: "gray", voided: "red", scheduled: "blue",
 };
-export const StatePill = ({ s }: { s: string }) => <StatusPill label={s[0].toUpperCase() + s.slice(1)} tone={TONES[s] ?? "gray"} />;
+const LABELS: Record<string, string> = { pending: "Identity not checked" };
+export const StatePill = ({ s }: { s: string }) => <StatusPill label={LABELS[s] ?? s[0].toUpperCase() + s.slice(1)} tone={TONES[s] ?? "gray"} />;
 export const TestPill = () => <StatusPill label="ZZ TEST" tone="purple" />;
+export const ParentPill = ({ kind }: { kind: "hub" | "business" | null | undefined }) => (kind ? <StatusPill label={kind === "hub" ? "Hub" : "Business"} tone={kind === "hub" ? "purple" : "blue"} /> : null);
+export const FlagPill = ({ children }: { children: React.ReactNode }) => <span className="rounded-pill bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-900">{children}</span>;
 export const ReservedPill = () => <span className="rounded-pill bg-amber-500 px-2.5 py-0.5 text-xs font-bold text-white">Reserved name: check carefully</span>;
 
 export const when = (iso: string | null | undefined) =>
@@ -17,27 +20,26 @@ export const when = (iso: string | null | undefined) =>
 export const day = (iso: string | null | undefined) =>
   iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(new Date(iso)) : "";
 
-export function EditionsTabs({ active, queueCount }: { active: TabKey; queueCount?: number }) {
+export function EditionsTabs({ active, waiting }: { active: TabKey; waiting?: number }) {
   return (
     <nav aria-label="Editions sections" className="mb-6 flex flex-wrap gap-2">
       {TABS.map((t) => (
-        <Link key={t.key} href={`/admin/editions?tab=${t.key}`} aria-current={active === t.key ? "page" : undefined}
+        <Link key={t.key} href={t.href} aria-current={active === t.key ? "page" : undefined}
           className={"min-h-11 inline-flex items-center rounded-pill px-4 text-sm font-bold transition " + (active === t.key ? "bg-navy text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>
-          {t.label}{t.key === "queue" && queueCount ? <span className="ml-2 rounded-pill bg-rose-100 px-2 py-0.5 text-xs text-rose-700">{queueCount}</span> : null}
+          {t.label}{t.key === "approvals" && waiting ? <span className="ml-2 rounded-pill bg-rose-100 px-2 py-0.5 text-xs text-rose-700">{waiting}</span> : null}
         </Link>
       ))}
-      <Link href="/admin/editions/test-organisation" className="min-h-11 ml-auto inline-flex items-center rounded-pill border border-dashed border-line-strong px-4 text-sm font-bold text-ink-soft hover:bg-sand">Test organisation</Link>
     </nav>
   );
 }
 
-export function FilterLinks({ base, param, current, options }: { base: Record<string, string>; param: string; current: string; options: { value: string; label: string }[] }) {
+export function FilterLinks({ base, param, current, options, path = "/admin/editions" }: { path?: string; base: Record<string, string>; param: string; current: string; options: { value: string; label: string }[] }) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label={`Filter by ${param}`}>
       {options.map((o) => {
         const qs = new URLSearchParams({ ...base, ...(o.value ? { [param]: o.value } : {}) }).toString();
         const on = current === o.value;
-        return <Link key={o.value || "all"} href={`/admin/editions?${qs}`} aria-current={on ? "true" : undefined}
+        return <Link key={o.value || "all"} href={`${path}?${qs}`} aria-current={on ? "true" : undefined}
           className={"rounded-pill px-3 py-1.5 text-xs font-bold " + (on ? "bg-ink text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{o.label}</Link>;
       })}
     </div>

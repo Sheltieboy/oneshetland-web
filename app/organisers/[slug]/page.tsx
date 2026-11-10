@@ -37,7 +37,7 @@ export default async function OrganiserPage({ params }: { params: Promise<{ slug
   const { slug } = await params;
   const r = await load(slug);
   if (!r) notFound();
-  const { organiser: o, editions } = r;
+  const { organiser: o, editions, parent } = r;
   const rb = resolveBrand(null, o);
   const brand = deriveBrand(rb.color);
   const tiers = await getPublicTiers(o.slug);
@@ -118,7 +118,7 @@ export default async function OrganiserPage({ params }: { params: Promise<{ slug
         </section>
       )}
 
-      <EditionFooter organiser={o} links={[{ href: "/editions", label: "All Editions" }, ...(o.website?.startsWith("https://") ? [{ href: o.website, label: "Website" }] : [])]} />
+      <EditionFooter organiser={o} hub={parent ? { name: parent.name, href: parent.href } : null} links={[{ href: "/editions", label: "All Editions" }, ...(o.website?.startsWith("https://") ? [{ href: o.website, label: "Website" }] : [])]} />
     </BrandScope>
   );
 }

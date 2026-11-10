@@ -37,14 +37,13 @@ describe("demo mode on", () => {
     assert.deepEqual(robots().rules, { userAgent: "*", disallow: "/" });
     assert.deepEqual(await sitemap(), []);
   });
-  test("team, verification, payout and package actions are refused on the server, before anything else runs", async () => {
+  test("team, payout and package actions are refused on the server, before anything else runs", async () => {
     process.env.EDITIONS_DEMO_MODE = "1";
     const blocked = { ok: false, error: DEMO_BLOCKED };
     assert.deepEqual(await actions.inviteMember("x", { email: "a@b.co", role: "editor" }), blocked);
     assert.deepEqual(await actions.revokeInvite("x", "id"), blocked);
     assert.deepEqual(await actions.setMemberRole("x", "u", "admin"), blocked);
     assert.deepEqual(await actions.removeMember("x", "u"), blocked);
-    assert.deepEqual(await actions.requestVerification("x", "evidence evidence"), blocked);
     assert.deepEqual(await commerce.connectPayouts("x", "/organise/x/payments"), blocked);
     assert.deepEqual(await commerce.createPackageOrder("x", "e", "p", "a"), blocked);
   });

@@ -17,7 +17,7 @@ import { AVAILABILITY_LABEL, availabilityIsFresh } from "@/lib/trades";
 import { nextAction, hasOperationalAttention } from "@/lib/business-next-action";
 import { beFound } from "@/lib/be-found";
 import { businessOutcomes } from "@/lib/business-outcomes";
-import { getEditionsEnabled, getMyPendingPartnerCount } from "@/lib/editions/data.server";
+import { getMyPendingPartnerCount } from "@/lib/editions/data.server";
 import { OutcomeRow, UtilityRow } from "@/components/business/OutcomeRow";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
 import { LaunchSetupCard } from "@/components/business/LaunchSetupCard";
@@ -42,7 +42,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
   const launchPrompt = launch.state === "review" || launch.state === "edited";
   const mine = await getMyManagedBusinesses(account.id);
   // Editions: tolerant reads (0 / false when the feature or its tables are not there), so nothing here can break the dashboard.
-  const [editionsOn, editionInvites] = await Promise.all([getEditionsEnabled(), getMyPendingPartnerCount()]);
+  const editionInvites = await getMyPendingPartnerCount();
   // Accessible Shetland invitation: the owner's own view of the record (drafts included) and their own dismissal preference. Two small reads.
   const [accessibility, authUser] = await Promise.all([getEditableAccessibility("business", business.id), createServerClient().then((sb) => sb.auth.getUser()).catch(() => null)]);
   const userMeta = (authUser?.data?.user?.user_metadata ?? null) as Record<string, unknown> | null;
@@ -148,7 +148,7 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
           <UtilityRow label="Get it done: job leads" href={`${base}/leads`}
             status={jobMatchingActive(business.subscription_tier, business.subscription_until) ? (dashboard.isTrade ? "Matching active" : "Not set up") : (dashboard.isTrade ? "Needs Pro" : "Pro and Premium")} />
           <UtilityRow label="Urgent alerts" href={`${base}/alerts`} />
-          {(editionsOn || editionInvites > 0) && <UtilityRow label="Festivals and Editions" href={`${base}/editions`} status={editionInvites > 0 ? `${editionInvites} invitation${editionInvites === 1 ? "" : "s"}` : null} />}
+          <UtilityRow label="Festivals and Editions" href={`${base}/editions`} status={editionInvites > 0 ? `${editionInvites} invitation${editionInvites === 1 ? "" : "s"}` : "Run or join"} />
           <UtilityRow label="Accessibility information" href={`/accessible/edit/business/${business.id}`}
             status={accessibility ? (accessibility.published ? "Published" : "Draft") : null} />
         </div>

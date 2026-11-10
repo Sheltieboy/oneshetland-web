@@ -17,7 +17,7 @@ import { BrandPreview, BrandReport, ColourField, FocusPicker } from "./brand-kit
  * rest of the profile (about, website, email) through untouched.
  */
 export function BrandStudio({ organiser, canEdit, hubName = null, inherited = null }: { organiser: Organiser; canEdit: boolean; hubName?: string | null; inherited?: { logo: boolean; cover: boolean; color: boolean } | null }) {
-  const via = (on: boolean | undefined, what: string) => (hubName && on ? <p className="mb-3 rounded-lg border border-line bg-cream/50 px-3 py-2 text-sm text-ink-soft">Right now your Editions use <strong className="font-semibold text-ink">{hubName}&rsquo;s {what}</strong>, read live from your Hub. Choose your own below to give your Editions a look of their own.</p> : null);
+  const via = (on: boolean | undefined, what: string) => (hubName && on ? <p className="mb-3 rounded-lg border border-line bg-cream/50 px-3 py-2 text-sm text-ink-soft">Right now your Editions use <strong className="font-semibold text-ink">{hubName}&rsquo;s {what}</strong>, read live from your profile. Choose your own below to give your Editions a look of their own.</p> : null);
   const { pending, msg, run, setMsg } = useAction();
   const router = useRouter();
   const [f, setF] = useState({ name: organiser.name, tagline: organiser.tagline ?? "", logo_url: organiser.logo_url ?? "", cover_url: organiser.cover_url ?? "", cover_focus: normaliseFocus(organiser.cover_focus), brand_color: organiser.brand_color ?? "" });

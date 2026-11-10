@@ -151,9 +151,10 @@ describe("the Brand studio", () => {
     assert.ok(renderToStaticMarkup(h(BrandReport, { color: "#ffee00" })).includes("dark rather than white"));
     assert.doesNotThrow(() => renderToStaticMarkup(h(BrandPreview, { name: "", logo: null, cover: null, focus: "50% 50%", color: "not a colour" })));
   });
-  test("organiser profile no longer edits branding (it points to the Brand page) yet still sends the stored values", () => {
-    const src = read("components/editions-manage/OrganiserForm.tsx");
-    assert.match(src, /\/brand/); assert.ok(!/ImageUpload label="Logo"/.test(src)); assert.match(src, /logo_url: organiser\.logo_url/); assert.match(src, /cover_focus: organiser\.cover_focus/);
+  test("the Identity screen points to the Brand page for imagery and still sends the stored values when saving", () => {
+    const src = read("components/editions-manage/IdentityPanel.tsx");
+    assert.ok(!/ImageUpload label="Logo"/.test(src)); assert.match(src, /logo_url: organiser\.logo_url/); assert.match(src, /cover_focus: organiser\.cover_focus/);
+    assert.match(read("app/organise/[slug]/profile/page.tsx"), /\/brand/);
   });
 });
 

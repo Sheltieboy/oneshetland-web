@@ -1,44 +1,63 @@
 /** Pure helpers for the Editions admin area (no I/O, unit-tested). The database remains the authority for every rule here. */
 import { friendlyError } from "@/lib/editions/rules";
 
+/** The Editions admin sections. Approvals is the landing page; Commerce is its own page (packages and fees). */
 export const TABS = [
-  { key: "queue", label: "Verification queue" },
-  { key: "organisers", label: "Organisers" },
-  { key: "editions", label: "Editions" },
-  { key: "entitlements", label: "Entitlements" },
-  { key: "pilot", label: "Pilot" },
-  { key: "audit", label: "Audit log" },
+  { key: "approvals", label: "Approvals", href: "/admin/editions/approvals" },
+  { key: "organisers", label: "Organisers", href: "/admin/editions?tab=organisers" },
+  { key: "editions", label: "Editions", href: "/admin/editions?tab=editions" },
+  { key: "entitlements", label: "Manual package adjustments", href: "/admin/editions?tab=entitlements" },
+  { key: "commerce", label: "Commerce", href: "/admin/editions/commerce" },
+  { key: "audit", label: "Audit log", href: "/admin/editions?tab=audit" },
 ] as const;
 export type TabKey = (typeof TABS)[number]["key"];
 export const parseTab = (v: string | string[] | undefined): TabKey => {
   const s = Array.isArray(v) ? v[0] : v;
-  return TABS.find((t) => t.key === s)?.key ?? "queue";
+  return TABS.find((t) => t.key === s)?.key ?? "approvals";
 };
 export const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
 export const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 
-export const ORGANISER_DECISIONS = ["verify", "reject", "reinstate", "suspend"] as const;
+/** Verification now happens inside Edition approval, so an existing organiser can only be suspended or reinstated here. */
+export const ORGANISER_DECISIONS = ["reinstate", "suspend"] as const;
 export type OrganiserDecision = (typeof ORGANISER_DECISIONS)[number];
-/** Decisions that only administrators may make. Suspension and restoration are admin-only too (decision 9 Nov 2026): moderators have no route. */
-export const ADMIN_ONLY_DECISIONS: OrganiserDecision[] = ["verify", "reject", "reinstate", "suspend"];
+/** Suspension and restoration are administrator-only (decision 9 Nov 2026): moderators have no route. */
+export const ADMIN_ONLY_DECISIONS: OrganiserDecision[] = ["reinstate", "suspend"];
 export const GRANT_FEATURES = ["publish", "featured_strip", "follower_notice"] as const;
 export const FEATURE_LABEL: Record<string, string> = { publish: "Publish", featured_strip: "Featured strip", follower_notice: "Follower notice" };
 
 /** Which decisions make sense for an organiser in this state. */
 export function decisionsFor(status: string): OrganiserDecision[] {
   switch (status) {
-    case "pending": return ["verify", "reject", "suspend"];
-    case "verified": return ["suspend"];
-    case "rejected": return ["reinstate"];
-    case "suspended": return ["reinstate"];
+    case "pending": case "verified": return ["suspend"];
+    case "rejected": case "suspended": return ["reinstate"];
     default: return [];
   }
 }
 
+/** Database refusals an administrator meets while deciding, packaging or switching a Hub, in plain sentences. Checked before anything else. */
+const ADMIN_SENTENCES: [RegExp, string][] = [
+  [/not waiting for review/i, "This Edition is not waiting for review any more. Someone may have decided it already: go back to the queue."],
+  [/reinstate it first/i, "The organiser is suspended or rejected. Reinstate it from the Organisers tab, then approve this Edition."],
+  [/the Business or Hub is not active/i, "The Business or Hub that runs this Edition is not active, so the Edition cannot be approved yet."],
+  [/reserved list: write a note/i, "This name matches a reserved list. Write a note of at least 10 characters saying how you checked."],
+  [/test organiser cannot be approved/i, "This is a test organiser, so its Editions cannot be approved for the public."],
+  [/tell the organiser why/i, "Tell the organiser why, in at least 5 characters."],
+  [/a note is required/i, "Add a note of at least 5 characters."],
+  [/the Hub is already in that state/i, "Nothing changed: the Hub is already set that way."],
+  [/Hub not found/i, "That Hub could not be found."],
+  [/must be marked free on purpose/i, "A package at £0 can only be offered if you tick \"Free package\". Do that, or set a price."],
+  [/a free package costs nothing/i, "A free package costs nothing. Set the price to 0, or untick \"Free package\"."],
+  [/unknown feature in package/i, "One of the ticked extras is not recognised. Untick it and save again."],
+  [/edition not found/i, "That Edition could not be found."],
+];
+
 /** Guard messages an administrator should see verbatim; everything else goes through friendlyError. */
-const KNOWN_GUARD = /reserved-name organiser|admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already verified|pilot|must be verified|Hub is not active|a note is required|already approved|more than 30 days|1 to 90 days|test organiser|already has an Editions organiser|web address|that address is reserved|Hub not found|already in that state/i;
+const KNOWN_GUARD = /admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already approved|more than 30 days|1 to 90 days|a note is required/i;
 export function adminError(message: string | null | undefined): string {
   const m = message ?? "";
+  const hit = ADMIN_SENTENCES.find(([re]) => re.test(m));
+  if (hit) return hit[1];
   return KNOWN_GUARD.test(m) ? m : friendlyError(m);
 }
 
@@ -73,137 +92,17 @@ export function entitlementState(e: { starts_at: string; ends_at: string; voided
   return "live";
 }
 
-/* ── ZZ TEST organisation plan ─────────────────────────────────────────────── */
-export const TEST_ORG = { name: "ZZ TEST Editions Co.", slug: "zz-test-editions-co" } as const;
-export const TEST_EDITION_SLUG = "zz-test-edition-2027";
-
-const addDays = (iso: string, n: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * DAY).toISOString().slice(0, 10);
-
-export type TestPlan = ReturnType<typeof buildTestPlan>;
-export function buildTestPlan(now = new Date()) {
-  const today = now.toISOString().slice(0, 10);
-  const start = addDays(today, 60), mid = addDays(start, 1), end = addDays(start, 2);
-  const at = (day: string, hhmm: string) => `${day}T${hhmm}:00Z`;
-  const t = "https://example.com/zz-test-tickets";
-  return {
-    organiser: { ...TEST_ORG, tagline: "ZZ TEST sample organiser for staff acceptance testing", description: "ZZ TEST: a private sample organisation used by OneShetland staff to exercise Editions. It is not a real organiser." },
-    evidence: "ZZ TEST: staff acceptance-test organisation created by an administrator. No real organisation is represented.",
-    verifyNote: "ZZ TEST organisation verified for acceptance testing.",
-    edition: {
-      slug: TEST_EDITION_SLUG, title: "ZZ TEST Edition 2027", kind: "multi_day" as const, starts_on: start, ends_on: end, year_label: "2027", brand_color: "#7a3b8f",
-      summary: "ZZ TEST: a sample three-day Edition for staff acceptance testing. Not a real event.",
-      description: "ZZ TEST: sample Edition. Everything on this page is placeholder content.",
-    },
-    pages: [
-      { slug: "welcome", nav_label: "Welcome", title: "ZZ TEST welcome", is_home: true, in_nav: true, position: 0, body: "## ZZ TEST welcome\n\nThis is **sample content** for staff acceptance testing.\n\n- Sample item one\n- Sample item two" },
-      { slug: "about-this-test", nav_label: "About", title: "ZZ TEST about", is_home: false, in_nav: true, position: 1, body: "## About this test Edition\n\nZZ TEST sample page. It exists only to exercise navigation." },
-      { slug: "getting-here", nav_label: "Getting here", title: "ZZ TEST getting here", is_home: false, in_nav: true, position: 2, body: "## Getting here\n\nZZ TEST sample travel notes. Not real directions." },
-    ],
-    venue: { name: "ZZ TEST Sample Hall", address: "ZZ TEST sample address, Lerwick", notes: "ZZ TEST sample venue" },
-    sessions: [
-      { title: "ZZ TEST Opening session", starts_at: at(start, "10:00"), ends_at: at(start, "11:00"), kind: "event" as const, ticket_mode: "none" as const, ticket_url: null, price_text: "Free", status: "scheduled" as const },
-      { title: "ZZ TEST Workshop (ticketed)", starts_at: at(start, "14:00"), ends_at: at(start, "16:00"), kind: "activity" as const, ticket_mode: "external" as const, ticket_url: t, price_text: "ZZ TEST £0", status: "scheduled" as const },
-      { title: "ZZ TEST Talk", starts_at: at(mid, "10:00"), ends_at: at(mid, "11:00"), kind: "session" as const, ticket_mode: "none" as const, ticket_url: null, price_text: null, status: "scheduled" as const },
-      { title: "ZZ TEST Exhibition (ticketed)", starts_at: at(mid, "14:00"), ends_at: at(mid, "17:00"), kind: "exhibition" as const, ticket_mode: "external" as const, ticket_url: t, price_text: "ZZ TEST £0", status: "scheduled" as const },
-      { title: "ZZ TEST Cancelled tour", starts_at: at(end, "10:00"), ends_at: at(end, "11:30"), kind: "tour" as const, ticket_mode: "none" as const, ticket_url: null, price_text: null, status: "cancelled" as const },
-      { title: "ZZ TEST Closing event", starts_at: at(end, "14:00"), ends_at: at(end, "15:00"), kind: "event" as const, ticket_mode: "none" as const, ticket_url: null, price_text: "Free", status: "scheduled" as const },
-    ],
-    updates: [
-      { title: "ZZ TEST pinned update", body: "ZZ TEST: this pinned update is sample content.", pinned: true },
-      { title: "ZZ TEST second update", body: "ZZ TEST: another sample update.", pinned: false },
-    ],
-    sponsors: [
-      { name: "ZZ TEST Sponsor One", level: "Sample", url: "https://example.com/zz-test-sponsor-one", position: 0 },
-      { name: "ZZ TEST Sponsor Two", level: "Sample", url: null, position: 1 },
-    ],
-    grant: { feature: "publish" as const, days: 90, reason: "ZZ TEST acceptance grant" },
-  };
-}
-
-export type StepKey = "organiser" | "request_verification" | "verify" | "mark_org_test" | "edition" | "mark_edition_test" | "pages" | "venue" | "sessions" | "updates" | "sponsors" | "grant" | "publish";
-export const STEPS: { key: StepKey; label: string }[] = [
-  { key: "organiser", label: "Create ZZ TEST organiser (create_edition_organiser)" },
-  { key: "request_verification", label: "Request verification (request_edition_organiser_verification)" },
-  { key: "verify", label: "Verify organiser (admin_decide_edition_organiser)" },
-  { key: "mark_org_test", label: "Mark organiser as test (admin_mark_edition_test)" },
-  { key: "edition", label: "Create draft ZZ TEST Edition" },
-  { key: "mark_edition_test", label: "Mark Edition as test (admin_mark_edition_test)" },
-  { key: "pages", label: "Add 3 pages" },
-  { key: "venue", label: "Add venue" },
-  { key: "sessions", label: "Add 6 sessions" },
-  { key: "updates", label: "Add 2 updates" },
-  { key: "sponsors", label: "Add 2 sponsors" },
-  { key: "grant", label: "Grant 90-day publish entitlement (admin_grant_edition_entitlement)" },
-  { key: "publish", label: "Publish (edition_set_status)" },
-];
-export type StepResult = { key: StepKey; label: string; status: "done" | "skipped" | "failed"; detail?: string };
-export const isStepKey = (s: string): s is StepKey => STEPS.some((x) => x.key === s);
-
-/** Pilot: the Hub web address (slug) shape the database enforces, checked early so an administrator gets a clear message. */
-export const isPilotSlug = (s: string) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s) && s.length >= 3 && s.length <= 60;
-/** A pilot Edition page is public through its direct link only: never search-indexed and never in the sitemap, until Editions is opened to everyone. */
-export const PILOT_PUBLIC_DAYS = 90;
-
-/* ── Pilot admin: nothing an administrator should have to type or copy ─────────────────────────────────────────────────────────────────────────────── */
-
-/** The addresses the database refuses for an organiser (kept in step with admin_create_edition_organiser_for_hub). */
-export const RESERVED_ORGANISER_SLUGS = ["new", "admin", "api", "edit", "manage", "organisers", "editions", "account", "sign-in", "sign-up", "dashboard", "test", "null", "undefined"] as const;
-
-/** A readable web address from a name: lower case, accents and apostrophes dropped, anything else becomes one hyphen, at most 60 characters. */
-export function slugify(name: string, max = 60): string {
-  const s = String(name ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/['’`]/g, "").replace(/&/g, " and ").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return s.slice(0, max).replace(/-+$/g, "");
-}
-
-/** Why a web address cannot be used, in words, or null when it can. `taken` is every organiser address already in use. */
-export function slugProblem(slug: string, taken: Iterable<string>): string | null {
-  const s = String(slug ?? "").trim().toLowerCase();
-  if (!isPilotSlug(s)) return "Use 3 to 60 lowercase letters, numbers and single hyphens.";
-  if ((RESERVED_ORGANISER_SLUGS as readonly string[]).includes(s)) return "That address is reserved. Choose another.";
-  for (const t of taken) if (t === s) return "That address is already used by another organiser.";
-  return null;
-}
-
-/** The first free, valid address for a Hub: its name, then name-editions, then name-editions-2, 3 … Never returns something the database would refuse. */
-export function suggestOrganiserSlug(name: string, taken: Iterable<string>): string {
-  const used = new Set([...taken].map((t) => String(t).toLowerCase()));
-  const fit = (base: string, suffix: string) => (slugify(base, 60 - suffix.length) + suffix);
-  const base = slugify(name) || "hub";
-  const candidates = [fit(base, ""), fit(base, "-editions")];
-  for (let i = 2; i < 100; i++) candidates.push(fit(base, `-editions-${i}`));
-  const ok = (c: string) => !slugProblem(c, used);
-  return candidates.find(ok) ?? `hub-${Date.now().toString(36)}`;
-}
-
-/** A Hub as the set-up list needs it: its own state, and the organiser already attached to it (if any). */
-export type HubChoice = {
-  id: string; name: string; verified: boolean;
-  organiser: { id: string; name: string; slug: string; status: string; approved: boolean } | null;
-  suggestedSlug: string;
-};
-
-/** Where a Hub is on the road to the pilot, for the chips and the one "next step" line. */
-export function hubStage(h: Pick<HubChoice, "verified" | "organiser">): { key: "verify" | "setup" | "approve" | "live"; label: string; next: string } {
-  if (h.organiser?.approved) return { key: "live", label: "Approved for the pilot", next: "Approved. Grant 90-day publishing from one of its Editions when it has one." };
-  if (h.organiser) return h.verified ? { key: "approve", label: "Ready to approve", next: "Open the organiser to approve it for the pilot." } : { key: "verify", label: "Needs verifying", next: "Verify the Hub, then approve the organiser." };
-  return h.verified ? { key: "setup", label: "Ready to set up", next: "Set up Editions for this Hub." } : { key: "setup", label: "Not set up", next: "Set up Editions, then verify the Hub before approving." };
-}
-
-/** Audit notes are written for the administrator, so routine actions need no typing. Anything they add is appended. */
+/** Audit notes are written for the administrator, so routine actions need no typing. Anything they add is appended. Notes are at least 5 characters, as the database requires. */
 export const NOTE_KINDS = {
-  hub_setup: (subject: string) => `Editions organiser set up for ${subject}`,
-  hub_verify: (subject: string) => `${subject} verified`,
-  hub_unverify: (subject: string) => `Verification removed from ${subject}`,
-  pilot_on: () => "Pilot switched on",
-  pilot_off: () => "Pilot switched off",
-  approve: () => "Approved for the pilot",
-  revoke: () => "Pilot approval withdrawn",
-  grant: () => "90-day pilot publishing granted",
+  hub_verify: (subject: string) => `${subject} given the Verified badge`,
+  hub_unverify: (subject: string) => `Verified badge removed from ${subject}`,
+  hub_events_on: (subject: string) => `Events from ${subject} set to skip approval`,
+  hub_events_off: (subject: string) => `Events from ${subject} set to need approval again`,
 } as const;
 export type NoteKind = keyof typeof NOTE_KINDS;
 export function autoNote(kind: NoteKind, admin: string, extra?: string, subject = "the Hub"): string {
-  const base = (NOTE_KINDS[kind] as (s: string) => string)(subject);
+  const base = NOTE_KINDS[kind](subject);
   const who = (admin || "").trim() || "an administrator";
   const more = String(extra ?? "").trim();
-  return `${base} by ${who} from the admin Pilot tab.${more ? ` ${more}` : ""}`.slice(0, 480);
+  return `${base} by ${who} from the admin Hubs page.${more ? ` ${more}` : ""}`.slice(0, 480);
 }

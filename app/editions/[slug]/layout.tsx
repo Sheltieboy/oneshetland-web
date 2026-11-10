@@ -28,16 +28,19 @@ export default async function EditionLayout({ children, params }: { children: Re
   if (!b) notFound();
   const { edition, organiser, pages, sessions, updates, sponsors, partners } = b;
 
-  let entitled = true;
-  if (edition.status === "published") {
+  // Entitlement and the parent's standing only matter once an Edition has been approved; the database decides both, live.
+  let entitled = true, parentLive = true;
+  if (edition.review_state === "approved") {
     const sb = await createClient();
-    const { data } = await sb.rpc("edition_entitled", { p_edition: edition.id, p_feature: "publish" });
-    entitled = data === true;
+    const [ent, par] = await Promise.all([
+      sb.rpc("edition_entitled", { p_edition: edition.id, p_feature: "publish" }),
+      sb.rpc("edition_parent_live", { p_org: organiser.id }),
+    ]);
+    entitled = ent.data === true;
+    parentLive = par.data === true;
   }
-  // "Switched on for the public" means open to everyone OR this organiser is currently visible through an administrator's pilot approval (the database decides, live).
-  let publiclyOn = await getEditionsEnabled();
-  if (!publiclyOn) { const sbp = await createClient(); const { data: pv } = await sbp.rpc("edition_pilot_visible", { p_org: organiser.id }); publiclyOn = pv === true; }
-  const reason = previewReason({ edition, enabled: publiclyOn, entitled });
+  const publiclyOn = await getEditionsEnabled();
+  const reason = previewReason({ edition, enabled: publiclyOn, entitled, parentLive });
 
   const base = `/editions/${edition.slug}`;
   const nav = navFor(pages);
@@ -82,7 +85,7 @@ export default async function EditionLayout({ children, params }: { children: Re
       <div id="edition-content" tabIndex={-1} className="outline-none">{children}</div>
       <EditionFooter
         organiser={organiser}
-        hub={b.hub ? { name: b.hub.name, href: `/hubs/${b.hub.slug || b.hub.id}` } : null}
+        hub={b.parent ? { name: b.parent.name, href: b.parent.href } : null}
         about={[...(updates.length > 0 ? [{ href: `${base}/updates`, label: "Journal" }] : []), ...secondary]}
         links={[
           { href: "/editions", label: "All Editions" },

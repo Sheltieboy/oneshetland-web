@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { dateProblem, slugify, validSlug, safeAccent, contrast, dateRangeLabel, phaseOf, groupSessionsByDay, navFor, readiness, canPublish, friendlyError, can } from "../lib/editions/rules.ts";
+import { dateProblem, slugify, validSlug, safeAccent, contrast, dateRangeLabel, phaseOf, groupSessionsByDay, navFor, parseReadiness, missingRequired, canSubmit, friendlyError, can } from "../lib/editions/rules.ts";
 import { parseMarkdown, parseInline, safeHref } from "../lib/editions/markdown.ts";
 
 test("date rules mirror the database for each kind", () => {
@@ -57,12 +57,15 @@ test("navigation puts home first then position order and hides in_nav=false", ()
   assert.deepEqual(navFor([p("b", 2), p("hide", 1, false), p("home", 5, true, true), p("a", 1)]).map((n) => n.slug), ["home", "a", "b"]);
 });
 
-test("readiness gates publication on verification, entitlement and summary only", () => {
-  const base = { edition: { summary: "x", cover_url: null, title: "t" }, pages: 0, sessions: 0, verified: true, entitled: true };
-  assert.ok(canPublish(readiness(base)));
-  assert.ok(!canPublish(readiness({ ...base, entitled: false })));
-  assert.ok(!canPublish(readiness({ ...base, verified: false })));
-  assert.ok(!canPublish(readiness({ ...base, edition: { ...base.edition, summary: " " } })));
+test("the checklist is the database's: required items gate submission, recommended ones do not", () => {
+  const item = (key, required, ok) => ({ key, label: key, required, ok, hint: "h" });
+  const all = [item("summary", true, true), item("page", true, true), item("cover", false, false)];
+  assert.ok(canSubmit(all));
+  assert.ok(!canSubmit([item("summary", true, false), ...all.slice(1)]));
+  assert.deepEqual(missingRequired([item("summary", true, false), item("cover", false, false)]).map((x) => x.key), ["summary"]);
+  assert.ok(!canSubmit([]), "a checklist that did not load never counts as ready");
+  assert.deepEqual(parseReadiness("nope"), []);
+  assert.deepEqual(parseReadiness([{ key: "a", label: "A", required: true, ok: false, hint: "x" }, { bad: 1 }]).length, 1);
 });
 
 test("roles", () => { assert.ok(can("owner", "admin")); assert.ok(!can("editor", "admin")); assert.ok(!can(null, "editor")); });

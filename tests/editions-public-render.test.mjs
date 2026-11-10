@@ -27,7 +27,7 @@ const count = (html, needle) => html.split(needle).length - 1;
 const P = (o) => Promise.resolve(o);
 
 const ORG = { id: "o1", slug: "zz-test-organiser", name: "ZZ TEST Organiser", tagline: "ZZ tagline", description: "About ZZ.", logo_url: null, cover_url: null, cover_focus: null, brand_color: "#0b5a73", website: "https://example.test", contact_email: null, status: "verified", verified_at: null, reserved_name_flag: false, is_test: false, hub_id: null, created_at: "2026-01-01T00:00:00Z" };
-const ED = { id: "e1", organiser_id: "o1", series_id: null, slug: "zz-test-edition", title: "ZZ TEST Edition", summary: "A ZZ summary.", description: "Long **ZZ** text.", kind: "multi_day", starts_on: "2099-06-10", ends_on: "2099-06-12", timezone: "Europe/London", year_label: "2099", brand_color: "#e0e0e0", logo_url: null, cover_url: "https://example.test/cover.jpg", cover_focus: null, theme: {}, status: "published", published_at: "2026-01-01T00:00:00Z", suspended_reason: null, is_test: false, created_at: "2026-01-01T00:00:00Z" };
+const ED = { id: "e1", organiser_id: "o1", series_id: null, slug: "zz-test-edition", title: "ZZ TEST Edition", summary: "A ZZ summary.", description: "Long **ZZ** text.", kind: "multi_day", starts_on: "2099-06-10", ends_on: "2099-06-12", timezone: "Europe/London", year_label: "2099", brand_color: "#e0e0e0", logo_url: null, cover_url: "https://example.test/cover.jpg", cover_focus: null, theme: {}, status: "published", review_state: "approved", submitted_at: null, approved_at: "2026-01-01T00:00:00Z", published_at: "2026-01-01T00:00:00Z", suspended_reason: null, is_test: false, created_at: "2026-01-01T00:00:00Z" };
 const S = (o) => ({ edition_id: "e1", description: null, ends_at: null, venue_id: null, kind: "event", ticket_mode: "none", ticket_url: null, price_text: null, status: "scheduled", position: 0, ...o });
 const SESSIONS = [
   S({ id: "s1", title: "ZZ Opening", starts_at: "2099-06-10T10:00:00Z", venue_id: "v1", price_text: "Free" }),
@@ -41,7 +41,7 @@ const db = (over = {}) => ({
   edition_sponsors: [{ id: "sp1", edition_id: "e1", name: "ZZ Sponsor", level: "Gold", logo_url: null, url: "https://sponsor.example.test", position: 0 }, { id: "sp2", edition_id: "e1", name: "ZZ Plain", level: null, logo_url: null, url: "javascript:alert(1)", position: 1 }],
   edition_series: [], ...over,
 });
-const rpcOn = (over = {}) => { globalThis.__FAKE_RPC__ = async (fn) => ({ data: { editions_enabled: true, edition_entitled: true, ...over }[fn] ?? null, error: null }); };
+const rpcOn = (over = {}) => { globalThis.__FAKE_RPC__ = async (fn) => ({ data: { editions_enabled: true, edition_entitled: true, edition_parent_live: true, ...over }[fn] ?? null, error: null }); };
 const params = (slug = "zz-test-edition", page) => ({ params: P(page ? { slug, page } : { slug }) });
 const frame = async (el, slug = "zz-test-edition") => renderToStaticMarkup(await Layout({ params: P({ slug }), children: el }));
 
@@ -88,14 +88,16 @@ describe("hero", () => {
 });
 
 describe("previewReason", () => {
-  const e = (o) => ({ status: "published", is_test: false, suspended_reason: null, ...o });
+  const e = (o) => ({ status: "published", review_state: "approved", is_test: false, suspended_reason: null, ...o });
+  const on = { enabled: true, entitled: true, parentLive: true };
   test("public Editions have no reason; every other state names one", () => {
-    assert.equal(previewReason({ edition: e(), enabled: true, entitled: true }), null);
-    assert.equal(previewReason({ edition: e({ status: "draft" }), enabled: true, entitled: true }).key, "draft");
-    assert.equal(previewReason({ edition: e(), enabled: true, entitled: false }).key, "unentitled");
-    assert.equal(previewReason({ edition: e(), enabled: false, entitled: true }).key, "disabled");
-    assert.equal(previewReason({ edition: e({ is_test: true }), enabled: true, entitled: true }).key, "test");
-    assert.match(previewReason({ edition: e({ status: "suspended", suspended_reason: "ZZ reason" }), enabled: true, entitled: true }).text, /ZZ reason/);
+    assert.equal(previewReason({ edition: e(), ...on }), null);
+    assert.equal(previewReason({ edition: e({ status: "draft", review_state: "not_submitted" }), ...on }).key, "draft");
+    assert.equal(previewReason({ edition: e(), ...on, entitled: false }).key, "no_package");
+    assert.equal(previewReason({ edition: e(), ...on, enabled: false }).key, "disabled");
+    assert.equal(previewReason({ edition: e(), ...on, parentLive: false }).key, "parent_inactive");
+    assert.equal(previewReason({ edition: e({ is_test: true }), ...on }).key, "test");
+    assert.match(previewReason({ edition: e({ status: "suspended", suspended_reason: "ZZ reason" }), ...on }).text, /ZZ reason/);
   });
 });
 
@@ -187,7 +189,7 @@ describe("Edition pages", () => {
 
 describe("preview banner for the team", () => {
   test("draft shows the banner and the reason", async () => {
-    setDb(db({ editions: [{ ...ED, status: "draft" }] }));
+    setDb(db({ editions: [{ ...ED, status: "draft", review_state: "not_submitted" }] }));
     const html = await frame(await Home(params()));
     assert.ok(html.includes("Preview: only your team can see this Edition") && html.includes("draft"));
   });
@@ -195,9 +197,9 @@ describe("preview banner for the team", () => {
     setDb(db({ editions: [{ ...ED, status: "suspended", suspended_reason: "ZZ policy breach" }] }));
     assert.ok((await frame(await Home(params()))).includes("ZZ policy breach"));
     setDb(db()); rpcOn({ edition_entitled: false });
-    assert.ok((await frame(await Home(params()))).includes("not yet entitled"));
+    assert.ok((await frame(await Home(params()))).includes("Choose a package"));
     rpcOn({ editions_enabled: false });
-    assert.ok((await frame(await Home(params()))).includes("not switched on"));
+    assert.ok((await frame(await Home(params()))).includes("not open to the public yet"));
   });
   test("test Editions are noindex", async () => {
     setDb(db({ editions: [{ ...ED, is_test: true }] }));

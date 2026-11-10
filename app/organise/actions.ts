@@ -11,13 +11,12 @@
 import { isDemoMode, DEMO_BLOCKED } from "@/lib/editions/demo-mode";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getEditionsAccess } from "@/lib/editions/data.server";
 import { can, friendlyError } from "@/lib/editions/rules";
 import { inviteFields, isPartnerAction, noteField, type FindActivity, type FindBusiness, type FindHub } from "@/lib/editions/partners";
 import type { OrgRole } from "@/lib/editions/types";
 import {
-  editionFields, editionSlug, inviteInput, isOrgRole, isUuid, organiserCreate, organiserProfile, pageFields, seriesName, sessionFields, sponsorFields,
-  updateFields, venueFields, verificationEvidence,
+  editionFields, editionSlug, inviteInput, isOrgRole, isUuid, organiserProfile, pageFields, seriesName, sessionFields, sponsorFields,
+  updateFields, venueFields,
 } from "@/lib/editions/validate";
 
 type Fail = { ok: false; error: string };
@@ -59,43 +58,21 @@ function revalidateEdition(slug: string, ed: string, sub?: string) {
   revalidatePath(`/editions/${ed}`, "layout");
 }
 
-/* ── Organiser ─────────────────────────────────────────────────────────────────────────────────────────────────── */
-
-export async function createOrganiser(input: Input): Promise<Result<{ slug: string }>> {
-  const v = organiserCreate(input);
-  if (!v.ok) return bad(v.error);
-  const access = await getEditionsAccess();
-  if (!access.signedIn) return bad("Please sign in again to continue.");
-  if (!access.allowed) return bad(NO_PERMISSION);
-  const sb = await createClient();
-  const { error } = await sb.rpc("create_edition_organiser", { p_name: v.value.name, p_slug: v.value.slug, p_tagline: v.value.tagline, p_description: v.value.description });
-  if (error) return bad(friendlyError(error.message));
-  revalidatePath("/organise");
-  return { ok: true, slug: v.value.slug };
-}
+/* ── Organiser profile (the Editions profile is created automatically from the Business or Hub: see lib/editions/ensure-organiser.server.ts) ─────────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export async function updateOrganiserProfile(slug: string, input: Input): Promise<Result> {
   const c = await organiserCtx(slug, "admin");
   if ("ok" in c) return c;
   const v = organiserProfile(input);
   if (!v.ok) return bad(v.error);
-  const { data, error } = await c.sb.from("edition_organisers").update(v.value).eq("id", c.org.id).select("id");
+  // The name follows the Business or Hub and is not writable here; only the presentation fields are saved.
+  const { name: _followsParent, ...own } = v.value;
+  void _followsParent;
+  const { data, error } = await c.sb.from("edition_organisers").update(own).eq("id", c.org.id).select("id");
   if (error) return bad(friendlyError(error.message));
   if (!data?.length) return bad(NO_PERMISSION);
   revalidatePath(base(slug), "layout");
   revalidatePath(`/organisers/${slug}`);
-  return { ok: true };
-}
-
-export async function requestVerification(slug: string, evidence: unknown): Promise<Result> {
-  if (isDemoMode()) return bad(DEMO_BLOCKED);
-  const c = await organiserCtx(slug, "owner");
-  if ("ok" in c) return c;
-  const v = verificationEvidence(evidence);
-  if (!v.ok) return bad(v.error);
-  const { error } = await c.sb.rpc("request_edition_organiser_verification", { p_org: c.org.id, p_evidence: v.value });
-  if (error) return bad(/already verified/i.test(error.message) ? "This organiser is already verified." : friendlyError(error.message));
-  revalidatePath(base(slug));
   return { ok: true };
 }
 
@@ -218,6 +195,28 @@ export async function setEditionStatus(slug: string, editionSlugArg: string, to:
   if (error) return bad(friendlyError(error.message));
   revalidateEdition(slug, editionSlugArg);
   revalidatePath("/editions");
+  return { ok: true };
+}
+
+/** Send an Edition to OneShetland for review. The database re-checks the required items and refuses with a plain list of what is missing. */
+export async function submitEditionForReview(slug: string, editionSlugArg: string): Promise<Result> {
+  if (isDemoMode()) return bad(DEMO_BLOCKED);
+  const c = await editionCtx(slug, editionSlugArg, "admin");
+  if ("ok" in c) return c;
+  const { error } = await c.sb.rpc("edition_submit_for_review", { p_edition: c.edition.id });
+  if (error) return bad(/finish these first: (.+)/i.test(error.message) ? `Finish these first: ${error.message.replace(/^.*finish these first:\s*/i, "")}.` : friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg);
+  return { ok: true };
+}
+
+/** Take an Edition back from review (a first submission or a resubmission). */
+export async function withdrawEditionSubmission(slug: string, editionSlugArg: string): Promise<Result> {
+  if (isDemoMode()) return bad(DEMO_BLOCKED);
+  const c = await editionCtx(slug, editionSlugArg, "admin");
+  if ("ok" in c) return c;
+  const { error } = await c.sb.rpc("edition_withdraw_submission", { p_edition: c.edition.id });
+  if (error) return bad(friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg);
   return { ok: true };
 }
 

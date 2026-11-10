@@ -101,19 +101,20 @@ export function navFor(pages: EditionPage[]): { slug: string; label: string; isH
     .map((p) => ({ slug: p.slug, label: p.nav_label, isHome: p.is_home }));
 }
 
-export type Readiness = { key: string; label: string; ok: boolean; hint: string }[];
-/** The organiser's publish checklist. `entitled` and `verified` come from the database; the rest is derived from content. */
-export function readiness(args: { edition: Pick<Edition, "summary" | "cover_url" | "title">; pages: number; sessions: number; verified: boolean; entitled: boolean }): Readiness {
-  return [
-    { key: "verified", label: "Organiser verified", ok: args.verified, hint: "OneShetland confirms who you are before an Edition can go public." },
-    { key: "entitled", label: "Edition package active", ok: args.entitled, hint: "An active package or grant is needed to publish." },
-    { key: "summary", label: "Summary written", ok: !!args.edition.summary?.trim(), hint: "One or two sentences that appear in lists and search." },
-    { key: "cover", label: "Cover image added", ok: !!args.edition.cover_url, hint: "Recommended; it makes the Edition easier to recognise." },
-    { key: "pages", label: "At least one page", ok: args.pages > 0, hint: "A welcome page gives visitors somewhere to start." },
-    { key: "programme", label: "Programme started", ok: args.sessions > 0, hint: "Add at least one session so people can plan." },
-  ];
+/** One line of the Edition checklist, exactly as the database reports it (edition_readiness). `required` items must be done before the Edition can be submitted for review. */
+export type ReadinessItem = { key: string; label: string; required: boolean; ok: boolean; hint: string };
+export type Readiness = ReadinessItem[];
+/** Reads the database's checklist defensively: anything malformed is dropped, so the page never breaks on an unexpected shape. */
+export function parseReadiness(raw: unknown): Readiness {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((r): ReadinessItem[] => {
+    const x = r as Partial<ReadinessItem> | null;
+    return x && typeof x.key === "string" && typeof x.label === "string" ? [{ key: x.key, label: x.label, required: x.required === true, ok: x.ok === true, hint: typeof x.hint === "string" ? x.hint : "" }] : [];
+  });
 }
-export const canPublish = (r: Readiness) => ["verified", "entitled", "summary"].every((k) => r.find((x) => x.key === k)?.ok);
+export const missingRequired = (r: Readiness): ReadinessItem[] => r.filter((x) => x.required && !x.ok);
+/** The database refuses a submission while a required item is missing; this lets the screen explain it first. An empty list (not loaded) never counts as ready. */
+export const canSubmit = (r: Readiness) => r.length > 0 && missingRequired(r).length === 0;
 
 const PARTNER_PASSTHROUGH = /run by that Hub already|that package is for Hub-run|the Hub is not taking part yet|choose at most 12|a Hub can only show|items can only be attached|not been claimed|declined recently|several invitations waiting|too many invitations|already invited|not open for new partners|not available to (invite|show)|Pro or Premium|choose up to 6|already been answered|only the (owner|organiser|sender)|lot of requests waiting|edition not found|approve the invitation first/i;
 
@@ -121,13 +122,30 @@ const PARTNER_PASSTHROUGH = /run by that Hub already|that package is for Hub-run
 export function friendlyError(message: string | null | undefined): string {
   const m = message ?? "";
   const table: [RegExp, string][] = [
-    [/no live publish entitlement/i, "This Edition has no active package yet. Choose a package, or ask OneShetland to activate one."],
+    [/ownership comes from the Business or Hub/i, "Ownership stays with your Business or Hub, so a helper can be an administrator or an editor."],
+    [/only the Business owner/i, "Only the Business owner can use Editions for it."],
+    [/Business not found/i, "That Business could not be found, or it has not been claimed yet."],
+    [/finish these first/i, "Finish the required items before you submit."],
+    [/already submitted for review/i, "This Edition is already waiting for review."],
+    [/already approved/i, "This Edition is already approved."],
+    [/not waiting for review/i, "This Edition is not waiting for review."],
+    [/too many submissions/i, "You have submitted this Edition several times today. Please wait before submitting it again."],
+    [/not been approved by OneShetland/i, "OneShetland needs to approve this Edition before it can be published."],
+    [/once OneShetland has approved the Edition/i, "You can choose a package once OneShetland has approved this Edition."],
+    [/the Business or Hub is not active/i, "Your Business or Hub is not active, so its Editions are paused."],
+    [/that package is free: claim it/i, "That package is free: choose it without paying."],
+    [/already has an active package/i, "This Edition already has an active package."],
+    [/only an owner or admin can/i, "Only an owner or administrator can choose or buy a package."],
+    [/that package is not available/i, "That package is not available."],
+    [/enter a valid email address/i, "Enter a valid email address."],
+    [/payments are not switched on/i, "Online payment is not available at the moment."],
+    [/no live publish entitlement/i, "This Edition has no active package yet. Choose a package first."],
     [/only the Hub.s owner or committee/i, "Only the Hub's owner or committee can set up Editions for it."],
     [/already has an Editions organiser/i, "This Hub already has Editions set up."],
     [/Editions is not open yet|editions_dark/i, "Editions is not open to Hubs yet. OneShetland will let you know when it is."],
-    [/organiser is not verified/i, "Your organiser profile is not verified yet."],
+    [/organiser is not verified/i, "Your Edition is not ready to go public yet."],
     [/summary is required/i, "Add a short summary before publishing."],
-    [/suspended by OneShetland/i, "OneShetland has suspended this Edition. Contact support to resolve it."],
+    [/suspended by OneShetland/i, "OneShetland has suspended this Edition. Get in touch with OneShetland to resolve it."],
     [/outside the edition dates/i, "That session falls outside the Edition's dates."],
     [/venue belongs to another/i, "That venue belongs to another organiser."],
     [/at least one owner/i, "An organiser must always keep at least one owner."],

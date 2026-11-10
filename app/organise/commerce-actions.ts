@@ -181,10 +181,20 @@ export async function requestRefund(slug: string, paymentId: string, amount: unk
 }
 export async function createPackageOrder(slug: string, edSlug: string, packageId: string, attempt: string): Promise<Result<{ orderId: string }>> {
   if (isDemoMode()) return bad(DEMO_BLOCKED);
-  const c = await ctx(slug, "owner"); if ("ok" in c) return c;
+  const c = await ctx(slug, "admin"); if ("ok" in c) return c;
   const ed = await editionOf(c, edSlug); if (!ed) return bad("That Edition could not be found.");
   if (!isUuid(packageId) || typeof attempt !== "string" || attempt.length < 8 || attempt.length > 80) return bad("That package could not be found.");
   const { data, error } = await c.sb.rpc("edition_create_order", { p_org: c.org.id, p_edition: ed.id, p_package: packageId, p_attempt: attempt });
-  if (error) return bad(/not switched on/.test(error.message) ? "Payments are not switched on yet." : friendlyError(error.message));
-  refresh(slug); return { ok: true, orderId: String(data) };
+  if (error) return bad(/not switched on/.test(error.message) ? "Online payment is not available yet." : friendlyError(error.message));
+  refresh(slug); revalidatePath(`/organise/${slug}/editions/${edSlug}`); return { ok: true, orderId: String(data) };
+}
+/** A free package is chosen, not bought: no payment, no order to pay. The database checks approval, the package and the owner or administrator. */
+export async function claimFreePackage(slug: string, edSlug: string, packageId: string, attempt: string): Promise<Result<{ orderId: string }>> {
+  if (isDemoMode()) return bad(DEMO_BLOCKED);
+  const c = await ctx(slug, "admin"); if ("ok" in c) return c;
+  const ed = await editionOf(c, edSlug); if (!ed) return bad("That Edition could not be found.");
+  if (!isUuid(packageId) || typeof attempt !== "string" || attempt.length < 8 || attempt.length > 80) return bad("That package could not be found.");
+  const { data, error } = await c.sb.rpc("edition_claim_free_package", { p_org: c.org.id, p_edition: ed.id, p_package: packageId, p_attempt: attempt });
+  if (error) return bad(friendlyError(error.message));
+  refresh(slug); revalidatePath(`/organise/${slug}/editions/${edSlug}`); return { ok: true, orderId: String(data) };
 }

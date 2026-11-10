@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { STAFF_EVENT_NAV, adminNavActive } from "@/lib/event-community-admin";
 
-const NAV: { group: string; items: { href: string; label: string; badgeKey?: string; exact?: boolean }[] }[] = [
+const NAV: { group: string; items: { href: string; label: string; badgeKey?: string; exact?: boolean; except?: string[] }[] }[] = [
   { group: "Overview", items: [
     { href: "/admin", label: "Dashboard" },
     { href: "/admin/intelligence", label: "Intelligence" },
@@ -18,7 +18,9 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
   ] },
   { group: "Community", items: [
     { href: "/admin/events", label: "Event approvals", badgeKey: "pendingEvents", exact: true },
+    { href: "/admin/editions/approvals", label: "Edition approvals", badgeKey: "pendingEditionApprovals" },
     ...STAFF_EVENT_NAV,
+    { href: "/admin/hubs", label: "Hubs" },
     { href: "/admin/launch-partners", label: "Launch partners" },
     { href: "/admin/claims", label: "Business claims", badgeKey: "pendingClaims" },
     { href: "/admin/reports", label: "Reports", badgeKey: "openReports" },
@@ -36,7 +38,7 @@ const NAV: { group: string; items: { href: string; label: string; badgeKey?: str
     { href: "/admin/homepage", label: "Homepage" },
     { href: "/admin/announcements", label: "Announcements" },
     { href: "/admin/activities", label: "Regular activities" },
-    { href: "/admin/editions", label: "Editions", badgeKey: "pendingEditionVerifications" },
+    { href: "/admin/editions", label: "Editions", except: ["/admin/editions/approvals", "/admin/editions/commerce"] },
     { href: "/admin/editions/commerce", label: "Editions commerce" },
     { href: "/admin/compliance", label: "Compliance log" },
     { href: "/admin/email", label: "Email centre" },
@@ -55,7 +57,7 @@ export function AdminSidebar({ badges }: { badges: Record<string, number> }) {
           <p className="mb-2 px-3 text-xs font-bold uppercase tracking-widest text-ink-faint">{g.group}</p>
           <div className="space-y-0.5">
             {g.items.map((it) => {
-              const active = adminNavActive(path, it);
+              const active = adminNavActive(path, it) && !(it.except ?? []).some((x) => path.startsWith(x));
               const n = it.badgeKey ? badges[it.badgeKey] ?? 0 : 0;
               return (
                 <Link key={it.href} href={it.href}

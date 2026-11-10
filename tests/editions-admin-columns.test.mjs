@@ -49,9 +49,9 @@ describe("no web code asks for a column the database hides from signed-in users"
 
 describe("administrators read the private organiser fields through admin-only functions", () => {
   const q = read("app/admin/editions/queries.ts"), detail = read("app/admin/editions/organisers/[id]/page.tsx");
-  test("the queue and the list merge in contact emails and flags from functions; the detail page does too", () => {
+  test("the organiser list reads flags through a function, and the detail page reads emails and internal notes through functions", () => {
     assert.match(q, /rpc\("admin_edition_org_contacts"/); assert.match(q, /rpc\("admin_edition_org_flags"\)/);
-    assert.match(q, /contact_email: contacts\.get\(x\.organiser\.id\)/); assert.match(q, /contact_email: contacts\.get\(o\.id\)/);
+    assert.match(q, /reservedFlags\(\)/);
     assert.match(detail, /adminContactEmail\(id\)/); assert.match(detail, /rpc\("admin_edition_org_internal"/);
   });
   test("a missing function (migration not applied yet) leaves the emails blank instead of breaking the page", () => {

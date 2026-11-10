@@ -7,6 +7,8 @@ import { dateProblem, dateRangeLabel, slugify } from "@/lib/editions/rules";
 import { KIND_LABEL, type Edition, type EditionKind, type Organiser } from "@/lib/editions/types";
 import { normaliseFocus, resolveBrand } from "@/lib/editions/brand";
 import { EDITION_KINDS, editionFields } from "@/lib/editions/validate";
+import { MATERIAL_SAVED, MATERIAL_WARNING, materialChangesFor, materialSentence } from "@/lib/editions/journey";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { Field, Notice, btnPrimary, inputCls } from "./kit";
 import { useAction } from "./use-action";
 import { ImageUpload } from "./ImageUpload";
@@ -24,6 +26,7 @@ type Props = {
 
 export function EditionForm({ mode, organiserSlug, organiserId, series, edition, seed, canCreateSeries, organiser }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const { pending, msg, run, setMsg } = useAction();
   const [f, setF] = useState({
     title: edition?.title ?? seed?.title ?? "", slug: "", kind: (edition?.kind ?? seed?.kind ?? "single_day") as EditionKind,
@@ -47,13 +50,19 @@ export function EditionForm({ mode, organiserSlug, organiserId, series, edition,
   const live = f.starts_on && f.ends_on ? dateProblem(f.kind, f.starts_on, f.ends_on) : null;
   const look = resolveBrand({ brand_color: f.brand_color || null, logo_url: f.logo_url || null, cover_url: f.cover_url || null, cover_focus: f.cover_focus || null }, organiser);
 
-  function submit(e: React.FormEvent) {
+  // An approved Edition goes back to review if its title, kind or dates change; anything else saves freely.
+  const material = mode === "edit" && edition ? materialChangesFor(edition.review_state, edition, f) : [];
+
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     const payload = { ...f, series_id: seriesMode === "existing" ? f.series_id : "", new_series_name: seriesMode === "new" ? f.new_series_name : "" };
     const v = editionFields(payload);
     if (!v.ok) return setMsg({ ok: false, text: v.error });
     if (mode === "create") run(() => createEdition(organiserSlug, payload), { onOk: (r) => router.push(`/organise/${organiserSlug}/editions/${r.edition}`) });
-    else run(() => updateEdition(organiserSlug, edition!.slug, payload), { success: "Details saved.", onOk: () => router.refresh() });
+    else {
+      if (material.length > 0 && !(await confirm({ title: "Send this Edition back for review?", body: `You changed ${materialSentence(material)}. ${MATERIAL_WARNING}`, confirmLabel: "Save and send back for review", danger: true }))) return;
+      run(() => updateEdition(organiserSlug, edition!.slug, payload), { success: material.length > 0 ? MATERIAL_SAVED : "Details saved.", onOk: () => router.refresh() });
+    }
   }
 
   return (
@@ -76,7 +85,7 @@ export function EditionForm({ mode, organiserSlug, organiserId, series, edition,
       </div>
       {live && <p role="alert" className="-mt-3 text-sm font-medium text-rose-700">{live}</p>}
 
-      <Field label="Summary" htmlFor="e-sum" hint={`${f.summary.length}/300. Appears in lists and search, and is required before publishing.`}>
+      <Field label="Summary" htmlFor="e-sum" hint={`${f.summary.length}/300. Appears in lists and search, and is required before you submit for review.`}>
         <textarea id="e-sum" className={inputCls} rows={2} value={f.summary} onChange={set("summary")} maxLength={300} />
       </Field>
       <Field label="Description" htmlFor="e-desc" hint="Optional longer introduction.">
@@ -124,6 +133,9 @@ export function EditionForm({ mode, organiserSlug, organiserId, series, edition,
         {seriesMode === "new" && <input aria-label="New series name" className={inputCls} placeholder="Series name, for example the event's usual name" value={f.new_series_name} onChange={set("new_series_name")} maxLength={120} />}
       </fieldset>
 
+      {material.length > 0 && (
+        <p role="note" className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-950">You changed {materialSentence(material)}. {MATERIAL_WARNING}</p>
+      )}
       <Notice msg={msg} />
       <button type="submit" disabled={pending} className={btnPrimary}>{pending ? "Saving…" : mode === "create" ? "Create Edition" : "Save details"}</button>
     </form>
