@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const STUB = new URL("./next-stubs.mjs", import.meta.url).href;
-const STUBS = { "next/link": STUB, "next/image": new URL("./next-image-stub.mjs", import.meta.url).href, "next/navigation": STUB, "react-dom": new URL("./react-dom-stub.mjs", import.meta.url).href, "next/font/google": new URL("./next-font-stub.mjs", import.meta.url).href };
+const STUBS = { "next/link": STUB, "next/image": new URL("./next-image-stub.mjs", import.meta.url).href, "next/navigation": STUB, "react-dom": new URL("./react-dom-stub.mjs", import.meta.url).href, "next/font/google": new URL("./next-font-stub.mjs", import.meta.url).href, "next/font/local": new URL("./next-font-local-stub.mjs", import.meta.url).href };
 
 export async function resolve(specifier, context, next) {
   if (STUBS[specifier]) return { url: STUBS[specifier], shortCircuit: true };

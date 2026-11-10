@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
@@ -18,18 +18,34 @@ import { entryPointProps } from "@/lib/event-entry-points";
 import { SavedProvider } from "@/components/saved/SavedProvider";
 import { getSavedEnabled } from "@/lib/saved.server";
 
-const fraunces = Fraunces({
+/**
+ * Self-hosted typefaces (SIL Open Font License 1.1: see app/fonts/FONTS.md). These are the same latin-subset files Google Fonts served, so the site looks exactly as
+ * before, but the build no longer downloads anything: a production build cannot fail because Google Fonts was unreachable or answered unexpectedly.
+ * Fraunces is one variable file per style, declared once per weight the site uses (as Google's CSS did); Inter is one variable file (100 to 900).
+ */
+const fraunces = localFont({
   variable: "--font-fraunces",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "900"],
-  style: ["normal", "italic"],
+  src: [
+    { path: "./fonts/Fraunces-latin-normal.woff2", weight: "400", style: "normal" },
+    { path: "./fonts/Fraunces-latin-normal.woff2", weight: "500", style: "normal" },
+    { path: "./fonts/Fraunces-latin-normal.woff2", weight: "600", style: "normal" },
+    { path: "./fonts/Fraunces-latin-normal.woff2", weight: "700", style: "normal" },
+    { path: "./fonts/Fraunces-latin-normal.woff2", weight: "900", style: "normal" },
+    { path: "./fonts/Fraunces-latin-italic.woff2", weight: "400", style: "italic" },
+    { path: "./fonts/Fraunces-latin-italic.woff2", weight: "500", style: "italic" },
+    { path: "./fonts/Fraunces-latin-italic.woff2", weight: "600", style: "italic" },
+    { path: "./fonts/Fraunces-latin-italic.woff2", weight: "700", style: "italic" },
+    { path: "./fonts/Fraunces-latin-italic.woff2", weight: "900", style: "italic" },
+  ],
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
-const inter = Inter({
+const inter = localFont({
   variable: "--font-inter",
-  subsets: ["latin"],
+  src: [{ path: "./fonts/Inter-latin-variable.woff2", weight: "100 900", style: "normal" }],
   display: "swap",
+  adjustFontFallback: "Arial",
 });
 
 export const viewport: Viewport = {
