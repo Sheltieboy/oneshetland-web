@@ -23,23 +23,33 @@ async function reservedFlags(): Promise<Map<string, boolean>> {
   try { const { data } = await (await createClient()).rpc("admin_edition_org_flags"); return new Map(((data ?? []) as { id: string; reserved_name_flag: boolean }[]).map((r) => [r.id, r.reserved_name_flag])); } catch { return new Map(); }
 }
 
+/** Contact emails are private to the organiser team and are NOT readable from the table, even by administrators (that was the cause of "permission denied for table edition_organisers"
+ *  on the queue, the organiser list and the organiser page). Administrators read them through an admin-only function. Best effort: if the function is not in the database yet, emails show blank. */
+async function contactEmails(orgId?: string): Promise<Map<string, string | null>> {
+  try {
+    const { data } = await (await createClient()).rpc("admin_edition_org_contacts", orgId ? { p_org: orgId } : {});
+    return new Map(((data ?? []) as { id: string; contact_email: string | null }[]).map((r) => [r.id, r.contact_email]));
+  } catch { return new Map(); }
+}
+export const adminContactEmail = async (orgId: string): Promise<string | null> => (await contactEmails(orgId)).get(orgId) ?? null;
+
 export const queueRows = async (): Promise<Read<QueueRow>> => {
   const r = await read<QueueRow>("queue", (sb) =>
     sb.from("edition_organiser_verifications")
-      .select("id, organiser_id, evidence, requested_by, created_at, organiser:edition_organisers ( id, name, slug, status, is_test, contact_email, created_at )")
+      .select("id, organiser_id, evidence, requested_by, created_at, organiser:edition_organisers ( id, name, slug, status, is_test, created_at )")
       .eq("status", "pending").order("created_at", { ascending: true }).limit(200));
-  const flags = await reservedFlags();
-  return { ...r, rows: r.rows.map((x) => ({ ...x, organiser: x.organiser ? { ...x.organiser, reserved_name_flag: flags.get(x.organiser.id) ?? false } : null })) };
+  const [flags, contacts] = await Promise.all([reservedFlags(), contactEmails()]);
+  return { ...r, rows: r.rows.map((x) => ({ ...x, organiser: x.organiser ? { ...x.organiser, reserved_name_flag: flags.get(x.organiser.id) ?? false, contact_email: contacts.get(x.organiser.id) ?? null } : null })) };
 };
 
 export const organiserRows = async (status: string): Promise<Read<OrgLite>> => {
   const r = await read<OrgLite>("organisers", (sb) => {
-    let q = sb.from("edition_organisers").select("id, name, slug, status, is_test, contact_email, created_at").order("created_at", { ascending: false }).limit(300);
+    let q = sb.from("edition_organisers").select("id, name, slug, status, is_test, created_at").order("created_at", { ascending: false }).limit(300);
     if (["pending", "verified", "rejected", "suspended"].includes(status)) q = q.eq("status", status);
     return q;
   });
-  const flags = await reservedFlags();
-  return { ...r, rows: r.rows.map((o) => ({ ...o, reserved_name_flag: flags.get(o.id) ?? false })) };
+  const [flags, contacts] = await Promise.all([reservedFlags(), contactEmails()]);
+  return { ...r, rows: r.rows.map((o) => ({ ...o, reserved_name_flag: flags.get(o.id) ?? false, contact_email: contacts.get(o.id) ?? null })) };
 };
 
 export const editionRows = (status: string, test: string) => read<EditionRow>("editions", (sb) => {

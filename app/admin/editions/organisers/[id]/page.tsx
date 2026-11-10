@@ -7,7 +7,7 @@ import { isAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/editions/types";
 import { isUuid } from "../../helpers";
-import { auditRows, names } from "../../queries";
+import { adminContactEmail, auditRows, names } from "../../queries";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Organiser · Editions · Admin" };
@@ -19,11 +19,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (!isUuid(id)) notFound();
   const admin = await isAdmin();
   const sb = await createClient();
-  const { data, error } = await sb.from("edition_organisers").select("id, name, slug, tagline, description, website, contact_email, status, verified_at, is_test, hub_id, created_at").eq("id", id).maybeSingle();
+  const { data, error } = await sb.from("edition_organisers").select("id, name, slug, tagline, description, website, status, verified_at, is_test, hub_id, created_at").eq("id", id).maybeSingle();
   const internal = ((await sb.rpc("admin_edition_org_internal", { p_org: id })).data ?? [])[0] as { verification_note: string | null; reserved_name_flag: boolean } | undefined;
   if (error) return <ErrorNote>Could not load this organiser: {error.message}</ErrorNote>;
   if (!data) notFound();
-  const o = { ...(data as Org), verification_note: internal?.verification_note ?? null, reserved_name_flag: internal?.reserved_name_flag ?? false } as Org;
+  const o = { ...(data as Org), contact_email: await adminContactEmail(id), verification_note: internal?.verification_note ?? null, reserved_name_flag: internal?.reserved_name_flag ?? false } as Org;
   const [ver, mem, eds, audit] = await Promise.all([
     sb.from("edition_organiser_verifications").select("id, evidence, requested_by, status, note, decided_at, created_at").eq("organiser_id", id).order("created_at", { ascending: false }),
     sb.from("edition_organiser_members").select("user_id, role, created_at").eq("organiser_id", id),
