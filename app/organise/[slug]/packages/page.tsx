@@ -10,7 +10,7 @@ export const metadata = { title: "Packages" };
 export default async function PackagesPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { organiser, role, sb } = await organiserPage(slug, `/organise/${slug}/packages`, "admin");
-  const [packages, orders, on, eds] = await Promise.all([getActivePackages(), getOrgOrders(organiser.id), getCommerceEnabled(), sb.from("editions").select("slug, title").eq("organiser_id", organiser.id).neq("status", "archived").order("starts_on", { ascending: false })]);
+  const [packages, orders, on, eds] = await Promise.all([getActivePackages(organiser.id), getOrgOrders(organiser.id), getCommerceEnabled(), sb.from("editions").select("slug, title").eq("organiser_id", organiser.id).neq("status", "archived").order("starts_on", { ascending: false })]);
   return (
     <div className="mx-auto max-w-4xl">
       <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Organiser tools</Link> / <Link href={`/organise/${slug}`} className="hover:underline">{organiser.name}</Link></nav>

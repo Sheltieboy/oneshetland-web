@@ -50,7 +50,7 @@ describe("validators", () => {
   test("action and kind guards", () => {
     for (const a of ["approve", "decline", "cancel", "withdraw", "remove"]) assert.ok(P.isPartnerAction(a));
     for (const a of ["delete", "", null, "APPROVE"]) assert.ok(!P.isPartnerAction(a));
-    assert.ok(P.isPartnerKind("business") && !P.isPartnerKind("hub"));
+    assert.ok(P.isPartnerKind("business") && P.isPartnerKind("hub") && !P.isPartnerKind("club"));
   });
 });
 

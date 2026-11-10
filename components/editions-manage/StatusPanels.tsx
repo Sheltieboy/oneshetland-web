@@ -12,7 +12,19 @@ import { useAction } from "./use-action";
 const fmt = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(new Date(iso));
 
 /** The publish checklist: required items block publishing (the database enforces them), recommended ones do not. */
-export function ChecklistPanel({ checklist }: { checklist: Readiness }) {
+/** Where to go to fix each unmet item, so an organiser never has to guess which tab. */
+const FIX_LABEL: Record<string, string> = { verified: "Request verification", entitled: "See the package", summary: "Add a summary", cover: "Add a cover photograph", pages: "Add a page", programme: "Add to the programme" };
+function fixHref(key: string, orgRoot: string, edRoot: string): string | null {
+  switch (key) {
+    case "verified": return orgRoot;
+    case "entitled": return "#package";
+    case "summary": case "cover": return `${edRoot}/details`;
+    case "pages": return `${edRoot}/pages`;
+    case "programme": return `${edRoot}/programme`;
+    default: return null;
+  }
+}
+export function ChecklistPanel({ checklist, orgRoot, edRoot }: { checklist: Readiness; orgRoot?: string; edRoot?: string }) {
   const required = new Set(["verified", "entitled", "summary"]);
   return (
     <ul className="divide-y divide-line">
@@ -25,6 +37,7 @@ export function ChecklistPanel({ checklist }: { checklist: Readiness }) {
               {!c.ok && <span className="ml-2 text-xs font-normal text-ink-muted">{required.has(c.key) ? "Required to publish" : "Recommended"}</span>}
             </p>
             {!c.ok && <p className="text-xs text-ink-muted">{c.hint}</p>}
+            {!c.ok && orgRoot && edRoot && fixHref(c.key, orgRoot, edRoot) && <a href={fixHref(c.key, orgRoot, edRoot)!} className="mt-1 inline-block text-xs font-semibold text-ink underline underline-offset-2">{FIX_LABEL[c.key]}</a>}
           </div>
         </li>
       ))}

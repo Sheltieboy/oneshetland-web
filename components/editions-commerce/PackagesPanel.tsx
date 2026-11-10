@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -18,11 +19,11 @@ export function PackagesPanel({ slug, packages, editions, orders, isOwner, comme
   const create = useAction(); const attempt = useAttemptId(`${ed}`);
   return (
     <div className="space-y-8">
-      {!commerceOn && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">Buying packages is not switched on yet. OneShetland can also grant you a package directly.</p>}
+      {!commerceOn && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">Buying packages is not switched on yet. To get one activated, <Link href="/support" className="font-semibold underline">ask OneShetland</Link> and we will set it up with you.</p>}
       {packages.length === 0 ? <EmptyState>No packages are on sale right now.</EmptyState> : (<>
         {editions.length > 0 && <Field label="Which Edition is it for?" htmlFor="pk-ed"><select id="pk-ed" className={inputCls} value={ed} onChange={(e) => setEd(e.target.value)}>{editions.map((x) => <option key={x.slug} value={x.slug}>{x.title}</option>)}</select></Field>}
         <ul className="grid gap-4 sm:grid-cols-2">{packages.map((p) => (
-          <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><h2 className="font-display text-xl font-bold text-ink">{p.name}</h2><p className="mt-1 text-2xl font-bold text-ink">{pounds(p.price_pence)}</p><p className="text-sm text-ink-muted">for {Math.round(p.duration_days / 30.4)} months</p>
+          <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><h2 className="font-display text-xl font-bold text-ink">{p.name}</h2>{p.audience === "hub" && <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-ink-muted">Community rate for Hub-run Editions</p>}<p className="mt-1 text-2xl font-bold text-ink">{pounds(p.price_pence)}</p><p className="text-sm text-ink-muted">for {Math.round(p.duration_days / 30.4)} months</p>
             {p.description && <p className="mt-2 text-sm text-ink-soft">{p.description}</p>}
             <ul className="mt-3 list-disc pl-5 text-sm text-ink-soft"><li>Publish your Edition</li>{p.features.map((f) => <li key={f}>{FEATURE_LABEL[f] ?? f}</li>)}{p.max_members ? <li>Up to {p.max_members} members</li> : null}</ul>
             {isOwner && commerceOn && editions.length > 0 && <div className="mt-4"><button type="button" className={btnPrimary} disabled={create.pending} onClick={() => create.run(() => createPackageOrder(slug, ed, p.id, attempt()), { onOk: (r) => setPending({ orderId: (r as unknown as { orderId: string }).orderId, pkg: p }) })}>Choose this package</button></div>}</li>))}</ul>

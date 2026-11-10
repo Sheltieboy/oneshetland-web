@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getHub, hubAccent } from "@/lib/hubs-data";
 import { getHubMembers, isHubAdmin } from "@/lib/hubs-server";
+import { getHubEditionsEntry } from "@/lib/editions/data.server";
 
 export const dynamic = "force-dynamic";
 
@@ -21,9 +22,10 @@ export default async function ManageHubPage({ params }: { params: Promise<{ id: 
   const admin = await isHubAdmin(hub.id);
   if (!admin.isAdmin) redirect(`/hubs/${hub.slug || hub.id}`);
 
-  const [members, pending] = await Promise.all([
+  const [members, pending, festivals] = await Promise.all([
     getHubMembers(hub.id, "active"),
     getHubMembers(hub.id, "pending"),
+    getHubEditionsEntry(hub.id).catch(() => ({ show: false, pending: 0, organiserSlug: null })),
   ]);
   const accent = hubAccent(hub);
   const base = `/hubs/${hub.slug || hub.id}/manage`;
@@ -45,6 +47,7 @@ export default async function ManageHubPage({ params }: { params: Promise<{ id: 
         { href: `${base}/events`, label: "Events", desc: "Create events & manage visibility" },
         { href: `${base}/activities`, label: "Regular activities", desc: "Weekly classes & groups, with changes & breaks" },
         { href: `${base}/campaigns`, label: "Fundraising", desc: "Campaigns, donations & Gift Aid" },
+        ...(festivals.show ? [{ href: `${base}/editions`, label: "Festivals & Editions", desc: festivals.pending > 0 ? `${festivals.pending} invitation${festivals.pending === 1 ? "" : "s"} waiting` : "Take part in festivals, or run your own", badge: festivals.pending }] : []),
         ...(hub.is_charity && hub.charity_number ? [{ href: `${base}/giftaid`, label: "Gift Aid", desc: "Export declarations for HMRC" }] : []),
         { href: `/accessible/edit/hub/${hub.id}`, label: "Help people plan their visit", desc: "Access and assistance information: free, optional" },
         { href: `${base}/broadcast`, label: "Message members", desc: "Push or email the whole membership" },

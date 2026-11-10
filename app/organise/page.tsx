@@ -43,12 +43,12 @@ export default async function OrganiserHome() {
         </div>
       ) : (
         <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-          {mine.map(({ organiser, role }) => (
+          {mine.map(({ organiser, role, viaHub }) => (
             <li key={organiser.id}>
               <Link href={`/organise/${organiser.slug}`} className="block rounded-card border border-line bg-paper p-5 shadow-soft transition hover:border-navy">
                 <p className="font-display text-lg font-bold text-ink">{organiser.name}</p>
                 {organiser.tagline && <p className="mt-0.5 line-clamp-1 text-sm text-ink-soft">{organiser.tagline}</p>}
-                <p className="mt-3 flex flex-wrap items-center gap-2"><OrganiserStatusPill status={organiser.status} /><span className="text-xs font-semibold text-ink-muted">{ROLE_LABEL[role]}</span>{organiser.is_test && <TestPill />}</p>
+                <p className="mt-3 flex flex-wrap items-center gap-2"><OrganiserStatusPill status={organiser.status} /><span className="text-xs font-semibold text-ink-muted">{ROLE_LABEL[role]}{viaHub ? " · through your Hub" : ""}</span>{organiser.is_test && <TestPill />}</p>
               </Link>
             </li>
           ))}

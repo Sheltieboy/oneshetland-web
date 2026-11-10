@@ -22,10 +22,10 @@ export const btnSecondary = `${BTN} border border-line-strong bg-paper text-ink 
 export const btnDanger = `${BTN} border border-rose-300 bg-paper text-rose-700 hover:bg-rose-50`;
 export const btnQuiet = "text-sm font-semibold text-navy underline-offset-2 hover:underline disabled:opacity-50";
 
-export function Panel({ title, sub, children, tone = "plain", action }: { title?: string; sub?: ReactNode; children: ReactNode; tone?: "plain" | "warm" | "alert"; action?: ReactNode }) {
+export function Panel({ title, sub, children, tone = "plain", action, id }: { id?: string; title?: string; sub?: ReactNode; children: ReactNode; tone?: "plain" | "warm" | "alert"; action?: ReactNode }) {
   const cls = tone === "warm" ? "border-amber-200 bg-amber-50/60" : tone === "alert" ? "border-rose-200 bg-rose-50/60" : "border-line bg-paper";
   return (
-    <section className={`rounded-card border p-5 shadow-soft ${cls}`}>
+    <section id={id} className={`scroll-mt-24 rounded-card border p-5 shadow-soft ${cls}`}>
       {(title || action) && (
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>

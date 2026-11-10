@@ -5,6 +5,7 @@ import { VerificationForm } from "@/components/editions-manage/VerificationForm"
 import { EditionStatusPill, EmptyState, OrganiserStatusPill, Panel, PhasePill, Pill, TestPill, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
 import { BrandPreview } from "@/components/editions-manage/brand-kit";
 import { normaliseFocus, TYPEFACE } from "@/lib/editions/brand";
+import { inheritFromHub, inheritedFields } from "@/lib/editions/hub-brand";
 import { organiserPage } from "../gate";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function OrganiserDashboard({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const { organiser, role, sb } = await organiserPage(slug, `/organise/${slug}`);
+  const { organiser, role, sb, hub } = await organiserPage(slug, `/organise/${slug}`);
+  // What the Edition really shows: the organiser's own choices, else the Hub's (read live). The checklist says which is which.
+  const shown = inheritFromHub(organiser, hub), loan = inheritedFields(organiser, hub);
   const isAdmin = can(role, "admin"), isOwner = can(role, "owner");
 
   const [eds, ents, ver, team] = await Promise.all([
@@ -35,7 +38,7 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
 
   return (
     <>
-      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="hover:underline">Organiser tools</Link></nav>
+      <nav aria-label="Breadcrumb" className="text-sm text-ink-muted"><Link href="/organise" className="inline-block py-1.5 hover:underline">Organiser tools</Link></nav>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl font-bold text-ink">{organiser.name}</h1>
         <OrganiserStatusPill status={organiser.status} />
@@ -43,13 +46,13 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
       </div>
       <p className="mt-1 text-sm text-ink-soft">You are an {ROLE_LABEL[role]}. {organiser.tagline}</p>
       <div className="mt-3 flex flex-wrap gap-4 text-sm font-semibold text-navy">
-        <Link href={`/organise/${organiser.slug}/brand`} className="hover:underline">Brand</Link>
-        <Link href={`/organise/${organiser.slug}/profile`} className="hover:underline">Profile</Link>
-        <Link href={`/organise/${organiser.slug}/team`} className="hover:underline">Team</Link>
-        {organiser.status === "verified" && <Link href={`/organise/${organiser.slug}/members`} className="hover:underline">Members</Link>}
-        {organiser.status === "verified" && <Link href={`/organise/${organiser.slug}/payments`} className="hover:underline">Payments</Link>}
-        {organiser.status === "verified" && <Link href={`/organise/${organiser.slug}/packages`} className="hover:underline">Packages</Link>}
-        {organiser.status === "verified" && <Link href={`/organisers/${organiser.slug}`} className="hover:underline">Public page</Link>}
+        <Link href={`/organise/${organiser.slug}/brand`} className="inline-block py-1.5 hover:underline">Brand</Link>
+        <Link href={`/organise/${organiser.slug}/profile`} className="inline-block py-1.5 hover:underline">Profile</Link>
+        <Link href={`/organise/${organiser.slug}/team`} className="inline-block py-1.5 hover:underline">Team</Link>
+        {organiser.status === "verified" && <Link href={`/organise/${organiser.slug}/members`} className="inline-block py-1.5 hover:underline">Members</Link>}
+        {organiser.status === "verified" && isAdmin && <Link href={`/organise/${organiser.slug}/payments`} className="inline-block py-1.5 hover:underline">Payments</Link>}
+        {organiser.status === "verified" && isAdmin && <Link href={`/organise/${organiser.slug}/packages`} className="inline-block py-1.5 hover:underline">Packages</Link>}
+        {organiser.status === "verified" && <Link href={`/organisers/${organiser.slug}`} className="inline-block py-1.5 hover:underline">Public page</Link>}
       </div>
 
       <div className="mt-6 space-y-6">
@@ -65,12 +68,12 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
         )}
 
         <Panel title="Your brand" sub="Your logo, one colour and one cover photograph make every page feel like yours. We handle the rest."
-          action={isAdmin ? <Link href={`/organise/${organiser.slug}/brand`} className={btnSecondary}>{organiser.logo_url && organiser.cover_url && organiser.brand_color ? "Edit brand" : "Set up your brand"}</Link> : undefined}>
+          action={isAdmin ? <Link href={`/organise/${organiser.slug}/brand`} className={btnSecondary}>{shown.logo_url && shown.cover_url && shown.brand_color ? "Edit brand" : "Set up your brand"}</Link> : undefined}>
           <div className="grid items-start gap-5 sm:grid-cols-[minmax(0,22rem)_1fr]">
-            <BrandPreview name={organiser.name} tagline={organiser.tagline} logo={organiser.logo_url} cover={organiser.cover_url} focus={normaliseFocus(organiser.cover_focus)} color={organiser.brand_color} eyebrow="Organiser" />
+            <BrandPreview name={organiser.name} tagline={organiser.tagline} logo={shown.logo_url} cover={shown.cover_url} focus={normaliseFocus(shown.cover_focus)} color={shown.brand_color} eyebrow="Organiser" />
             <ul className="space-y-2 text-sm text-ink-soft" aria-label="Brand checklist">
-              {[["Logo", !!organiser.logo_url], ["Brand colour", !!organiser.brand_color], ["Cover photograph", !!organiser.cover_url], ["Tagline", !!organiser.tagline]].map(([label, ok]) => (
-                <li key={String(label)} className="flex items-center gap-2"><span aria-hidden="true" className={ok ? "text-emerald-700" : "text-ink-faint"}>{ok ? "✓" : "○"}</span><span className={ok ? "text-ink" : ""}>{label as string}{ok ? "" : " (not added yet)"}</span></li>
+              {[["Logo", !!shown.logo_url, loan.logo], ["Brand colour", !!shown.brand_color, loan.color], ["Cover photograph", !!shown.cover_url, loan.cover], ["Tagline", !!organiser.tagline, false]].map(([label, ok, fromHub]) => (
+                <li key={String(label)} className="flex items-center gap-2"><span aria-hidden="true" className={ok ? "text-emerald-700" : "text-ink-faint"}>{ok ? "✓" : "○"}</span><span className={ok ? "text-ink" : ""}>{label as string}{ok ? (fromHub ? ` (from ${hub?.name ?? "your Hub"})` : "") : " (not added yet)"}</span></li>
               ))}
               <li className="pt-1 text-ink-muted">Typeface: {TYPEFACE.name}, shared by every Edition.</li>
             </ul>
@@ -96,7 +99,7 @@ export default async function OrganiserDashboard({ params }: { params: Promise<{
                     <div className="flex flex-wrap items-center gap-2">
                       <EditionStatusPill status={e.status} />
                       {e.status !== "archived" && <PhasePill phase={phaseOf(e)} />}
-                      {e.status !== "archived" && <Pill label={entitledFor(e.id) ? "Package active" : "No package"} tone={entitledFor(e.id) ? "green" : "gray"} />}
+                      {isAdmin && e.status !== "archived" && <Pill label={entitledFor(e.id) ? "Package active" : "No package"} tone={entitledFor(e.id) ? "green" : "gray"} />}
                       {e.is_test && <TestPill />}
                     </div>
                   </Link>

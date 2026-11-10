@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { PublicPartnerBusiness, PublicPartners } from "@/lib/editions/data.server";
 import { activityHref, categoryLabel } from "@/lib/editions/partners";
 import { PartnerCard, type TileSize } from "./PartnerCard";
+import { HubCard } from "./HubCard";
 
 /** The size of tile i of n: a lead and two beside it, then an even grid. Two partners share a row; one stands alone, wide. Gives the spread its rhythm. */
 function sizeOf(i: number, n: number): TileSize {
@@ -10,10 +11,10 @@ function sizeOf(i: number, n: number): TileSize {
   return i === 0 ? "lead" : i <= 2 ? "side" : "grid";
 }
 
-/** "Taking part": participating businesses and regular activities. Events appear in the programme instead. `limit` trims the home-page teaser. */
+/** "Taking part": participating businesses, Hubs and regular activities, in one section. Events appear in the programme instead. `limit` trims the home-page teaser. */
 export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }: { partners: PublicPartners; accent?: string; limit?: number; moreHref?: string; headingLevel?: 2 | 3 }) {
-  const { businesses, activities } = partners;
-  if (businesses.length === 0 && activities.length === 0) return null;
+  const { businesses, activities, hubs = [] } = partners;
+  if (businesses.length === 0 && activities.length === 0 && hubs.length === 0) return null;
   // A spread leads with photographs: businesses with a cover come first, then a logo, then neither (each group keeps the organiser's own order).
   const weight = (b: PublicPartnerBusiness) => (b.cover_url ? 2 : b.logo_url ? 1 : 0);
   const ordered = [...businesses].sort((a, b) => weight(b) - weight(a) || a.position - b.position);
@@ -25,9 +26,9 @@ export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }:
         <div>
           <p className="ed-eyebrow" aria-hidden="true">The neighbourhood</p>
           <H id="edition-partners" className="ed-display ed-h2" style={{ margin: 0 }}>Taking part</H>
-          <p style={{ margin: "0.9rem 0 0", maxWidth: "46ch" }} className="ed-muted">Local businesses that have chosen to be part of this Edition.</p>
+          <p style={{ margin: "0.9rem 0 0", maxWidth: "46ch" }} className="ed-muted">{hubs.length > 0 ? "Local businesses and community Hubs that have chosen to be part of this Edition." : "Local businesses that have chosen to be part of this Edition."}</p>
         </div>
-        {limit && moreHref && businesses.length > limit && <Link href={moreHref} className="ed-arrow">See everyone taking part ({businesses.length}) <span aria-hidden="true">→</span></Link>}
+        {limit && moreHref && businesses.length + hubs.length > limit && <Link href={moreHref} className="ed-arrow">See everyone taking part ({businesses.length + hubs.length}) <span aria-hidden="true">→</span></Link>}
       </div>
       {shown.length > 0 && (
         <ul className="ed-spread" style={{ listStyle: "none", margin: 0, padding: 0 }}>
@@ -37,6 +38,18 @@ export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }:
             return <li key={b.link_id} className={cls} style={{ minWidth: 0 }}><PartnerCard b={b} size={size} /></li>;
           })}
         </ul>
+      )}
+      {hubs.length > 0 && (limit ? hubs.slice(0, Math.max(0, limit - shown.length)) : hubs).length > 0 && (
+        <div style={{ marginTop: shown.length > 0 ? "clamp(2.5rem, 6vw, 4.5rem)" : 0 }}>
+          {shown.length > 0 && <H className="ed-display ed-h3" style={{ margin: "0 0 1.25rem" }}>Community Hubs</H>}
+          <ul className="ed-spread" style={{ listStyle: "none", margin: 0, padding: 0 }}>
+            {(limit ? hubs.slice(0, Math.max(0, limit - shown.length)) : hubs).map((h, i, all) => {
+              const size = shown.length > 0 ? "grid" : sizeOf(i, all.length);
+              const cls = size === "wide" ? "ed-tile--wide" : size === "lead" ? "ed-tile--lead" : size === "side" ? (all.length === 2 ? "ed-tile--half" : "ed-tile--side") : "ed-tile";
+              return <li key={h.link_id} className={cls} style={{ minWidth: 0 }}><HubCard h={h} size={size} /></li>;
+            })}
+          </ul>
+        </div>
       )}
       {activities.length > 0 && (
         <div style={{ marginTop: "clamp(2.5rem, 6vw, 4.5rem)" }}>

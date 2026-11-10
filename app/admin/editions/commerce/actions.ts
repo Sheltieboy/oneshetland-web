@@ -31,7 +31,13 @@ export async function upsertPackage(input: Record<string, unknown>): Promise<Res
   const max = String(input.max_members ?? "").trim() ? Number(input.max_members) : null; if (max !== null && (!Number.isInteger(max) || max < 1)) return { ok: false, error: "The member limit must be 1 or more." };
   const sb = await createClient();
   const { error } = await sb.rpc("admin_upsert_edition_package", { p_code: code, p_name: name, p_description: String(input.description ?? "").trim().slice(0, 600) || null, p_price: price, p_days: days, p_features: features, p_max_members: max, p_active: input.active === true, p_sort: Number(input.sort) || 0 });
-  if (error) return fail(error.message); refresh(); return { ok: true };
+  if (error) return fail(error.message);
+  // The audience is a separate, admin-only setting (migration 20270102180000): a new package starts for everyone, a Community package is set to Hub-run Editions only.
+  if (input.audience === "hub" || input.audience === "any") {
+    const aud = await sb.rpc("admin_set_edition_package_audience", { p_code: code, p_audience: input.audience });
+    if (aud.error) return fail(aud.error.message);
+  }
+  refresh(); return { ok: true };
 }
 export async function grantOrgEntitlement(input: { organiserId: string; feature: string; max?: string; days: string; reason: string }): Promise<Result> {
   await requireAdmin();

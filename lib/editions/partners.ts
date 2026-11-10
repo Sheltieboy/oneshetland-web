@@ -8,12 +8,28 @@
 import { isUuid } from "./validate";
 import type { Checked } from "./validate";
 
-export type PartnerKind = "business" | "event" | "activity";
+export type PartnerKind = "business" | "hub" | "event" | "activity";
 export type LinkState = "pending" | "approved" | "declined" | "cancelled" | "withdrawn";
 export type Initiator = "organiser" | "entity";
 
-export const PARTNER_KIND_LABEL: Record<PartnerKind, string> = { business: "Business", event: "Event", activity: "Regular activity" };
-export const PARTNER_KIND_NOUN: Record<PartnerKind, string> = { business: "your business", event: "your event", activity: "your activity" };
+export const PARTNER_KIND_LABEL: Record<PartnerKind, string> = { business: "Business", hub: "Hub", event: "Event", activity: "Regular activity" };
+export const PARTNER_KIND_NOUN: Record<PartnerKind, string> = { business: "your business", hub: "your Hub", event: "your event", activity: "your activity" };
+
+/** The Partners screen filter: one list for businesses and Hubs together (and the events and activities organisers link individually). */
+export type PartnerFilter = "all" | "business" | "hub" | "programme";
+export const PARTNER_FILTERS: { key: PartnerFilter; label: string }[] = [
+  { key: "all", label: "Everyone" }, { key: "business", label: "Businesses" }, { key: "hub", label: "Hubs" }, { key: "programme", label: "Events & activities" },
+];
+export const matchesFilter = (kind: PartnerKind, f: PartnerFilter) => f === "all" || (f === "programme" ? kind === "event" || kind === "activity" : kind === f);
+/** Rows narrowed by the filter and a free-text search over the name and the heading (case-insensitive). */
+export function filterPartnerRows<T extends { kind: PartnerKind; subject_name: string; label: string | null }>(rows: T[], filter: PartnerFilter, query: string): T[] {
+  const q = query.trim().toLowerCase();
+  return rows.filter((r) => matchesFilter(r.kind, filter) && (!q || r.subject_name.toLowerCase().includes(q) || (r.label ?? "").toLowerCase().includes(q)));
+}
+export const countByFilter = (rows: { kind: PartnerKind }[]): Record<PartnerFilter, number> => ({
+  all: rows.length, business: rows.filter((r) => r.kind === "business").length, hub: rows.filter((r) => r.kind === "hub").length,
+  programme: rows.filter((r) => r.kind === "event" || r.kind === "activity").length,
+});
 
 /** A row as the organiser team sees it (RPC edition_partner_rows). */
 export type PartnerRow = {
@@ -35,6 +51,14 @@ export type OfferOption = {
   selected: boolean; eligible: boolean; reason: string | null;
 };
 
+export type FindHub = { id: string; name: string; type: string | null; area: string | null; logo_url: string | null; slug: string | null; is_verified: boolean; link_state: LinkState | null };
+/** One of a Hub's own events or activities it may choose to show under its card (RPC edition_hub_item_options). */
+export type HubItemOption = { kind: "event" | "activity"; id: string; title: string; starts_at: string | null; venue: string | null; selected: boolean };
+export const MAX_HUB_ITEMS = 12;
+/** Hub types as people say them. */
+export const HUB_TYPE_LABEL: Record<string, string> = { club: "Club", sports: "Sports", youth: "Youth", hall: "Hall", charity: "Charity", society: "Society", volunteer: "Volunteer group", arts: "Arts", community: "Community", other: "Hub" };
+export const hubTypeLabel = (t: string | null | undefined) => (t ? HUB_TYPE_LABEL[t] ?? "Hub" : "Hub");
+
 export type FindBusiness = { id: string; name: string; category: string | null; address: string | null; logo_url: string | null; slug: string | null; claimed: boolean; link_state: LinkState | null };
 export type FindActivity = { kind: "event" | "activity"; id: string; title: string; starts_at: string | null; venue: string | null; owner_name: string | null; link_state: LinkState | null };
 export type JoinableEdition = { edition_id: string; title: string; slug: string; summary: string | null; starts_on: string; ends_on: string; organiser_name: string };
@@ -48,7 +72,7 @@ export const categoryLabel = (c: string | null | undefined) => (c ? CATEGORY_LAB
 /** What an organiser sees for each state, in words a committee volunteer understands. */
 export function organiserStateText(r: Pick<PartnerRow, "state" | "initiated_by" | "ended_by">): { label: string; tone: "good" | "wait" | "ask" | "off"; hint: string } {
   if (r.state === "approved") return { label: "Taking part", tone: "good", hint: "Shown on your Edition." };
-  if (r.state === "pending" && r.initiated_by === "organiser") return { label: "Invitation sent", tone: "wait", hint: "Waiting for the owner to answer. Nothing is shown publicly until they say yes." };
+  if (r.state === "pending" && r.initiated_by === "organiser") return { label: "Invitation sent", tone: "wait", hint: "Waiting for them to answer. Nothing is shown publicly until they say yes." };
   if (r.state === "pending") return { label: "Asked to join", tone: "ask", hint: "They would like to take part. Say yes or no." };
   if (r.state === "declined") return { label: r.ended_by === "entity" ? "Said no" : "You said no", tone: "off", hint: r.ended_by === "entity" ? "They declined this time." : "You declined their request." };
   if (r.state === "cancelled") return { label: "Cancelled", tone: "off", hint: "This was cancelled before it was answered." };
@@ -67,7 +91,7 @@ export function ownerStateText(r: Pick<MyPartnership, "state" | "initiated_by" |
 
 export type PartnerAction = "approve" | "decline" | "cancel" | "withdraw" | "remove";
 export const isPartnerAction = (a: unknown): a is PartnerAction => a === "approve" || a === "decline" || a === "cancel" || a === "withdraw" || a === "remove";
-export const isPartnerKind = (k: unknown): k is PartnerKind => k === "business" || k === "event" || k === "activity";
+export const isPartnerKind = (k: unknown): k is PartnerKind => k === "business" || k === "hub" || k === "event" || k === "activity";
 
 const clean = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
@@ -90,6 +114,7 @@ export function noteField(raw: unknown): Checked<string | null> {
 /** A starter message an organiser can edit; kept friendly and specific so the owner knows exactly what is being asked. */
 export function suggestedInvite(args: { organiser: string; edition: string; dateLabel: string; kind: PartnerKind; subject: string }): string {
   const ask = args.kind === "business" ? `We would love ${args.subject} to take part in ${args.edition} (${args.dateLabel}).`
+    : args.kind === "hub" ? `We would love ${args.subject} to be part of ${args.edition} (${args.dateLabel}), with a place on the Edition for the Hub and whichever of its events and activities you would like to show.`
     : args.kind === "event" ? `We would love to include ${args.subject} in ${args.edition} (${args.dateLabel}).`
     : `We would love to feature ${args.subject} in ${args.edition} (${args.dateLabel}).`;
   return `${ask} You stay in full control: you can say no, stop taking part at any time, and choose exactly what is shown.\n\nThank you,\n${args.organiser}`;
@@ -114,3 +139,12 @@ export function offerBadge(o: { discount_type: string; discount_value: number | 
 export const businessHref = (id: string) => `/directory/${id}`;
 export const eventHref = (id: string) => `/whats-on/${id}`;
 export const activityHref = (slug: string) => `/whats-on/regular/${slug}`;
+export const hubHref = (hub: { slug?: string | null; id: string }) => `/hubs/${hub.slug || hub.id}`;
+
+/** One of a Hub's own events or activities, as offered by "Add from your Hub". `link_id` is set when it is already on the Edition. */
+export type HubOwnItem = { kind: "event" | "activity"; id: string; title: string; starts_at: string | null; venue: string | null; link_id: string | null };
+export const isHubOwnItem = (x: unknown): x is HubOwnItem => !!x && typeof x === "object" && ((x as HubOwnItem).kind === "event" || (x as HubOwnItem).kind === "activity") && typeof (x as HubOwnItem).id === "string" && typeof (x as HubOwnItem).title === "string";
+/** Events first (by time as the database returns them), then regular activities. Pure, so it can be tested. */
+export function splitHubOwnItems(items: HubOwnItem[]): { events: HubOwnItem[]; activities: HubOwnItem[]; added: number } {
+  return { events: items.filter((i) => i.kind === "event"), activities: items.filter((i) => i.kind === "activity"), added: items.filter((i) => i.link_id).length };
+}

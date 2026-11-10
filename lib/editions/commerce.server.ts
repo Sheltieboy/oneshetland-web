@@ -51,6 +51,18 @@ export async function getParticipationTerms(editionId: string) {
   const { data } = await sb.from("edition_participation_terms").select("mode, fee_pence, vat_mode, refund_policy, refund_until, capacity, applications_close").eq("edition_id", editionId).maybeSingle();
   return (data as { mode: "free" | "fee_required"; fee_pence: number | null; vat_mode: string; refund_policy: "none" | "until_date" | "full"; refund_until: string | null; capacity: number | null; applications_close: string | null } | null) ?? null;
 }
-export async function getActivePackages(): Promise<Pkg[]> { const sb = await createClient(); const { data } = await sb.from("edition_packages").select("*").eq("active", true).order("sort"); return arr<Pkg>(data).map((p) => ({ ...p, features: b(p.features) })); }
+/**
+ * What this organiser may actually buy. With an organiser id the database decides (Community packages are offered only to an organiser linked to an active Hub); without one,
+ * only packages for everyone are readable. Hub-only packages are never listed to anyone else.
+ */
+export async function getActivePackages(organiserId?: string): Promise<Pkg[]> {
+  const sb = await createClient();
+  if (organiserId) {
+    const { data, error } = await sb.rpc("edition_available_packages", { p_org: organiserId });
+    if (!error) return arr<Pkg>(data).map((p) => ({ ...p, active: true, features: b(p.features) }));
+  }
+  const { data } = await sb.from("edition_packages").select("*").eq("active", true).order("sort");
+  return arr<Pkg>(data).map((p) => ({ ...p, features: b(p.features) }));
+}
 export async function getOrgOrders(orgId: string) { const sb = await createClient(); const { data } = await sb.from("edition_orders").select("id, edition_id, status, amount_pence, created_at, paid_at, package_snapshot").eq("organiser_id", orgId).order("created_at", { ascending: false }).limit(50); return arr<{ id: string; edition_id: string; status: string; amount_pence: number; created_at: string; paid_at: string | null; package_snapshot: { name?: string } }>(data); }
 export async function getRefundRequests(orgId: string) { const sb = await createClient(); const { data } = await sb.from("edition_refund_requests").select("id, payment_id, amount_pence, status, reason, created_at").eq("organiser_id", orgId).order("created_at", { ascending: false }).limit(30); return arr<{ id: string; payment_id: string; amount_pence: number; status: string; reason: string; created_at: string }>(data); }

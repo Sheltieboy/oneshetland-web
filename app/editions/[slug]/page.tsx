@@ -32,7 +32,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
   const plan = planCtx(edition.id, await getMyEditionFlags(edition.id), editionPath(edition.slug));
   const base = editionPath(edition.slug);
   const programmeCount = sessions.length + partners.events.length;
-  const takingPart = partners.businesses.length + partners.activities.length;
+  const takingPart = partners.businesses.length + partners.activities.length + partners.hubs.length;
 
   // "At a glance": only the facts this Edition actually has.
   const s0 = dayParts(edition.starts_on), s1 = dayParts(edition.ends_on);
@@ -41,7 +41,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
     { label: "When", value: single ? s0.day : `${s0.day}\u2013${s1.day}`, note: single ? `${s0.weekdayLong} ${s0.month} ${s0.year}` : s0.month === s1.month ? `${s0.month} ${s0.year}` : `${s0.monthShort} to ${s1.monthShort} ${s1.year}` },
     ...(venues.length > 0 ? [{ label: "Where", value: String(venues.length), note: venues.slice(0, 2).map((v) => v.name).join(" · ") }] : []),
     ...(programmeCount > 0 ? [{ label: "Programme", value: String(programmeCount), note: programmeCount === 1 ? "event" : "events, talks and sessions" }] : []),
-    ...(takingPart > 0 ? [{ label: "Taking part", value: String(takingPart), note: "local businesses and activities" }] : []),
+    ...(takingPart > 0 ? [{ label: "Taking part", value: String(takingPart), note: partners.hubs.length > 0 ? "local businesses, Hubs and activities" : "local businesses and activities" }] : []),
   ];
 
   return (

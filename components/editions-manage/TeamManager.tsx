@@ -10,7 +10,7 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { Field, Notice, Pill, btnPrimary, btnQuiet, inputCls } from "./kit";
 import { useAction } from "./use-action";
 
-export type TeamMember = { user_id: string; role: OrgRole; full_name: string | null; joined_at: string };
+export type TeamMember = { user_id: string; role: OrgRole; full_name: string | null; joined_at: string; via_hub?: boolean };
 export type PendingInvite = { id: string; email: string; role: "admin" | "editor"; expires_at: string };
 
 const fmtDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(new Date(iso));
@@ -53,10 +53,10 @@ export function TeamManager({ slug, role, selfId, members, invites }: { slug: st
             <li key={m.user_id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate font-semibold text-ink">{m.full_name ?? "OneShetland member"}{m.user_id === selfId && <span className="ml-2 text-xs font-normal text-ink-muted">(you)</span>}</p>
-                <p className="text-xs text-ink-muted">Joined {fmtDate(m.joined_at)}</p>
+                <p className="text-xs text-ink-muted">{m.via_hub ? "On the team through your Hub's committee. To change this, change the committee in your Hub." : `Joined ${fmtDate(m.joined_at)}`}</p>
               </div>
               <div className="flex items-center gap-3">
-                {isOwner ? (
+                {m.via_hub ? <Pill label={`${ROLE_LABEL[m.role]} · Hub`} tone="purple" /> : isOwner ? (
                   <>
                     <label className="sr-only" htmlFor={`role-${m.user_id}`}>Role for {m.full_name ?? "this person"}</label>
                     <select id={`role-${m.user_id}`} className="rounded-lg border border-line bg-paper px-2 py-1.5 text-sm" value={m.role} disabled={roleAction.pending}
@@ -65,7 +65,7 @@ export function TeamManager({ slug, role, selfId, members, invites }: { slug: st
                     </select>
                   </>
                 ) : <Pill label={ROLE_LABEL[m.role]} tone={m.role === "owner" ? "purple" : "blue"} />}
-                {(isOwner || m.user_id === selfId) && <button type="button" onClick={() => remove(m)} disabled={removeAction.pending} className="text-sm font-semibold text-rose-700 hover:underline disabled:opacity-50">{m.user_id === selfId ? "Leave" : "Remove"}</button>}
+                {!m.via_hub && (isOwner || m.user_id === selfId) && <button type="button" onClick={() => remove(m)} disabled={removeAction.pending} className="text-sm font-semibold text-rose-700 hover:underline disabled:opacity-50">{m.user_id === selfId ? "Leave" : "Remove"}</button>}
               </div>
             </li>
           ))}

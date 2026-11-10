@@ -16,7 +16,8 @@ import { BrandPreview, BrandReport, ColourField, FocusPicker } from "./brand-kit
  * look. Everything else (paper and ink tones, typeface, layout, contrast) is derived from these four. Saves through the same action as the profile, carrying the
  * rest of the profile (about, website, email) through untouched.
  */
-export function BrandStudio({ organiser, canEdit }: { organiser: Organiser; canEdit: boolean }) {
+export function BrandStudio({ organiser, canEdit, hubName = null, inherited = null }: { organiser: Organiser; canEdit: boolean; hubName?: string | null; inherited?: { logo: boolean; cover: boolean; color: boolean } | null }) {
+  const via = (on: boolean | undefined, what: string) => (hubName && on ? <p className="mb-3 rounded-lg border border-line bg-cream/50 px-3 py-2 text-sm text-ink-soft">Right now your Editions use <strong className="font-semibold text-ink">{hubName}&rsquo;s {what}</strong>, read live from your Hub. Choose your own below to give your Editions a look of their own.</p> : null);
   const { pending, msg, run, setMsg } = useAction();
   const router = useRouter();
   const [f, setF] = useState({ name: organiser.name, tagline: organiser.tagline ?? "", logo_url: organiser.logo_url ?? "", cover_url: organiser.cover_url ?? "", cover_focus: normaliseFocus(organiser.cover_focus), brand_color: organiser.brand_color ?? "" });
@@ -35,14 +36,17 @@ export function BrandStudio({ organiser, canEdit }: { organiser: Organiser; canE
         <section aria-labelledby="b1">
           <h2 id="b1" className={step}><span className={num} aria-hidden="true">1</span> Your logo</h2>
           <p className="mb-3 mt-1 text-sm text-ink-soft">Shown on a clean white plate, so a dark or coloured logo is never lost on a photograph. A transparent PNG or SVG-like image works best.</p>
+          {via(inherited?.logo, "logo")}
           <ImageUpload label="Logo" organiserId={organiser.id} kind="organiser-logo" value={f.logo_url} onChange={(u) => setF((p) => ({ ...p, logo_url: u }))} hint="JPEG, PNG or WebP, up to 10 MB. Wide logos are fine." />
         </section>
         <section aria-labelledby="b2">
           <h2 id="b2" className={step}><span className={num} aria-hidden="true">2</span> One colour</h2>
+          {via(inherited?.color, "colour")}
           <div className="mt-3"><ColourField value={f.brand_color} onChange={(hex) => setF((p) => ({ ...p, brand_color: hex }))} /></div>
         </section>
         <section aria-labelledby="b3">
           <h2 id="b3" className={step}><span className={num} aria-hidden="true">3</span> One strong cover photograph</h2>
+          {via(inherited?.cover, "cover photograph")}
           <p className="mb-3 mt-1 text-sm text-ink-soft">The photograph does most of the work. Choose a landscape picture at least 2000 pixels wide, with people, place or produce rather than text.</p>
           <ImageUpload label="Cover photograph" organiserId={organiser.id} kind="organiser-cover" value={f.cover_url} onChange={(u) => setF((p) => ({ ...p, cover_url: u, cover_focus: "50% 50%" }))} hint="JPEG, PNG or WebP, up to 10 MB." />
           {f.cover_url && <FocusPicker src={f.cover_url} value={f.cover_focus} onChange={(focus) => setF((p) => ({ ...p, cover_focus: focus }))} />}

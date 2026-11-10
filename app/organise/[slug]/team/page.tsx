@@ -16,7 +16,7 @@ export default async function TeamPage({ params }: { params: Promise<{ slug: str
     isAdmin ? sb.rpc("edition_org_team", { p_org: organiser.id }) : Promise.resolve({ data: [] }),
     isOwner ? sb.from("edition_organiser_invites").select("id, email, role, expires_at").eq("organiser_id", organiser.id).eq("status", "pending").gt("expires_at", new Date().toISOString()) : Promise.resolve({ data: [] }),
   ]);
-  const members = ((team.data ?? []) as { user_id: string; role: OrgRole; full_name: string | null; joined_at: string }[]) as TeamMember[];
+  const members = ((team.data ?? []) as { user_id: string; role: OrgRole; full_name: string | null; joined_at: string; via_hub?: boolean }[]) as TeamMember[];
   const invites = ((inv.data ?? []) as PendingInvite[]);
   return (
     <div className="mx-auto max-w-3xl">

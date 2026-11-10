@@ -40,7 +40,7 @@ export default async function EditionLayout({ children, params }: { children: Re
   const nav = navFor(pages);
   const home = nav.find((n) => n.isHome);
   const hasProgramme = sessions.length + partners.events.length > 0;
-  const hasPartners = sponsors.length + partners.businesses.length + partners.activities.length > 0;
+  const hasPartners = sponsors.length + partners.businesses.length + partners.activities.length + partners.hubs.length > 0;
   const tiers = await getPublicTiers(organiser.slug);
   // The main navigation follows how a visitor discovers an Edition: where it is, what is on, who is taking part, how to visit, how to join. Pages the organiser puts in the
   // navigation sit after "Taking part"; pages they leave out of it (about, credits, anything secondary) live in the footer, so nothing is lost and nothing is crowded.
@@ -79,6 +79,7 @@ export default async function EditionLayout({ children, params }: { children: Re
       <div id="edition-content" tabIndex={-1} className="outline-none">{children}</div>
       <EditionFooter
         organiser={organiser}
+        hub={b.hub ? { name: b.hub.name, href: `/hubs/${b.hub.slug || b.hub.id}` } : null}
         about={[...(updates.length > 0 ? [{ href: `${base}/updates`, label: "Journal" }] : []), ...secondary]}
         links={[
           { href: "/editions", label: "All Editions" },

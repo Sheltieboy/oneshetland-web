@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  getJoinable, getOfferOptions, getOwnItems, requestToJoin, respondToPartnership, saveOffers, type OwnItem,
+  getHubItemOptions, getJoinable, getOfferOptions, getOwnItems, requestToJoin, respondToPartnership, saveHubItems, saveOffers, type OwnItem,
 } from "@/app/account/editions/actions";
-import { PARTNER_KIND_LABEL, offerBadge, ownerStateText, type JoinableEdition, type MyPartnership, type OfferOption } from "@/lib/editions/partners";
+import { MAX_HUB_ITEMS, PARTNER_KIND_LABEL, offerBadge, ownerStateText, type HubItemOption, type JoinableEdition, type MyPartnership, type OfferOption, type PartnerKind } from "@/lib/editions/partners";
 import { dateRangeLabel } from "@/lib/editions/rules";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { EmptyState, Field, Notice, Pill, btnPrimary, btnQuiet, btnSecondary, inputCls } from "./kit";
@@ -18,8 +18,10 @@ const TONE = { good: "green", wait: "amber", ask: "blue", off: "gray" } as const
  * What an owner sees: every Edition that has invited, or been asked by, their business, event or activity. Plain words, one clear decision per card,
  * and the reassurance that matters most (you stay in control, you can leave at any time) sitting right next to the buttons.
  */
-export function PartnershipInbox({ partnerships, businessId, businessName, billingHref }: {
+export function PartnershipInbox({ partnerships, businessId, businessName, billingHref, hub }: {
   partnerships: MyPartnership[]; businessId?: string | null; businessName?: string | null; billingHref?: string | null;
+  /** When this inbox is a Hub's: the Hub that may ask to join Editions (its committee answers for it). */
+  hub?: { id: string; name: string } | null;
 }) {
   const invites = partnerships.filter((p) => p.state === "pending" && p.initiated_by === "organiser");
   const taking = partnerships.filter((p) => p.state === "approved");
@@ -30,14 +32,14 @@ export function PartnershipInbox({ partnerships, businessId, businessName, billi
   return (
     <div className="space-y-9">
       <div className="max-w-2xl text-ink-soft">
-        <p>Festivals, trails and seasonal events can feature local businesses and activities. You decide whether to take part, <strong className="font-semibold text-ink">what is shown</strong>, and for how long. Your listing, offers and plan stay exactly as you manage them.</p>
+        <p>Festivals, trails and seasonal events can feature local businesses, Hubs and activities. You decide whether to take part, <strong className="font-semibold text-ink">what is shown</strong>, and for how long. Your listing, offers and plan stay exactly as you manage them.</p>
       </div>
 
       <section aria-labelledby="inv-h">
         <h2 id="inv-h" className="font-display text-2xl font-bold text-ink">Invitations{invites.length ? ` (${invites.length})` : ""}</h2>
         {invites.length === 0 ? <div className="mt-3"><EmptyState>No invitations right now. When an organiser invites you, it appears here.</EmptyState></div> : (
           <ul className="mt-4 space-y-4">
-            {invites.map((p) => <li key={p.link_id}><InvitationCard p={p} onAccepted={(id) => setOffersFor(p.kind === "business" ? id : null)} /></li>)}
+            {invites.map((p) => <li key={p.link_id}><InvitationCard p={p} onAccepted={(id) => setOffersFor(p.kind === "business" || p.kind === "hub" ? id : null)} /></li>)}
           </ul>
         )}
       </section>
@@ -58,7 +60,8 @@ export function PartnershipInbox({ partnerships, businessId, businessName, billi
         </section>
       )}
 
-      {businessId && <JoinPanel businessId={businessId} businessName={businessName ?? "your business"} existing={new Set(partnerships.filter((p) => p.state === "pending" || p.state === "approved").map((p) => p.edition_id))} />}
+      {businessId && <JoinPanel subject={{ kind: "business", id: businessId, name: businessName ?? "your business" }} existing={new Set(partnerships.filter((p) => p.state === "pending" || p.state === "approved").map((p) => p.edition_id))} />}
+      {hub && <JoinPanel subject={{ kind: "hub", id: hub.id, name: hub.name }} existing={new Set(partnerships.filter((p) => p.kind === "hub" && p.subject_id === hub.id && (p.state === "pending" || p.state === "approved")).map((p) => p.edition_id))} />}
 
       {past.length > 0 && (
         <details className="rounded-card border border-line bg-paper px-4 py-3">
@@ -122,7 +125,7 @@ function TakingPartCard({ p, businessId, billingHref, openOffers }: { p: MyPartn
   const router = useRouter();
   const confirm = useConfirm();
   const act = useAction();
-  const [panel, setPanel] = useState<"offers" | "items" | null>(openOffers && p.kind === "business" ? "offers" : null);
+  const [panel, setPanel] = useState<"offers" | "items" | "hubitems" | null>(openOffers && p.kind === "business" ? "offers" : openOffers && p.kind === "hub" ? "hubitems" : null);
   const t = ownerStateText(p);
   async function stepBack() {
     if (!(await confirm({ title: `Stop taking part in ${p.edition_title}?`, body: "You will disappear from the Edition straight away. You can be invited again later.", confirmLabel: "Stop taking part", danger: true }))) return;
@@ -139,11 +142,13 @@ function TakingPartCard({ p, businessId, billingHref, openOffers }: { p: MyPartn
       </p>
       <div className="mt-4 flex flex-wrap gap-2.5">
         {p.kind === "business" && <button type="button" className={btnSecondary} aria-expanded={panel === "offers"} onClick={() => setPanel(panel === "offers" ? null : "offers")}>{p.offers_selected ? `Offers shown: ${p.offers_selected}` : "Choose offers to show"}</button>}
-        {businessId && <button type="button" className={btnSecondary} aria-expanded={panel === "items"} onClick={() => setPanel(panel === "items" ? null : "items")}>Add an event or activity</button>}
+        {p.kind === "hub" && <button type="button" className={btnSecondary} aria-expanded={panel === "hubitems"} onClick={() => setPanel(panel === "hubitems" ? null : "hubitems")}>{p.offers_selected ? `Showing ${p.offers_selected} item${p.offers_selected === 1 ? "" : "s"}` : "Choose what to show"}</button>}
+        {businessId && p.kind === "business" && <button type="button" className={btnSecondary} aria-expanded={panel === "items"} onClick={() => setPanel(panel === "items" ? null : "items")}>Add an event or activity</button>}
         <button type="button" className={btnQuiet} disabled={act.pending} onClick={stepBack}>Stop taking part</button>
       </div>
       {panel === "offers" && p.kind === "business" && <OffersPanel linkId={p.link_id} billingHref={billingHref} onSaved={() => router.refresh()} />}
       {panel === "items" && businessId && <ItemsPanel editionId={p.edition_id} businessId={businessId} />}
+      {panel === "hubitems" && p.kind === "hub" && <HubItemsPanel linkId={p.link_id} hubName={p.subject_name} onSaved={() => router.refresh()} />}
       <Notice msg={act.msg} />
     </article>
   );
@@ -192,6 +197,46 @@ function OffersPanel({ linkId, billingHref, onSaved }: { linkId: string; billing
   );
 }
 
+/** A Hub chooses which of ITS OWN upcoming public events and calendar-approved activities to show under its card. Members-only events never appear here; nothing is copied. */
+function HubItemsPanel({ linkId, hubName, onSaved }: { linkId: string; hubName: string; onSaved: () => void }) {
+  const load = useAction();
+  const save = useAction();
+  const [opts, setOpts] = useState<HubItemOption[] | null>(null);
+  const [chosen, setChosen] = useState<Set<string>>(new Set());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load.run(() => getHubItemOptions(linkId), { onOk: (r) => { const o = (r as unknown as { options: HubItemOption[] }).options; setOpts(o); setChosen(new Set(o.filter((x) => x.selected).map((x) => `${x.kind}:${x.id}`))); } }); }, [linkId]);
+  const toggle = (k: string) => setChosen((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else if (n.size < MAX_HUB_ITEMS) n.add(k); return n; });
+  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }) : null);
+  const ids = (kind: "event" | "activity") => [...chosen].filter((k) => k.startsWith(`${kind}:`)).map((k) => k.slice(kind.length + 1));
+  return (
+    <div className="mt-4 rounded-xl border border-line bg-cream/40 p-4">
+      <h4 className="font-display text-lg font-bold text-ink">What should visitors see for {hubName}?</h4>
+      <p className="text-sm text-ink-soft">Only {hubName}&rsquo;s own public events and regular activities can be shown, and nothing is copied: if one changes or ends, the Edition changes with it. Members-only events never appear.</p>
+      <Notice msg={load.msg} />
+      {opts === null ? <p className="mt-3 text-sm text-ink-muted">Loading your Hub&rsquo;s events and activities…</p> : opts.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-soft">There are no upcoming public events or approved regular activities to show yet. Add them from your Hub&rsquo;s management page and come back.</p>
+      ) : (
+        <fieldset className="mt-3 space-y-2">
+          <legend className="sr-only">Events and activities to show in this Edition</legend>
+          {opts.map((o) => { const k = `${o.kind}:${o.id}`; return (
+            <label key={k} className="flex items-start gap-3 rounded-lg border border-line bg-paper px-3 py-2.5">
+              <input type="checkbox" className="mt-1 h-5 w-5" checked={chosen.has(k)} disabled={!chosen.has(k) && chosen.size >= MAX_HUB_ITEMS} onChange={() => toggle(k)} />
+              <span className="min-w-0 text-sm"><span className="block font-semibold text-ink">{o.title} <span className="font-normal text-ink-muted">· {PARTNER_KIND_LABEL[o.kind]}{when(o.starts_at) ? ` · ${when(o.starts_at)}` : ""}{o.venue ? ` · ${o.venue}` : ""}</span></span></span>
+            </label>
+          ); })}
+        </fieldset>
+      )}
+      {opts && opts.length > 0 && (
+        <div className="mt-3 flex items-center gap-3">
+          <button type="button" className={btnPrimary} disabled={save.pending} onClick={() => save.run(() => saveHubItems(linkId, ids("event"), ids("activity")), { success: "Saved. Your choice is live on the Edition.", onOk: onSaved })}>{save.pending ? "Saving…" : "Save my choice"}</button>
+          <span className="text-sm text-ink-muted">{chosen.size} of {MAX_HUB_ITEMS} selected</span>
+        </div>
+      )}
+      <Notice msg={save.msg} />
+    </div>
+  );
+}
+
 function ItemsPanel({ editionId, businessId }: { editionId: string; businessId: string }) {
   const load = useAction();
   const send = useAction();
@@ -231,7 +276,7 @@ function WaitingRow({ p }: { p: MyPartnership }) {
   );
 }
 
-function JoinPanel({ businessId, businessName, existing }: { businessId: string; businessName: string; existing: Set<string> }) {
+function JoinPanel({ subject, existing }: { subject: { kind: PartnerKind; id: string; name: string }; existing: Set<string> }) {
   const router = useRouter();
   const [list, setList] = useState<JoinableEdition[] | null>(null);
   const [open, setOpen] = useState(false);
@@ -243,8 +288,8 @@ function JoinPanel({ businessId, businessName, existing }: { businessId: string;
     if (next && list === null) load.run(async () => ({ ok: true as const, rows: await getJoinable() }), { onOk: (r) => setList((r as unknown as { rows: JoinableEdition[] }).rows) });
   }
   return (
-    <section aria-labelledby="join-h">
-      <h2 id="join-h" className="font-display text-2xl font-bold text-ink">Find an Edition to join</h2>
+    <section aria-labelledby={`join-h-${subject.kind}`}>
+      <h2 id={`join-h-${subject.kind}`} className="font-display text-2xl font-bold text-ink">{subject.kind === "hub" ? `Find an Edition for ${subject.name} to join` : "Find an Edition to join"}</h2>
       <p className="mt-1 max-w-2xl text-ink-soft">See what is coming up and ask to be part of it. The organiser decides, and you stay in control of what is shown.</p>
       <button type="button" className={`${btnSecondary} mt-3`} aria-expanded={open} onClick={toggle}>{open ? "Hide upcoming Editions" : "Show upcoming Editions"}</button>
       {open && (
@@ -261,8 +306,8 @@ function JoinPanel({ businessId, businessName, existing }: { businessId: string;
                     <Link href={`/editions/${e.slug}`} className={btnQuiet}>View Edition</Link>
                     {existing.has(e.edition_id) ? <Pill label="Already involved" tone="gray" /> : (
                       <>
-                        <Field label={`Message to the organiser (optional)`} htmlFor={`m-${e.edition_id}`}><input id={`m-${e.edition_id}`} className={inputCls} maxLength={500} value={msg} onChange={(ev) => setMsg(ev.target.value)} placeholder={`Why ${businessName} would suit this`} /></Field>
-                        <button type="button" className={btnPrimary} disabled={send.pending} onClick={() => send.run(() => requestToJoin(e.edition_id, "business", businessId, msg), { success: "Request sent. The organiser will answer you here.", onOk: () => router.refresh() })}>Ask to join</button>
+                        <Field label={`Message to the organiser (optional)`} htmlFor={`m-${e.edition_id}`}><input id={`m-${e.edition_id}`} className={inputCls} maxLength={500} value={msg} onChange={(ev) => setMsg(ev.target.value)} placeholder={`Why ${subject.name} would suit this`} /></Field>
+                        <button type="button" className={btnPrimary} disabled={send.pending} onClick={() => send.run(() => requestToJoin(e.edition_id, subject.kind, subject.id, msg), { success: "Request sent. The organiser will answer you here.", onOk: () => router.refresh() })}>Ask to join</button>
                       </>
                     )}
                   </div>

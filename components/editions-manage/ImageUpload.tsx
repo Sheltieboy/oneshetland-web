@@ -102,7 +102,7 @@ export function ImageUpload({ label, organiserId, kind, value, onChange, round, 
       <span id={`${id}-l`} className="mb-1 block text-sm font-semibold text-ink">{label}</span>
       <div className="flex items-center gap-3">
         <div className={"grid shrink-0 place-items-center overflow-hidden border border-dashed border-line-strong " + (isLogo ? "bg-white " : "bg-sand/40 ") + (round ? "h-20 w-20 rounded-2xl" : "h-20 w-32 rounded-xl")}>
-          {value ? <SafeImage src={value} alt="" className={isLogo ? "h-full w-full object-contain p-2" : "h-full w-full object-cover"} fallback={<span className="px-2 text-center text-xs text-ink-muted">Image unavailable</span>} /> : <span className="text-xs text-ink-muted">No image</span>}
+          {value ? <SafeImage src={value} alt="" className={isLogo ? "h-full w-full object-contain p-2" : "h-full w-full object-cover"} fallback={<span className="px-2 text-center text-xs text-ink-muted">Image unavailable</span>} /> : <span className="text-xs text-ink-soft">No image</span>}
         </div>
         <div className="flex flex-col items-start gap-1.5">
           <input ref={input} id={id} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-labelledby={`${id}-l`} onChange={(e) => pick(e.target.files?.[0])} disabled={busy} />

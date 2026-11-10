@@ -115,13 +115,16 @@ export function readiness(args: { edition: Pick<Edition, "summary" | "cover_url"
 }
 export const canPublish = (r: Readiness) => ["verified", "entitled", "summary"].every((k) => r.find((x) => x.key === k)?.ok);
 
-const PARTNER_PASSTHROUGH = /not been claimed|declined recently|several invitations waiting|too many invitations|already invited|not open for new partners|not available to (invite|show)|Pro or Premium|choose up to 6|already been answered|only the (owner|organiser|sender)|lot of requests waiting|edition not found|approve the invitation first/i;
+const PARTNER_PASSTHROUGH = /run by that Hub already|that package is for Hub-run|the Hub is not taking part yet|choose at most 12|a Hub can only show|items can only be attached|not been claimed|declined recently|several invitations waiting|too many invitations|already invited|not open for new partners|not available to (invite|show)|Pro or Premium|choose up to 6|already been answered|only the (owner|organiser|sender)|lot of requests waiting|edition not found|approve the invitation first/i;
 
 /** Error text from a Postgres/PostgREST refusal, in words an organiser can act on. */
 export function friendlyError(message: string | null | undefined): string {
   const m = message ?? "";
   const table: [RegExp, string][] = [
     [/no live publish entitlement/i, "This Edition has no active package yet. Choose a package, or ask OneShetland to activate one."],
+    [/only the Hub.s owner or committee/i, "Only the Hub's owner or committee can set up Editions for it."],
+    [/already has an Editions organiser/i, "This Hub already has Editions set up."],
+    [/Editions is not open yet|editions_dark/i, "Editions is not open to Hubs yet. OneShetland will let you know when it is."],
     [/organiser is not verified/i, "Your organiser profile is not verified yet."],
     [/summary is required/i, "Add a short summary before publishing."],
     [/suspended by OneShetland/i, "OneShetland has suspended this Edition. Contact support to resolve it."],

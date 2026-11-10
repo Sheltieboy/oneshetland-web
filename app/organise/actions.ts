@@ -13,7 +13,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getEditionsAccess } from "@/lib/editions/data.server";
 import { can, friendlyError } from "@/lib/editions/rules";
-import { inviteFields, isPartnerAction, noteField, type FindActivity, type FindBusiness } from "@/lib/editions/partners";
+import { inviteFields, isPartnerAction, noteField, type FindActivity, type FindBusiness, type FindHub } from "@/lib/editions/partners";
 import type { OrgRole } from "@/lib/editions/types";
 import {
   editionFields, editionSlug, inviteInput, isOrgRole, isUuid, organiserCreate, organiserProfile, pageFields, seriesName, sessionFields, sponsorFields,
@@ -445,6 +445,16 @@ export async function findBusinesses(slug: string, editionSlugArg: string, q: st
   const { data, error } = await c.sb.rpc("edition_find_businesses", { p_edition: c.edition.id, p_q: text });
   if (error) return bad(friendlyError(error.message));
   return { ok: true, rows: (data ?? []) as FindBusiness[] };
+}
+
+export async function findHubs(slug: string, editionSlugArg: string, q: string): Promise<Result<{ rows: FindHub[] }>> {
+  const c = await editionCtx(slug, editionSlugArg, "editor");
+  if ("ok" in c) return c;
+  const text = typeof q === "string" ? q.trim().slice(0, 80) : "";
+  if (text.length < 2) return { ok: true, rows: [] };
+  const { data, error } = await c.sb.rpc("edition_find_hubs", { p_edition: c.edition.id, p_q: text });
+  if (error) return bad(friendlyError(error.message));
+  return { ok: true, rows: (data ?? []) as FindHub[] };
 }
 
 export async function findActivities(slug: string, editionSlugArg: string, q: string): Promise<Result<{ rows: FindActivity[] }>> {

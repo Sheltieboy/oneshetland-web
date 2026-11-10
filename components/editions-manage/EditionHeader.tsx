@@ -22,8 +22,8 @@ export function EditionHeader({ organiser, edition, active }: { organiser: Organ
   return (
     <header className="mb-6">
       <nav aria-label="Breadcrumb" className="text-sm text-ink-muted">
-        <Link href="/organise" className="hover:underline">Organiser tools</Link> <span aria-hidden>/</span>{" "}
-        <Link href={`/organise/${organiser.slug}`} className="hover:underline">{organiser.name}</Link>
+        <Link href="/organise" className="inline-block py-1 hover:underline">Organiser tools</Link> <span aria-hidden>/</span>{" "}
+        <Link href={`/organise/${organiser.slug}`} className="inline-block py-1 hover:underline">{organiser.name}</Link>
       </nav>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="font-display text-3xl font-bold text-ink">{edition.title}</h1>

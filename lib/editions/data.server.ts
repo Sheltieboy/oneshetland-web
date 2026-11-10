@@ -8,7 +8,8 @@ import {
   type Edition, type EditionEntitlement, type EditionPage, type EditionSession, type EditionSponsor, type EditionUpdate, type EditionVenue, type Organiser, type OrgRole,
 } from "./types";
 import { readiness, type Readiness } from "./rules";
-import type { MyPartnership, PartnerRow } from "./partners";
+import { isHubOwnItem, type HubOwnItem, type MyPartnership, type PartnerRow } from "./partners";
+import { HUB_PUBLIC_COLUMNS, inheritFromHub, type HubIdentity } from "./hub-brand";
 
 /**
  * Server-side reads for Editions. Every read runs as the visitor (anon key + their session), so row-level security in the database decides what
@@ -34,11 +35,14 @@ export const getEditionsAccess = cache(async (): Promise<{ signedIn: boolean; en
   const { data: { user } } = await sb.auth.getUser();
   const enabled = await getEditionsEnabled();
   if (!user) return { signedIn: false, enabled, staff: false, member: false, allowed: false };
-  const [{ data: staff }, { count }] = await Promise.all([
+  const [{ data: staff }, access] = await Promise.all([
     sb.rpc("edition_staff"),
-    sb.from("edition_organiser_members").select("organiser_id", { count: "exact", head: true }).eq("user_id", user.id),
+    sb.rpc("edition_has_organiser_access"),
   ]);
-  const isStaff = staff === true, isMember = (count ?? 0) > 0;
+  // A member is anyone with an organiser team role OR Hub-derived authority (the database decides, live). An older database without the function falls back to team rows only.
+  let isMember = access.data === true;
+  if (access.error) { const { count } = await sb.from("edition_organiser_members").select("organiser_id", { count: "exact", head: true }).eq("user_id", user.id); isMember = (count ?? 0) > 0; }
+  const isStaff = staff === true;
   return { signedIn: true, enabled, staff: isStaff, member: isMember, allowed: enabled || isStaff || isMember };
 });
 
@@ -55,11 +59,18 @@ export type PublicPartnerActivity = {
   link_id: string; activity_id: string; slug: string; title: string; description: string | null; category: string | null; venue: string | null; locality: string | null;
   cover_url: string | null; price_text: string | null; label: string | null; position: number;
 };
-export type PublicPartners = { businesses: PublicPartnerBusiness[]; events: PublicPartnerEvent[]; activities: PublicPartnerActivity[] };
+export type PublicHubItem = { kind: "event" | "activity"; title: string; href: string; when: string | null; venue: string | null };
+export type PublicPartnerHub = {
+  link_id: string; hub_id: string; name: string; slug: string | null; type: string | null; description: string | null; area: string | null; website: string | null;
+  logo_url: string | null; cover_url: string | null; brand_color: string | null; is_verified: boolean; is_charity: boolean; label: string | null; position: number; items: PublicHubItem[];
+};
+export type PublicPartners = { businesses: PublicPartnerBusiness[]; events: PublicPartnerEvent[]; activities: PublicPartnerActivity[]; hubs: PublicPartnerHub[] };
 
 export type PublicEditionBundle = {
   edition: Edition; organiser: Organiser; pages: EditionPage[]; sessions: EditionSession[]; venues: EditionVenue[]; updates: EditionUpdate[]; sponsors: EditionSponsor[];
   seriesName: string | null; partners: PublicPartners;
+  /** The Hub that runs this Edition (its identity is inherited into `organiser` where the organiser set nothing of its own); null for an ordinary organiser. */
+  hub: HubIdentity | null;
   /** session id -> partner link ids the organiser named on it. A business shows only if its link is ALSO in partners.businesses (i.e. still public). */
   sessionBusinesses: Record<string, string[]>;
 };
@@ -70,15 +81,25 @@ export type PublicEditionBundle = {
  */
 export async function getPublicPartners(editionId: string): Promise<PublicPartners> {
   const sb = await createClient();
-  const [biz, offers, events, acts] = await Promise.all([
+  const [biz, offers, events, acts, hubRows, hubItems] = await Promise.all([
     sb.from("edition_public_businesses").select("*").eq("edition_id", editionId).order("position").order("name"),
     sb.from("edition_public_offers").select("*").eq("edition_id", editionId),
     sb.from("edition_public_events").select("*").eq("edition_id", editionId).order("starts_at"),
     sb.from("edition_public_activities").select("*").eq("edition_id", editionId).order("position").order("title"),
+    // Hubs (Editions 1.1). Tolerant: a database without the views simply has none.
+    sb.from("edition_public_hubs").select("link_id, hub_id, name, slug, type, description, area, website, logo_url, cover_url, brand_color, is_verified, is_charity, label, position").eq("edition_id", editionId).order("position").order("name"),
+    sb.from("edition_public_hub_items").select("link_id, position, kind, event_id, event_title, starts_at, event_venue, activity_slug, activity_title, activity_venue").eq("edition_id", editionId).order("position"),
   ]);
+  const itemsByLink = new Map<string, PublicHubItem[]>();
+  for (const r of arr<{ link_id: string; kind: "event" | "activity"; event_id: string | null; event_title: string | null; starts_at: string | null; event_venue: string | null; activity_slug: string | null; activity_title: string | null; activity_venue: string | null }>(hubItems.data)) {
+    const item: PublicHubItem | null = r.kind === "event" && r.event_id && r.event_title ? { kind: "event", title: r.event_title, href: `/whats-on/${r.event_id}`, when: r.starts_at, venue: r.event_venue }
+      : r.kind === "activity" && r.activity_slug && r.activity_title ? { kind: "activity", title: r.activity_title, href: `/whats-on/regular/${r.activity_slug}`, when: null, venue: r.activity_venue } : null;
+    if (item) (itemsByLink.get(r.link_id) ?? itemsByLink.set(r.link_id, []).get(r.link_id)!).push(item);
+  }
+  const hubs = arr<Omit<PublicPartnerHub, "items">>(hubRows.data).map((h) => ({ ...h, items: itemsByLink.get(h.link_id) ?? [] }));
   const offerRows = arr<PublicPartnerOffer>(offers.data);
   const businesses = arr<Omit<PublicPartnerBusiness, "offers">>(biz.data).map((b) => ({ ...b, offers: offerRows.filter((o) => o.business_id === b.business_id) }));
-  return { businesses, events: arr<PublicPartnerEvent>(events.data), activities: arr<PublicPartnerActivity>(acts.data) };
+  return { businesses, events: arr<PublicPartnerEvent>(events.data), activities: arr<PublicPartnerActivity>(acts.data), hubs };
 }
 
 /** Rows for the organiser's Partners screen (database enforces editor+). */
@@ -86,6 +107,14 @@ export async function getPartnerRows(editionId: string): Promise<PartnerRow[]> {
   const sb = await createClient();
   const { data } = await sb.rpc("edition_partner_rows", { p_edition: editionId });
   return arr<PartnerRow>(data);
+}
+
+/** The Hub's own listings for "Add from your Hub". `forbidden` means the signed-in person is on the organiser team but is not the Hub's owner or committee. */
+export async function getHubOwnItems(editionId: string): Promise<{ state: "ok"; items: HubOwnItem[] } | { state: "forbidden" } | { state: "unavailable" }> {
+  const sb = await createClient();
+  const { data, error } = await sb.rpc("edition_hub_own_items", { p_edition: editionId });
+  if (error) return /42501|not permitted/i.test(`${error.code ?? ""} ${error.message}`) ? { state: "forbidden" } : { state: "unavailable" };
+  return { state: "ok", items: arr<unknown>(data).filter(isHubOwnItem) };
 }
 
 /** Everything the signed-in user controls that an organiser has invited, or that they have asked to join. */
@@ -122,6 +151,7 @@ export const getEditionBundle = cache(async (slug: string): Promise<PublicEditio
     getPublicPartners(edition.id),
   ]);
   if (!org.data) return null;
+  const hub = await getHubIdentity((org.data as Organiser).hub_id);
   const sess = arr<EditionSession>(sessions.data);
   const venueIds = [...new Set(sess.map((s) => s.venue_id).filter((v): v is string => !!v))];
   const venues = venueIds.length ? arr<EditionVenue>((await sb.from("edition_venues").select(VENUE_PUBLIC_COLUMNS).in("id", venueIds)).data) : [];
@@ -132,7 +162,7 @@ export const getEditionBundle = cache(async (slug: string): Promise<PublicEditio
     if (!sbErr) for (const r of arr<{ session_id: string; link_id: string }>(sb2)) (sessionBusinesses[r.session_id] ??= []).push(r.link_id);
   }
   return {
-    edition, organiser: org.data as Organiser, pages: arr<EditionPage>(pages.data), sessions: sess, venues, sessionBusinesses,
+    edition, organiser: inheritFromHub(org.data as Organiser, hub), hub, pages: arr<EditionPage>(pages.data), sessions: sess, venues, sessionBusinesses,
     updates: arr<EditionUpdate>(updates.data).filter((u) => u.published_at && u.published_at <= nowIso),
     sponsors: arr<EditionSponsor>(sponsors.data), seriesName: (series.data as { name?: string } | null)?.name ?? null, partners,
   };
@@ -141,39 +171,97 @@ export const getEditionBundle = cache(async (slug: string): Promise<PublicEditio
 /** Free text for the index search: letters, numbers, spaces and a few safe marks only, so it cannot break out of the filter expression. */
 export const searchTerm = (raw: unknown): string => (typeof raw === "string" ? raw.normalize("NFKC").replace(/[^\p{L}\p{N} '&-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60) : "");
 
-export type ListedOrganiser = { name: string; slug: string; logo_url: string | null; brand_color: string | null; cover_url: string | null; cover_focus: string | null };
+export type ListedOrganiser = { name: string; slug: string; logo_url: string | null; brand_color: string | null; cover_url: string | null; cover_focus: string | null; hub?: { logo_url: string | null; brand_color: string | null; cover_url: string | null } | null };
 
 /** The Editions index: published, public Editions (RLS), soonest first, optionally filtered. */
 export async function listPublicEditions(opts: { kind?: string; when?: "upcoming" | "past" | "all"; limit?: number; q?: string } = {}) {
   const sb = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
-  let q = sb.from("editions").select(`${EDITION_COLUMNS}, organiser:edition_organisers ( name, slug, logo_url, brand_color, cover_url, cover_focus )`).eq("status", "published");
+  let q = sb.from("editions").select(`${EDITION_COLUMNS}, organiser:edition_organisers ( name, slug, logo_url, brand_color, cover_url, cover_focus, hub:hubs ( logo_url, brand_color, cover_url ) )`).eq("status", "published");
   if (opts.kind) q = q.eq("kind", opts.kind);
   const term = searchTerm(opts.q);
   if (term) q = q.or(`title.ilike.%${term}%,summary.ilike.%${term}%`);
   if (opts.when === "past") q = q.lt("ends_on", today).order("starts_on", { ascending: false });
   else if (opts.when !== "all") q = q.gte("ends_on", today).order("starts_on", { ascending: true });
   else q = q.order("starts_on", { ascending: true });
-  const { data } = await q.limit(opts.limit ?? 60);
-  return arr<Edition & { organiser: ListedOrganiser | null }>(data);
+  const first = await q.limit(opts.limit ?? 60);
+  let data = first.data;
+  if (first.error) {
+    // Tolerant: if the Hub embed is not available (an older database, a column grant), fall back to the plain organiser columns so the index never goes blank.
+    let plain = sb.from("editions").select(`${EDITION_COLUMNS}, organiser:edition_organisers ( name, slug, logo_url, brand_color, cover_url, cover_focus )`).eq("status", "published");
+    if (opts.kind) plain = plain.eq("kind", opts.kind);
+    if (term) plain = plain.or(`title.ilike.%${term}%,summary.ilike.%${term}%`);
+    if (opts.when === "past") plain = plain.lt("ends_on", today).order("starts_on", { ascending: false });
+    else if (opts.when !== "all") plain = plain.gte("ends_on", today).order("starts_on", { ascending: true });
+    else plain = plain.order("starts_on", { ascending: true });
+    data = (await plain.limit(opts.limit ?? 60)).data as unknown as typeof data;
+  }
+  // A Hub-run organiser shows its Hub's logo, colour and cover wherever it set none of its own (read live, never copied).
+  return arr<Edition & { organiser: ListedOrganiser | null }>(data).map((e) => {
+    const o = e.organiser; const h = o?.hub;
+    if (!o || !h) return e;
+    return { ...e, organiser: { ...o, logo_url: o.logo_url || h.logo_url, brand_color: o.brand_color || h.brand_color, cover_url: o.cover_url || h.cover_url, cover_focus: o.cover_url ? o.cover_focus : null, hub: undefined } };
+  });
 }
 
 export async function getPublicOrganiser(slug: string) {
   const sb = await createClient();
   const { data } = await sb.from("edition_organisers").select(ORGANISER_PUBLIC_COLUMNS).eq("slug", slug).maybeSingle();
   if (!data) return null;
-  const org = data as Organiser;
+  const raw = data as Organiser;
+  const hub = await getHubIdentity(raw.hub_id);
+  const org = inheritFromHub(raw, hub);
   const { data: eds } = await sb.from("editions").select(EDITION_COLUMNS).eq("organiser_id", org.id).eq("status", "published").order("starts_on", { ascending: false });
-  return { organiser: org, editions: arr<Edition>(eds) };
+  return { organiser: org, editions: arr<Edition>(eds), hub };
 }
 
 /** Organisers the signed-in user belongs to (with their role). */
-export async function getMyOrganisers(): Promise<{ organiser: Organiser; role: OrgRole }[]> {
+export async function getMyOrganisers(): Promise<{ organiser: Organiser; role: OrgRole; viaHub: boolean }[]> {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return [];
+  // Team memberships plus Hub-derived authority, decided by the database at this moment (a demoted committee member simply stops appearing).
+  const mine = await sb.rpc("edition_my_organisers");
+  if (!mine.error) {
+    const rows = arr<{ organiser_id: string; role: OrgRole; via_hub: boolean }>(mine.data);
+    if (!rows.length) return [];
+    const { data: orgs } = await sb.from("edition_organisers").select(ORGANISER_COLUMNS).in("id", rows.map((r) => r.organiser_id));
+    const byId = new Map(arr<Organiser>(orgs).map((o) => [o.id, o]));
+    return rows.filter((r) => byId.has(r.organiser_id)).map((r) => ({ organiser: byId.get(r.organiser_id) as Organiser, role: r.role, viaHub: r.via_hub }));
+  }
   const { data } = await sb.from("edition_organiser_members").select(`role, organiser:edition_organisers ( ${ORGANISER_COLUMNS} )`).eq("user_id", user.id);
-  return arr<{ role: OrgRole; organiser: Organiser | null }>(data).filter((r) => r.organiser).map((r) => ({ organiser: r.organiser as Organiser, role: r.role }));
+  return arr<{ role: OrgRole; organiser: Organiser | null }>(data).filter((r) => r.organiser).map((r) => ({ organiser: r.organiser as Organiser, role: r.role, viaHub: false }));
+}
+
+/** A Hub's public identity (the database's public column whitelist only). null when the id is empty or the Hub is not public. */
+export const getHubIdentity = cache(async (hubId: string | null | undefined): Promise<HubIdentity | null> => {
+  if (!hubId) return null;
+  try {
+    const sb = await createClient();
+    const { data } = await sb.from("hubs").select(HUB_PUBLIC_COLUMNS).eq("id", hubId).eq("is_active", true).maybeSingle();
+    return (data as HubIdentity | null) ?? null;
+  } catch { return null; }
+});
+
+/**
+ * Should a Hub's management area show the Festivals & Editions entry? Only while Editions is open to the public, or the person is platform staff, or the Hub already has an
+ * organiser (an administrator linked it). Ships dark: nobody else sees it. `pending` is the number of invitations waiting for the Hub.
+ */
+export async function getHubEditionsEntry(hubId: string): Promise<{ show: boolean; pending: number; organiserSlug: string | null }> {
+  const [access, mine] = await Promise.all([getEditionsAccess(), getMyHubEditions()]);
+  const row = mine.find((h) => h.hub_id === hubId) ?? null;
+  const show = !!row && (access.enabled || access.staff || !!row.organiser_id);
+  return { show, pending: row?.pending_invitations ?? 0, organiserSlug: row?.organiser_slug ?? null };
+}
+
+/** The Hubs the signed-in person runs (owner or active committee) and where each stands with Editions. */
+export type MyHubEditions = { hub_id: string; hub_name: string; hub_slug: string | null; hub_role: "owner" | "committee"; organiser_id: string | null; organiser_slug: string | null; organiser_status: string | null; edition_count: number; pending_invitations: number };
+export async function getMyHubEditions(): Promise<MyHubEditions[]> {
+  try {
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("edition_my_hubs");
+    return error ? [] : arr<MyHubEditions>(data);
+  } catch { return []; }
 }
 
 export async function getMyInvites() {
@@ -196,7 +284,9 @@ export async function requireOrganiser(slug: string, opts: { returnPath: string;
   // The private contact email is readable by the team only, through a function (signed-in strangers cannot select the column).
   const { data: contact } = await sb.rpc("edition_org_contact_email", { p_org: organiser.id });
   organiser.contact_email = typeof contact === "string" ? contact : null;
-  return { account, organiser, role: role as OrgRole, sb };
+  // A Hub-run organiser inherits its Hub's identity wherever it set nothing; the raw organiser stays as saved so the forms show only what is genuinely its own.
+  const hub = await getHubIdentity(organiser.hub_id);
+  return { account, organiser, hub, role: role as OrgRole, sb };
 }
 
 export type ManageBundle = {

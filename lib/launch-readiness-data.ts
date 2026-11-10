@@ -767,5 +767,13 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       nextAction: "Decide the commercial and tax questions, supply Stripe test keys, run a Stripe test-mode scenario; only then consider enabling payments.",
       lastUpdated: "2026-11-10",
     },
+    {
+      id: "editions-hubs", area: "operations", scope: "post_launch", title: "Editions 1.1: Hubs and Editions together",
+      description: "Hubs take part in any Edition as first-class partners (invite, accept, withdraw, choose what to show); a Hub can run its own Editions with its committee as the live authority and its branding inherited; a discounted Community package for Hub-run Editions.",
+      status: "needs_verification", criticality: "nice_to_have", weight: 2,
+      evidence: "Four additive database migrations were applied to production on 10 Nov 2026 with every post-check passing; this web release ships the Hub features, including Add from your Hub. Editions stays dark (both feature flags off) and payments disabled, so nothing is visible to the public yet. Isolated database suites cover consent, withdrawal, members-only privacy, live committee changes, data isolation and entitlements.",
+      nextAction: "Decide the Community package prices and names (they are inactive price-0 drafts) and the verification policy for Hubs, then switch Editions on for a first Hub. Payments need their own approval.",
+      lastUpdated: "2026-11-10",
+    },
   ],
 };

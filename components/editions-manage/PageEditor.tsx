@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { deletePage, movePage, savePage } from "@/app/organise/actions";
 import type { EditionPage } from "@/lib/editions/types";
-import { RESERVED_PAGE_SLUGS, slugify } from "@/lib/editions/rules";
+import { slugify } from "@/lib/editions/rules";
 import { pageFields } from "@/lib/editions/validate";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { EmptyState, Field, Notice, Pill, btnDanger, btnPrimary, btnSecondary, inputCls } from "./kit";
@@ -85,7 +85,7 @@ export function PageEditor({ organiserSlug, editionSlug, pages }: { organiserSlu
               <Field label="Title" htmlFor="pg-title"><input id="pg-title" className={inputCls} value={draft.title} onChange={(e) => set("title", e.target.value)} maxLength={140} required /></Field>
               <Field label="Menu label" htmlFor="pg-nav" hint="Short, up to 30 characters. Defaults to the title."><input id="pg-nav" className={inputCls} value={draft.nav_label} onChange={(e) => set("nav_label", e.target.value)} maxLength={30} /></Field>
             </div>
-            <Field label="Page address" htmlFor="pg-slug" hint={`Not usable: ${RESERVED_PAGE_SLUGS.join(", ")} (built-in sections).`}>
+            <Field label="Page address" htmlFor="pg-slug" hint="Filled in from the title. Letters, numbers and hyphens. The programme, updates, partners and sponsors already have their own built-in pages.">
               <input id="pg-slug" className={inputCls} value={draft.slug} onChange={(e) => { setSlugTouched(true); set("slug", e.target.value); }} maxLength={60} autoCapitalize="none" spellCheck={false} />
             </Field>
             <div className="flex flex-wrap gap-5 text-sm">

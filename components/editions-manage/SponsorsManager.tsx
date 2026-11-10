@@ -57,7 +57,7 @@ export function SponsorsManager({ organiserSlug, editionSlug, organiserId, spons
           {sponsors.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="grid h-12 w-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-sand/50">{s.logo_url ? <SafeImage src={s.logo_url} alt="" className="h-full w-full object-contain" /> : <span className="text-xs text-ink-muted">No logo</span>}</div>
+                <div className="grid h-12 w-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-sand/50">{s.logo_url ? <SafeImage src={s.logo_url} alt="" className="h-full w-full object-contain" /> : <span className="text-xs text-ink-soft">No logo</span>}</div>
                 <div className="min-w-0"><p className="truncate font-semibold text-ink">{s.name}</p><p className="truncate text-xs text-ink-muted">{[s.level, s.url].filter(Boolean).join(" · ")}</p></div>
               </div>
               <div className="flex gap-3"><button type="button" className={btnQuiet} onClick={() => { setDraft({ id: s.id, name: s.name, level: s.level ?? "", logo_url: s.logo_url ?? "", url: s.url ?? "", position: s.position }); save.setMsg(null); }}>Edit</button><button type="button" className="text-sm font-semibold text-rose-700 hover:underline" onClick={() => remove(s)}>Remove</button></div>

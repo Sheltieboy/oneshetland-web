@@ -8,7 +8,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { friendlyError } from "@/lib/editions/rules";
-import { isPartnerAction, isPartnerKind, noteField, type OfferOption } from "@/lib/editions/partners";
+import { MAX_HUB_ITEMS, isPartnerAction, isPartnerKind, noteField, type HubItemOption, type OfferOption } from "@/lib/editions/partners";
 import { isUuid } from "@/lib/editions/validate";
 
 type Fail = { ok: false; error: string };
@@ -54,6 +54,26 @@ export async function saveOffers(linkId: string, offerIds: string[]): Promise<Re
   if (!a) return bad(SIGN_IN);
   if (!isUuid(linkId) || !Array.isArray(offerIds) || !offerIds.every(isUuid) || offerIds.length > 6) return bad("Choose up to 6 offers.");
   const { data, error } = await a.sb.rpc("edition_set_link_offers", { p_link: linkId, p_offer_ids: offerIds });
+  if (error) return bad(friendlyError(error.message));
+  refresh();
+  return { ok: true, count: Number(data) };
+}
+
+/** The signed-in Hub administrator's own events and activities they may show under their Hub card in an Edition (the database refuses anyone else). */
+export async function getHubItemOptions(linkId: string): Promise<Result<{ options: HubItemOption[] }>> {
+  const a = await authed();
+  if (!a) return bad(SIGN_IN);
+  if (!isUuid(linkId)) return bad("That invitation could not be found.");
+  const { data, error } = await a.sb.rpc("edition_hub_item_options", { p_link: linkId });
+  if (error) return bad(friendlyError(error.message));
+  return { ok: true, options: (data ?? []) as HubItemOption[] };
+}
+
+export async function saveHubItems(linkId: string, eventIds: string[], activityIds: string[]): Promise<Result<{ count: number }>> {
+  const a = await authed();
+  if (!a) return bad(SIGN_IN);
+  if (!isUuid(linkId) || !Array.isArray(eventIds) || !Array.isArray(activityIds) || ![...eventIds, ...activityIds].every(isUuid) || eventIds.length + activityIds.length > MAX_HUB_ITEMS) return bad(`Choose up to ${MAX_HUB_ITEMS} items.`);
+  const { data, error } = await a.sb.rpc("edition_set_hub_items", { p_link: linkId, p_events: eventIds, p_activities: activityIds });
   if (error) return bad(friendlyError(error.message));
   refresh();
   return { ok: true, count: Number(data) };

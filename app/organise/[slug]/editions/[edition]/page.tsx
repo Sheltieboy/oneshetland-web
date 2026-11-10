@@ -26,7 +26,7 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
         <div className="space-y-6">
           {edition.status === "published" && Array.isArray(metrics) && <InterestPanel metrics={metrics as Metric[]} days={30} />}
           <Panel title="Before you publish" sub="Items marked required are checked by OneShetland when you publish.">
-            <ChecklistPanel checklist={bundle.checklist} />
+            <ChecklistPanel checklist={bundle.checklist} orgRoot={`/organise/${slug}`} edRoot={root} />
           </Panel>
           <Panel title="Visibility">
             <p className="mb-4 text-sm text-ink-soft">
@@ -43,7 +43,7 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
             <p className="mb-3 text-sm text-ink-soft">{edition.status === "published" ? "See what visitors see." : "Your team can open the draft exactly as visitors will see it once published."}</p>
             <Link href={`/editions/${edition.slug}`} className={btnSecondary + " w-full"} target="_blank" rel="noopener">{edition.status === "published" ? "Open public page" : "Preview draft"}</Link>
           </Panel>
-          <Panel title="Package"><EntitlementPanel entitlements={bundle.entitlements} entitled={bundle.entitled} /></Panel>
+          <Panel id="package" title="Package"><EntitlementPanel entitlements={bundle.entitlements} entitled={bundle.entitled} /></Panel>
           <Panel title="Content">
             <ul className="divide-y divide-line text-sm">
               {counts.map(([label, n, path]) => (
