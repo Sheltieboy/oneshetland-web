@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
-import { GRANT_FEATURES, ORGANISER_DECISIONS, adminError, grantEnd, isUuid, type OrganiserDecision } from "./helpers";
+import { GRANT_FEATURES, ORGANISER_DECISIONS, adminError, grantEnd, isPilotSlug, isUuid, type OrganiserDecision } from "./helpers";
 
 /**
  * Admin actions for Editions. Each starts with requireAdmin() and then runs as the signed-in user (RLS + the SECURITY DEFINER functions check the caller
@@ -101,6 +101,90 @@ export async function voidEntitlementAction(input: { entitlementId: string; edit
     const { error } = await sb.rpc("admin_void_edition_entitlement", { p_entitlement: input.entitlementId, p_reason: reason });
     if (error) return fail(error.message);
     refresh(input.editionId && isUuid(input.editionId) ? `/admin/editions/${input.editionId}` : "/admin/editions");
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+/* ── Pilot (administrators only; each action is repeated and enforced by the database, and audited there) ───────────────────────────────────────────────── */
+
+export async function setPilotSwitchAction(input: { on: boolean; note?: string }): Promise<Result> {
+  await requireAdmin();
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_set_editions_pilot", { p_on: input.on === true, p_note: str(input.note) || null });
+    if (error) return fail(error.message);
+    refresh();
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+export async function setupHubOrganiserAction(input: { hubId: string; slug: string; name?: string; note?: string }): Promise<Result> {
+  await requireAdmin();
+  const hub = str(input.hubId), slug = str(input.slug).toLowerCase();
+  if (!isUuid(hub)) return { ok: false, error: "Enter a valid Hub id (a UUID)." };
+  if (!isPilotSlug(slug)) return { ok: false, error: "Choose a web address of 3 to 60 lowercase letters, numbers and hyphens." };
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_create_edition_organiser_for_hub", { p_hub: hub, p_slug: slug, p_name: str(input.name) || null, p_note: str(input.note) || null });
+    if (error) return fail(error.message);
+    refresh();
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+export async function approvePilotAction(input: { organiserId: string; note?: string }): Promise<Result> {
+  await requireAdmin();
+  if (!isUuid(input.organiserId)) return { ok: false, error: "Unknown organiser." };
+  const note = str(input.note);
+  if (note.length < 5) return { ok: false, error: "Add a note saying why this organiser is approved (at least 5 characters)." };
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_approve_edition_pilot", { p_org: input.organiserId, p_note: note });
+    if (error) return fail(error.message);
+    refresh(`/admin/editions/organisers/${input.organiserId}`);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+export async function revokePilotAction(input: { organiserId: string; reason?: string }): Promise<Result> {
+  await requireAdmin();
+  if (!isUuid(input.organiserId)) return { ok: false, error: "Unknown organiser." };
+  const reason = str(input.reason);
+  if (reason.length < 5) return { ok: false, error: "Add a reason (at least 5 characters)." };
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_revoke_edition_pilot", { p_org: input.organiserId, p_reason: reason });
+    if (error) return fail(error.message);
+    refresh(`/admin/editions/organisers/${input.organiserId}`);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+export async function grantPilotPublishAction(input: { editionId: string; reason?: string }): Promise<Result> {
+  await requireAdmin();
+  if (!isUuid(input.editionId)) return { ok: false, error: "Unknown edition." };
+  const reason = str(input.reason);
+  if (reason.length < 5) return { ok: false, error: "Add a reason (at least 5 characters)." };
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_grant_edition_pilot_publish", { p_edition: input.editionId, p_reason: reason, p_days: 90 });
+    if (error) return fail(error.message);
+    refresh(`/admin/editions/${input.editionId}`);
+    return { ok: true };
+  } catch (e) { return fail(e); }
+}
+
+/** Verify, or remove verification from, a Hub. Administrators only; the database function checks again and writes the audit row. */
+export async function setHubVerifiedAction(input: { hubId: string; verified: boolean; note?: string }): Promise<Result> {
+  await requireAdmin();
+  if (!isUuid(input.hubId)) return { ok: false, error: "Unknown Hub." };
+  const note = str(input.note);
+  if (note.length < 5) return { ok: false, error: "Add a note saying what you checked (at least 5 characters)." };
+  try {
+    const sb = await createClient();
+    const { error } = await sb.rpc("admin_set_hub_verified", { p_hub: input.hubId, p_verified: input.verified === true, p_note: note });
+    if (error) return fail(error.message);
+    refresh();
     return { ok: true };
   } catch (e) { return fail(e); }
 }

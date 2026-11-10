@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEditionBundle, getMyEditionFlags } from "@/lib/editions/data.server";
+import { getEditionBundle, getMyEditionFlags, getEditionsEnabled } from "@/lib/editions/data.server";
 import { planCtx } from "@/components/editions/plan-ctx";
 import { editionMetadata, editionPath } from "@/lib/editions/seo";
 import { breadcrumbSchema } from "@/lib/seo-schema";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const b = await getEditionBundle((await params).slug);
-  return b ? editionMetadata(b, { title: "Programme", sub: "programme", description: `The full programme for ${b.edition.title}.` }) : { title: "Programme" };
+  return b ? editionMetadata(b, { openToEveryone: await getEditionsEnabled(), title: "Programme", sub: "programme", description: `The full programme for ${b.edition.title}.` }) : { title: "Programme" };
 }
 
 export default async function ProgrammePage({ params }: { params: Promise<{ slug: string }> }) {

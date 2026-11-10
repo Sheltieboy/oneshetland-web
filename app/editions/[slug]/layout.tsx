@@ -34,7 +34,10 @@ export default async function EditionLayout({ children, params }: { children: Re
     const { data } = await sb.rpc("edition_entitled", { p_edition: edition.id, p_feature: "publish" });
     entitled = data === true;
   }
-  const reason = previewReason({ edition, enabled: await getEditionsEnabled(), entitled });
+  // "Switched on for the public" means open to everyone OR this organiser is currently visible through an administrator's pilot approval (the database decides, live).
+  let publiclyOn = await getEditionsEnabled();
+  if (!publiclyOn) { const sbp = await createClient(); const { data: pv } = await sbp.rpc("edition_pilot_visible", { p_org: organiser.id }); publiclyOn = pv === true; }
+  const reason = previewReason({ edition, enabled: publiclyOn, entitled });
 
   const base = `/editions/${edition.slug}`;
   const nav = navFor(pages);

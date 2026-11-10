@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEditionBundle } from "@/lib/editions/data.server";
+import { getEditionBundle, getEditionsEnabled } from "@/lib/editions/data.server";
 import { editionMetadata, editionPath } from "@/lib/editions/seo";
 import { breadcrumbSchema } from "@/lib/seo-schema";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const b = await getEditionBundle((await params).slug);
-  return b ? editionMetadata(b, { title: "Updates", sub: "updates", description: `News and updates from ${b.edition.title}.` }) : { title: "Updates" };
+  return b ? editionMetadata(b, { openToEveryone: await getEditionsEnabled(), title: "Updates", sub: "updates", description: `News and updates from ${b.edition.title}.` }) : { title: "Updates" };
 }
 
 export default async function UpdatesPage({ params }: { params: Promise<{ slug: string }> }) {

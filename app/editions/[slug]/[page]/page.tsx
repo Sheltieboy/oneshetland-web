@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { getEditionBundle } from "@/lib/editions/data.server";
+import { getEditionBundle, getEditionsEnabled } from "@/lib/editions/data.server";
 import { editionMetadata, editionPath } from "@/lib/editions/seo";
 import { breadcrumbSchema } from "@/lib/seo-schema";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -16,9 +16,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug, page } = await params;
   const b = await getEditionBundle(slug);
   if (!b) return { title: "Edition not found" };
-  if (PARTNER_SLUGS.includes(page)) return editionMetadata(b, { title: "Partners", sub: page, description: `Partners and sponsors of ${b.edition.title}.` });
+  if (PARTNER_SLUGS.includes(page)) return editionMetadata(b, { openToEveryone: await getEditionsEnabled(), title: "Partners", sub: page, description: `Partners and sponsors of ${b.edition.title}.` });
   const p = b.pages.find((x) => x.slug === page);
-  return p ? editionMetadata(b, { title: p.title, sub: p.slug }) : { title: "Page not found" };
+  return p ? editionMetadata(b, { openToEveryone: await getEditionsEnabled(), title: p.title, sub: p.slug }) : { title: "Page not found" };
 }
 
 export default async function EditionPageRoute({ params }: { params: Promise<{ slug: string; page: string }> }) {

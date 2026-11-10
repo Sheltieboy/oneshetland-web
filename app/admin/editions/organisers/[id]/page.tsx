@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminUI";
 import { AuditList, DataTable, ErrorNote, Facts, ReservedPill, Section, StatePill, TestPill, Td, day, when } from "@/components/admin/EditionsAdminParts";
-import { DecideOrganiserForm, LinkHubForm, MarkTestButton } from "@/components/admin/EditionsAdminForms";
+import { DecideOrganiserForm, LinkHubForm, MarkTestButton, PilotApprovalForm, HubVerifyForm } from "@/components/admin/EditionsAdminForms";
 import { isAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { ROLE_LABEL } from "@/lib/editions/types";
@@ -24,6 +24,12 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (error) return <ErrorNote>Could not load this organiser: {error.message}</ErrorNote>;
   if (!data) notFound();
   const o = { ...(data as Org), contact_email: await adminContactEmail(id), verification_note: internal?.verification_note ?? null, reserved_name_flag: internal?.reserved_name_flag ?? false } as Org;
+  const [pilotRes, hubRes] = await Promise.all([
+    sb.from("edition_pilot_approvals").select("id, approved_at, note").eq("organiser_id", id).is("revoked_at", null).maybeSingle(),
+    data.hub_id ? sb.from("hubs").select("name, is_active, is_verified").eq("id", data.hub_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const pilot = pilotRes.data as { id: string; approved_at: string; note: string } | null;
+  const hub = hubRes.data as { name: string; is_active: boolean; is_verified: boolean | null } | null;
   const [ver, mem, eds, audit] = await Promise.all([
     sb.from("edition_organiser_verifications").select("id, evidence, requested_by, status, note, decided_at, created_at").eq("organiser_id", id).order("created_at", { ascending: false }),
     sb.from("edition_organiser_members").select("user_id, role, created_at").eq("organiser_id", id),
@@ -74,6 +80,17 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             <tr key={e.id}><Td><Link href={`/admin/editions/${e.id}`} className="font-bold text-navy hover:underline">{e.title}</Link> {e.is_test && <TestPill />}</Td><Td><StatePill s={e.status} /></Td><Td className="whitespace-nowrap text-ink-soft">{day(e.starts_on)} to {day(e.ends_on)}</Td></tr>))}</DataTable>
         )}
       </Section>
+
+      {admin && (
+        <Section title="Pilot access">
+          <Facts rows={[["Pilot approval", pilot ? `Approved ${when(pilot.approved_at)}: ${pilot.note}` : "Not approved. Nothing from this organiser is public through the pilot."],
+            ...(o.hub_id ? [["Hub", hub ? `${hub.name} (${hub.is_active ? "active" : "NOT active"}, ${hub.is_verified ? "verified" : "NOT verified"})` : "Not found"] as [string, string]] : [])]} />
+          {!pilot && o.hub_id && hub && !hub.is_verified && <p className="my-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">This Hub is not verified. Verify the Hub first; the database will not approve a Hub-run organiser until you have.</p>}
+          {o.hub_id && hub && hub.is_active && !hub.is_verified && <div className="my-3"><HubVerifyForm hubId={o.hub_id} verified={false} /></div>}
+          {!pilot && o.status !== "verified" && <p className="my-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">Verify the organiser first.</p>}
+          <div className="mt-3"><PilotApprovalForm organiserId={o.id} approved={!!pilot} /></div>
+        </Section>
+      )}
 
       {admin && (
         <>

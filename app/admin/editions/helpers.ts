@@ -6,6 +6,7 @@ export const TABS = [
   { key: "organisers", label: "Organisers" },
   { key: "editions", label: "Editions" },
   { key: "entitlements", label: "Entitlements" },
+  { key: "pilot", label: "Pilot" },
   { key: "audit", label: "Audit log" },
 ] as const;
 export type TabKey = (typeof TABS)[number]["key"];
@@ -35,7 +36,7 @@ export function decisionsFor(status: string): OrganiserDecision[] {
 }
 
 /** Guard messages an administrator should see verbatim; everything else goes through friendlyError. */
-const KNOWN_GUARD = /reserved-name organiser|admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already verified/i;
+const KNOWN_GUARD = /reserved-name organiser|admins only|staff only|overlapping admin grant|cannot run longer|reason is required|needs an end|not suspended|unknown organiser|unknown edition|no live entitlement|bad decision|bad action|an edition cannot|already verified|pilot|must be verified|Hub is not active|a note is required|already approved|more than 30 days|1 to 90 days|test organiser|already has an Editions organiser|web address|that address is reserved|Hub not found|already in that state/i;
 export function adminError(message: string | null | undefined): string {
   const m = message ?? "";
   return KNOWN_GUARD.test(m) ? m : friendlyError(m);
@@ -137,3 +138,8 @@ export const STEPS: { key: StepKey; label: string }[] = [
 ];
 export type StepResult = { key: StepKey; label: string; status: "done" | "skipped" | "failed"; detail?: string };
 export const isStepKey = (s: string): s is StepKey => STEPS.some((x) => x.key === s);
+
+/** Pilot: the Hub web address (slug) shape the database enforces, checked early so an administrator gets a clear message. */
+export const isPilotSlug = (s: string) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(s) && s.length >= 3 && s.length <= 60;
+/** A pilot Edition page is public through its direct link only: never search-indexed and never in the sitemap, until Editions is opened to everyone. */
+export const PILOT_PUBLIC_DAYS = 90;

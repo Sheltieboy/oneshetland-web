@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  decideOrganiserAction, grantEntitlementAction, linkHubAction, markTestAction, moderateEditionAction, voidEntitlementAction, type Result,
+  approvePilotAction, decideOrganiserAction, grantEntitlementAction, grantPilotPublishAction, linkHubAction, setHubVerifiedAction, markTestAction, moderateEditionAction, revokePilotAction, setPilotSwitchAction, setupHubOrganiserAction, voidEntitlementAction, type Result,
 } from "@/app/admin/editions/actions";
 import { ADMIN_ONLY_DECISIONS, FEATURE_LABEL, GRANT_FEATURES, GRANT_PRESETS, decisionsFor, type OrganiserDecision } from "@/app/admin/editions/helpers";
 
@@ -136,6 +136,89 @@ export function VoidButton({ entitlementId, editionId }: { entitlementId: string
       <input id={`v-${entitlementId}`} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="Reason (5+ characters)" className={field} />
       <div className="flex gap-2"><button type="submit" disabled={pending || reason.trim().length < 5} className={btnDanger + " !min-h-9 !px-3 !text-xs"}>Void entitlement</button>
         <button type="button" className={btn + " !min-h-9 !px-3 !text-xs"} onClick={() => setOpen(false)}>Cancel</button></div>
+      {note}
+    </form>
+  );
+}
+
+/** The pilot switch. Turning it on exposes nothing by itself: only organisers with a live approval become public. */
+export function PilotSwitchForm({ on }: { on: boolean }) {
+  const { pending, run, note } = useRun();
+  const [why, setWhy] = useState("");
+  return (
+    <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(() => setPilotSwitchAction({ on: !on, note: why }), on ? "Pilot switched off. Nothing is public through the pilot." : "Pilot switched on. Only approved organisers are public."); }}>
+      <Label htmlFor="pilot-why">Note (kept in the audit log)</Label>
+      <div className="flex flex-wrap gap-2">
+        <input id="pilot-why" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={200} className={field + " max-w-md"} />
+        <button type="submit" disabled={pending} className={on ? btnDanger : btnPrimary}>{on ? "Switch pilot off" : "Switch pilot on"}</button>
+      </div>
+      {note}
+    </form>
+  );
+}
+
+/** Set up the Editions organiser for a Hub on its behalf. This does not approve the pilot. */
+export function HubSetupForm() {
+  const { pending, run, note } = useRun();
+  const [hub, setHub] = useState(""), [slug, setSlug] = useState(""), [name, setName] = useState(""), [why, setWhy] = useState("");
+  return (
+    <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(() => setupHubOrganiserAction({ hubId: hub, slug, name, note: why }), "Organiser set up for the Hub. Approve it for the pilot separately.", () => { setHub(""); setSlug(""); setName(""); setWhy(""); }); }}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div><Label htmlFor="hs-hub">Hub id (UUID)</Label><input id="hs-hub" value={hub} onChange={(e) => setHub(e.target.value)} className={field} spellCheck={false} /></div>
+        <div><Label htmlFor="hs-slug">Web address</Label><input id="hs-slug" value={slug} onChange={(e) => setSlug(e.target.value)} className={field} placeholder="your-hub-festivals" spellCheck={false} /></div>
+        <div><Label htmlFor="hs-name">Name (optional, defaults to the Hub name)</Label><input id="hs-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={120} className={field} /></div>
+        <div><Label htmlFor="hs-why">Note (kept in the audit log)</Label><input id="hs-why" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} className={field} /></div>
+      </div>
+      <button type="submit" disabled={pending || !hub.trim() || !slug.trim()} className={btn}>Set up for this Hub</button>
+      {note}
+    </form>
+  );
+}
+
+/** Approve or withdraw ONE organiser for the pilot. */
+export function PilotApprovalForm({ organiserId, approved }: { organiserId: string; approved: boolean }) {
+  const { pending, run, note } = useRun();
+  const [why, setWhy] = useState("");
+  return (
+    <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(() => (approved ? revokePilotAction({ organiserId, reason: why }) : approvePilotAction({ organiserId, note: why })), approved ? "Pilot approval withdrawn. Public access has ended." : "Approved for the pilot.", () => setWhy("")); }}>
+      <Label htmlFor="pilot-note">{approved ? "Reason for withdrawing (required, kept in the audit log)" : "Why this organiser is approved (required, kept in the audit log)"}</Label>
+      <div className="flex flex-wrap gap-2">
+        <input id="pilot-note" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} className={field + " max-w-xl"} />
+        <button type="submit" disabled={pending || why.trim().length < 5} className={approved ? btnDanger : btnPrimary}>{approved ? "Withdraw pilot approval" : "Approve for the pilot"}</button>
+      </div>
+      {note}
+    </form>
+  );
+}
+
+/** 90-day publish entitlement for an approved pilot organiser; use it again in the last 30 days to renew. */
+export function PilotGrantForm({ editionId }: { editionId: string }) {
+  const { pending, run, note } = useRun();
+  const [why, setWhy] = useState("");
+  return (
+    <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(() => grantPilotPublishAction({ editionId, reason: why }), "Pilot publish entitlement granted for 90 days.", () => setWhy("")); }}>
+      <Label htmlFor="pg-why">Reason (required, 5+ characters; kept in the audit log)</Label>
+      <div className="flex flex-wrap gap-2">
+        <input id="pg-why" value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} className={field + " max-w-xl"} />
+        <button type="submit" disabled={pending || why.trim().length < 5} className={btnPrimary}>Grant or renew 90-day pilot publish</button>
+      </div>
+      {note}
+    </form>
+  );
+}
+
+/** Verify (or remove verification from) one Hub. Verification is a trust label the platform already uses: a verified Hub's islands-wide events are calendar-approved without review. */
+export function HubVerifyForm({ hubId, verified }: { hubId: string; verified: boolean }) {
+  const { pending, run, note } = useRun();
+  const [why, setWhy] = useState("");
+  const id = `hv-${hubId}`;
+  return (
+    <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); run(() => setHubVerifiedAction({ hubId, verified: !verified, note: why }), verified ? "Verification removed." : "Hub verified.", () => setWhy("")); }}>
+      <Label htmlFor={id}>{verified ? "Why remove verification (required, kept in the audit log)" : "What you checked (required, kept in the audit log)"}</Label>
+      <div className="flex flex-wrap gap-2">
+        <input id={id} value={why} onChange={(e) => setWhy(e.target.value)} maxLength={300} className={field + " max-w-xl"} />
+        <button type="submit" disabled={pending || why.trim().length < 5} className={verified ? btnDanger : btnPrimary}>{verified ? "Remove verification" : "Verify this Hub"}</button>
+      </div>
       {note}
     </form>
   );

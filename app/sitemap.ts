@@ -77,6 +77,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: s.priority,
   }));
 
+  // Pilot Editions are direct-link only: they are excluded from the sitemap until Editions is opened to everyone (editions.enabled). Fails closed.
+  const editionsOpen = await (async () => { try { const { data, error } = await publicClient().rpc("editions_enabled"); return !error && data === true; } catch { return false; } })();
   const [biz, events, words, boats, hubs, articles, editions, organisers, editionSessions] = await Promise.all([
     rows("local_businesses", "id, slug, is_active"),
     rowsFiltered(
@@ -89,10 +91,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     rows("hubs", "id"),
     rows("content_articles", "slug, status, publish_at"),
     // Editions: the public client only ever sees published, entitled, verified, non-test rows (RLS), and nothing while the feature is off.
-    rowsFiltered("editions", ["id, slug, status, updated_at", "slug, status, updated_at", "slug, status"], (q) => q.eq("status", "published").eq("is_test", false)),
-    rowsFiltered("edition_organisers", ["slug, status"], (q) => q.eq("status", "verified").eq("is_test", false)),
+    editionsOpen ? rowsFiltered("editions", ["id, slug, status, updated_at", "slug, status, updated_at", "slug, status"], (q) => q.eq("status", "published").eq("is_test", false)) : Promise.resolve([]),
+    editionsOpen ? rowsFiltered("edition_organisers", ["slug, status"], (q) => q.eq("status", "verified").eq("is_test", false)) : Promise.resolve([]),
     // every programme session has its own page; the public client again only sees sessions of Editions that are public
-    rowsFiltered("edition_sessions", ["id, edition_id, title, status, updated_at", "id, edition_id, title, status"], (q) => q.neq("status", "cancelled")),
+    editionsOpen ? rowsFiltered("edition_sessions", ["id, edition_id, title, status, updated_at", "id, edition_id, title, status"], (q) => q.neq("status", "cancelled")) : Promise.resolve([]),
   ]);
 
   for (const b of biz) {

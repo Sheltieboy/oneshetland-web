@@ -1,7 +1,7 @@
 import { cache } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getPublicOrganiser } from "@/lib/editions/data.server";
+import { getPublicOrganiser, getEditionsEnabled } from "@/lib/editions/data.server";
 import { phaseOf } from "@/lib/editions/rules";
 import { deriveBrand, resolveBrand } from "@/lib/editions/brand";
 import { getPublicTiers } from "@/lib/editions/commerce.server";
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!r) return { title: "Organiser not found" };
   const { organiser: o } = r;
   const description = stripMarkup(o.tagline) || stripMarkup(o.description).slice(0, 200) || `Editions run by ${o.name} on OneShetland.`;
-  const indexable = o.status === "verified" && !o.is_test;
+  const indexable = o.status === "verified" && !o.is_test && (await getEditionsEnabled());   // pilot pages are direct-link only
   return {
     title: o.name, description, alternates: { canonical: `/organisers/${o.slug}` },
     robots: indexable ? undefined : { index: false, follow: false },

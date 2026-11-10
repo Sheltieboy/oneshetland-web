@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getEditionBundle, getMyEditionFlags, type PublicEditionBundle, type PublicPartnerEvent } from "@/lib/editions/data.server";
+import { getEditionBundle, getMyEditionFlags, type PublicEditionBundle, type PublicPartnerEvent, getEditionsEnabled } from "@/lib/editions/data.server";
 import { planCtx } from "@/components/editions/plan-ctx";
 import { editionMetadata, editionPath, itemEventSchema, mapsUrl, stripMarkup } from "@/lib/editions/seo";
 import { breadcrumbSchema } from "@/lib/seo-schema";
@@ -68,7 +68,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug, item } = await params;
   const r = await load(slug, item);
   if (!r) return { title: "Programme" };
-  return editionMetadata(r.b, { title: r.item.title, sub: `programme/${itemSlug(r.item.title, r.item.id)}`, description: describe(r.item), image: r.item.image ?? r.b.edition.cover_url });
+  return editionMetadata(r.b, { openToEveryone: await getEditionsEnabled(), title: r.item.title, sub: `programme/${itemSlug(r.item.title, r.item.id)}`, description: describe(r.item), image: r.item.image ?? r.b.edition.cover_url });
 }
 
 export default async function ProgrammeItemPage({ params }: { params: Promise<{ slug: string; item: string }> }) {

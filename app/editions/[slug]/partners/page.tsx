@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEditionBundle } from "@/lib/editions/data.server";
+import { getEditionBundle, getEditionsEnabled } from "@/lib/editions/data.server";
 import { editionMetadata, editionPath } from "@/lib/editions/seo";
 import { breadcrumbSchema } from "@/lib/seo-schema";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const b = await getEditionBundle((await params).slug);
-  return b ? editionMetadata(b, { title: "Partners", sub: "partners", description: `The businesses, Hubs and sponsors taking part in ${b.edition.title}.` }) : { title: "Partners" };
+  return b ? editionMetadata(b, { openToEveryone: await getEditionsEnabled(), title: "Partners", sub: "partners", description: `The businesses, Hubs and sponsors taking part in ${b.edition.title}.` }) : { title: "Partners" };
 }
 
 export default async function PartnersPage({ params }: { params: Promise<{ slug: string }> }) {

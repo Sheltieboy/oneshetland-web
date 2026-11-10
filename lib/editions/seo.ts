@@ -18,6 +18,12 @@ const clip = (s: string, n: number) => (s.length <= n ? s : `${s.slice(0, n - 1)
 export const editionPath = (slug: string, sub?: string) => `/editions/${slug}${sub ? `/${sub}` : ""}`;
 /** Only a published, non-test Edition is indexable; a member's preview of anything else is noindex. */
 export const isIndexable = (e: Pick<Edition, "status" | "is_test">) => e.status === "published" && !e.is_test;
+/**
+ * Pilot visibility is direct-link only: while Editions is not open to everyone (editions.enabled off), every public Edition or organiser page is, by construction, a pilot page,
+ * so search engines are told to index and follow nothing. Pure; the caller supplies the flag.
+ */
+export const NOINDEX = { index: false, follow: false } as const;
+export const pilotOnly = (openToEveryone: boolean) => !openToEveryone;
 
 export function editionDescription(e: Pick<Edition, "summary" | "description" | "title">, org?: Pick<Organiser, "name"> | null): string {
   const base = stripMarkup(e.summary) || stripMarkup(e.description);
@@ -25,7 +31,7 @@ export function editionDescription(e: Pick<Edition, "summary" | "description" | 
 }
 
 /** generateMetadata helper shared by every Edition page. */
-export function editionMetadata(b: Pick<PublicEditionBundle, "edition" | "organiser">, opts: { title?: string; sub?: string; description?: string; image?: string | null }): Metadata {
+export function editionMetadata(b: Pick<PublicEditionBundle, "edition" | "organiser">, opts: { title?: string; sub?: string; description?: string; image?: string | null; openToEveryone?: boolean }): Metadata {
   const { edition, organiser } = b;
   const path = editionPath(edition.slug, opts.sub);
   const title = opts.title ? `${opts.title} · ${edition.title}` : edition.title;
@@ -33,7 +39,7 @@ export function editionMetadata(b: Pick<PublicEditionBundle, "edition" | "organi
   return {
     title, description,
     alternates: { canonical: path },
-    robots: isIndexable(edition) ? undefined : { index: false, follow: false },
+    robots: isIndexable(edition) && opts.openToEveryone === true ? undefined : NOINDEX,
     openGraph: { title, description, url: path, siteName: "OneShetland", type: "website", ...(opts.image ? { images: [{ url: opts.image }] } : {}) },
     twitter: { card: "summary_large_image", title, description, ...(opts.image ? { images: [opts.image] } : {}) },
   };

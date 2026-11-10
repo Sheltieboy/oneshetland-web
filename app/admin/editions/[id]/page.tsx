@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AdminHeader } from "@/components/admin/AdminUI";
 import { AuditList, DataTable, ErrorNote, Facts, Section, StatePill, TestPill, Td, day, when } from "@/components/admin/EditionsAdminParts";
-import { GrantForm, ModerateForm, VoidButton } from "@/components/admin/EditionsAdminForms";
+import { GrantForm, PilotGrantForm, ModerateForm, VoidButton } from "@/components/admin/EditionsAdminForms";
 import { isAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { KIND_LABEL, type EditionKind } from "@/lib/editions/types";
@@ -24,6 +24,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   if (error) return <ErrorNote>Could not load this Edition: {error.message}</ErrorNote>;
   if (!data) notFound();
   const e = data as unknown as Ed;
+  const pilotApproved = admin ? !!(await sb.from("edition_pilot_approvals").select("id").eq("organiser_id", e.organiser_id).is("revoked_at", null).maybeSingle()).data : false;
   const [ents, audit, counts] = await Promise.all([
     editionEntitlements(id), auditRows({ editionId: id }),
     Promise.all(["edition_pages", "edition_sessions", "edition_updates", "edition_sponsors"].map((t) => sb.from(t).select("id", { count: "exact", head: true }).eq("edition_id", id))),
@@ -64,7 +65,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             })}
           </DataTable></div>
         )}
-        {admin ? <><h3 className="mb-2 text-sm font-bold text-ink">Grant an entitlement</h3><GrantForm editionId={e.id} /></> : <p className="text-sm text-ink-muted">Only administrators can grant or void entitlements.</p>}
+        {admin && pilotApproved && <div className="mb-5"><h3 className="mb-1 text-sm font-bold text-ink">Pilot publish (90 days, renewable)</h3><p className="mb-2 text-sm text-ink-soft">The organiser is approved for the pilot. Renew in the last 30 days; the new window starts where the live one ends.</p><PilotGrantForm editionId={e.id} /></div>}
+        {admin ? <><h3 className="mb-2 text-sm font-bold text-ink">Grant an entitlement (general)</h3><GrantForm editionId={e.id} /></> : <p className="text-sm text-ink-muted">Only administrators can grant or void entitlements.</p>}
       </Section>
 
       <Section title="Audit trail"><AuditList rows={audit.rows} who={who} /></Section>

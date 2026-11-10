@@ -1,4 +1,4 @@
-import { getEditionBundle } from "@/lib/editions/data.server";
+import { getEditionBundle, getEditionsEnabled } from "@/lib/editions/data.server";
 import { buildIcs } from "@/lib/editions/ics";
 import { itemKey, slugWords } from "@/lib/editions/session-url";
 
@@ -18,5 +18,5 @@ export async function GET(req: Request, { params }: { params: Promise<{ slug: st
   const it = s
     ? { uid: `edition-session-${s.id}`, title: s.title, starts_at: s.starts_at, ends_at: s.ends_at, location: [venue?.name, venue?.address].filter(Boolean).join(", "), description: s.description ?? "", url: `${origin}/editions/${slug}/programme/${item}`, status: s.status }
     : { uid: `edition-event-${e!.event_id}`, title: e!.title, starts_at: e!.starts_at, ends_at: e!.ends_at, location: [e!.venue, e!.locality].filter(Boolean).join(", "), description: e!.description ?? "", url: `${origin}/whats-on/${e!.event_id}`, status: e!.status };
-  return new Response(buildIcs({ name: b.edition.title, items: [it] }), { headers: { "Content-Type": "text/calendar; charset=utf-8", "Content-Disposition": `attachment; filename="${slugWords(it.title)}.ics"`, "Cache-Control": "no-store" } });
+  return new Response(buildIcs({ name: b.edition.title, items: [it] }), { headers: { ...((await getEditionsEnabled()) ? {} : { "X-Robots-Tag": "noindex, nofollow" }), "Content-Type": "text/calendar; charset=utf-8", "Content-Disposition": `attachment; filename="${slugWords(it.title)}.ics"`, "Cache-Control": "no-store" } });
 }

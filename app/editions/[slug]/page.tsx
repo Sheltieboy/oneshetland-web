@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getEditionBundle, getMyEditionFlags } from "@/lib/editions/data.server";
+import { getEditionBundle, getMyEditionFlags, getEditionsEnabled } from "@/lib/editions/data.server";
 import { planCtx } from "@/components/editions/plan-ctx";
 import { dateRangeLabel, dayParts } from "@/lib/editions/rules";
 import { editionMetadata, editionPath, editionSchema, mapsUrl } from "@/lib/editions/seo";
@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const b = await getEditionBundle((await params).slug);
-  return b ? editionMetadata(b, {}) : { title: "Edition not found" };
+  return b ? editionMetadata(b, { openToEveryone: await getEditionsEnabled() }) : { title: "Edition not found" };
 }
 
 export default async function EditionHome({ params }: { params: Promise<{ slug: string }> }) {
