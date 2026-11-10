@@ -12,6 +12,7 @@ import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 import { ConsentBanner } from "@/components/analytics/ConsentBanner";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { HideOnPrivateRoutes } from "@/components/site/HideOnPrivateRoutes";
+import { HideOnEditionPages } from "@/components/editions/editorial/HideOnEditionPages";
 import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
 import { entryPointProps } from "@/lib/event-entry-points";
 import { SavedProvider } from "@/components/saved/SavedProvider";
@@ -128,7 +129,7 @@ export default async function RootLayout({
            <SavedProvider enabled={savedEnabled} signedIn={!!account}>
             <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
-            <HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes>
+            <HideOnEditionPages><HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes></HideOnEditionPages>
             <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
            </SavedProvider>
           </ConfirmProvider>

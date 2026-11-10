@@ -1,3 +1,5 @@
+import { isDemoMode } from "@/lib/editions/demo-mode";
+import { itemSlug } from "@/lib/editions/session-url";
 import type { MetadataRoute } from "next";
 import { publicClient } from "@/lib/supabase/public";
 import { eventIsListable, activityIsListable } from "@/lib/whats-on-seo";
@@ -66,6 +68,7 @@ const lastMod = (v: unknown, fallback: Date): Date => {
 };
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if (isDemoMode()) return [];
   const now = new Date();
   const out: MetadataRoute.Sitemap = STATIC.map((s) => ({
     url: `${BASE}${s.path}`,
@@ -74,7 +77,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: s.priority,
   }));
 
-  const [biz, events, words, boats, hubs, articles] = await Promise.all([
+  const [biz, events, words, boats, hubs, articles, editions, organisers, editionSessions] = await Promise.all([
     rows("local_businesses", "id, slug, is_active"),
     rowsFiltered(
       "events",
@@ -85,6 +88,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     rows("vessels", "id"),
     rows("hubs", "id"),
     rows("content_articles", "slug, status, publish_at"),
+    // Editions: the public client only ever sees published, entitled, verified, non-test rows (RLS), and nothing while the feature is off.
+    rowsFiltered("editions", ["id, slug, status, updated_at", "slug, status, updated_at", "slug, status"], (q) => q.eq("status", "published").eq("is_test", false)),
+    rowsFiltered("edition_organisers", ["slug, status"], (q) => q.eq("status", "verified").eq("is_test", false)),
+    // every programme session has its own page; the public client again only sees sessions of Editions that are public
+    rowsFiltered("edition_sessions", ["id, edition_id, title, status, updated_at", "id, edition_id, title, status"], (q) => q.neq("status", "cancelled")),
   ]);
 
   for (const b of biz) {
@@ -116,6 +124,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const a of articles) {
     const live = (a.status === "published" || a.status === "scheduled") && a.publish_at && new Date(a.publish_at as string) <= now;
     if (live && a.slug) out.push({ url: `${BASE}/almanac/${a.slug}`, lastModified: new Date(a.publish_at as string), changeFrequency: "monthly", priority: 0.7 });
+  }
+  for (const e of editions) {
+    if (e.slug) out.push({ url: `${BASE}/editions/${e.slug}`, lastModified: lastMod(e.updated_at, now), changeFrequency: "daily", priority: 0.7 });
+  }
+  const slugByEdition = new Map(editions.filter((e) => e.id && e.slug).map((e) => [e.id as string, e.slug as string]));
+  for (const x of editionSessions) {
+    const slug = slugByEdition.get(x.edition_id as string);
+    if (slug && x.id && x.title) out.push({ url: `${BASE}/editions/${slug}/programme/${itemSlug(String(x.title), String(x.id))}`, lastModified: lastMod(x.updated_at, now), changeFrequency: "weekly", priority: 0.5 });
+  }
+  for (const o of organisers) {
+    if (o.slug) out.push({ url: `${BASE}/organisers/${o.slug}`, lastModified: now, changeFrequency: "weekly", priority: 0.5 });
   }
 
   return out;

@@ -49,10 +49,12 @@ export interface AdminStats {
   users: number; pendingDrivers: number; openRequests: number; activeRuns: number;
   pendingSpik: number; pendingClaims: number; pendingAlerts: number; pendingEvents: number; openReports: number;
   pendingVesselPhotos: number; pendingVesselSubmissions: number; nfcToPost: number;
+  /** Editions organiser verification requests waiting for a decision (0 when Editions is not set up). */
+  pendingEditionVerifications: number;
 }
 
 export async function getAdminStats(): Promise<AdminStats> {
-  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost] = await Promise.all([
+  const [users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionVerifications] = await Promise.all([
     count("profiles"),
     count("driver_profiles", (q) => q.eq("driver_status", "pending")),
     count("delivery_requests", (q) => q.eq("status", "pending")),
@@ -65,8 +67,10 @@ export async function getAdminStats(): Promise<AdminStats> {
     count("media_assets", (q) => q.eq("approval_status", "pending")),
     count("vessel_submissions", (q) => q.eq("submission_status", "pending")),
     count("local_businesses", (q) => q.eq("nfc_status", "requested")),
+    // Tolerant: count() reports 0 (and logs) when the Editions table is absent, so the dashboard never breaks.
+    count("edition_organiser_verifications", (q) => q.eq("status", "pending")),
   ]);
-  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost };
+  return { users, pendingDrivers, openRequests, activeRuns, pendingSpik, pendingClaims, pendingAlerts, pendingEvents, openReports, pendingVesselPhotos, pendingVesselSubmissions, nfcToPost, pendingEditionVerifications };
 }
 
 /* ── Helper: attach profiles by id ───────────────────────────────────────── */

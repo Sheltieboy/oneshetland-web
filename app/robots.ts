@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { isDemoMode } from "@/lib/editions/demo-mode";
 
 const BASE = "https://oneshetland.com";
 
@@ -7,6 +8,7 @@ const BASE = "https://oneshetland.com";
  * auth flows are kept out of the index. Points Google at the sitemap.
  */
 export default function robots(): MetadataRoute.Robots {
+  if (isDemoMode()) return { rules: { userAgent: "*", disallow: "/" } }; // a demonstration deployment is never indexed
   return {
     rules: {
       userAgent: "*",
@@ -14,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/account/",
         "/admin/",
+        "/organise/", // Edition organiser dashboard — private
         "/api/",
         "/sign-in",
         "/sign-up",

@@ -7,6 +7,7 @@ import { AddEventEntry } from "@/components/events/AddEventEntry";
 import { ADD_EVENT_ACCOUNT_DESC, MY_EVENTS_DESC, MY_EVENTS_HREF, MY_EVENTS_LABEL } from "@/lib/event-entry-points";
 import { myEventsEntry } from "@/lib/event-submissions-access.server";
 import { getSavedEnabled } from "@/lib/saved.server";
+import { getEditionsEnabled, getMyPendingPartnerCount } from "@/lib/editions/data.server";
 import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export default async function AccountOverview() {
   const businesses = await getMyBusinessesBasic(account.id, { includeUnlisted: true });
   // Present only for a person who can open the page (flag on, admin, or allowlisted tester); absent otherwise.
   const { myEvents } = await myEventsEntry();
+  const [editionsOn, editionInvites] = await Promise.all([getEditionsEnabled(), getMyPendingPartnerCount()]);   // tolerant: false / 0 when Editions is off or absent
   const savedOn = await getSavedEnabled();   // the My Saved tile appears only when the feature is on
 
   // Profile completeness
@@ -81,6 +83,18 @@ export default async function AccountOverview() {
           <Link href="/account/saved" className="rounded-card border border-line bg-paper p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
             <p className="font-display font-bold text-ink">{SAVED_MENU_LABEL}</p>
             <p className="mt-0.5 text-sm text-ink-muted">Events, jobs and businesses you have kept for later</p>
+          </Link>
+        )}
+        {editionsOn && (
+          <Link href="/account/editions/plan" className="rounded-card border border-line bg-paper p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
+            <p className="font-display font-bold text-ink">My plan</p>
+            <p className="mt-0.5 text-sm text-ink-muted">Festival sessions and events you have picked</p>
+          </Link>
+        )}
+        {(editionsOn || editionInvites > 0) && editionInvites > 0 && (
+          <Link href="/account/editions" className="rounded-card border border-sky-200 bg-sky-50 p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift">
+            <p className="font-display font-bold text-ink">Festival invitations ({editionInvites})</p>
+            <p className="mt-0.5 text-sm text-ink-soft">An organiser has invited something you run to take part</p>
           </Link>
         )}
         {myEvents && (

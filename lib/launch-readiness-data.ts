@@ -750,5 +750,22 @@ export const LAUNCH_READINESS: ReadinessDataset = {
       nextAction: "Final launch-day coordination once Apple approves.",
       lastUpdated: "2026-10-16",
     },
+    /* ── OneShetland Editions (post-launch product) ─────────────────────── */
+    {
+      id: "editions-product", area: "operations", scope: "post_launch", title: "OneShetland Editions (festivals, seasons and campaigns)",
+      description: "A sold, branded festival/event product: organiser profiles, Edition pages with programme and updates, partner businesses with consent, visitor save and plan, memberships and paid participation.",
+      status: "needs_verification", criticality: "nice_to_have", weight: 3,
+      evidence: "Database side released 10 Nov 2026: 15 additive migrations applied and verified by post-checks, two shared functions updated. Editions is dark: the feature flag is off, so public pages stay hidden and only platform staff can create organisers. The web release follows. Independent security review done and its findings fixed; real Storage tested; axe clean.",
+      nextAction: "Release the web build with the flag off, then staff-only use. Before any external organiser: data-protection wording, a person-run screen-reader pass, and the verified-name decision.",
+      lastUpdated: "2026-11-10",
+    },
+    {
+      id: "editions-payments", area: "payments", scope: "post_launch", title: "Editions payments (Stripe Connect, memberships, participation fees)",
+      description: "Organisers collect membership and participation revenue directly through Stripe Connect; OneShetland takes a configurable platform fee.",
+      status: "blocked", criticality: "nice_to_have", weight: 3,
+      evidence: "Payment functions are not deployed and commerce is OFF (database and flag). Request shapes validated against Stripe's API mock; never run against real Stripe. Blocked on commercial, legal and VAT decisions and a Stripe test-mode run.",
+      nextAction: "Decide the commercial and tax questions, supply Stripe test keys, run a Stripe test-mode scenario; only then consider enabling payments.",
+      lastUpdated: "2026-11-10",
+    },
   ],
 };
