@@ -90,20 +90,20 @@ describe("CSV", () => {
 describe("admin config and the fee calculator", () => {
   test("only known keys; each kind validates like the database", () => {
     assert.equal(cfg.validateConfigValue("nope", "1").ok, false);
-    for (const [k, v, ok] of [["editions.commerce.enabled", "true", true], ["editions.commerce.enabled", "yes", false], ["editions.commerce.fee_payer", "business", true], ["editions.commerce.fee_payer", "x", false], ["editions.commerce.participation.fee_percent", "2.5", true], ["editions.commerce.participation.fee_percent", "80", false], ["editions.commerce.participation.fee_fixed_pence", "20", true], ["editions.commerce.participation.fee_fixed_pence", "-1", false], ["editions.commerce.participation.fee_cap_pence", "", true], ["editions.commerce.grace_days", "61", false], ["editions.commerce.max_charge_pence", "12", false], ["editions.commerce.max_charge_pence", "500000", true], ["editions.commerce.vat_rate_percent", "31", false], ["editions.commerce.terms_version", "v 2", false], ["editions.commerce.terms_version", "v2.1", true]]) assert.equal(cfg.validateConfigValue(k, v).ok, ok, `${k}=${v}`);
+    for (const [k, v, ok] of [["editions.commerce.enabled", "true", true], ["editions.commerce.enabled", "yes", false], ["editions.commerce.fee_payer", "business", false], ["editions.commerce.fee_payer", "organiser", false], ["editions.commerce.participation.fee_percent", "2.5", true], ["editions.commerce.participation.fee_percent", "80", false], ["editions.commerce.participation.fee_fixed_pence", "20", true], ["editions.commerce.participation.fee_fixed_pence", "-1", false], ["editions.commerce.participation.fee_cap_pence", "", true], ["editions.commerce.grace_days", "61", false], ["editions.commerce.max_charge_pence", "12", false], ["editions.commerce.max_charge_pence", "500000", true], ["editions.commerce.vat_rate_percent", "31", false], ["editions.commerce.terms_version", "v 2", false], ["editions.commerce.terms_version", "v2.1", true]]) assert.equal(cfg.validateConfigValue(k, v).ok, ok, `${k}=${v}`);
   });
   test("every key has a default, a label and help; payments default to OFF", () => {
     for (const c of cfg.COMMERCE_KEYS) assert.ok(c.label && c.help && c.def !== undefined, c.key);
     assert.equal(cfg.COMMERCE_KEYS.find((c) => c.key === "editions.commerce.enabled").def, "false");
   });
   test("the preview matches the database examples (see editions-commerce-core and participation suites)", () => {
-    const base = { percent: 10, fixed: 0, min: 0, cap: null, payer: "organiser", vatRate: 20 };
-    assert.deepEqual(cfg.previewFee(10000, base, "inclusive", true), { price: 10000, vatPence: 1667, fee: 1000, charge: 10000, net: 9000, platformMargin: null, belowCost: false });
+    const base = { percent: 10, fixed: 0, min: 0, cap: null, stripePercent: 0, stripeFixed: 0, vatRate: 20 };
+    assert.deepEqual(cfg.previewFee(10000, base, "inclusive", true), { price: 10000, vatPence: 1667, commission: 1000, recovery: 0, fee: 1000, charge: 10000, net: 9000, variance: null, platformMargin: null, belowCost: false });
     assert.equal(cfg.previewFee(10000, base, "exclusive", true).charge, 12000); assert.equal(cfg.previewFee(10000, base, "exclusive", true).net, 10800);
     assert.equal(cfg.previewFee(10000, base, "exclusive", false).vatPence, 0, "no VAT for an unregistered organiser");
-    assert.equal(cfg.previewFee(10000, { ...base, payer: "business" }, "none", false).charge, 11000);
+    assert.equal(cfg.previewFee(10000, base, "none", false).charge, 10000, "the customer pays exactly the price: no fee is ever added");
     assert.equal(cfg.previewFee(5000, { ...base, fixed: 20 }, "none", false).fee, 520); assert.equal(cfg.previewFee(100, { ...base, min: 100 }, "none", false).fee, 100); assert.equal(cfg.previewFee(5000, { ...base, cap: 300 }, "none", false).fee, 300); assert.equal(cfg.previewFee(0, base, "none", false).fee, 0);
-    assert.equal(cfg.previewFee(2000, base, "none", false, 300).belowCost, true, "a £2 payment with a 10% fee cannot cover a £3 provider cost");
+    assert.equal(cfg.previewFee(2000, { ...base, percent: 2 }, "none", false, 300).belowCost, true, "a 2% commission plus no estimate cannot cover a 3 pound Stripe fee");
   });
 });
 
@@ -193,3 +193,111 @@ describe("source guards", () => {
   test("moderators have no route to suspension: the admin decisions list is admin-only", () => { assert.match(read("app/admin/editions/helpers.ts"), /ADMIN_ONLY_DECISIONS: OrganiserDecision\[\] = \["reinstate", "suspend"\]/); });
 });
 
+describe("fee model screens (organiser collects, OneShetland takes a commission, the customer pays exactly the price)", () => {
+  const base = { percent: 2, fixed: 0, min: 0, cap: null, stripePercent: 1.5, stripeFixed: 20, vatRate: 20 };
+  const keys = cfg.COMMERCE_KEYS.map((c) => c.key);
+  test("no fee_payer control exists anywhere in the web source", () => {
+    assert.ok(!keys.includes("editions.commerce.fee_payer"));
+    for (const f of ["app/admin/editions/commerce/config.ts", "components/admin/EditionsCommerceAdmin.tsx", "components/admin/EditionsFeeReports.tsx", "app/admin/editions/commerce/actions.ts", "lib/editions/commerce.ts", "components/editions-commerce/PaymentsTable.tsx"]) assert.ok(!/fee_payer|feePayer|Who pays the platform fee/.test(read(f)), f);
+    assert.equal(cfg.validateConfigValue("editions.commerce.fee_payer", "business").ok, false);
+  });
+  test("admin config lists the new keys with defaults and SQL-matching validators", () => {
+    const want = { "editions.commerce.participation.fee_percent": "2", "editions.commerce.membership.fee_percent": "2", "editions.commerce.participation.stripe_cost_percent": "1.5", "editions.commerce.membership.stripe_cost_percent": "1.5", "editions.commerce.participation.stripe_cost_fixed_pence": "20", "editions.commerce.membership.stripe_cost_fixed_pence": "20", "editions.commerce.stripe_cost_confirmed": "false", "editions.commerce.variance_alert_pence": "20", "editions.commerce.fee_tolerance_pence": "1", "editions.commerce.refund_commission_on_dispute": "false", "platform.vat_registered": "false" };
+    for (const [k, d] of Object.entries(want)) assert.equal(cfg.COMMERCE_KEYS.find((c) => c.key === k)?.def, d, k);
+    const V = cfg.validateConfigValue;
+    assert.equal(V("editions.commerce.participation.stripe_cost_percent", "10").ok, true); assert.equal(V("editions.commerce.participation.stripe_cost_percent", "10.5").ok, false); assert.equal(V("editions.commerce.membership.stripe_cost_percent", "11").ok, false);
+    assert.equal(V("editions.commerce.membership.stripe_cost_fixed_pence", "999").ok, true); assert.equal(V("editions.commerce.membership.stripe_cost_fixed_pence", "1000").ok, false);
+    assert.equal(V("editions.commerce.variance_alert_pence", "99999").ok, true); assert.equal(V("editions.commerce.variance_alert_pence", "100000").ok, false);
+    assert.equal(V("editions.commerce.fee_tolerance_pence", "50").ok, true); assert.equal(V("editions.commerce.fee_tolerance_pence", "51").ok, false);
+    assert.equal(V("editions.commerce.stripe_cost_confirmed", "true").ok, true); assert.equal(V("editions.commerce.stripe_cost_confirmed", "maybe").ok, false);
+    assert.equal(V("editions.commerce.refund_commission_on_dispute", "true").ok, true);
+    assert.equal(V("platform.vat_registered", "true").ok, false, "VAT registration is information only on this screen");
+  });
+  test("estimate labels say ESTIMATED, placeholder, reconciled; never 'actual Stripe cost'", () => {
+    const est = cfg.COMMERCE_KEYS.filter((c) => /stripe_cost_(percent|fixed_pence)$/.test(c.key));
+    assert.equal(est.length, 4);
+    for (const c of est) { assert.match(c.label, /estimated/i); assert.match(c.help, /ESTIMATED card processing fee recovered from the organiser; placeholder values until confirmed against Stripe's actual pricing/); }
+    assert.match(cfg.COMMERCE_KEYS.find((c) => c.key === "editions.commerce.stripe_cost_confirmed").help, /do not switch payments on|must not be enabled/i);
+    assert.match(cfg.COMMERCE_KEYS.find((c) => c.key === "editions.commerce.refund_commission_on_dispute").help, /commercial decision/);
+    assert.match(cfg.COMMERCE_KEYS.find((c) => c.key === "platform.vat_registered").help, /charges no VAT/);
+    for (const c of cfg.COMMERCE_KEYS) assert.ok(!/actual (stripe )?cost/i.test(c.label + c.help), c.key);
+  });
+  test("the preview matches the approved model and never adds to the customer's total", () => {
+    const r = cfg.previewFee(2500, base, "none", false); // commission 50, estimate 38 + 20 = 58 (37.5 rounds half up to 38)
+    assert.deepEqual([r.commission, r.recovery, r.fee, r.charge, r.net], [50, 58, 108, 2500, 2392]);
+    for (const price of [100, 333, 1000, 2500, 9999, 10000, 50000]) { const q = cfg.previewFee(price, base, "none", false); assert.equal(q.charge, price); assert.ok(q.fee <= q.charge); assert.equal(q.net, q.charge - q.fee); }
+    assert.equal(cfg.previewFee(1000, base, "none", false, 170).variance, 35 - 170); assert.equal(cfg.previewFee(1000, base, "none", false, undefined, true).recovery, 0, "recovery waived only by the explicit flag");
+    assert.equal(cfg.previewFee(1000, { ...base, percent: 0 }, "none", false).recovery, 35, "a waived or zero commission still recovers processing cost");
+    assert.equal(cfg.previewFee(10, base, "none", false).fee, 10, "F never exceeds the charge: recovery is reduced first");
+  });
+  const row = (o) => ({ payment_id: "p", created_at: "2027-03-01T10:00:00Z", kind: "participation", business_name: "ZZ Cafe", source: "stripe", status: "succeeded", price_pence: 2500, vat_pence: 0, platform_fee_pence: 108, stripe_fee_pence: null, charge_pence: 2500, net_to_organiser_pence: 2392, refunded_pence: 0, method: null, period_start: null, period_end: null, note: null, ref_label: "Spring", commission_pence: 50, processing_fee_estimate_pence: 58, commission_refunded_pence: 0, dispute_recovered_pence: 0, ...o });
+  test("organiser payment rows show price, commission, ESTIMATED fee and net separately; refunds show what comes back and what is kept", async () => {
+    const { PaymentsTable } = await import("../components/editions-commerce/PaymentsTable.tsx");
+    const rates = { participation: 2, membership: 2 };
+    let html = renderToStaticMarkup(h(PaymentsTable, { slug: "s", rows: [row({})], statement: [], canRefund: false, csvAllowed: true, rates }));
+    for (const t of ["Customer paid", "£25.00", "OneShetland commission", "£0.50", "Estimated card processing fee", "£0.58", "Net before refunds", "Net to you after refunds", "£23.92"]) assert.ok(html.includes(t), t);
+    assert.ok(html.includes("Customers pay the price you set; nothing is added at checkout. OneShetland&#x27;s 2% commission and an estimated card processing fee are deducted from each payment. The processing fee is estimated and reconciled to Stripe&#x27;s actual charge.") || html.includes("OneShetland's 2% commission"));
+    assert.ok(!/stripe fee|actual (stripe )?(fee|cost)|Stripe's actual fee/i.test(html.replace(/reconciled to Stripe(&#x27;|')s actual charge/, "")), "Stripe's own fee is never shown to an organiser");
+    html = renderToStaticMarkup(h(PaymentsTable, { slug: "s", rows: [row({ status: "refunded", refunded_pence: 2500, commission_refunded_pence: 50, net_to_organiser_pence: 2392 })], statement: [], canRefund: false, csvAllowed: false, rates }));
+    assert.ok(html.includes("Commission returned to you") && html.includes("Processing cost kept") && html.includes("£0.58"));
+    html = renderToStaticMarkup(h(PaymentsTable, { slug: "s", rows: [], statement: [], canRefund: false, csvAllowed: false, rates: { participation: 2.5, membership: 1 } }));
+    assert.ok(html.includes("2.5% commission on participation payments and 1% on memberships"), "the rate comes from the live value");
+  });
+  test("the explanation uses the live rate and no component hard-codes a commission percentage", () => {
+    assert.match(C.feeExplanation({ participation: 2, membership: 2 }), /2% commission/); assert.match(C.feeExplanation({ participation: 3, membership: 3 }), /3% commission/); assert.match(C.feeExplanation({ participation: null, membership: null }), /OneShetland's commission and an estimated/);
+    for (const f of ["components/editions-commerce/PaymentsTable.tsx", "components/editions-commerce/ParticipationManager.tsx", "components/editions-commerce/MembersManager.tsx", "components/editions-commerce/BusinessCommerce.tsx", "components/editions-commerce/BuyFlow.tsx", "components/admin/EditionsFeeReports.tsx", "components/admin/EditionsCommerceAdmin.tsx"]) assert.ok(!/\b[0-9]+(\.[0-9]+)?\s?% (commission|platform|fee)/i.test(read(f)), f);
+    assert.ok(!/5% (platform )?fee|platform fee of 5/i.test(read("app/admin/editions/commerce/config.ts")));
+  });
+  test("CSV keeps the existing columns and appends commission and estimated fee; never an actual Stripe fee", () => {
+    const csv = C.paymentsCsv([row({ stripe_fee_pence: 77 })]); const [head, line] = csv.split("\r\n");
+    assert.ok(head.startsWith("Date,Type,Business,For,Source,Method,Status,Price,VAT,Charged,Platform fee,Net to organiser,Refunded,Note"));
+    assert.ok(head.endsWith("Commission,Estimated card processing fee,Commission returned on refund,Processing cost retained on refund"));
+    assert.ok(line.endsWith(",0.50,0.58,0.00,0.00")); assert.ok(!line.includes("0.77"));
+    assert.ok(!/actual/i.test(head));
+  });
+  test("customer checkout and join screens show exactly the price and nothing added", async () => {
+    const src = ["components/editions-commerce/BusinessCommerce.tsx", "components/editions-commerce/BuyFlow.tsx", "components/editions-manage/PayButton.tsx"].map(read).join("\n");
+    assert.ok(!/platform_fee|commission|processing fee|service fee|booking fee|recovery_estimate|stripe_fee/i.test(src), "no fee wording or fee fields on customer screens");
+    assert.match(src, /Pay \$\{pounds\(m\.price_pence\)\} and join/); assert.match(src, /Pay \$\{pounds\(p\.charge_pence\)\}/);
+  });
+  test("admin fee reports: new columns, variance and disputes with a reasoned retry, notes, own-box scrolling", () => {
+    const c = read("components/admin/EditionsFeeReports.tsx"), a = read("app/admin/editions/commerce/actions.ts"), pg = read("app/admin/editions/commerce/reports/page.tsx");
+    for (const t of ["Commission earned", "Est. processing fee recovered", "Stripe actual fees", "Variance", "Dispute losses recovered", "Organiser net", "Retained processing costs", "By month", "By organiser", "Payments over the alert threshold", "Disputes", "Retry recovery"]) assert.ok(c.includes(t), t);
+    assert.match(a, /admin_retry_edition_dispute_recovery/); assert.match(a, /p_dispute: dispute, p_note/); assert.match(a, /p_recovery_waived/);
+    for (const rpc of ["admin_edition_fee_statement", "admin_edition_variance_report", "admin_edition_variance_items", "admin_edition_fee_model_notes"]) assert.ok(pg.includes(rpc), rpc);
+    assert.ok(pg.includes("edition_dispute_recoveries")); assert.match(c, /const box = "overflow-x-auto/); assert.ok((c.match(/className=\{box\}/g) ?? []).length >= 3);
+    assert.match(c, /Connect account and payout overheads are absorbed by OneShetland/); assert.match(c, /placeholders/);
+  });
+  test("reporting ranges", async () => {
+    const { rangeDays, RANGES } = await import("../app/admin/editions/commerce/reports/range.ts");
+    assert.equal(rangeDays(undefined), 90); assert.equal(rangeDays("30"), 30); assert.equal(rangeDays("x"), 90); assert.equal(RANGES.length, 3);
+  });
+  test("the admin screen has the processing-estimate panel, the confirm warning and the processing-fee waiver control", () => {
+    const c = read("components/admin/EditionsCommerceAdmin.tsx");
+    assert.match(c, /Card processing estimate and monitoring/); assert.match(c, /Do not switch payments on yet/); assert.match(c, /recoveryWaived/); assert.match(c, /Customer pays/);
+  });
+
+  test("net after refunds, monthly retained cost and received total", async () => {
+    const { PaymentsTable } = await import("../components/editions-commerce/PaymentsTable.tsx");
+    const full = row({ status: "refunded", refunded_pence: 2500, commission_refunded_pence: 50 });
+    const b = C.paymentBreakdown(full); assert.equal(b.netAfter, 2392 - 2500 + 50); assert.equal(b.retained, 58);
+    assert.equal(C.paymentBreakdown(row({})).netAfter, 2392);
+    const part = row({ created_at: "2027-03-09T10:00:00Z", status: "partially_refunded", refunded_pence: 1000, commission_refunded_pence: 20 });
+    assert.equal(C.monthlyRetained([full, part, row({ status: "failed", refunded_pence: 2500 })])["2027-03"], 58 + 23);
+    const st = [{ month: "2027-03", payments: 2, gross_pence: 5000, platform_fee_pence: 216, net_to_organiser_pence: 4784, offline_pence: 0, refunded_pence: 3500, commission_pence: 100, processing_fee_estimate_pence: 116, net_after_refunds_pence: 1334 }];
+    const html = renderToStaticMarkup(h(PaymentsTable, { slug: "s", rows: [full, part], statement: st, canRefund: false, csvAllowed: false, rates: { participation: 2, membership: 2 } }));
+    for (const t of ["Net before refunds", "Processing cost retained on refunds", "What you received (after refunds)", "£13.34", "£0.81"]) assert.ok(html.includes(t), t);
+  });
+  test("explainer shows fixed, minimum and cap components instead of implying a pure percentage", () => {
+    assert.equal(C.rateText({ percent: 2, fixed_pence: 10 }), "2% plus £0.10");
+    assert.equal(C.rateText({ percent: 2, min_pence: 20, cap_pence: 100 }), "2% (at least £0.20, at most £1.00)");
+    assert.equal(C.rateText({ percent: 2, fixed_pence: 0, min_pence: 0, cap_pence: null }), "2%");
+    assert.match(C.feeExplanation({ participation: { percent: 2, fixed_pence: 10 }, membership: { percent: 2, fixed_pence: 10 } }), /2% plus £0\.10 commission and an estimated/);
+    assert.match(C.feeExplanation({ participation: { percent: 2 }, membership: { percent: 3, cap_pence: 50 } }), /2% commission on participation payments and 3% \(at most £0\.50\) on memberships/);
+  });
+  test("getCommissionRates prefers edition_commission_rates() and only falls back to the sample", () => {
+    const src = read("lib/editions/commerce.server.ts"); const i = src.indexOf("getCommissionRates");
+    const body = src.slice(i, src.indexOf("getParticipationRows", i));
+    assert.ok(body.indexOf('rpc("edition_commission_rates")') < body.indexOf('"edition_charge_breakdown"')); assert.match(body, /rpc\.error/);
+  });
+});

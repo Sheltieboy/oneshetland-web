@@ -47,14 +47,14 @@ export async function voidOrgEntitlement(id: string, reason: string): Promise<Re
   const sb = await createClient(); const { error } = await sb.rpc("admin_void_edition_org_entitlement", { p_entitlement: id, p_reason: (reason ?? "").trim() });
   if (error) return fail(error.message); refresh(); return { ok: true };
 }
-export async function setFeeOverride(input: { organiserId: string; kind: string; percent?: string; fixed?: string; waived: boolean; reason: string; days?: string }): Promise<Result> {
+export async function setFeeOverride(input: { organiserId: string; kind: string; percent?: string; fixed?: string; waived: boolean; recoveryWaived?: boolean; reason: string; days?: string }): Promise<Result> {
   await requireAdmin();
   if (!isUuid(input.organiserId) || (input.kind !== "participation" && input.kind !== "membership")) return { ok: false, error: "Choose an organiser and a fee type." };
   const pct = String(input.percent ?? "").trim() ? Number(input.percent) : null; if (pct !== null && !(pct >= 0 && pct <= 50)) return { ok: false, error: "Percent must be between 0 and 50." };
   const fixed = String(input.fixed ?? "").trim() ? toPence(input.fixed) : null; if (String(input.fixed ?? "").trim() && fixed === null) return { ok: false, error: "Enter the fixed fee like 0.20." };
   const days = String(input.days ?? "").trim() ? Number(input.days) : null;
   const sb = await createClient();
-  const { error } = await sb.rpc("admin_set_edition_fee_override", { p_org: input.organiserId, p_kind: input.kind, p_percent: pct, p_fixed: fixed, p_waived: input.waived, p_reason: (input.reason ?? "").trim(), p_until: days ? new Date(Date.now() + days * 864e5).toISOString() : null });
+  const { error } = await sb.rpc("admin_set_edition_fee_override", { p_org: input.organiserId, p_kind: input.kind, p_percent: pct, p_fixed: fixed, p_waived: input.waived, p_recovery_waived: input.recoveryWaived === true, p_reason: (input.reason ?? "").trim(), p_until: days ? new Date(Date.now() + days * 864e5).toISOString() : null });
   if (error) return fail(error.message); refresh(); return { ok: true };
 }
 export async function setCollectionSuspended(organiserId: string, suspended: boolean, reason: string): Promise<Result> {
@@ -66,5 +66,13 @@ export async function resolveException(id: string, note: string): Promise<Result
   await requireAdmin(); if (!isUuid(id)) return { ok: false, error: "Unknown exception." };
   const sb = await createClient(); const { error } = await sb.rpc("admin_resolve_edition_exception", { p_exception: id, p_note: (note ?? "").trim() });
   if (error) return fail(error.message); refresh(); return { ok: true };
+}
+export async function retryDisputeRecovery(dispute: string, note: string): Promise<Result> {
+  await requireAdmin();
+  if (!/^(dp|du)_[A-Za-z0-9]+$/.test(dispute)) return { ok: false, error: "Unknown dispute." };
+  if ((note ?? "").trim().length < 5) return { ok: false, error: "Add a note of at least 5 characters saying why it is safe to retry." };
+  const sb = await createClient(); const { error } = await sb.rpc("admin_retry_edition_dispute_recovery", { p_dispute: dispute, p_note: note.trim() });
+  if (error) return fail(error.message);
+  revalidatePath("/admin/editions/commerce/reports"); refresh(); return { ok: true };
 }
 void COMMERCE_KEYS;

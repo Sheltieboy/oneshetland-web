@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { isPackageRow, isPromotionRow } from "./journey";
 import { addDays, isIsoDay, parsePromoSettings, parseAvailability, parseReport, parseRights, type AvailRow, type PromoKind, type PromoRight, type PromoSettings, type ReportRow } from "./promo";
-import type { MyMembership, MyParticipation, MyPayment, OrgMember, OrgPayment, ParticipationRow, Pkg, PayoutStatus, PublicTier, StatementRow, Tier } from "./commerce";
+import type { MyMembership, MyParticipation, MyPayment, OrgMember, OrgPayment, CommissionRates, RateSpec, ParticipationRow, Pkg, PayoutStatus, PublicTier, StatementRow, Tier } from "./commerce";
 
 const arr = <T,>(d: unknown): T[] => (Array.isArray(d) ? (d as T[]) : []);
 const b = (x: unknown): string[] => (Array.isArray(x) ? (x as unknown[]).filter((v): v is string => typeof v === "string") : []);
@@ -47,6 +47,19 @@ export async function getMyParticipations(): Promise<MyParticipation[]> { const 
 export async function getMyPayments(): Promise<MyPayment[]> { const sb = await createClient(); const { data } = await sb.rpc("edition_my_payments"); return arr<MyPayment>(data); }
 export async function getOrgPayments(orgId: string, kind?: string): Promise<OrgPayment[]> { const sb = await createClient(); const { data } = await sb.rpc("edition_org_payments", { p_org: orgId, p_from: null, p_to: null, p_kind: kind ?? null }); return arr<OrgPayment>(data); }
 export async function getOrgStatement(orgId: string): Promise<StatementRow[]> { const sb = await createClient(); const from = new Date(Date.now() - 366 * 864e5).toISOString(); const { data } = await sb.rpc("edition_org_statement", { p_org: orgId, p_from: from, p_to: new Date(Date.now() + 864e5).toISOString() }); return arr<StatementRow>(data); }
+/** The live commission for this organiser's payment types. Primary: the signed-in-readable edition_commission_rates() (percent, fixed, minimum, cap). Fallback only if that function is missing or errors: the database's own charge breakdown on a 100 pound sample (a percentage that includes any override; fixed parts then show as a slightly different percentage). Organisers cannot read admin_config. Null when nothing answers. */
+export async function getCommissionRates(orgId: string): Promise<CommissionRates> {
+  const sb = await createClient();
+  const rpc = await sb.rpc("edition_commission_rates");
+  if (!rpc.error && Array.isArray(rpc.data)) {
+    const pick = (kind: string): RateSpec | null => { const r = (rpc.data as { kind: string; percent: number | string; fixed_pence: number | null; min_pence: number | null; cap_pence: number | null }[]).find((x) => x.kind === kind); return r ? { percent: Number(r.percent), fixed_pence: r.fixed_pence, min_pence: r.min_pence, cap_pence: r.cap_pence } : null; };
+    const out = { participation: pick("participation"), membership: pick("membership") };
+    if (out.participation || out.membership) return out;
+  }
+  const one = async (kind: "participation" | "membership") => { const { data } = await sb.rpc("edition_charge_breakdown", { p_kind: kind, p_price_pence: 10000, p_vat_mode: "none", p_org: orgId }); const r = (Array.isArray(data) ? data[0] : data) as { commission_pence?: number } | null; return typeof r?.commission_pence === "number" ? r.commission_pence / 100 : null; };
+  const [participation, membership] = await Promise.all([one("participation"), one("membership")]);
+  return { participation, membership };
+}
 export async function getParticipationRows(editionId: string): Promise<ParticipationRow[]> { const sb = await createClient(); const { data } = await sb.rpc("edition_participation_rows", { p_edition: editionId }); return arr<ParticipationRow>(data); }
 export async function getParticipationTerms(editionId: string) {
   const sb = await createClient();

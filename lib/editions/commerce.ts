@@ -52,9 +52,11 @@ export type OrgMember = { membership_id: string; business_id: string; business_n
 export type MyMembership = { membership_id: string; business_id: string; business_name: string; organiser_id: string; organiser_name: string; organiser_slug: string | null; tier_name: string; benefits: string[]; edition_benefit: string; discount_percent: number | null; status: MemberStatus; billing_interval: string | null; source: string; price_pence: number | null; vat_mode: string; current_period_end: string | null; cancel_requested_at: string | null; message: string | null; decision_note: string | null; can_pay: boolean; pay_blocker: string | null; live: boolean; created_at: string };
 export type MyParticipation = { link_id: string; business_id: string; business_name: string; edition_id: string; edition_title: string; edition_slug: string; organiser_name: string; required: boolean; status: string; base_pence: number | null; discount_pence: number | null; price_pence: number | null; charge_pence: number | null; vat_pence: number | null; basis: string | null; refund_policy: string | null; refund_until: string | null; tier_name: string | null; shown: boolean; can_pay: boolean; pay_blocker: string | null };
 export type ParticipationRow = { link_id: string; business_id: string; business_name: string; link_state: string; required: boolean; status: string; basis: string | null; quoted_charge_pence: number | null; discount_pence: number | null; paid_pence: number | null; shown: boolean; waiver_note: string | null };
-export type OrgPayment = { payment_id: string; created_at: string; kind: "membership" | "participation"; business_name: string; source: string; status: PayStatus; price_pence: number; vat_pence: number; platform_fee_pence: number; stripe_fee_pence: number | null; charge_pence: number; net_to_organiser_pence: number; refunded_pence: number; method: string | null; period_start: string | null; period_end: string | null; note: string | null; ref_label: string | null };
+export type OrgPayment = { payment_id: string; created_at: string; kind: "membership" | "participation"; business_name: string; source: string; status: PayStatus; price_pence: number; vat_pence: number; platform_fee_pence: number; stripe_fee_pence: number | null; charge_pence: number; net_to_organiser_pence: number; refunded_pence: number; method: string | null; period_start: string | null; period_end: string | null; note: string | null; ref_label: string | null;
+  /** New fee model. Optional so rows from before it still render. The estimate is OneShetland's ESTIMATED card processing fee; Stripe's actual fee is never sent to organiser screens. */
+  commission_pence?: number | null; commission_refunded_pence?: number | null; processing_fee_estimate_pence?: number | null; dispute_recovered_pence?: number | null };
 export type MyPayment = { payment_id: string; created_at: string; organiser_name: string; kind: string; label: string | null; source: string; status: PayStatus; price_pence: number; vat_pence: number; charge_pence: number; refunded_pence: number; vat_mode: string; vat_number: string | null; legal_name: string | null; period_end: string | null };
-export type StatementRow = { month: string; payments: number; gross_pence: number | null; vat_pence: number | null; platform_fee_pence: number | null; stripe_fee_pence: number | null; net_to_organiser_pence: number | null; refunded_pence: number | null; offline_pence: number | null };
+export type StatementRow = { month: string; payments: number; gross_pence: number | null; vat_pence: number | null; platform_fee_pence: number | null; stripe_fee_pence: number | null; net_to_organiser_pence: number | null; refunded_pence: number | null; offline_pence: number | null; commission_pence?: number | null; commission_refunded_pence?: number | null; processing_fee_estimate_pence?: number | null; dispute_recovered_pence?: number | null; net_after_refunds_pence?: number | null };
 export type Pkg = { id: string; code: string; is_free?: boolean; name: string; description: string | null; price_pence: number; duration_days: number | null; features: string[]; max_members: number | null; active: boolean; sort: number; audience?: "any" | "hub";
   /** A package covers an Edition for a period; a promotion adds exposure days. Rows from before the promotion model have no kind and are packages. */
   kind?: "package" | "promotion"; grants?: PromoGrants | null };
@@ -147,11 +149,48 @@ export function offlineFields(i: Record<string, unknown>): Checked<OfflineInput>
 
 export const commerceId = (v: unknown): v is string => isUuid(v);
 
-/** CSV for the organiser's payments (RFC 4180; formula-injection safe for spreadsheets). */
+/** The organiser's view of one card payment under the fee model: what the customer paid, OneShetland's commission, the ESTIMATED card processing fee, and the net. Pure. */
+export function paymentBreakdown(r: OrgPayment) {
+  const commission = r.commission_pence ?? r.platform_fee_pence;
+  const estimate = r.processing_fee_estimate_pence ?? 0;
+  const commissionReturned = r.commission_refunded_pence ?? 0;
+  // Stripe does not return its fee on a refund, so the estimated processing fee on the refunded share stays with OneShetland and is borne by the organiser.
+  const retained = r.refunded_pence > 0 && r.charge_pence > 0 ? Math.round(estimate * r.refunded_pence / r.charge_pence) : 0;
+  const netAfter = r.net_to_organiser_pence - r.refunded_pence + commissionReturned - (r.dispute_recovered_pence ?? 0);
+  return { paid: r.charge_pence, commission, estimate, net: r.net_to_organiser_pence, netAfter, refunded: r.refunded_pence, commissionReturned, retained, disputeRecovered: r.dispute_recovered_pence ?? 0 };
+}
+/** Processing cost kept on refunded payments, per London month (YYYY-MM). The statement RPC has no such column, so it is summed from the payment rows. Card payments only; failed payments excluded. */
+export function monthlyRetained(rows: OrgPayment[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const r of rows) { if (r.source !== "stripe" || r.status === "failed") continue; const m = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", timeZone: "Europe/London" }).format(new Date(r.created_at)).slice(0, 7); out[m] = (out[m] ?? 0) + paymentBreakdown(r).retained; }
+  return out;
+}
+/** A live commission setting: a percentage, plus optionally a fixed amount, a minimum and a cap (pence). A bare number means a pure percentage. */
+export type RateSpec = { percent: number; fixed_pence?: number | null; min_pence?: number | null; cap_pence?: number | null };
+export type CommissionRates = { participation: RateSpec | number | null; membership: RateSpec | number | null };
+const spec = (v: RateSpec | number | null): RateSpec | null => (v === null ? null : typeof v === "number" ? { percent: v } : v);
+/** "2%" or "2.5%" from a percentage; null when unknown. */
+export function commissionLabel(percent: number | null): string | null { return percent === null || !Number.isFinite(percent) ? null : `${Number(percent.toFixed(2))}%`; }
+/** "2%", "2% plus 10p", "2% (at least 20p, at most £1.00)"; never implies a pure percentage when other parts exist. */
+export function rateText(v: RateSpec | number | null): string | null {
+  const r = spec(v); const base = r ? commissionLabel(r.percent) : null; if (!r || !base) return null;
+  let t = base; if (r.fixed_pence) t += ` plus ${pounds(r.fixed_pence)}`;
+  const lim = [r.min_pence ? `at least ${pounds(r.min_pence)}` : "", r.cap_pence ? `at most ${pounds(r.cap_pence)}` : ""].filter(Boolean);
+  return lim.length ? `${t} (${lim.join(", ")})` : t;
+}
+/** The short explanation shown above the organiser's payments. The rate is the live configured value, never a constant. */
+export function feeExplanation(rates: CommissionRates): string {
+  const a = rateText(rates.participation), b = rateText(rates.membership);
+  const rate = a && b ? (a === b ? `${a} commission` : `${a} commission on participation payments and ${b} on memberships`) : a ? `${a} commission` : b ? `${b} commission` : "commission";
+  return `Customers pay the price you set; nothing is added at checkout. OneShetland's ${rate} and an estimated card processing fee are deducted from each payment. The processing fee is estimated and reconciled to Stripe's actual charge.`;
+}
+/** CSV for the organiser's payments (RFC 4180; formula-injection safe for spreadsheets). The first columns are unchanged; the fee-model columns are appended. */
 export function paymentsCsv(rows: OrgPayment[]): string {
   const cell = (v: unknown) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const head = ["Date", "Type", "Business", "For", "Source", "Method", "Status", "Price", "VAT", "Charged", "Platform fee", "Net to organiser", "Refunded", "Note"];
-  const lines = rows.map((r) => [r.created_at.slice(0, 10), r.kind, r.business_name, r.ref_label ?? "", SOURCE_LABEL[r.source] ?? r.source, r.method ? METHOD_LABEL[r.method] ?? r.method : "", PAY_STATUS_LABEL[r.status] ?? r.status,
-    (r.price_pence / 100).toFixed(2), (r.vat_pence / 100).toFixed(2), (r.charge_pence / 100).toFixed(2), (r.platform_fee_pence / 100).toFixed(2), (r.net_to_organiser_pence / 100).toFixed(2), (r.refunded_pence / 100).toFixed(2), r.note ?? ""]);
+  const head = ["Date", "Type", "Business", "For", "Source", "Method", "Status", "Price", "VAT", "Charged", "Platform fee", "Net to organiser", "Refunded", "Note", "Commission", "Estimated card processing fee", "Commission returned on refund", "Processing cost retained on refund"];
+  const m = (n: number) => (n / 100).toFixed(2);
+  const lines = rows.map((r) => { const b = paymentBreakdown(r); const card = r.source === "stripe"; return [r.created_at.slice(0, 10), r.kind, r.business_name, r.ref_label ?? "", SOURCE_LABEL[r.source] ?? r.source, r.method ? METHOD_LABEL[r.method] ?? r.method : "", PAY_STATUS_LABEL[r.status] ?? r.status,
+    m(r.price_pence), m(r.vat_pence), m(r.charge_pence), m(r.platform_fee_pence), m(r.net_to_organiser_pence), m(r.refunded_pence), r.note ?? "",
+    card ? m(b.commission) : "", card ? m(b.estimate) : "", card ? m(b.commissionReturned) : "", card ? m(b.retained) : ""]; });
   return [head, ...lines].map((l) => l.map(cell).join(",")).join("\r\n") + "\r\n";
 }
