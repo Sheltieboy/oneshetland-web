@@ -9,14 +9,17 @@ export function handoffDeps(origin: string): Deps {
   return {
     origin,
     secureCookies: process.env.NODE_ENV === "production",
-    edge: (action, code, ip) => callEdge(cfg, action, code, ip),
-    currentEmail: async () => (await (await createClient()).auth.getUser()).data.user?.email ?? null,
+    edge: (call) => callEdge(cfg, call),
+    currentUser: async () => {
+      const u = (await (await createClient()).auth.getUser()).data.user;
+      return u?.id && u.email ? { id: u.id, email: u.email } : null;
+    },
     exchange: async (tokenHash) => {
       // The normal server-side client sets the session cookies exactly as a normal sign-in does. No token is ever in a URL.
       const sb = await createClient();
       const { data, error } = await sb.auth.verifyOtp({ type: "magiclink", token_hash: tokenHash });
       return error ? null : data.user?.id ?? null;
     },
-    signOut: async () => { await (await createClient()).auth.signOut(); },
+    signOut: async () => { await (await createClient()).auth.signOut({ scope: "local" }); },
   };
 }

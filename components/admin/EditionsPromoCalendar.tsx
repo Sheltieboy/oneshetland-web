@@ -58,7 +58,7 @@ export function EditionsPromoCalendar({ range, days, bookings, editions, error }
       <Panel title="Day by day" sub="Places used on each day.">
         {days.length === 0 ? <p className="text-sm text-ink-muted">No days to show.</p> : KINDS.map((k) => (
           <div key={k} className="mb-5 last:mb-0"><h3 className="mb-2 text-sm font-bold text-ink">{KIND_TITLE[k]}</h3>
-            <div className="overflow-x-auto rounded-card border border-line"><table className="w-full min-w-[22rem] text-left text-sm"><thead className="bg-sand/50 text-xs uppercase tracking-wider text-ink-soft"><tr><th scope="col" className="px-3 py-2">Day</th><th scope="col" className="px-3 py-2">Use</th><th scope="col" className="px-3 py-2">Who</th></tr></thead>
+            <div className="overflow-x-auto rounded-card border border-line" role="region" aria-label={`${KIND_TITLE[k]} places by day`} tabIndex={0}><table className="w-full min-w-[22rem] text-left text-sm"><thead className="bg-sand/50 text-xs uppercase tracking-wider text-ink-soft"><tr><th scope="col" className="px-3 py-2">Day</th><th scope="col" className="px-3 py-2">Use</th><th scope="col" className="px-3 py-2">Who</th></tr></thead>
               <tbody className="divide-y divide-line">{days.filter((d) => d.kind === k).map((d) => (<tr key={`${d.day}-${k}`}><td className="whitespace-nowrap px-3 py-1.5">{dayLabel(d.day)}</td><td className="whitespace-nowrap px-3 py-1.5"><Pill label={usageLabel(d)} tone={USE_TONE[usageOf(d)]} /></td><td className="px-3 py-1.5 text-ink-soft">{d.bookings.map((b) => b.edition_title).join(", ") || "None"}</td></tr>))}</tbody></table></div></div>))}
       </Panel>
 

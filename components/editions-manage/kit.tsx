@@ -16,7 +16,7 @@ export function Field({ label, hint, htmlFor, children }: { label: string; hint?
   );
 }
 
-const BTN = "inline-flex items-center justify-center rounded-pill px-5 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50";
+const BTN = "inline-flex min-h-[44px] items-center justify-center rounded-pill px-5 py-2.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal disabled:cursor-not-allowed disabled:opacity-50";
 export const btnPrimary = `${BTN} bg-navy text-paper hover:bg-navy-light`;
 export const btnSecondary = `${BTN} border border-line-strong bg-paper text-ink hover:border-navy`;
 export const btnDanger = `${BTN} border border-rose-300 bg-paper text-rose-700 hover:bg-rose-50`;
