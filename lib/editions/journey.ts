@@ -3,7 +3,7 @@
  * The database is the authority for every step; these helpers decide what the screens say and which single action to offer next, so each state is unit-tested.
  */
 import { can } from "./rules";
-import { FEATURE_LABEL, pounds, type Pkg } from "./commerce";
+import { pounds, type Pkg } from "./commerce";
 import type { Edition, EditionEntitlement, EditionKind, EditionStatus, OrgRole, ReviewState } from "./types";
 
 /* ── review status (edition_review_status) ─────────────────────────────────────────────────────────────────── */
@@ -113,6 +113,18 @@ export function publishBlockers(a: { status: EditionStatus; review_state?: Revie
 }
 export const canPublishNow = (a: { status: EditionStatus; review_state?: ReviewState | null; entitled: boolean }) => a.status === "draft" && publishBlockers(a).length === 0;
 
+/* ── promotion: an optional next step after publishing ─────────────────────────────────────────────────────── */
+
+export type PromoteNudge = { prominent: boolean; headline: string; detail: string; cta: string };
+/** After publishing, promotion is offered but never required, and the stepper does not change. It is more prominent when a promotion the organiser already holds has no dates yet. */
+export function promoteNudge(a: { state: EditionState; unbookedRights: number; canAct: boolean }): PromoteNudge | null {
+  if (a.state !== "live") return null;
+  if (a.unbookedRights > 0) {
+    return { prominent: true, headline: "Choose when to promote your Edition", detail: "Your package includes promotion that has no dates yet. Pick the days that suit you, subject to availability.", cta: a.canAct ? "Choose promotion dates" : "See your promotion" };
+  }
+  return { prominent: false, headline: "Promote your Edition", detail: "Optional. Reach more people with a share of the promoted places on the homepage and in the Editions list.", cta: "See promotion options" };
+}
+
 /* ── material changes ──────────────────────────────────────────────────────────────────────────────────────── */
 
 export const MATERIAL_FIELDS = ["title", "kind", "starts_on", "ends_on"] as const;
@@ -137,8 +149,15 @@ export const MATERIAL_SAVED = "Saved. Because you changed a key detail, your Edi
 /* ── packages ──────────────────────────────────────────────────────────────────────────────────────────────── */
 
 export const PAYMENTS_UNAVAILABLE = "Online payment is not available yet.";
+/** What every package includes, in plain words. Launch and Showcase both carry all of it: a package never limits how an Edition is run. */
+export const CORE_INCLUDES = [
+  "Editorial pages", "Programme", "Sponsors and partners", "Updates", "Memberships", "Participation fees", "Taking payments", "Offline records", "CSV export", "Organiser management",
+] as const;
+
 export type PackageView = {
-  id: string; name: string; description: string | null; priceLabel: string; free: boolean; community: boolean; communityLabel: string | null; durationLabel: string; includes: string[];
+  id: string; name: string; description: string | null; priceLabel: string; /** The configurable note shown after the price (empty = show nothing). */ priceNote: string; free: boolean; durationLabel: string;
+  /** Everything every package carries. */ includes: string[];
+  /** Promotion that comes with the package, e.g. "Six weeks of enhanced discovery". Empty for a package with no promotion. */ promoIncludes: string[];
   /** claim = a free package, chosen without paying; pay = paid online; unavailable = paid but online payment is off. */
   choice: "claim" | "pay" | "unavailable"; unavailableText: string | null;
 };
@@ -148,17 +167,48 @@ export function durationLabel(days: number): string {
   if (months >= 12 && months % 12 === 0) { const y = months / 12; return `${y} ${y === 1 ? "year" : "years"}`; }
   return `${months} months`;
 }
-/** A package as the owner reads it. Only an explicit free package is free; a paid package can be chosen only while online payment is switched on. */
-export function packageView(p: Pkg & { is_free?: boolean }, opts: { commerceOn: boolean }): PackageView {
+/** "42 days" reads better as "six weeks" when it is a whole number of weeks of two or more; anything else stays in days. */
+const WORDS = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
+export function spanLabel(days: number): string {
+  if (days >= 14 && days % 7 === 0) { const w = days / 7; return `${WORDS[w] ?? w} weeks`; }
+  return `${WORDS[days] ?? days} ${days === 1 ? "day" : "days"}`;
+}
+/** The promotion a row carries, from its grants (never from its name). */
+export function promoIncludesFor(grants: Pkg["grants"]): string[] {
+  const d = Number(grants?.discovery_days ?? 0), h = Number(grants?.homepage_days ?? 0);
+  const out: string[] = [];
+  if (d > 0) out.push(`${cap(spanLabel(d))} of enhanced discovery`);
+  if (h > 0) out.push(`${cap(spanLabel(h))} of homepage featuring, chosen by you`);
+  if (d > 0 || h > 0) out.push("Campaign reporting");
+  return out;
+}
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** A package as the owner reads it. Only an explicit free package is free; a paid package can be chosen only while online payment is switched on. `vatNote` is the wording OneShetland has configured; nothing is calculated here. */
+export function packageView(p: Pkg & { is_free?: boolean }, opts: { commerceOn: boolean; vatNote?: string | null }): PackageView {
   const free = p.is_free === true;
-  const community = p.audience === "hub";
   return {
-    id: p.id, name: p.name, description: p.description, free, community, communityLabel: community ? "Community rate" : null,
-    priceLabel: free ? "Free" : pounds(p.price_pence), durationLabel: durationLabel(p.duration_days),
-    includes: ["Publish your Edition", ...(p.features ?? []).map((f) => FEATURE_LABEL[f] ?? f), ...(p.max_members ? [`Up to ${p.max_members} members`] : [])],
+    id: p.id, name: p.name, description: p.description, free,
+    priceLabel: free ? "Free" : pounds(p.price_pence), priceNote: free ? "" : (opts.vatNote ?? "").trim(), durationLabel: durationLabel(p.duration_days ?? 365),
+    includes: [...CORE_INCLUDES, ...(p.max_members ? [`Up to ${p.max_members} members`] : [])], promoIncludes: promoIncludesFor(p.grants),
     choice: free ? "claim" : opts.commerceOn ? "pay" : "unavailable", unavailableText: free || opts.commerceOn ? null : PAYMENTS_UNAVAILABLE,
   };
 }
+
+/** Is this row a package (as opposed to a promotion on the rate card)? Rows from before the promotion model have no kind. */
+export const isPackageRow = (p: Pick<Pkg, "kind">) => (p.kind ?? "package") === "package";
+export const isPromotionRow = (p: Pick<Pkg, "kind">) => p.kind === "promotion";
+
+/**
+ * Where a package can be chosen. A package is refused while the Edition is live with more than `windowDays` left; in the last `windowDays` it can be renewed.
+ * Returns the day the live period ends and whether renewal is open.
+ */
+export function renewalState(untilIso: string | null, windowDays: number, now = Date.now()): { live: boolean; renewable: boolean } {
+  if (!untilIso) return { live: false, renewable: false };
+  const left = Date.parse(untilIso) - now;
+  return { live: true, renewable: left <= windowDays * 86_400_000 };
+}
+export const liveUntilText = (untilIso: string, windowDays: number) => `Live until ${dayLabel(untilIso)}; you can renew in the last ${windowDays} days.`;
 
 /** When the Edition's active package runs out (latest end of a current, unwithdrawn publish package), or null when there is none. */
 export function activeUntil(entitlements: Pick<EditionEntitlement, "feature" | "starts_at" | "ends_at" | "voided_at">[], now = Date.now()): string | null {

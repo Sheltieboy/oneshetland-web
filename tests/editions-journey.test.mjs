@@ -114,19 +114,43 @@ describe("material changes", () => {
 });
 
 describe("packages", () => {
-  const base = { id: "p1", code: "standard", name: "Standard", description: null, price_pence: 4500, duration_days: 365, features: ["collect_payments"], max_members: null, active: true, sort: 1 };
-  test("a paid package shows pounds, a year, what it includes, and can be paid for while payments are on", () => {
+  const base = { id: "p1", code: "launch", name: "Launch", description: null, price_pence: 24900, duration_days: 365, features: [], max_members: null, active: true, sort: 1, kind: "package", grants: {} };
+  test("a paid package shows pounds, a year, and every core feature, and can be paid for while payments are on", () => {
     const v = J.packageView(base, { commerceOn: true });
-    assert.equal(v.priceLabel, "£45.00"); assert.equal(v.durationLabel, "1 year"); assert.equal(v.choice, "pay"); assert.equal(v.free, false); assert.equal(v.community, false);
-    assert.deepEqual(v.includes, ["Publish your Edition", "Take payments"]);
+    assert.equal(v.priceLabel, "£249.00"); assert.equal(v.durationLabel, "1 year"); assert.equal(v.choice, "pay"); assert.equal(v.free, false);
+    assert.deepEqual(v.includes, [...J.CORE_INCLUDES]); assert.deepEqual(v.promoIncludes, []);
+    for (const w of ["Editorial pages", "Programme", "Sponsors and partners", "Updates", "Memberships", "Participation fees", "Taking payments", "Offline records", "CSV export", "Organiser management"]) assert.ok(v.includes.includes(w), w);
+  });
+  test("a package with promotion grants says what promotion it carries, read from the grants and not the name", () => {
+    const v = J.packageView({ ...base, code: "anything", name: "Whatever", grants: { discovery_days: 42, homepage_days: 7, grouped: true } }, { commerceOn: true });
+    assert.deepEqual(v.promoIncludes, ["Six weeks of enhanced discovery", "Seven days of homepage featuring, chosen by you", "Campaign reporting"]);
+    assert.deepEqual(v.includes, [...J.CORE_INCLUDES]);
+  });
+  test("the price note is carried beside the price when set, and is empty otherwise; nothing is calculated", () => {
+    assert.equal(J.packageView(base, { commerceOn: true }).priceNote, "");
+    assert.equal(J.packageView(base, { commerceOn: true, vatNote: "  plus VAT where it applies " }).priceNote, "plus VAT where it applies");
+    assert.equal(J.packageView(base, { commerceOn: true, vatNote: "x" }).priceLabel, "£249.00");
   });
   test("an explicit free package says Free and is claimed, with payments on or off", () => {
-    for (const on of [true, false]) { const v = J.packageView({ ...base, price_pence: 0, is_free: true }, { commerceOn: on }); assert.equal(v.priceLabel, "Free"); assert.equal(v.choice, "claim"); assert.equal(v.unavailableText, null); }
+    for (const on of [true, false]) { const v = J.packageView({ ...base, price_pence: 0, is_free: true }, { commerceOn: on, vatNote: "note" }); assert.equal(v.priceLabel, "Free"); assert.equal(v.priceNote, ""); assert.equal(v.choice, "claim"); assert.equal(v.unavailableText, null); }
   });
   test("a price of nothing is not free unless the package says so", () => { assert.notEqual(J.packageView({ ...base, price_pence: 0 }, { commerceOn: true }).priceLabel, "Free"); });
-  test("Hub-run packages carry the Community rate label", () => {
-    assert.equal(J.packageView({ ...base, audience: "hub" }, { commerceOn: true }).communityLabel, "Community rate");
-    assert.equal(J.packageView({ ...base, audience: "any" }, { commerceOn: true }).communityLabel, null);
+  test("rows are told apart by kind; rows with no kind are packages", () => {
+    assert.equal(J.isPackageRow({}), true); assert.equal(J.isPackageRow({ kind: "promotion" }), false); assert.equal(J.isPromotionRow({ kind: "promotion" }), true);
+  });
+  test("a live package can be renewed only in the last days of its period", () => {
+    const now = Date.parse("2027-01-01T00:00:00Z"), day = 86400000;
+    assert.deepEqual(J.renewalState(null, 30, now), { live: false, renewable: false });
+    assert.deepEqual(J.renewalState(new Date(now + 200 * day).toISOString(), 30, now), { live: true, renewable: false });
+    assert.deepEqual(J.renewalState(new Date(now + 29 * day).toISOString(), 30, now), { live: true, renewable: true });
+    assert.equal(J.liveUntilText("2027-06-01T12:00:00Z", 30), "Live until 1 June 2027; you can renew in the last 30 days.");
+  });
+  test("after publishing, promotion is an optional next action, more prominent when promotion is held but unscheduled", () => {
+    assert.equal(J.promoteNudge({ state: "approved", unbookedRights: 0, canAct: true }), null);
+    assert.equal(J.promoteNudge({ state: "draft", unbookedRights: 2, canAct: true }), null);
+    assert.equal(J.promoteNudge({ state: "live", unbookedRights: 0, canAct: true }).prominent, false);
+    const n = J.promoteNudge({ state: "live", unbookedRights: 2, canAct: true }); assert.equal(n.prominent, true); assert.match(n.headline, /Choose when/);
+    assert.equal(J.STEPS.length, 4);
   });
   test("with online payment off a paid package is honestly unavailable while free ones still work", () => {
     const v = J.packageView(base, { commerceOn: false });
@@ -200,7 +224,8 @@ describe("source guards", () => {
   test("packages come from the database filtered per organiser and paid flow only after approval", () => {
     assert.match(read("lib/editions/commerce.server.ts"), /rpc\("edition_available_packages", \{ p_org: organiserId \}\)/);
     assert.match(read("components/editions-manage/PackageStep.tsx"), /claimFreePackage/);
-    assert.match(read("components/editions-manage/PackageStep.tsx"), /PayButton/);
+    assert.match(read("components/editions-manage/PackageStep.tsx"), /BuyFlow/);
+    assert.match(read("components/editions-commerce/BuyFlow.tsx"), /PayButton[\s\S]*|confirm\(/);
   });
   test("no screen shows UUIDs, flag names or retired wording", () => {
     const files = ["components/editions-manage/StatusPanels.tsx", "components/editions-manage/JourneyPanels.tsx", "components/editions-manage/PackageStep.tsx", "components/editions-manage/EditionForm.tsx", "components/editions-manage/EditionHeader.tsx",

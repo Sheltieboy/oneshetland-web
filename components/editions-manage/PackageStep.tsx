@@ -3,61 +3,70 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { claimFreePackage, createPackageOrder } from "@/app/organise/commerce-actions";
-import { dayLabel, packageView, type PackageView } from "@/lib/editions/journey";
+import { claimFreePackage } from "@/app/organise/commerce-actions";
+import { dayLabel, liveUntilText, packageView, renewalState, type PackageView } from "@/lib/editions/journey";
+import { priceWithNote } from "@/lib/editions/promo";
 import type { Pkg } from "@/lib/editions/commerce";
 import { useAttemptId } from "@/lib/use-attempt-id";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
-import { EmptyState, Notice, Pill, btnPrimary, btnSecondary } from "./kit";
+import { BuyFlow } from "@/components/editions-commerce/BuyFlow";
+import { EmptyState, Notice, btnPrimary, btnSecondary } from "./kit";
 import { useAction } from "./use-action";
-import { PayButton } from "./PayButton";
+
+/** The price as an amount, then the configured note (nothing at all when there is no note). No tax is worked out here. */
+export function PriceLine({ v }: { v: Pick<PackageView, "priceLabel" | "priceNote"> }) {
+  const p = priceWithNote(v.priceLabel, v.priceNote);
+  return <p className="mt-1 text-2xl font-bold text-ink">{p.amount}{p.note && <span className="ml-2 text-sm font-normal text-ink-muted">{p.note}</span>}</p>;
+}
 
 /** What a package includes, in plain words. Shared by the choose step and the organiser-level overview. */
 export function PackageCardBody({ v }: { v: PackageView }) {
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="font-display text-xl font-bold text-ink">{v.name}</h3>
-        {v.community && <Pill label={v.communityLabel ?? "Community rate"} tone="purple" />}
-      </div>
-      <p className="mt-1 text-2xl font-bold text-ink">{v.priceLabel}</p>
+      <h3 className="font-display text-xl font-bold text-ink">{v.name}</h3>
+      <PriceLine v={v} />
       <p className="text-sm text-ink-muted">Covers your Edition for {v.durationLabel}</p>
       {v.description && <p className="mt-2 text-sm text-ink-soft">{v.description}</p>}
-      <ul className="mt-3 list-disc pl-5 text-sm text-ink-soft">{v.includes.map((f) => <li key={f}>{f}</li>)}</ul>
+      <p className="mt-3 text-sm font-semibold text-ink">Everything you need to run it</p>
+      <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">{v.includes.map((f) => <li key={f}>{f}</li>)}</ul>
+      {v.promoIncludes.length > 0 && (
+        <>
+          <p className="mt-3 text-sm font-semibold text-ink">Plus promotion</p>
+          <ul className="mt-1 list-disc pl-5 text-sm text-ink-soft">{v.promoIncludes.map((f) => <li key={f}>{f}</li>)}</ul>
+        </>
+      )}
     </>
   );
 }
 
-function ChoiceCard({ organiserSlug, editionSlug, editionTitle, pkg, commerceOn, canChoose }: { organiserSlug: string; editionSlug: string; editionTitle: string; pkg: Pkg; commerceOn: boolean; canChoose: boolean }) {
+/** One plain sentence that makes the comparison honest: every package runs an Edition fully; the difference is promotion. */
+export function ComparisonNote({ packages }: { packages: Pkg[] }) {
+  if (packages.length < 2) return null;
+  return <p className="rounded-xl bg-sand px-4 py-3 text-sm text-ink-soft">Every package includes all of the features below, so you can run your Edition in full. Where packages differ is promotion: the days you can feature your Edition to more people, and the report that shows how it went. Featured places are shared and clearly labelled Promoted.</p>;
+}
+
+function ChoiceCard({ organiserSlug, editionSlug, editionTitle, pkg, commerceOn, canChoose, vatNote }: { organiserSlug: string; editionSlug: string; editionTitle: string; pkg: Pkg; commerceOn: boolean; canChoose: boolean; vatNote: string }) {
   const router = useRouter();
   const confirm = useConfirm();
-  const v = packageView(pkg, { commerceOn });
+  const v = packageView(pkg, { commerceOn, vatNote });
   const { pending, msg, run } = useAction();
-  const attempt = useAttemptId(`${editionSlug}:${pkg.id}`);
-  const [order, setOrder] = useState<string | null>(null);
+  const attempt = useAttemptId(`${editionSlug}:${pkg.id}:free`);
 
   async function claim() {
     if (!(await confirm({ title: `Choose the ${v.name} package?`, body: `It is free and covers ${editionTitle} for ${v.durationLabel}. You can publish straight afterwards.`, confirmLabel: "Choose this package" }))) return;
     run(() => claimFreePackage(organiserSlug, editionSlug, pkg.id, attempt()), { success: "Package chosen. You can publish now.", onOk: () => router.push(`/organise/${organiserSlug}/editions/${editionSlug}`) });
   }
-  function pay() {
-    run(() => createPackageOrder(organiserSlug, editionSlug, pkg.id, attempt()), { onOk: (r) => setOrder((r as unknown as { orderId: string }).orderId) });
-  }
-
+  const price = priceWithNote(v.priceLabel, vatNote).text;
   return (
     <li className="flex flex-col rounded-card border border-line bg-paper p-5 shadow-soft">
       <PackageCardBody v={v} />
       <div className="mt-4 space-y-2">
         {canChoose && v.choice === "claim" && <button type="button" className={btnPrimary} disabled={pending} onClick={claim}>{pending ? "Working…" : "Choose this free package"}</button>}
-        {canChoose && v.choice === "pay" && !order && <button type="button" className={btnPrimary} disabled={pending} onClick={pay}>{pending ? "Working…" : `Choose and pay ${v.priceLabel}`}</button>}
-        {canChoose && v.choice === "unavailable" && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">{v.unavailableText} Free packages can still be chosen.</p>}
-        {order && (
-          <div className="rounded-xl border border-line p-3">
-            <p className="mb-2 text-sm text-ink-soft">{v.priceLabel} for {editionTitle}.</p>
-            <PayButton kind="order" id={order} label={`Pay ${v.priceLabel}`} amountPence={pkg.price_pence} />
-            <button type="button" className="ml-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-navy hover:underline" onClick={() => { setOrder(null); router.refresh(); }}>Done</button>
-          </div>
+        {canChoose && v.choice === "pay" && (
+          <BuyFlow organiserSlug={organiserSlug} editionSlug={editionSlug} editionTitle={editionTitle} pkg={pkg} priceText={price} label={`Choose ${v.name} and pay`}
+            confirmTitle={`Choose the ${v.name} package?`} confirmBody={`${v.name} is ${price} and covers ${editionTitle} for ${v.durationLabel}. You will be asked to pay securely on the next step.`} />
         )}
+        {canChoose && v.choice === "unavailable" && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">{v.unavailableText}</p>}
         <Notice msg={msg} />
       </div>
     </li>
@@ -65,19 +74,25 @@ function ChoiceCard({ organiserSlug, editionSlug, editionTitle, pkg, commerceOn,
 }
 
 /**
- * The package step of an Edition's journey. Before approval it only explains; after approval an owner or administrator chooses: a free package is claimed with no payment,
- * a paid one goes through the existing secure payment flow (only while online payment is switched on). Once a package is active it says until when.
+ * The package step of an Edition's journey. Before approval it only explains. After approval an owner or administrator chooses: a free package (only if one is on offer) is claimed with no payment,
+ * a paid one goes through the existing secure payment flow (only while online payment is switched on). A package is refused while the Edition is live, except renewal in the last days of its period.
  */
-export function PackageStep({ organiserSlug, editionSlug, editionTitle, approved, packages, commerceOn, canChoose, activeUntilIso, published }: {
+export function PackageStep({ organiserSlug, editionSlug, editionTitle, approved, packages, commerceOn, canChoose, activeUntilIso, published, vatNote = "", renewalWindowDays = 30 }: {
   organiserSlug: string; editionSlug: string; editionTitle: string; approved: boolean; packages: Pkg[]; commerceOn: boolean; canChoose: boolean; activeUntilIso: string | null; published: boolean;
+  vatNote?: string; renewalWindowDays?: number;
 }) {
   const root = `/organise/${organiserSlug}/editions/${editionSlug}`;
-  if (activeUntilIso) {
+  const [renewing, setRenewing] = useState(false);
+  const rs = renewalState(activeUntilIso, renewalWindowDays);
+  if (activeUntilIso && !(renewing && rs.renewable)) {
     return (
       <div className="space-y-3">
-        <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-900">Package active until {dayLabel(activeUntilIso)}</p>
-        <p className="text-sm text-ink-soft">{published ? "Your Edition is live." : "Your Edition has what it needs. Press Publish on the overview when you are ready."}</p>
-        <Link href={root} className={btnSecondary}>Back to the overview</Link>
+        <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-base font-semibold text-emerald-900">{liveUntilText(activeUntilIso, renewalWindowDays)}</p>
+        <p className="text-sm text-ink-soft">{published ? "Your Edition is live." : `Your package runs until ${dayLabel(activeUntilIso)}. Press Publish on the overview when you are ready.`}</p>
+        <div className="flex flex-wrap gap-3">
+          {rs.renewable && canChoose && approved && <button type="button" className={btnPrimary} onClick={() => setRenewing(true)}>Renew your package</button>}
+          <Link href={root} className={btnSecondary}>Back to the overview</Link>
+        </div>
       </div>
     );
   }
@@ -85,7 +100,8 @@ export function PackageStep({ organiserSlug, editionSlug, editionTitle, approved
     return (
       <div className="space-y-4">
         <p role="note" className="rounded-xl bg-sand px-4 py-3 text-sm text-ink-soft">You can choose a package once OneShetland has approved your Edition. Here is what is on offer, so nothing is a surprise.</p>
-        <ul className="grid gap-4 sm:grid-cols-2">{packages.map((p) => { const v = packageView(p, { commerceOn }); return <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><PackageCardBody v={v} /></li>; })}</ul>
+        <ComparisonNote packages={packages} />
+        <ul className="grid gap-4 sm:grid-cols-2">{packages.map((p) => <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><PackageCardBody v={packageView(p, { commerceOn, vatNote })} /></li>)}</ul>
         <Link href={root} className={btnSecondary}>Back to the overview</Link>
       </div>
     );
@@ -94,7 +110,8 @@ export function PackageStep({ organiserSlug, editionSlug, editionTitle, approved
   return (
     <div className="space-y-4">
       {!canChoose && <p role="note" className="rounded-xl bg-sand px-4 py-3 text-sm text-ink-soft">Only an owner or administrator can choose a package.</p>}
-      <ul className="grid gap-4 sm:grid-cols-2">{packages.map((p) => <ChoiceCard key={p.id} organiserSlug={organiserSlug} editionSlug={editionSlug} editionTitle={editionTitle} pkg={p} commerceOn={commerceOn} canChoose={canChoose} />)}</ul>
+      <ComparisonNote packages={packages} />
+      <ul className="grid gap-4 sm:grid-cols-2">{packages.map((p) => <ChoiceCard key={p.id} organiserSlug={organiserSlug} editionSlug={editionSlug} editionTitle={editionTitle} pkg={p} commerceOn={commerceOn} canChoose={canChoose} vatNote={vatNote} />)}</ul>
     </div>
   );
 }

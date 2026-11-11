@@ -1,0 +1,543 @@
+{
+  "_note": "Shared by the web and app repos. Same file in both: supabase/tests/fixtures/editions-markdown-vectors.json (app) and the web tests folder. Generated from the web module; regenerate in BOTH if the subset changes.",
+  "vectors": [
+    {
+      "name": "empty",
+      "input": "",
+      "expected": []
+    },
+    {
+      "name": "whitespace only",
+      "input": "  \n\t\n",
+      "expected": []
+    },
+    {
+      "name": "plain paragraph",
+      "input": "Hello Shetland",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Hello Shetland"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "soft-wrapped lines join into one paragraph",
+      "input": "First line\nsecond line\n\nNew paragraph",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "First line second line"
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "New paragraph"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "crlf line endings",
+      "input": "One\r\n\r\nTwo\r\n",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "One"
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Two"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "h2 and h3",
+      "input": "## Big\n### Smaller\nbody",
+      "expected": [
+        {
+          "t": "h2",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Big"
+            }
+          ]
+        },
+        {
+          "t": "h3",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Smaller"
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "body"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "h1 is not a heading",
+      "input": "# Not a heading",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "# Not a heading"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "h4 is not a heading",
+      "input": "#### Deep",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "#### Deep"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "heading needs a space",
+      "input": "##Nope",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "##Nope"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bullets with dash and star",
+      "input": "- one\n* two\n  - three",
+      "expected": [
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "text",
+                "v": "one"
+              }
+            ],
+            [
+              {
+                "t": "text",
+                "v": "two"
+              }
+            ],
+            [
+              {
+                "t": "text",
+                "v": "three"
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "list ends at blank line",
+      "input": "- a\n\n- b",
+      "expected": [
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "text",
+                "v": "a"
+              }
+            ]
+          ]
+        },
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "text",
+                "v": "b"
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bold and italic",
+      "input": "A **bold** and *italic* word",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "A "
+            },
+            {
+              "t": "strong",
+              "v": "bold"
+            },
+            {
+              "t": "text",
+              "v": " and "
+            },
+            {
+              "t": "em",
+              "v": "italic"
+            },
+            {
+              "t": "text",
+              "v": " word"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "a stray asterisk pairs into italic (quirk kept)",
+      "input": "A **bold and *italic",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "A *"
+            },
+            {
+              "t": "em",
+              "v": "bold and "
+            },
+            {
+              "t": "text",
+              "v": "italic"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "https link",
+      "input": "See [the site](https://example.com/a?b=1)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "See "
+            },
+            {
+              "t": "link",
+              "v": "the site",
+              "href": "https://example.com/a?b=1"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "site path link",
+      "input": "Go [home](/editions/up-helly-aa)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Go "
+            },
+            {
+              "t": "link",
+              "v": "home",
+              "href": "/editions/up-helly-aa"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "protocol-relative link refused",
+      "input": "[x](//evil.example.com)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](//evil.example.com)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "http link refused",
+      "input": "[x](http://example.com)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](http://example.com)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "javascript link refused (trailing bracket stays text)",
+      "input": "[x](javascript:alert(1))",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](javascript:alert(1)"
+            },
+            {
+              "t": "text",
+              "v": ")"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "data link refused",
+      "input": "[x](data:text/html,hi)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](data:text/html,hi)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "mailto link refused",
+      "input": "[x](mailto:a@b.co)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](mailto:a@b.co)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link with quote in target refused",
+      "input": "[x](https://e.com/\"onclick)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "[x](https://e.com/\"onclick)"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "raw html stays text",
+      "input": "<script>alert(1)</script> <b>x</b>",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "<script>alert(1)</script> <b>x</b>"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "image syntax degrades to a plain link, never an image",
+      "input": "![alt](https://e.com/a.png)",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "!"
+            },
+            {
+              "t": "link",
+              "v": "alt",
+              "href": "https://e.com/a.png"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "inline in list and heading",
+      "input": "## Hi **there**\n- [a](/x) and *b*",
+      "expected": [
+        {
+          "t": "h2",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Hi "
+            },
+            {
+              "t": "strong",
+              "v": "there"
+            }
+          ]
+        },
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "link",
+                "v": "a",
+                "href": "/x"
+              },
+              {
+                "t": "text",
+                "v": " and "
+              },
+              {
+                "t": "em",
+                "v": "b"
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "name": "heading closes paragraph",
+      "input": "text\n## Head\nmore",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "text"
+            }
+          ]
+        },
+        {
+          "t": "h2",
+          "inline": [
+            {
+              "t": "text",
+              "v": "Head"
+            }
+          ]
+        },
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "more"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "list closes paragraph",
+      "input": "text\n- item\nafter",
+      "expected": [
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "text"
+            }
+          ]
+        },
+        {
+          "t": "ul",
+          "items": [
+            [
+              {
+                "t": "text",
+                "v": "item"
+              }
+            ]
+          ]
+        },
+        {
+          "t": "p",
+          "inline": [
+            {
+              "t": "text",
+              "v": "after"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

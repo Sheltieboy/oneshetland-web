@@ -8,6 +8,7 @@ export const TABS = [
   { key: "editions", label: "Editions", href: "/admin/editions?tab=editions" },
   { key: "entitlements", label: "Manual package adjustments", href: "/admin/editions?tab=entitlements" },
   { key: "commerce", label: "Commerce", href: "/admin/editions/commerce" },
+  { key: "promotions", label: "Promotions", href: "/admin/editions/promotions" },
   { key: "audit", label: "Audit log", href: "/admin/editions?tab=audit" },
 ] as const;
 export type TabKey = (typeof TABS)[number]["key"];

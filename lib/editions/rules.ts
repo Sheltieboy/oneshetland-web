@@ -116,11 +116,55 @@ export const missingRequired = (r: Readiness): ReadinessItem[] => r.filter((x) =
 /** The database refuses a submission while a required item is missing; this lets the screen explain it first. An empty list (not loaded) never counts as ready. */
 export const canSubmit = (r: Readiness) => r.length > 0 && missingRequired(r).length === 0;
 
-const PARTNER_PASSTHROUGH = /run by that Hub already|that package is for Hub-run|the Hub is not taking part yet|choose at most 12|a Hub can only show|items can only be attached|not been claimed|declined recently|several invitations waiting|too many invitations|already invited|not open for new partners|not available to (invite|show)|Pro or Premium|choose up to 6|already been answered|only the (owner|organiser|sender)|lot of requests waiting|edition not found|approve the invitation first/i;
+const PARTNER_PASSTHROUGH = /run by that Hub already|the Hub is not taking part yet|choose at most 12|a Hub can only show|items can only be attached|not been claimed|declined recently|several invitations waiting|too many invitations|already invited|not open for new partners|not available to (invite|show)|Pro or Premium|choose up to 6|already been answered|only the (owner|organiser|sender)|lot of requests waiting|edition not found|approve the invitation first/i;
 
-/** Error text from a Postgres/PostgREST refusal, in words an organiser can act on. */
-export function friendlyError(message: string | null | undefined): string {
+/**
+ * The database tags promotion, package and payment refusals with a short code (the error's hint). Each one is explained here in plain words.
+ * A few take a day from the database's own message (the earliest start, the full day, the last day) so the person knows what to change.
+ */
+export const HINT_COPY: Record<string, string> = {
+  not_live: "Promotion can be scheduled once your Edition is approved and published.",
+  no_entitlement: "Your Edition needs an active package before it can be promoted.",
+  too_early: "That is too soon. Promotion cannot start before the Edition is published, and needs a couple of days' lead time.",
+  outside_publish_window: "Promotion has to finish inside the period your package covers. Choose an earlier start.",
+  too_far: "That is too far ahead to book. Choose an earlier start date.",
+  full: "There is no free place on one of those days. Choose a different start date.",
+  already_booked: "You already have this kind of promotion booked on some of those days. Choose different days.",
+  fairness_limit: "That would be more homepage days than one organiser can have in any 90 days, so the places stay fair for everyone. Choose a later date.",
+  book_discovery_first: "Schedule the enhanced discovery days of this campaign first.",
+  outside_discovery: "The homepage days must fall inside the discovery days of the same campaign.",
+  homepage_would_fall_outside: "Move the homepage days first: they must stay inside the discovery days.",
+  too_late: "Changes need more notice than that. Contact OneShetland if you need to move these days.",
+  right_booked: "Those promotion days are already scheduled.",
+  right_void: "Those promotion days are no longer available.",
+  not_booked: "That promotion booking has already been cancelled or has finished.",
+  retired_package: "That package is no longer on offer.",
+  no_restrictions: "Packages never limit how you run your Edition.",
+  already_live: "This Edition is already live. You can renew it in the last 30 days of its period.",
+  not_approved: "You can choose a package once OneShetland has approved this Edition.",
+  parent_not_live: "Your Business or Hub is not active, so its Editions are paused.",
+  free_package: "That package is free: choose it without paying.",
+  payments_off: "Online payment is not available at the moment.",
+  bad_dates: "Choose a start date.",
+  bad_range: "Those dates could not be checked. Please try again.",
+  amount_mismatch: "The amount paid did not match the order. Nothing has been taken twice; please contact OneShetland.",
+  reason_required: "Give a short reason.",
+  bad_days: "That number of days is not allowed.",
+};
+const HINT_WITH_DAY = new Set(["too_early", "full", "outside_publish_window"]);
+const DATE_IN_TEXT = /\b(\d{1,2} [A-Z][a-z]{2,8} \d{4})\b/;
+
+/** Error text from a Postgres/PostgREST refusal, in words an organiser can act on. Pass the error's hint too when it has one. */
+export function friendlyError(message: string | null | undefined, hint?: string | null): string {
   const m = message ?? "";
+  const code = (hint ?? "").trim();
+  if (code && HINT_COPY[code]) {
+    const day = HINT_WITH_DAY.has(code) ? m.match(DATE_IN_TEXT)?.[1] : null;
+    const base = HINT_COPY[code];
+    if (day) return code === "too_early" ? `${base} The earliest start is ${day}.` : code === "full" ? `${base} The first full day is ${day}.` : `${base} The last day is ${day}.`;
+    if (code === "already_live") { const until = m.match(/live until ([^.]+)\./i)?.[1]; const n = m.match(/last (\d+) days/i)?.[1] ?? "30"; if (until) return `This Edition is live until ${until}. You can renew it in the last ${n} days of its period.`; }
+    return base;
+  }
   const table: [RegExp, string][] = [
     [/ownership comes from the Business or Hub/i, "Ownership stays with your Business or Hub, so a helper can be an administrator or an editor."],
     [/only the Business owner/i, "Only the Business owner can use Editions for it."],

@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { can } from "@/lib/editions/rules";
-import { activeUntil, dayLabel, editionState, stepIndex } from "@/lib/editions/journey";
+import { activeUntil, dayLabel, editionState, promoteNudge, stepIndex } from "@/lib/editions/journey";
 import { EditionHeader } from "@/components/editions-manage/EditionHeader";
 import { ChecklistPanel, StatusControls } from "@/components/editions-manage/StatusPanels";
 import { JourneyStepper, ReviewHistory, ReviewPanel } from "@/components/editions-manage/JourneyPanels";
 import { Panel, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
 import { InterestPanel, type Metric } from "@/components/editions-manage/InterestPanel";
+import { getPromoRights } from "@/lib/editions/commerce.server";
+import { unbookedCount } from "@/lib/editions/promo";
 import { editionPage } from "../../../gate";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,10 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
   const editing = stepIndex(state) === 0;
   const until = bundle.entitled ? activeUntil(bundle.entitlements) : null;
   const live = edition.status === "published";
+  // Promotion is optional and comes after publishing; it is read only once there is a live package to promote.
+  const promoReady = edition.review_state === "approved" && !!until;
+  const unbooked = promoReady ? unbookedCount(await getPromoRights(edition.id)) : 0;
+  const nudge = promoteNudge({ state, unbookedRights: unbooked, canAct: can(role, "admin") });
   return (
     <>
       <EditionHeader organiser={organiser} edition={edition} active="overview" />
@@ -38,6 +44,12 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
             <p className="mt-1 text-sm text-ink-soft">{live && !edition.is_test ? "This is what visitors see." : "Only your team and OneShetland staff can open it until it is live. A banner at the top reminds you of that."}</p>
             <Link href={`/editions/${edition.slug}`} className={btnPrimary + " mt-3"} target="_blank" rel="noopener">{live && !edition.is_test ? "Open public page" : "Preview your Edition"}</Link>
           </section>
+
+          {nudge && (
+            <Panel tone={nudge.prominent ? "warm" : "plain"} title={nudge.headline} sub={nudge.detail}>
+              <Link href={`${root}/promote`} className={(nudge.prominent ? btnPrimary : btnSecondary) + " w-full sm:w-auto"}>{nudge.cta}</Link>
+            </Panel>
+          )}
 
           {live && Array.isArray(metrics) && <InterestPanel metrics={metrics as Metric[]} days={30} />}
 
@@ -66,6 +78,12 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
                 <div className="space-y-3"><p className="text-sm text-ink-soft">Your Edition is approved. Choose a package to cover it.</p><Link href={`${root}/package`} className={btnSecondary + " w-full"}>{can(role, "admin") ? "Choose a package" : "See the packages"}</Link></div>
               ) : <p className="text-sm text-ink-soft">You choose a package after OneShetland has approved your Edition. <Link href={`${root}/package`} className="font-semibold underline">See what is on offer</Link>.</p>}
           </Panel>
+          {promoReady && (
+            <Panel title="Promotion">
+              <p className="mb-3 text-sm text-ink-soft">Optional. Choose when your Edition is featured, add more promotion, and see how it went.</p>
+              <Link href={`${root}/promote`} className={btnSecondary + " w-full"}>Promote your Edition</Link>
+            </Panel>
+          )}
           <Panel title="Content">
             <ul className="divide-y divide-line text-sm">
               {counts.map(([label, n, path]) => (

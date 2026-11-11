@@ -107,7 +107,7 @@ describe("the approvals queue", () => {
   test("the Editions landing defaults to approvals; commerce is its own page; the old verification queue is gone", () => {
     assert.equal(parseTab(undefined), "approvals"); assert.equal(parseTab("nope"), "approvals"); assert.equal(parseTab("audit"), "audit");
     assert.match(read("app/admin/editions/page.tsx"), /if \(tab === "approvals"\) redirect\("\/admin\/editions\/approvals"\)/);
-    assert.deepEqual(TABS.map((t) => t.key), ["approvals", "organisers", "editions", "entitlements", "commerce", "audit"]);
+    assert.deepEqual(TABS.map((t) => t.key), ["approvals", "organisers", "editions", "entitlements", "commerce", "promotions", "audit"]);
     assert.equal(TABS.find((t) => t.key === "entitlements").label, "Manual package adjustments");
     assert.doesNotMatch(q, /edition_organiser_verifications|queueRows/);
   });
@@ -228,22 +228,21 @@ describe("sidebar and badges", () => {
     assert.match(d, /rpc\("admin_edition_review_counts"\)/); assert.match(d, /pendingEditionApprovals/); assert.doesNotMatch(d, /pendingEditionVerifications|edition_organiser_verifications/);
   });
   test("the Editions entry does not light up on the approvals or commerce pages", () => {
-    assert.match(read("components/admin/AdminSidebar.tsx"), /label: "Editions", except: \["\/admin\/editions\/approvals", "\/admin\/editions\/commerce"\]/);
+    assert.match(read("components/admin/AdminSidebar.tsx"), /label: "Editions", except: \["\/admin\/editions\/approvals", "\/admin\/editions\/commerce", "\/admin\/editions\/promotions"\]/);
   });
 });
 
 describe("package manager", () => {
   const a = read("app/admin/editions/commerce/actions.ts"), ui = read("components/admin/EditionsCommerceAdmin.tsx");
-  test("passes the free flag as the tenth argument and shows the database's refusals in words", () => {
-    assert.match(a, /p_sort: Number\(input\.sort\) \|\| 0, p_is_free: input\.is_free === true/);
+  test("the update takes the free flag from the stored row, and the database's refusals are shown in words", () => {
+    assert.match(a, /upsertArgs\(row as CatalogueRow, v\)/);
     assert.match(adminError("a package at £0 must be marked free on purpose before it can be offered"), /tick "Free package"/);
     assert.match(adminError("a free package costs nothing"), /free package costs nothing/i);
     assert.match(a, /adminError\(/); assert.doesNotMatch(a, /friendlyError/);
   });
-  test("the form has a Free package switch that pins the price to zero; free packages are labelled; nothing is priced for the owner", () => {
-    assert.match(ui, /Free package/); assert.match(ui, /is_free: e\.target\.checked/); assert.match(ui, /disabled=\{pk\.is_free\}/);
+  test("rows are edited in place (name, price, on sale); there is no audience control, retired rows cannot be edited, and nothing is priced for the owner", () => {
+    assert.match(ui, /On sale/); assert.match(ui, /Show retired/); assert.doesNotMatch(ui, /audience|Hub-run Editions only|Any organiser/);
     assert.doesNotMatch(ui, /DRAFT/); assert.doesNotMatch(read("app/admin/editions/commerce/page.tsx"), /DRAFT/);
-    assert.match(ui, /Any organiser/); assert.match(ui, /Hub-run Editions only/);
   });
 });
 

@@ -18,7 +18,7 @@ export const EDITION_TABS = [
 export type EditionTab = (typeof EDITION_TABS)[number]["key"];
 
 /** Breadcrumb, title and the shared tab nav for every page under /organise/[slug]/editions/[edition]. */
-export function EditionHeader({ organiser, edition, active }: { organiser: Organiser; edition: Edition; active: EditionTab }) {
+export function EditionHeader({ organiser, edition, active }: { organiser: Organiser; edition: Edition; /** "promote" is reached from the overview, not from the tab row. */ active: EditionTab | "promote" }) {
   const root = `/organise/${organiser.slug}/editions/${edition.slug}`;
   return (
     <header className="mb-6">

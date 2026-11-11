@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { isPackageRow, isPromotionRow } from "./journey";
+import { addDays, isIsoDay, parsePromoSettings, parseAvailability, parseReport, parseRights, type AvailRow, type PromoKind, type PromoRight, type PromoSettings, type ReportRow } from "./promo";
 import type { MyMembership, MyParticipation, MyPayment, OrgMember, OrgPayment, ParticipationRow, Pkg, PayoutStatus, PublicTier, StatementRow, Tier } from "./commerce";
 
 const arr = <T,>(d: unknown): T[] => (Array.isArray(d) ? (d as T[]) : []);
@@ -52,8 +54,8 @@ export async function getParticipationTerms(editionId: string) {
   return (data as { mode: "free" | "fee_required"; fee_pence: number | null; vat_mode: string; refund_policy: "none" | "until_date" | "full"; refund_until: string | null; capacity: number | null; applications_close: string | null } | null) ?? null;
 }
 /**
- * What this organiser may actually buy. With an organiser id the database decides (Community packages are offered only to an organiser linked to an active Hub); without one,
- * only packages for everyone are readable. Hub-only packages are never listed to anyone else.
+ * What this organiser may actually buy: every active package and promotion on the rate card. The database decides, and the rows are the same for a Business and a Hub.
+ * Without an organiser id the active, un-retired rows are read directly.
  */
 export async function getActivePackages(organiserId?: string): Promise<Pkg[]> {
   const sb = await createClient();
@@ -61,8 +63,35 @@ export async function getActivePackages(organiserId?: string): Promise<Pkg[]> {
     const { data, error } = await sb.rpc("edition_available_packages", { p_org: organiserId });
     if (!error) return arr<Pkg>(data).map((p) => ({ ...p, active: true, features: b(p.features) }));
   }
-  const { data } = await sb.from("edition_packages").select("*").eq("active", true).order("sort");
+  const { data } = await sb.from("edition_packages").select("*").eq("active", true).is("retired_at", null).order("sort");
   return arr<Pkg>(data).map((p) => ({ ...p, features: b(p.features) }));
+}
+/** The packages and the promotions on the rate card, kept apart. */
+export async function getCatalogue(organiserId: string): Promise<{ packages: Pkg[]; promotions: Pkg[] }> {
+  const all = await getActivePackages(organiserId);
+  return { packages: all.filter(isPackageRow), promotions: all.filter(isPromotionRow) };
+}
+/** Promotion settings and the price note. Falls back to the database's defaults when the function cannot be read. */
+export async function getPromoSettings(): Promise<PromoSettings> {
+  const sb = await createClient();
+  const { data } = await sb.rpc("edition_promo_settings");
+  return parsePromoSettings(data);
+}
+export async function getPromoRights(editionId: string): Promise<PromoRight[]> {
+  const sb = await createClient();
+  const { data } = await sb.rpc("edition_my_promo_rights", { p_edition: editionId });
+  return parseRights(data);
+}
+export async function getPromoAvailability(kind: PromoKind, from: string, to: string): Promise<AvailRow[]> {
+  if (!isIsoDay(from) || !isIsoDay(to) || to < from) return [];
+  const sb = await createClient();
+  const { data } = await sb.rpc("edition_promo_availability", { p_kind: kind, p_from: from, p_to: to < addDays(from, 400) ? to : addDays(from, 400) });
+  return parseAvailability(data);
+}
+export async function getPromoReport(editionId: string): Promise<ReportRow[]> {
+  const sb = await createClient();
+  const { data } = await sb.rpc("edition_promo_report", { p_edition: editionId });
+  return parseReport(data);
 }
 export async function getOrgOrders(orgId: string) { const sb = await createClient(); const { data } = await sb.from("edition_orders").select("id, edition_id, status, amount_pence, created_at, paid_at, package_snapshot").eq("organiser_id", orgId).order("created_at", { ascending: false }).limit(50); return arr<{ id: string; edition_id: string; status: string; amount_pence: number; created_at: string; paid_at: string | null; package_snapshot: { name?: string } }>(data); }
 export async function getRefundRequests(orgId: string) { const sb = await createClient(); const { data } = await sb.from("edition_refund_requests").select("id, payment_id, amount_pence, status, reason, created_at").eq("organiser_id", orgId).order("created_at", { ascending: false }).limit(30); return arr<{ id: string; payment_id: string; amount_pence: number; status: string; reason: string; created_at: string }>(data); }

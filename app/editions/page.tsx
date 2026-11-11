@@ -10,6 +10,9 @@ import { ArchiveRow, EditionCard } from "@/components/editions/EditionCard";
 import { DemoBanner } from "@/components/editions/DemoBanner";
 import { BrandScope } from "@/components/editions/editorial/BrandScope";
 import { derivePlatformBrand } from "@/lib/editions/brand";
+import { PromotedRow } from "@/components/editions/PromotedRow";
+import { getFeaturedEditions } from "@/lib/editions/promo-featured.server";
+import { showPromotedRow } from "@/lib/editions/promo-public";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,9 @@ export default async function EditionsIndex({ searchParams }: { searchParams: Pr
   const kind = (Array.isArray(raw) ? raw[0] : raw) as EditionKind | undefined;
   const active = kind && KINDS.includes(kind) ? kind : undefined;
 
-  const [current, past] = await Promise.all([
+  // The "Promoted" row only appears on the plain list: a search or a kind filter hides it (and skips the read, so nothing is counted as shown).
+  const [promoted, current, past] = await Promise.all([
+    showPromotedRow({ q, kind: active ?? (kind ? String(kind) : null) }) ? getFeaturedEditions("discovery") : Promise.resolve([]),
     listPublicEditions({ kind: active, when: "upcoming", q }),
     listPublicEditions({ kind: active, when: "past", limit: 24, q }),
   ]);
@@ -97,6 +102,7 @@ export default async function EditionsIndex({ searchParams }: { searchParams: Pr
             </section>
           ) : (
             <>
+              <PromotedRow items={promoted} />
               {onNow.length > 0 && (
                 <section aria-labelledby="now-h">
                   <div className="ed-head"><div><p className="ed-eyebrow" aria-hidden="true">Happening</p><h2 id="now-h" className="ed-display ed-h2" style={{ margin: 0 }}>On now</h2></div></div>

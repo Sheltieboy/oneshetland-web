@@ -7,6 +7,7 @@ import { adminError } from "../helpers";
 import { isUuid } from "@/lib/editions/validate";
 import { COMMERCE_KEYS, validateConfigValue } from "./config";
 import { toPence } from "@/lib/editions/commerce";
+import { upsertArgs, validateEdit, type CatalogueRow } from "./catalogue";
 
 /** Admin commercial model. requireAdmin() first, then as the signed-in admin (the SQL functions check again and audit every change). No service key. */
 export type Result = { ok: true } | { ok: false; error: string };
@@ -22,22 +23,14 @@ export async function setCommerceConfig(key: string, value: string): Promise<Res
 }
 export async function upsertPackage(input: Record<string, unknown>): Promise<Result> {
   await requireAdmin();
-  const code = String(input.code ?? "").trim(), name = String(input.name ?? "").trim(); const price = toPence(input.price);
-  const days = Number(input.days), features = Array.isArray(input.features) ? (input.features as unknown[]).map(String) : [];
-  if (!/^[a-z0-9_]{3,40}$/.test(code)) return { ok: false, error: "The code is 3 to 40 lowercase letters, numbers and underscores." };
-  if (name.length < 2) return { ok: false, error: "Give the package a name." };
-  if (price === null) return { ok: false, error: "Enter a price like 25 or 25.00 (0 for none)." };
-  if (!Number.isInteger(days) || days < 1 || days > 800) return { ok: false, error: "Duration must be 1 to 800 days." };
-  const max = String(input.max_members ?? "").trim() ? Number(input.max_members) : null; if (max !== null && (!Number.isInteger(max) || max < 1)) return { ok: false, error: "The member limit must be 1 or more." };
-  // A package at £0 is only ever offered on purpose: the database refuses it unless marked free, and refuses a free package with a price. Its words are shown as they come back.
+  const v = validateEdit(input); if (!v.ok) return v;
   const sb = await createClient();
-  const { error } = await sb.rpc("admin_upsert_edition_package", { p_code: code, p_name: name, p_description: String(input.description ?? "").trim().slice(0, 600) || null, p_price: price, p_days: days, p_features: features, p_max_members: max, p_active: input.active === true, p_sort: Number(input.sort) || 0, p_is_free: input.is_free === true });
+  // Everything that is not editable (kind, days, features, cap, grants) comes from the stored row, so this form can never loosen a rule. Retired rows are refused here and by the database.
+  const { data: row, error: readErr } = await sb.from("edition_packages").select("code, name, description, price_pence, duration_days, features, max_members, active, sort, is_free, kind, grants, retired_at").eq("code", v.code).maybeSingle();
+  if (readErr || !row) return { ok: false, error: "That package could not be found." };
+  if ((row as CatalogueRow).retired_at) return { ok: false, error: "That package is retired. It cannot be changed or switched back on." };
+  const { error } = await sb.rpc("admin_upsert_edition_package", upsertArgs(row as CatalogueRow, v));
   if (error) return fail(error.message);
-  // The audience is a separate, admin-only setting (migration 20270102180000): a new package starts for everyone, a Community package is set to Hub-run Editions only.
-  if (input.audience === "hub" || input.audience === "any") {
-    const aud = await sb.rpc("admin_set_edition_package_audience", { p_code: code, p_audience: input.audience });
-    if (aud.error) return fail(aud.error.message);
-  }
   refresh(); return { ok: true };
 }
 export async function grantOrgEntitlement(input: { organiserId: string; feature: string; max?: string; days: string; reason: string }): Promise<Result> {

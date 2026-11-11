@@ -28,6 +28,8 @@ import { ContributeCard } from "@/components/home/ContributeCard";
 import { NewThisWeek } from "@/components/home/NewThisWeek";
 import { TomorrowStrip } from "@/components/home/TomorrowStrip";
 import { LatestEditorial } from "@/components/home/LatestEditorial";
+import { EditionsStrip } from "@/components/home/EditionsStrip";
+import { getFeaturedEditions } from "@/lib/editions/promo-featured.server";
 import { planNewThisWeek } from "@/lib/home-new-this-week";
 import { getHomeNewCandidates } from "@/lib/home-new.server";
 import { getHomeAnnouncements } from "@/lib/home-announcements";
@@ -67,7 +69,7 @@ export default async function Home() {
   // Regular activities for the "What's happening" tabs: anonymous, one listing read + one rules read, kept for two minutes. Started first so "New this week"
   // (which needs its genuine upcoming sessions) and "Tomorrow" can follow it without waiting for the other loaders.
   const activityP = resilient<{ rows: ListingRow[]; rules: Record<string, RuleRow[]> }>("home:activities", { ...R(120_000, 5000, 15 * 60_000), fallback: { rows: [], rules: {} }, isEmpty: (v) => v.rows.length === 0 }, () => getHomeActivities(now));
-  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin, activityData, announcements, newCandidates, tomorrowEvents, myBusinesses] = await Promise.all([
+  const [data, heroImage, today, shelves, cruise, businesses, passes, services, audience, account, liveShifts, noticeBundle, forYou, pin, activityData, announcements, newCandidates, tomorrowEvents, myBusinesses, editionsFeatured] = await Promise.all([
     resilient("home:data", { ...R(60_000, 6000, 10 * 60_000), fallback: emptyData }, () => getHomeData({ legacyNotices: false, homepageOnly: true })),
     resilient("home:hero", { ...R(5 * 60_000, 3000, 60 * 60_000), fallback: DEFAULT_HERO_IMAGE }, () => getHeroImage()),
     resilient("home:today", { ...R(5 * 60_000, 4000, 30 * 60_000), fallback: null }, () => getTodaySnapshot().catch(() => null)),
@@ -91,6 +93,8 @@ export default async function Home() {
     getTomorrowEvents(now),
     // Businesses this member owns: only used to send an owner straight to their own offer manager.
     accountP.then((a) => (a ? getMyBusinesses(a.id).catch(() => []) : [])).catch(() => []),
+    // Festivals and Editions strip: its own anonymous read (never cached: the database counts each showing); empty when Editions is off, nobody is booked, or the call fails.
+    getFeaturedEditions("home"),
   ]);
   const homeActivities = homeActivityPlan(activityData.rows, activityData.rules, now);
   // New in Shetland this week: never a business already on the Discover shelf (no double exposure), never expired or stale content.
@@ -152,6 +156,9 @@ export default async function Home() {
           )}
         </>}
       />
+
+      {/* 4b · FESTIVALS AND EDITIONS — a labelled, promoted strip of at most three; collapses when empty. Separate from every business placement below. */}
+      <EditionsStrip items={editionsFeatured} />
 
       {/* 5 · LATEST FROM ONESHETLAND — admin-managed (Admin → Announcements) */}
       <LatestEditorial items={announcements} />

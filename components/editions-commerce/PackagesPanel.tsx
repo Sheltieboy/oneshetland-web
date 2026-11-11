@@ -12,7 +12,7 @@ type Order = { id: string; edition_id: string; status: string; amount_pence: num
  * An overview of what is on offer and where each Edition stands. A package is chosen inside an Edition, once OneShetland has approved it; this page links there.
  * Prices come from the database; nothing here can buy anything.
  */
-export function PackagesPanel({ slug, packages, editions, orders, isAdmin, commerceOn }: { slug: string; packages: Pkg[]; editions: Ed[]; orders: Order[]; isAdmin: boolean; commerceOn: boolean }) {
+export function PackagesPanel({ slug, packages, editions, orders, isAdmin, commerceOn, vatNote = "" }: { slug: string; packages: Pkg[]; editions: Ed[]; orders: Order[]; isAdmin: boolean; commerceOn: boolean; vatNote?: string }) {
   return (
     <div className="space-y-8">
       {!commerceOn && <p role="note" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-950">Online payment is not available yet. Free packages can still be chosen.</p>}
@@ -41,7 +41,7 @@ export function PackagesPanel({ slug, packages, editions, orders, isAdmin, comme
       <section aria-labelledby="pk-offer">
         <h2 id="pk-offer" className="font-display text-xl font-bold text-ink">Packages on offer</h2>
         {packages.length === 0 ? <div className="mt-3"><EmptyState>No packages are available right now.</EmptyState></div> : (
-          <ul className="mt-3 grid gap-4 sm:grid-cols-2">{packages.map((p) => <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><PackageCardBody v={packageView(p, { commerceOn })} /></li>)}</ul>
+          <ul className="mt-3 grid gap-4 sm:grid-cols-2">{packages.map((p) => <li key={p.id} className="rounded-card border border-line bg-paper p-5 shadow-soft"><PackageCardBody v={packageView(p, { commerceOn, vatNote })} /></li>)}</ul>
         )}
       </section>
 

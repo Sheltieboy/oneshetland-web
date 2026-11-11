@@ -12,6 +12,7 @@ import { SessionCard } from "@/components/editions/SessionCard";
 import { Journal } from "@/components/editions/Journal";
 import { SponsorStrip } from "@/components/editions/SponsorStrip";
 import { PartnersSection } from "@/components/editions/PartnersSection";
+import { PromoView } from "@/components/editions/PromoTrack";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
   return (
     <>
       <JsonLd data={[editionSchema(b), breadcrumbSchema([{ name: "Editions", path: "/editions" }, { name: edition.title, path: base }])]} />
+      {edition.status === "published" && <PromoView editionId={edition.id} />}
       <TrackView event="edition_viewed" objectType="edition" objectId={edition.id} extra={{ page: "home" }} />
 
       <section aria-labelledby="edition-about" className="ed-section">

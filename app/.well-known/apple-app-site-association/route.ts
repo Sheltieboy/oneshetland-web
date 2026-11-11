@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { APP_LINK_PATHS } from "@/lib/editions/app-links";
 
 /**
  * /.well-known/apple-app-site-association
@@ -17,6 +18,8 @@ import { NextResponse } from "next/server";
  *
  * Paths must match the deep links declared in the app's app.json:
  *   /t/*    — NFC tiles        /g/*  — gift claims        /give/* — donations
+ *   /editions, /editions/*, /organisers/* — Editions. The "NOT" exclusions come FIRST (Apple uses the first matching entry): the organiser membership
+ *   pages and the calendar files are web-only, so they must never open in the app.
  */
 
 export const dynamic = "force-dynamic";
@@ -38,7 +41,7 @@ export async function GET() {
       details: [
         {
           appID: `${teamId}.${BUNDLE_ID}`,
-          paths: ["/t/*", "/g/*", "/give/*"],
+          paths: APP_LINK_PATHS,
         },
       ],
     },

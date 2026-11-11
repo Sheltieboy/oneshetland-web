@@ -363,6 +363,21 @@ export async function deleteSession(slug: string, editionSlugArg: string, sessio
 
 /* ── Updates and sponsors ──────────────────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Tell people who saved the Edition about a newly published update. Best effort: the function is called with the organiser's own session (the client sends the bearer and anon key),
+ * only the update id is sent (the function decides who hears), it waits a few seconds at most, and any failure is logged without a token or text and never affects the save.
+ */
+async function notifyEditionUpdate(sb: Awaited<ReturnType<typeof createClient>>, updateId: string): Promise<void> {
+  try {
+    await Promise.race([
+      sb.functions.invoke("notify-edition-update", { body: { update_id: updateId } }),
+      new Promise((resolve) => setTimeout(resolve, 4000)),
+    ]);
+  } catch {
+    console.warn("notify-edition-update was not sent");
+  }
+}
+
 export async function saveUpdate(slug: string, editionSlugArg: string, updateId: string | null, input: Input): Promise<Result<{ id: string }>> {
   const c = await editionCtx(slug, editionSlugArg, "editor");
   if ("ok" in c) return c;
@@ -383,6 +398,8 @@ export async function saveUpdate(slug: string, editionSlugArg: string, updateId:
     if (error || !data) return bad(friendlyError(error?.message));
     updateId = data.id as string;
   }
+  // Only a PUBLISHED update, and only the moment it is first published (drafts never notify; there is no scheduled step in the web: publishing is now or not yet).
+  if (v.value.published_at && existing === null) await notifyEditionUpdate(c.sb, updateId);
   revalidateEdition(slug, editionSlugArg, "updates");
   return { ok: true, id: updateId };
 }

@@ -1,5 +1,5 @@
 /** The admin commercial model: which settings exist, what they mean, how they are validated (mirrors the SQL), and the fee calculator. Pure. */
-export type ConfigKey = { key: string; label: string; help: string; kind: "bool" | "percent" | "pence" | "pence_or_blank" | "choice" | "days" | "text"; choices?: string[]; def: string };
+export type ConfigKey = { key: string; label: string; help: string; kind: "bool" | "percent" | "pence" | "pence_or_blank" | "choice" | "days" | "text" | "int" | "onoff" | "note"; choices?: string[]; def: string; min?: number; max?: number; group?: "promo" | "app" };
 export const COMMERCE_KEYS: ConfigKey[] = [
   { key: "editions.commerce.enabled", label: "Payments switched on", help: "The master switch. Off means no money can be taken anywhere in Editions.", kind: "bool", def: "false" },
   { key: "editions.commerce.fee_payer", label: "Who pays the platform fee", help: "Organiser: the fee comes out of the price. Business: the fee is added on top, so the organiser receives the full price.", kind: "choice", choices: ["organiser", "business"], def: "organiser" },
@@ -16,6 +16,18 @@ export const COMMERCE_KEYS: ConfigKey[] = [
   { key: "editions.commerce.refund_application_fee", label: "Refund the platform fee on refunds", help: "When a payment is refunded, return OneShetland's fee too.", kind: "bool", def: "true" },
   { key: "editions.commerce.vat_rate_percent", label: "VAT rate (percent)", help: "Used only for VAT-registered organisers. Needs accountant sign-off before live use.", kind: "percent", def: "20" },
   { key: "editions.commerce.terms_version", label: "Current commercial terms version", help: "Changing this asks every organiser to accept the new terms before they can take payments.", kind: "text", def: "draft-1" },
+  { key: "editions.promo.homepage_capacity", label: "Homepage places per day", help: "How many Editions may be booked on the homepage on any one day. 1 to 50.", kind: "int", min: 1, max: 50, def: "3", group: "promo" },
+  { key: "editions.promo.discovery_capacity", label: "Enhanced discovery places per day", help: "How many Editions may be booked for enhanced discovery on any one day. 1 to 50.", kind: "int", min: 1, max: 50, def: "6", group: "promo" },
+  { key: "editions.promo.homepage_visible", label: "Homepage cards shown", help: "How many booked Editions the homepage strip shows at once (a daily rotation). 1 to 12. The strip itself never shows more than 3.", kind: "int", min: 1, max: 12, def: "3", group: "promo" },
+  { key: "editions.promo.discovery_visible", label: "Promoted cards shown on the Editions list", help: "How many booked Editions the Promoted row shows at once. 1 to 12. The row itself never shows more than 4.", kind: "int", min: 1, max: 12, def: "4", group: "promo" },
+  { key: "editions.promo.lead_days", label: "Earliest start: days from today", help: "Organisers cannot book a start sooner than this. 0 to 30.", kind: "int", min: 0, max: 30, def: "2", group: "promo" },
+  { key: "editions.promo.horizon_days", label: "How far ahead organisers can book (days)", help: "The furthest start date that can be booked. 1 to 730.", kind: "int", min: 1, max: 730, def: "180", group: "promo" },
+  { key: "editions.promo.homepage_days_per_90", label: "Homepage days per organiser in any 90 days", help: "Keeps the homepage fair: no organiser can exceed this across all its Editions. 0 to 90.", kind: "int", min: 0, max: 90, def: "14", group: "promo" },
+  { key: "editions.promo.reschedule_notice_days", label: "Notice needed to move or cancel (days)", help: "Organisers can change a booking only if it starts at least this many days away. Staff are not held to it. 0 to 60.", kind: "int", min: 0, max: 60, def: "3", group: "promo" },
+  { key: "editions.commerce.renewal_window_days", label: "Renewal window (days)", help: "A package can be bought again only in the last this-many days of the current publishing period. 0 to 365.", kind: "int", min: 0, max: 365, def: "30", group: "promo" },
+  { key: "editions.commerce.vat_note", label: "Note shown beside prices", help: "One short line shown next to each price (for example about VAT). Leave blank for none. Up to 300 characters, no angle brackets. No VAT is calculated anywhere.", kind: "note", def: "", group: "promo" },
+  { key: "editions.app.handoff_ios", label: "Allow app-to-website sign-in for organisers (iPhone)", help: "Off by default. Warning: when on, an organiser signed in to the iPhone app can open their organiser pages on the website without signing in again, using a one-use code that lasts 60 seconds. Purchase and promotion pages are never opened this way. Turn on only after the security review.", kind: "onoff", def: "off", group: "app" },
+  { key: "editions.app.handoff_android", label: "Allow app-to-website sign-in for organisers (Android)", help: "Off by default. Warning: when on, an organiser signed in to the Android app can open their organiser pages on the website without signing in again, using a one-use code that lasts 60 seconds. Purchase and promotion pages are never opened this way. Turn on only after the security review.", kind: "onoff", def: "off", group: "app" },
 ];
 const k = (key: string) => COMMERCE_KEYS.find((c) => c.key === key);
 export function validateConfigValue(key: string, raw: string): { ok: true; value: string } | { ok: false; error: string } {
@@ -28,6 +40,9 @@ export function validateConfigValue(key: string, raw: string): { ok: true; value
     case "pence": return /^\d{1,7}$/.test(v) && (!key.endsWith("max_charge_pence") || (v.length >= 3)) ? { ok: true, value: v } : { ok: false, error: "Enter a whole number of pence." };
     case "pence_or_blank": return v === "" || /^\d{1,7}$/.test(v) ? { ok: true, value: v } : { ok: false, error: "Enter a whole number of pence, or leave blank." };
     case "days": return /^\d{1,2}$/.test(v) && Number(v) <= 60 ? { ok: true, value: v } : { ok: false, error: "Enter 0 to 60 days." };
+    case "int": { const n = Number(v); return /^\d{1,3}$/.test(v) && n >= (c.min ?? 0) && n <= (c.max ?? 999) ? { ok: true, value: String(n) } : { ok: false, error: `Enter a whole number from ${c.min ?? 0} to ${c.max ?? 999}.` }; }
+    case "onoff": return v === "on" || v === "off" ? { ok: true, value: v } : { ok: false, error: "Choose on or off." };
+    case "note": return v.length <= 300 && !/[<>\u0000-\u001f\u007f]/.test(v) ? { ok: true, value: v } : { ok: false, error: "Up to 300 characters, with no angle brackets or line breaks." };
     case "text": return /^[A-Za-z0-9._-]{1,20}$/.test(v) ? { ok: true, value: v } : { ok: false, error: "Use up to 20 letters, numbers, dots, dashes or underscores." };
   }
 }

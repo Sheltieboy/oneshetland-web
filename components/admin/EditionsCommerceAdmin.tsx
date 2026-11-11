@@ -4,11 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { grantOrgEntitlement, resolveException, setCollectionSuspended, setCommerceConfig, setFeeOverride, upsertPackage, voidOrgEntitlement } from "@/app/admin/editions/commerce/actions";
 import { COMMERCE_KEYS, previewFee, type FeeConfig } from "@/app/admin/editions/commerce/config";
+import { ALL_FEATURES, KIND_WORD, NO_RESTRICTIONS_NOTE, canEditRow, describeGrants, describeIncludes, isRetired, kindOf, retiredCount, visibleCatalogue, type CatalogueRow } from "@/app/admin/editions/commerce/catalogue";
 import { FEATURE_LABEL, pounds, toPence } from "@/lib/editions/commerce";
 import { Field, Notice, Panel, Pill, btnPrimary, btnQuiet, btnSecondary, inputCls } from "@/components/editions-manage/kit";
 import { useAction } from "@/components/editions-manage/use-action";
 
-type Pkg = { code: string; name: string; description: string | null; price_pence: number; duration_days: number; features: string[]; max_members: number | null; active: boolean; sort: number; audience?: "any" | "hub"; is_free?: boolean };
+type Pkg = CatalogueRow;
 type Org = { id: string; name: string; status: string; collection_suspended?: boolean };
 type Ent = { id: string; organiser_id: string; feature: string; max_value: number | null; ends_at: string; source: string; reason: string | null };
 type Exc = { id: string; kind: string; provider_ref: string; detail: Record<string, unknown>; created_at: string; organiser_id: string | null };
@@ -23,6 +24,21 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
   const dirty = COMMERCE_KEYS.filter((c) => draft[c.key] !== val(c.key, c.def));
   const saveAll = () => cfg.run(async () => { for (const c of dirty) { const r = await setCommerceConfig(c.key, draft[c.key]); if (!r.ok) return { ok: false as const, error: `${c.label}: ${r.error}` }; } return { ok: true as const }; }, { success: "Saved.", onOk: () => router.refresh() });
 
+  const field = (c: (typeof COMMERCE_KEYS)[number]) => {
+    const set = (v: string) => setDraft({ ...draft, [c.key]: v });
+    const hint = c.kind === "int" ? ` (${c.min} to ${c.max})` : "";
+    return (
+      <div key={c.key} className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-start sm:gap-4"><div><label htmlFor={c.key} className="text-sm font-semibold text-ink">{c.label}</label><p className="text-xs text-ink-muted">{c.help}</p></div>
+        {c.kind === "bool" ? <select id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => set(e.target.value)}><option value="true">On</option><option value="false">Off</option></select>
+          : c.kind === "onoff" ? <select id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => set(e.target.value)}><option value="off">Off</option><option value="on">On</option></select>
+          : c.kind === "choice" ? <select id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => set(e.target.value)}>{c.choices!.map((x) => <option key={x} value={x}>{x}</option>)}</select>
+          : c.kind === "int" ? <input id={c.key} className={inputCls} inputMode="numeric" aria-label={`${c.label}${hint}`} value={draft[c.key]} onChange={(e) => set(e.target.value)} />
+          : c.kind === "note" ? <input id={c.key} className={inputCls} maxLength={300} value={draft[c.key]} onChange={(e) => set(e.target.value)} />
+          : <input id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => set(e.target.value)} />}</div>
+    );
+  };
+  const saveRow = (<><div className="mt-4 flex items-center gap-3"><button type="button" className={btnPrimary} disabled={cfg.pending || dirty.length === 0} onClick={saveAll}>{cfg.pending ? "Saving…" : dirty.length ? `Save ${dirty.length} change${dirty.length === 1 ? "" : "s"}` : "No changes"}</button></div><Notice msg={cfg.msg} /></>);
+
   // fee calculator
   const [calcKind, setCalcKind] = useState<"participation" | "membership">("participation"); const [calcPrice, setCalcPrice] = useState("100"); const [calcVat, setCalcVat] = useState<"none" | "inclusive" | "exclusive">("none"); const [calcReg, setCalcReg] = useState(false); const [stripeFee, setStripeFee] = useState("");
   const num = (k: string) => Number(draft[`editions.commerce.${calcKind}.${k}`] || 0);
@@ -30,9 +46,12 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
   const price = toPence(calcPrice); const sf = stripeFee.trim() ? toPence(stripeFee) : undefined;
   const calc = price !== null ? previewFee(price, fc, calcVat, calcReg, sf ?? undefined) : null;
 
-  // packages
-  const [pk, setPk] = useState({ code: "", name: "", description: "", price: "", days: "365", features: [] as string[], max_members: "", active: false, sort: "0", audience: "any" as "any" | "hub", is_free: false }); const pkA = useAction();
-  const edit = (p: Pkg) => setPk({ code: p.code, name: p.name, description: p.description ?? "", price: (p.price_pence / 100).toFixed(2), days: String(p.duration_days), features: p.features, max_members: p.max_members ? String(p.max_members) : "", active: p.active, sort: String(p.sort), audience: p.audience === "hub" ? "hub" : "any", is_free: p.is_free === true });
+  // packages and promotions: the rate card. Rows are edited in place (name, price, on sale); retired rows are hidden by default and can never be switched back on.
+  const [showRetired, setShowRetired] = useState(false);
+  const [pk, setPk] = useState<{ code: string; name: string; description: string; price: string; sort: string; active: boolean } | null>(null); const pkA = useAction();
+  const edit = (p: Pkg) => setPk({ code: p.code, name: p.name, description: p.description ?? "", price: (p.price_pence / 100).toFixed(2), sort: String(p.sort), active: p.active });
+  const shown = visibleCatalogue(packages, showRetired); const nRetired = retiredCount(packages);
+  const editing = pk ? packages.find((p) => p.code === pk.code) : undefined;
   // entitlements, overrides, suspension
   const [g, setG] = useState({ organiserId: organisers[0]?.id ?? "", feature: "collect_payments", max: "", days: "90", reason: "" }); const gA = useAction();
   const [o, setO] = useState({ organiserId: organisers[0]?.id ?? "", kind: "participation", percent: "", fixed: "", waived: false, reason: "", days: "" }); const oA = useAction();
@@ -41,12 +60,13 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
   return (
     <div className="space-y-10">
       <Panel title="Commercial model" sub="Every change is recorded in the audit log. Payments stay off until you switch the master setting on, and nothing is real until Stripe functions are deployed.">
-        <div className="space-y-4">{COMMERCE_KEYS.map((c) => (
-          <div key={c.key} className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-start sm:gap-4"><div><label htmlFor={c.key} className="text-sm font-semibold text-ink">{c.label}</label><p className="text-xs text-ink-muted">{c.help}</p></div>
-            {c.kind === "bool" ? <select id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })}><option value="true">On</option><option value="false">Off</option></select>
-              : c.kind === "choice" ? <select id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })}>{c.choices!.map((x) => <option key={x} value={x}>{x}</option>)}</select>
-              : <input id={c.key} className={inputCls} value={draft[c.key]} onChange={(e) => setDraft({ ...draft, [c.key]: e.target.value })} />}</div>))}</div>
-        <div className="mt-4 flex items-center gap-3"><button type="button" className={btnPrimary} disabled={cfg.pending || dirty.length === 0} onClick={saveAll}>{cfg.pending ? "Saving…" : dirty.length ? `Save ${dirty.length} change${dirty.length === 1 ? "" : "s"}` : "No changes"}</button></div><Notice msg={cfg.msg} />
+        <div className="space-y-4">{COMMERCE_KEYS.filter((c) => !c.group).map(field)}</div>
+        {saveRow}
+      </Panel>
+
+      <Panel title="Promotion and app settings" sub="How many places there are, how far ahead they can be booked, and the app-to-website sign-in switches. Each box says what it accepts; the database checks the same limits.">
+        <div className="space-y-4">{COMMERCE_KEYS.filter((c) => c.group).map(field)}</div>
+        {saveRow}
       </Panel>
 
       <Panel title="Fee calculator" sub="Try a price against the settings above (unsaved edits included). Add the provider's cost to see OneShetland's margin.">
@@ -58,15 +78,24 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
         {calc ? <dl className="mt-4 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2"><div className="flex justify-between"><dt>Price</dt><dd>{pounds(calc.price)}</dd></div><div className="flex justify-between"><dt>VAT</dt><dd>{pounds(calc.vatPence)}</dd></div><div className="flex justify-between"><dt>Platform fee</dt><dd className="font-semibold">{pounds(calc.fee)}</dd></div><div className="flex justify-between"><dt>Business pays</dt><dd className="font-semibold">{pounds(calc.charge)}</dd></div><div className="flex justify-between"><dt>Organiser receives</dt><dd className="font-semibold">{pounds(calc.net)}</dd></div>{calc.platformMargin !== null && <div className="flex justify-between"><dt>OneShetland margin</dt><dd className={calc.belowCost ? "font-bold text-rose-700" : "font-semibold"}>{pounds(calc.platformMargin)}{calc.belowCost ? " (below cost)" : ""}</dd></div>}</dl> : <p className="mt-3 text-sm text-rose-700">Enter a price like 100 or 100.00.</p>}
       </Panel>
 
-      <Panel title="Organiser packages" sub="What organisers choose once an Edition is approved. A package at £0 can only be offered if you mark it as a free package on purpose. Changing a package never changes orders already paid.">
-        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line">{packages.map((p) => (<li key={p.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"><div className="min-w-0"><p className="font-semibold text-ink">{p.name}{p.is_free ? <span className="ml-2 rounded-pill bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">Free package</span> : null}{p.audience === "hub" ? <span className="ml-2 rounded-pill bg-purple-100 px-2 py-0.5 text-xs font-semibold text-purple-900">Hub-run only</span> : null} <span className="font-normal text-ink-muted">({p.code})</span></p><p className="text-ink-soft">{p.is_free ? "Free" : pounds(p.price_pence)} · {p.duration_days} days · {p.features.map((f) => FEATURE_LABEL[f] ?? f).join(", ") || "publish only"}</p></div><div className="flex items-center gap-3"><Pill label={p.active ? "On sale" : "Off"} tone={p.active ? "green" : "gray"} /><button type="button" className={btnQuiet} onClick={() => edit(p)}>Edit</button></div></li>))}</ul>
-        <form className="mt-4 grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); pkA.run(() => upsertPackage(pk), { success: "Package saved.", onOk: () => router.refresh() }); }}>
-          <Field label="Code" htmlFor="k-code"><input id="k-code" className={inputCls} value={pk.code} onChange={(e) => setPk({ ...pk, code: e.target.value })} /></Field><Field label="Name" htmlFor="k-name"><input id="k-name" className={inputCls} value={pk.name} onChange={(e) => setPk({ ...pk, name: e.target.value })} /></Field><Field label="Price (£)" htmlFor="k-price" hint={pk.is_free ? "A free package costs nothing." : "Set the price yourself; nothing here is priced for you."}><input id="k-price" className={inputCls} value={pk.is_free ? "0" : pk.price} disabled={pk.is_free} onChange={(e) => setPk({ ...pk, price: e.target.value })} /></Field>
-          <Field label="Days" htmlFor="k-days"><input id="k-days" className={inputCls} value={pk.days} onChange={(e) => setPk({ ...pk, days: e.target.value })} /></Field><Field label="Member limit" htmlFor="k-max"><input id="k-max" className={inputCls} value={pk.max_members} onChange={(e) => setPk({ ...pk, max_members: e.target.value })} /></Field><label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={pk.active} onChange={(e) => setPk({ ...pk, active: e.target.checked })} /> On sale</label>
-          <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={pk.is_free} onChange={(e) => setPk({ ...pk, is_free: e.target.checked, price: e.target.checked ? "0" : pk.price })} /> Free package</label>
-          <Field label="Who can buy it" htmlFor="k-aud" hint="Community packages are for Hub-run Editions only."><select id="k-aud" className={inputCls} value={pk.audience} onChange={(e) => setPk({ ...pk, audience: e.target.value as "any" | "hub" })}><option value="any">Any organiser</option><option value="hub">Hub-run Editions only</option></select></Field>
-          <fieldset className="sm:col-span-3"><legend className="text-sm font-semibold text-ink">Includes</legend><div className="mt-1 flex flex-wrap gap-4">{Object.entries(FEATURE_LABEL).map(([k, l]) => <label key={k} className="flex items-center gap-2 text-sm"><input type="checkbox" className="h-5 w-5" checked={pk.features.includes(k)} onChange={(e) => setPk({ ...pk, features: e.target.checked ? [...pk.features, k] : pk.features.filter((x) => x !== k) })} /> {l}</label>)}</div></fieldset>
-          <div className="sm:col-span-3"><button type="submit" className={btnPrimary} disabled={pkA.pending}>Save package</button></div></form><Notice msg={pkA.msg} />
+      <Panel title="Packages and promotions" sub="The rate card organisers choose from once an Edition is approved. Same prices for Businesses and Hubs. Changing a row never changes orders already paid.">
+        <p className="mb-3 rounded-card bg-sand/60 px-3 py-2 text-sm text-ink-soft">{NO_RESTRICTIONS_NOTE}</p>
+        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line">{shown.map((p) => (<li key={p.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"><div className="min-w-0"><p className="font-semibold text-ink">{p.name} <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold text-ink-soft">{KIND_WORD[kindOf(p)]}</span>{p.is_free ? <span className="ml-2 rounded-pill bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">Free</span> : null}</p><p className="text-ink-soft">{p.is_free ? "Free" : pounds(p.price_pence)} · {describeIncludes(p, (f) => FEATURE_LABEL[f] ?? f)}</p>{(p.grants?.discovery_days || p.grants?.homepage_days) ? <p className="text-ink-soft">Includes: {describeGrants(p.grants)}</p> : null}</div><div className="flex items-center gap-3"><Pill label={isRetired(p) ? "Retired" : p.active ? "On sale" : "Off"} tone={isRetired(p) ? "red" : p.active ? "green" : "gray"} />{canEditRow(p) && <button type="button" className={btnQuiet} onClick={() => edit(p)}>Edit</button>}</div></li>))}</ul>
+        {nRetired > 0 && <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} /> Show retired ({nRetired})</label>}
+        {showRetired && nRetired > 0 && <p className="mt-1 text-xs text-ink-muted">Retired rows are kept for old orders. They cannot be edited or switched back on.</p>}
+        {pk && editing ? (
+          <form className="mt-4 grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); pkA.run(() => upsertPackage(pk), { success: "Saved.", onOk: () => { setPk(null); router.refresh(); } }); }}>
+            <p className="text-sm font-semibold text-ink sm:col-span-3">Editing {editing.name}</p>
+            <Field label="Name" htmlFor="k-name"><input id="k-name" className={inputCls} value={pk.name} maxLength={80} onChange={(e) => setPk({ ...pk, name: e.target.value })} /></Field>
+            <Field label="Price (£)" htmlFor="k-price" hint="What the customer is charged. Any VAT wording comes from the note setting above; nothing is calculated."><input id="k-price" className={inputCls} inputMode="decimal" value={pk.price} onChange={(e) => setPk({ ...pk, price: e.target.value })} /></Field>
+            <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={pk.active} onChange={(e) => setPk({ ...pk, active: e.target.checked })} /> On sale</label>
+            <div className="sm:col-span-3"><Field label="Description" htmlFor="k-desc" hint="Shown to organisers. Up to 600 characters."><textarea id="k-desc" className={inputCls} rows={3} maxLength={600} value={pk.description} onChange={(e) => setPk({ ...pk, description: e.target.value })} /></Field></div>
+            <Field label="Order on the page" htmlFor="k-sort"><input id="k-sort" className={inputCls} inputMode="numeric" value={pk.sort} onChange={(e) => setPk({ ...pk, sort: e.target.value })} /></Field>
+            <div className="text-xs text-ink-muted sm:col-span-2">{kindOf(editing) === "promotion" ? "A promotion grants its days only and never extends publishing. Its days and shape are fixed." : `Fixed for every package: ${ALL_FEATURES.length} features, no member cap, ${editing.duration_days} days of publishing${editing.grants?.discovery_days || editing.grants?.homepage_days ? `, and ${describeGrants(editing.grants)}` : ""}.`}</div>
+            <div className="flex gap-3 sm:col-span-3"><button type="submit" className={btnPrimary} disabled={pkA.pending}>Save</button><button type="button" className={btnSecondary} onClick={() => setPk(null)}>Cancel</button></div>
+          </form>
+        ) : null}
+        <Notice msg={pkA.msg} />
       </Panel>
 
       <Panel title="Organiser abilities" sub="Grant or withdraw what an organiser may do (take payments, memberships and so on). Each grant has an end date and a reason.">

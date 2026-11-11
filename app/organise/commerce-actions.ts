@@ -185,7 +185,7 @@ export async function createPackageOrder(slug: string, edSlug: string, packageId
   const ed = await editionOf(c, edSlug); if (!ed) return bad("That Edition could not be found.");
   if (!isUuid(packageId) || typeof attempt !== "string" || attempt.length < 8 || attempt.length > 80) return bad("That package could not be found.");
   const { data, error } = await c.sb.rpc("edition_create_order", { p_org: c.org.id, p_edition: ed.id, p_package: packageId, p_attempt: attempt });
-  if (error) return bad(/not switched on/.test(error.message) ? "Online payment is not available yet." : friendlyError(error.message));
+  if (error) return bad(/not switched on/.test(error.message) ? "Online payment is not available yet." : friendlyError(error.message, error.hint));
   refresh(slug); revalidatePath(`/organise/${slug}/editions/${edSlug}`); return { ok: true, orderId: String(data) };
 }
 /** A free package is chosen, not bought: no payment, no order to pay. The database checks approval, the package and the owner or administrator. */
@@ -195,6 +195,6 @@ export async function claimFreePackage(slug: string, edSlug: string, packageId: 
   const ed = await editionOf(c, edSlug); if (!ed) return bad("That Edition could not be found.");
   if (!isUuid(packageId) || typeof attempt !== "string" || attempt.length < 8 || attempt.length > 80) return bad("That package could not be found.");
   const { data, error } = await c.sb.rpc("edition_claim_free_package", { p_org: c.org.id, p_edition: ed.id, p_package: packageId, p_attempt: attempt });
-  if (error) return bad(friendlyError(error.message));
+  if (error) return bad(friendlyError(error.message, error.hint));
   refresh(slug); revalidatePath(`/organise/${slug}/editions/${edSlug}`); return { ok: true, orderId: String(data) };
 }

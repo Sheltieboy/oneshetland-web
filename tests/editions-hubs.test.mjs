@@ -57,7 +57,6 @@ describe("partner kinds and the one Partners list", () => {
     assert.match(friendlyError("this Hub already has an Editions organiser"), /already has Editions set up/);
     assert.match(friendlyError("Editions is not open yet"), /not open to Hubs yet/);
     assert.match(friendlyError("ERROR: this Edition is run by that Hub already"), /run by that Hub already\./i);
-    assert.match(friendlyError("that package is for Hub-run Editions"), /Hub-run Editions/);
     assert.match(friendlyError("choose at most 12 items"), /at most 12/);
   });
 });
@@ -168,7 +167,7 @@ describe("source guards: Hub reads stay on the public whitelist and every write 
   });
   test("every Hub write calls a database function: no direct insert or update on links, items, organisers or packages", () => {
     const writers = ["app/organise/actions.ts", "app/account/editions/actions.ts", "app/admin/editions/commerce/actions.ts"].map(read).join("\n");
-    for (const rpc of ["edition_find_hubs", "edition_hub_item_options", "edition_set_hub_items", "admin_set_edition_package_audience"]) assert.match(writers, new RegExp(rpc), rpc);
+    for (const rpc of ["edition_find_hubs", "edition_hub_item_options", "edition_set_hub_items"]) assert.match(writers, new RegExp(rpc), rpc);
     assert.ok(!/from\("edition_links"\)\s*\.(insert|update|delete)|from\("edition_link_hub_items"\)\s*\.(insert|update|delete)/.test(SRC.map(read).join("\n")));
   });
   test("the Hub's Festivals page exists only for the Hub's administrators, and is not indexed", () => {
@@ -181,8 +180,8 @@ describe("source guards: Hub reads stay on the public whitelist and every write 
     const a = read("app/hubs/[id]/manage/editions/actions.ts"); assert.match(a, /ensureEditionsFor\("hub", hubId\)/); assert.doesNotMatch(a, /slug|p_name/);
     const e = read("lib/editions/ensure-organiser.server.ts"); assert.match(e, /isUuid\(parentId\)/); assert.match(e, /rpc\("edition_ensure_organiser", \{ p_kind: kind, p_parent: parentId \}\)/); assert.doesNotMatch(e, /service_role|createAdmin|SERVICE_KEY/i);
   });
-  test("Community packages come from edition_available_packages (the database decides); the page asks per organiser", () => {
-    assert.match(read("lib/editions/commerce.server.ts"), /edition_available_packages/); assert.match(read("app/organise/[slug]/packages/page.tsx"), /getActivePackages\(organiser\.id\)/);
+  test("packages come from edition_available_packages (the database decides); the page asks per organiser", () => {
+    assert.match(read("lib/editions/commerce.server.ts"), /edition_available_packages/); assert.match(read("app/organise/[slug]/packages/page.tsx"), /getCatalogue\(organiser\.id\)/);
   });
   test("an organiser's own pages inherit from the Hub through one function, and the raw organiser is what the forms edit", () => {
     const d = read("lib/editions/data.server.ts"); assert.match(d, /inheritFromParent\(org\.data as Organiser, parent\)/); assert.match(d, /inheritFromParent\(raw, parent\)/);
