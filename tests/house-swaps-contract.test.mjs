@@ -180,6 +180,14 @@ test("three-step advert form: progress, per-step validation, focus on step chang
   assert.match(map, /aria-checked/);
   assert.match(map, /Fair Isle/);
   assert.doesNotMatch(map, /fetch\(|<img|https?:\/\//, "the map loads nothing from elsewhere");
+  // The chosen destinations stay on screen while you tap: the summary is rendered BEFORE the map and list, and is sticky.
+  assert.ok(picker.indexOf("Where you want to move") < picker.indexOf("{map}"), "the Selected summary is rendered before the map");
+  assert.ok(picker.indexOf("Where you want to move") < picker.indexOf("{list}"), "the Selected summary is rendered before the list");
+  assert.match(picker, /sticky top-16/, "the summary is pinned while the map and list scroll");
+  assert.match(picker, /aria-label=\{`Remove \$\{s\.label\}`\}/, "every chosen place has its own remove control");
+  // A finger needs a target bigger than the dot, or the tap falls through to the region beneath.
+  const hit = /Math\.max\((\d+), Math\.min\(22,/.exec(map);
+  assert.ok(hit && Number(hit[1]) >= 11, `community taps need at least an 11px radius, found ${hit?.[1]}`);
 });
 test("communities show wherever the home's area shows; the filters accept communities", () => {
   for (const p of ["components/house-swaps/ListingCard.tsx", "components/house-swaps/MatchCard.tsx", "components/house-swaps/ModerationCard.tsx", "app/house-swaps/[id]/page.tsx"]) assert.match(read(p), /homeLocationText/, p);

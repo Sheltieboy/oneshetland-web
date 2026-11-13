@@ -127,6 +127,19 @@ export function LocationPicker(props: Props) {
     <div className="space-y-4" aria-invalid={props.invalid || undefined}>
       <p className="rounded-xl border border-teal/50 bg-teal/10 px-4 py-3 text-sm text-ink">{GROUP_NOTE} We never ask for an address, street or postcode.</p>
 
+      <div aria-live="polite" className="sticky top-16 z-20 -mx-1 flex max-h-[38vh] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-line bg-paper px-3 py-2 shadow-sm">
+        <span className="text-sm font-bold text-ink">{homeV ? "Your home:" : summary.length > 1 ? `Where you want to move (${summary.length}):` : "Where you want to move:"}</span>
+        {wantV?.anywhere && <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-pill bg-navy px-3 text-sm font-semibold text-paper"><Tick />Anywhere in Shetland</span>}
+        {summary.map((s) => (
+          <span key={s.id} className="inline-flex min-h-[44px] items-center gap-1 rounded-pill bg-navy pl-3 text-sm font-semibold text-paper">
+            <Tick />{s.label}
+            <button type="button" className="grid h-11 w-9 place-items-center rounded-r-pill hover:bg-navy-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-paper" aria-label={`Remove ${s.label}`} onClick={() => (props.mode === "home" ? props.onChange(homeV!.placeId ? keepHomeBroad(homeV!) : { regionId: "", placeId: "" }) : props.onChange(removeWant(wantV!, s.id)))}><span aria-hidden>{"×"}</span></button>
+          </span>
+        ))}
+        {empty && <span className="text-sm text-ink-muted">Nothing chosen yet.</span>}
+        {!empty && !(wantV?.anywhere) && <button type="button" onClick={clear} className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-navy-light underline">Clear</button>}
+      </div>
+
       <div className="lg:hidden" role="tablist" aria-label="How to choose">
         {(["map", "list"] as const).map((v) => (
           <button key={v} type="button" role="tab" aria-selected={view === v} onClick={() => setView(v)} className={`min-h-[44px] w-1/2 border-b-4 px-3 text-sm font-bold ${view === v ? "border-navy text-navy" : "border-transparent text-ink-muted"}`}>{v === "map" ? "Choose on the map" : "Search the list"}</button>
@@ -149,18 +162,7 @@ export function LocationPicker(props: Props) {
         </div>
       )}
 
-      <div aria-live="polite" className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <span className="text-sm font-bold text-ink">Selected{!homeV && summary.length > 1 ? ` (${summary.length})` : ""}:</span>
-        {wantV?.anywhere && <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-pill bg-navy px-3 text-sm font-semibold text-paper"><Tick />Anywhere in Shetland</span>}
-        {summary.map((s) => (
-          <span key={s.id} className="inline-flex min-h-[44px] items-center gap-1 rounded-pill bg-navy pl-3 text-sm font-semibold text-paper">
-            <Tick />{s.label}
-            <button type="button" className="grid h-11 w-9 place-items-center rounded-r-pill hover:bg-navy-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-paper" aria-label={`Remove ${s.label}`} onClick={() => (props.mode === "home" ? props.onChange(homeV!.placeId ? keepHomeBroad(homeV!) : { regionId: "", placeId: "" }) : props.onChange(removeWant(wantV!, s.id)))}><span aria-hidden>{"×"}</span></button>
-          </span>
-        ))}
-        {empty && <span className="text-sm text-ink-muted">Nothing chosen yet.</span>}
-        {!empty && !(wantV?.anywhere) && <button type="button" onClick={clear} className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-navy-light underline">Clear</button>}
-      </div>
+
     </div>
   );
 }

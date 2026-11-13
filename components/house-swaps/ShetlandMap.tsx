@@ -192,7 +192,8 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
           {PLACES.map((p) => {
             const c = pt(p.id); if (!c) return null;
             const on = isPlaceOn(p.id), inc = included(p.id);
-            const hitPx = Math.max(8, Math.min(22, (NEAREST[p.id] * pxPerUnit) / 2));
+            // A finger is far wider than the dot: never give a community less than a 22px-wide target, or the tap falls through to the region beneath and chooses the whole area by mistake.
+            const hitPx = Math.max(11, Math.min(22, (NEAREST[p.id] * pxPerUnit) / 2));
             const showName = on || focus === p.id || hover === p.id || showNames;
             const r = on ? 6 : 4;
             const toggle = guard(() => onPlace(p.id));
@@ -216,7 +217,7 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
             );
           })}
         </svg>
-        {k > 1.01 && <p className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg bg-paper/90 px-2 py-1 text-center text-xs font-semibold text-ink-soft">Drag to move the map. Choose Reset map to scroll the page again.</p>}
+        {k > 1.01 && <p className="pointer-events-none absolute inset-x-2 bottom-2 rounded-lg bg-paper/90 px-2 py-1 text-center text-xs font-semibold text-ink-soft">Drag to move the map. Choose Reset map to scroll the page again. Places you have chosen stay chosen, even outside this view.</p>}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
