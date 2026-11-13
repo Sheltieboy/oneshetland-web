@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { SECTIONS } from "@/lib/sections";
+import { HouseSwapsFooterLink } from "@/components/house-swaps/NavFlag";
 
 export function SiteFooter() {
   return (
@@ -49,6 +50,7 @@ export function SiteFooter() {
         <nav className="mt-12 flex flex-wrap gap-x-5 gap-y-2 border-t border-paper/15 pt-6 text-sm text-paper/70">
           <Link href="/accessible" className="hover:text-paper">Accessible Shetland</Link>
           <Link href="/almanac" className="hover:text-paper">The Almanac</Link>
+          <HouseSwapsFooterLink />
           <Link href="/loyalty" className="hover:text-paper">Local rewards</Link>
           <Link href="/business" className="hover:text-paper">For businesses</Link>
           <Link href="/support" className="hover:text-paper">Support</Link>

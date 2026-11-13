@@ -17,6 +17,8 @@ import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
 import { entryPointProps } from "@/lib/event-entry-points";
 import { SavedProvider } from "@/components/saved/SavedProvider";
 import { getSavedEnabled } from "@/lib/saved.server";
+import { houseSwapsEnabled } from "@/lib/house-swaps-data";
+import { HouseSwapsNavProvider } from "@/components/house-swaps/NavFlag";
 
 /**
  * Self-hosted typefaces (SIL Open Font License 1.1: see app/fonts/FONTS.md). These are the same latin-subset files Google Fonts served, so the site looks exactly as
@@ -90,6 +92,8 @@ export default async function RootLayout({
     : null;
   // My Saved: read once here. Off (the default) means nothing about it renders anywhere.
   const savedEnabled = await getSavedEnabled();
+  // House Swaps: its menu entry exists only while the feature is switched on (any failure counts as off).
+  const houseSwaps = await houseSwapsEnabled();
 
   return (
     <html
@@ -143,10 +147,12 @@ export default async function RootLayout({
         <ChargeApprovalListener>
           <ConfirmProvider>
            <SavedProvider enabled={savedEnabled} signedIn={!!account}>
+           <HouseSwapsNavProvider enabled={houseSwaps}>
             <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
             <HideOnEditionPages><HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes></HideOnEditionPages>
             <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
+           </HouseSwapsNavProvider>
            </SavedProvider>
           </ConfirmProvider>
         </ChargeApprovalListener>

@@ -5,6 +5,7 @@ import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { HouseSwapsMenuTile } from "@/components/house-swaps/NavFlag";
 import { mobileNavGroups } from "@/lib/nav-groups";
 import { ADD_EVENT_HREF, ADD_EVENT_MENU_LABEL } from "@/lib/event-entry-points";
 import { useSaved } from "@/components/saved/context";
@@ -139,6 +140,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
           )}
           </Fragment>
         ))}
+        <HouseSwapsMenuTile onClose={onClose} className={tile} />
 
         {user && (
           <form action="/auth/sign-out" method="post" className="mt-6">

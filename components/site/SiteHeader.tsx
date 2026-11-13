@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { HouseSwapsMoreLink } from "@/components/house-swaps/NavFlag";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
 import { BasketPill } from "@/components/shop/BasketPill";
@@ -80,6 +81,7 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }
                         {s.label}
                       </Link>
                     ))}
+                    <HouseSwapsMoreLink onNavigate={() => setMore(false)} />
                   </div>
                 </>
               )}
