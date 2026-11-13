@@ -71,6 +71,8 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
   const [hover, setHover] = useState<string | null>(null);
   const [width, setWidth] = useState(360);
   const wrap = useRef<HTMLDivElement>(null);
+  const svgEl = useRef<SVGSVGElement>(null);
+  const [tooClose, setTooClose] = useState<string | null>(null);
   const drag = useRef<{ sx: number; sy: number; v: View; moved: boolean } | null>(null);
   const suppress = useRef(false);
   const k = BASE.w / view.w;
@@ -119,6 +121,33 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
     drag.current = null;
   }
   const guard = (fn: () => void) => () => { if (!suppress.current) fn(); };
+
+  /**
+   * A finger is about 44px wide, a dot is not. A tap that lands on a region but within REACH of a community dot belongs to that
+   * community, not to the whole region. Where two dots are that close, the tap is ambiguous: choose NEITHER and say so, because
+   * quietly choosing a whole area is the one outcome a member would not notice. The list beside the map stays the precise way.
+   */
+  const hitRadius = (id: string) => Math.max(11, Math.min(22, (NEAREST[id] * pxPerUnit) / 2));
+  /** A near miss: the dot's own target plus a finger's worth of slack, never wider than 44px, and never wider than the gap to its neighbour allows. */
+  const reach = (id: string) => Math.min(22, hitRadius(id) + 6);
+  const nearestPlaces = (e: React.MouseEvent) => {
+    const svg = svgEl.current, ctm = svg?.getScreenCTM();
+    if (!svg || !ctm) return [];
+    const q = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
+    return PLACES
+      .map((p) => ({ id: p.id, d: Math.hypot(pt(p.id).x - q.x, pt(p.id).y - q.y) * pxPerUnit }))
+      .filter((c) => c.d <= reach(c.id))
+      .sort((a, b) => a.d - b.d);
+  };
+  /** A region tap: hand it to a community when one is clearly nearest, refuse it when two are equally close. */
+  const regionTap = (id: string) => (e: React.MouseEvent) => {
+    if (suppress.current) return; // a drag, not a tap
+    const near = nearestPlaces(e);
+    if (near.length === 1) { setTooClose(null); onPlace(near[0].id); return; }
+    if (near.length > 1) { setTooClose("Those communities are close together. Choose one from the list to be sure."); return; }
+    setTooClose(null);
+    onRegion(id);
+  };
   const keys = (fn: () => void) => (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
 
 
@@ -139,6 +168,7 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
 
       <div ref={wrap} className="relative mt-2 overflow-hidden rounded-card border border-line bg-[#eef5f8]" style={{ aspectRatio: `${BASE.w} / ${BASE.h}`, maxHeight: "78vh" }}>
         <svg
+          ref={svgEl}
           role="group" aria-label="Map of Shetland. Choose areas or communities. The list beside it does the same."
           viewBox={`${view.x} ${view.y} ${view.w} ${view.h}`} preserveAspectRatio="xMidYMid meet"
           className="block h-full w-full select-none" style={{ touchAction: k > 1.01 ? "none" : "pan-y" }}
@@ -157,7 +187,7 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
             const fill = on ? "var(--color-navy)" : hover === r.id ? "var(--color-line)" : "var(--color-sand)";
             const stroke = on ? "#fff" : "var(--color-ink-faint)";
             const props = { fill, stroke, strokeWidth: (on ? 0.9 : 0.7), fillRule: "evenodd" as const, strokeLinejoin: "round" as const };
-            const toggle = guard(() => onRegion(r.id));
+            const toggle = regionTap(r.id);
             return (
               <g key={r.id} role={radio ? "radio" : "checkbox"} aria-checked={on} aria-label={`${r.name} region${on ? ", selected" : ""}`} tabIndex={0} style={{ cursor: "pointer", outline: "none" }}
                 onClick={toggle} onKeyDown={keys(() => onRegion(r.id))} onFocus={() => setFocus(r.id)} onBlur={() => setFocus((f) => (f === r.id ? null : f))}
@@ -192,11 +222,11 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
           {PLACES.map((p) => {
             const c = pt(p.id); if (!c) return null;
             const on = isPlaceOn(p.id), inc = included(p.id);
-            // A finger is far wider than the dot: never give a community less than a 22px-wide target, or the tap falls through to the region beneath and chooses the whole area by mistake.
-            const hitPx = Math.max(11, Math.min(22, (NEAREST[p.id] * pxPerUnit) / 2));
+            // A finger is far wider than the dot: the target is as wide as the gap to the next community allows, up to 44px.
+            const hitPx = hitRadius(p.id);
             const showName = on || focus === p.id || hover === p.id || showNames;
             const r = on ? 6 : 4;
-            const toggle = guard(() => onPlace(p.id));
+            const toggle = guard(() => { setTooClose(null); onPlace(p.id); });
             return (
               <g key={p.id} role="checkbox" aria-checked={on ? true : inc ? "mixed" : false}
                 aria-label={`${p.name}, ${regionName(p.regionId)}${on ? ", selected" : inc ? ", included in the whole region" : ""}`}
@@ -222,6 +252,7 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-ink-muted">{radio ? "Tap an area to choose it, then a dot if you want to name a community." : "Tap an area to choose all of it. Tap a dot to choose just that community."}</p>
+        {tooClose && <p role="status" className="w-full rounded-lg border border-amber/60 bg-amber/10 px-3 py-2 text-sm font-semibold text-ink">{tooClose}</p>}
         {onSkip && <button type="button" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-navy-light underline" onClick={onSkip}>Skip the map, use the list</button>}
       </div>
       <p className="mt-1 text-[11px] leading-snug text-ink-muted">{MAP_ATTRIBUTION}</p>

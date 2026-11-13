@@ -185,9 +185,13 @@ test("three-step advert form: progress, per-step validation, focus on step chang
   assert.ok(picker.indexOf("Where you want to move") < picker.indexOf("{list}"), "the Selected summary is rendered before the list");
   assert.match(picker, /sticky top-16/, "the summary is pinned while the map and list scroll");
   assert.match(picker, /aria-label=\{`Remove \$\{s\.label\}`\}/, "every chosen place has its own remove control");
-  // A finger needs a target bigger than the dot, or the tap falls through to the region beneath.
-  const hit = /Math\.max\((\d+), Math\.min\(22,/.exec(map);
-  assert.ok(hit && Number(hit[1]) >= 11, `community taps need at least an 11px radius, found ${hit?.[1]}`);
+  // A finger needs a target bigger than the dot: as wide as the gap to the next community allows, up to 44px.
+  const hit = /hitRadius = \(id: string\) => Math\.max\((\d+), Math\.min\((\d+),/.exec(map);
+  assert.ok(hit && Number(hit[1]) >= 11 && Number(hit[2]) >= 22, `community targets: floor ${hit?.[1]}, cap ${hit?.[2]}`);
+  assert.match(map, /const reach = \(id: string\) => Math\.min\(22, hitRadius\(id\) \+ 6\)/, "a near miss reaches past the dot's own target");
+  // A tap that is close to two communities must choose neither, never the whole area.
+  assert.match(map, /if \(near\.length > 1\) \{ setTooClose\(/, "an ambiguous tap refuses and says so");
+  assert.ok(map.indexOf("if (near.length > 1)") < map.indexOf("onRegion(id)"), "the ambiguity check runs before the whole-area choice");
 });
 test("communities show wherever the home's area shows; the filters accept communities", () => {
   for (const p of ["components/house-swaps/ListingCard.tsx", "components/house-swaps/MatchCard.tsx", "components/house-swaps/ModerationCard.tsx", "app/house-swaps/[id]/page.tsx"]) assert.match(read(p), /homeLocationText/, p);
