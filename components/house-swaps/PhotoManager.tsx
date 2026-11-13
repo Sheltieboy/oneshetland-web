@@ -3,29 +3,9 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { MAX_PHOTOS, PHOTO_TIP, fitWithin, newPhotoPath, photoUrl, type MyPhoto } from "@/lib/house-swaps";
+import { MAX_PHOTOS, PHOTO_TIP, photoUrl, type MyPhoto } from "@/lib/house-swaps";
+import { PHOTO_BUCKET, photoProblem, uploadOnePhoto } from "@/lib/house-swaps-photo-upload";
 import { fieldCls } from "./Shell";
-
-const BUCKET = "house-swap-photos";
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-
-/** Re-encode through a canvas: caps the size at 1600px and drops EXIF/GPS (a canvas carries pixels only). */
-async function reencode(file: File): Promise<Blob> {
-  let bmp: ImageBitmap;
-  try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions); }
-  catch { throw new Error(`"${file.name}" could not be read as a photo. Please try a different JPEG, PNG or WebP picture.`); }
-  const { width, height } = fitWithin(bmp.width, bmp.height, 1600);
-  const canvas = document.createElement("canvas");
-  canvas.width = width; canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("This browser can't prepare photos.");
-  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, width, height);   // JPEG has no transparency
-  ctx.drawImage(bmp, 0, 0, width, height);
-  bmp.close?.();
-  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.82));
-  if (!blob) throw new Error("That photo could not be prepared.");
-  return blob;
-}
 
 /** Add, describe and remove the advert's photos (up to 6). Files go straight to storage from the browser, then are registered with the advert. */
 export function PhotoManager({ photos, userId }: { photos: MyPhoto[]; userId: string }) {
@@ -39,21 +19,13 @@ export function PhotoManager({ photos, userId }: { photos: MyPhoto[]; userId: st
   async function add(files: FileList | null) {
     if (!files || !files.length) return;
     setBusy(true); setMsg(null);
-    const sb = createClient();
     let added = 0, problem: string | null = null;
     const list = Array.from(files).slice(0, room);
     for (const file of list) {
-      if (!file.type.startsWith("image/")) { problem = `"${file.name}" is not a photo, so it was left out. Please choose a JPEG, PNG or WebP picture.`; continue; }
-      if (file.size > MAX_PHOTO_BYTES) { problem = `"${file.name}" is larger than 5 MB, so it was left out. Please choose a smaller photo.`; continue; }
-      try {
-        const blob = await reencode(file);
-        const path = newPhotoPath(userId, crypto.randomUUID());
-        const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
-        if (up.error) { problem = "The photo could not be uploaded. Please try again."; continue; }
-        const reg = await sb.rpc("add_my_house_swap_photo", { p_path: path, p_alt: alt.trim() || null });
-        if (reg.error) { await sb.storage.from(BUCKET).remove([path]); problem = reg.error.message; continue; }
-        added++;
-      } catch (e) { problem = e instanceof Error ? e.message : "That photo could not be added."; }
+      const bad = photoProblem(file);
+      if (bad) { problem = `${bad} It was left out.`; continue; }
+      const r = await uploadOnePhoto(file, userId, alt);
+      if (r.ok) added++; else problem = r.error;
     }
     if (files.length > room) problem = problem ?? `Only ${MAX_PHOTOS} photos can be added, so some were left out.`;
     setBusy(false);
@@ -69,7 +41,7 @@ export function PhotoManager({ photos, userId }: { photos: MyPhoto[]; userId: st
     const r = await sb.rpc("remove_my_house_swap_photo", { p_photo: p.id });
     if (r.error) setMsg({ ok: false, text: r.error.message });
     else {
-      if (typeof r.data === "string" && r.data) await sb.storage.from(BUCKET).remove([r.data]);
+      if (typeof r.data === "string" && r.data) await sb.storage.from(PHOTO_BUCKET).remove([r.data]);
       setMsg({ ok: true, text: "Photo removed." });
       router.refresh();
     }

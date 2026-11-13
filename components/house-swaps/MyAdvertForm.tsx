@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { saveAdvert } from "@/app/house-swaps/actions";
+import { PhotoPicker, type PendingPhoto } from "./PhotoPicker";
+import { uploadOnePhoto } from "@/lib/house-swaps-photo-upload";
 import {
   FEATURES, ACCESS_FEATURE_IDS, LANDLORDS, LIMITS, PROPERTY_TYPES, CONTACT_RULE, HOUSE_SWAPS_DISCLAIMER, NEVER_PAY,
   advertPreview, bedroomsLabel, toggle, validateAdvert, type AdvertErrors, type AdvertForm,
@@ -85,9 +87,16 @@ function Progress({ step, canVisit, go }: { step: WizardStep; canVisit: (n: Wiza
 }
 
 /** Create or edit the member's advert in three friendly steps with a live preview. Everything typed is kept when moving between steps. The server re-checks everything. */
-export function MyAdvertForm({ initial, editing, photosSlot }: { initial: AdvertForm; editing: boolean; photosSlot?: ReactNode }) {
+export function MyAdvertForm({ initial, editing, photosSlot, userId }: { initial: AdvertForm; editing: boolean; photosSlot?: ReactNode; userId?: string }) {
   const [f, setF] = useState<AdvertForm>(initial);
   const [step, setStep] = useState<WizardStep>(1);
+  // Photos chosen before the advert exists. They live here, beside the rest of the answers, so they survive moving between steps.
+  const [photos, setPhotos] = useState<PendingPhoto[]>([]);
+  const [uploading, setUploading] = useState<{ done: number; total: number } | null>(null);
+  const leftover = photos.some((p) => p.state !== "done");
+  // The picker is for photos not yet uploaded: while writing the advert, and afterwards for any that failed, so they can be seen and retried.
+  const canPick = !!userId && (!editing || leftover);
+
   const [errors, setErrors] = useState<AdvertErrors>({});
   const [msg, setMsg] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, start] = useTransition();
@@ -135,6 +144,40 @@ export function MyAdvertForm({ initial, editing, photosSlot }: { initial: Advert
     goTo(clampStep(step + 1));
   }
 
+  /**
+   * Upload the photos the member chose, one at a time, after the advert has been saved. Each one keeps its own state, so a failure
+   * loses neither the advert (already saved) nor the other photos: what failed stays in the list with a Try again button.
+   */
+  async function uploadChosen(list: PendingPhoto[]): Promise<number> {
+    const todo = list.filter((p) => p.state !== "done");
+    if (!todo.length || !userId) return 0;
+    setUploading({ done: 0, total: todo.length });
+    let failures = 0;
+    for (let i = 0; i < todo.length; i++) {
+      const p = todo[i];
+      setPhotos((cur) => cur.map((q) => (q.id === p.id ? { ...q, state: "uploading", error: undefined } : q)));
+      const r = await uploadOnePhoto(p.file, userId, p.alt);
+      if (r.ok) setPhotos((cur) => cur.map((q) => (q.id === p.id ? { ...q, state: "done", error: undefined } : q)));
+      else { failures++; setPhotos((cur) => cur.map((q) => (q.id === p.id ? { ...q, state: "failed", error: r.error } : q))); }
+      setUploading({ done: i + 1, total: todo.length });
+    }
+    setUploading(null);
+    return failures;
+  }
+
+  /** The advert is already saved; this retries only the photos that did not go up. */
+  function retryPhotos() {
+    if (uploading) return;
+    start(async () => {
+      const failures = await uploadChosen(photos);
+      if (!failures) setPhotos([]);
+      setMsg(failures
+        ? { tone: "error", text: `${failures} photo${failures === 1 ? "" : "s"} still could not be added. Your advert is saved. You can try again, or remove ${failures === 1 ? "it" : "them"} and add photos later.` }
+        : { tone: "ok", text: "Your photos have been added." });
+      router.refresh();
+    });
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (step < 3) return next();
@@ -153,7 +196,15 @@ export function MyAdvertForm({ initial, editing, photosSlot }: { initial: Advert
     start(async () => {
       const r = await saveAdvert(f);
       if (r.ok) {
-        setMsg({ tone: "ok", text: editing ? "Saved. If you changed the wording, it will be checked again before it shows." : "Thank you. Your advert is saved and waiting for a quick check by our team. You'll see it here when it is live. You can add photos below." });
+        // The advert exists now, so the photos chosen on step 3 can be attached to it.
+        const failures = userId && photos.length ? await uploadChosen(photos) : 0;
+        if (!failures) setPhotos([]);
+        const saved = editing
+          ? "Saved. If you changed the wording, it will be checked again before it shows."
+          : "Thank you. Your advert is saved and waiting for a quick check by our team. You'll see it here when it is live.";
+        setMsg(failures
+          ? { tone: "error", text: `Your advert is saved, but ${failures} photo${failures === 1 ? "" : "s"} could not be uploaded. Nothing else is lost: choose Try the photos again below.` }
+          : { tone: "ok", text: photos.length ? `${saved} Your photos were added too.` : saved });
         setF((p) => ({ ...p, acknowledged: false }));
         router.refresh();
         top.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -262,6 +313,14 @@ export function MyAdvertForm({ initial, editing, photosSlot }: { initial: Advert
           </StepPanel>
 
           {photosSlot}
+          {canPick && <PhotoPicker photos={photos} onChange={setPhotos} disabled={pending || !!uploading} />}
+
+          {photos.some((p) => p.state === "failed") && !uploading && (
+            <p className="flex flex-wrap items-center gap-3 rounded-card border border-amber/60 bg-amber/10 px-4 py-3 text-sm font-semibold text-ink">
+              Some photos were not added. Your advert is saved.
+              <button type="button" onClick={retryPhotos} disabled={pending} className={btnSecondary}>Try the photos again</button>
+            </p>
+          )}
 
           <aside aria-label="Preview of your advert" className="rounded-card border border-dashed border-line-strong bg-paper p-5 shadow-soft sm:p-6">
             <p className="text-[11px] font-black uppercase tracking-widest text-ink-muted">Preview: how your advert will read</p>
@@ -303,7 +362,7 @@ export function MyAdvertForm({ initial, editing, photosSlot }: { initial: Advert
         {step > 1 && <button type="button" onClick={() => goTo(clampStep(step - 1))} className={`${btnSecondary} min-w-[7rem]`}>{"←"} Back</button>}
         {step < 3
           ? <button type="submit" className={`${btnPrimary} min-w-[8rem]`}>Next {"→"}</button>
-          : <button type="submit" disabled={pending} className={`${btnPrimary} min-w-[10rem]`}>{pending ? "Saving…" : editing ? "Save changes" : "Save my advert"}</button>}
+          : <button type="submit" disabled={pending || !!uploading} className={`${btnPrimary} min-w-[10rem]`}>{uploading ? `Uploading photo ${uploading.done + (uploading.done < uploading.total ? 1 : 0)} of ${uploading.total}\u2026` : pending ? "Saving\u2026" : editing ? "Save changes" : "Save my advert"}</button>}
         {step === 3 && <p className="basis-full text-sm text-ink-muted sm:basis-auto">{editing ? "Changing the headline, words or photos of a live advert sends it for a quick re-check." : "Our team checks every new advert before it appears."}</p>}
       </div>
     </form>

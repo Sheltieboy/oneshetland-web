@@ -91,9 +91,8 @@ export default async function MyAdvertPage() {
           key="advert"
           initial={l ? advertFromListing(l) : EMPTY_ADVERT}
           editing={!!l}
-          photosSlot={l ? <PhotoManager photos={l.photos} userId={userId} /> : (
-            <Panel aria-labelledby="ph"><h2 id="ph" className="font-display text-2xl font-bold text-ink">Photos (optional)</h2><p className="mt-1 text-sm text-ink-muted">Save your advert first, then you can add up to 6 photos here.</p></Panel>
-          )}
+          userId={userId}
+          photosSlot={l ? <PhotoManager photos={l.photos} userId={userId} /> : null}
         />
         {l && <div className="mt-8"><Disclaimer /></div>}
         <p className="mt-6"><Link href="/house-swaps" className={btnSecondary}>Back to the noticeboard</Link></p>

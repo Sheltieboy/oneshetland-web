@@ -51,7 +51,7 @@ test("no names, addresses or contact fields are collected or rendered", () => {
   assert.match(read("lib/house-swaps.ts"), /CONTACT_RULE/);
 });
 test("photos: re-encoded through a canvas to JPEG before upload, max 6, own folder", () => {
-  const ph = read("components/house-swaps/PhotoManager.tsx");
+  const ph = read("components/house-swaps/PhotoManager.tsx") + read("lib/house-swaps-photo-upload.ts");
   assert.match(ph, /toBlob\(res, "image\/jpeg", 0\.82\)/);
   assert.match(ph, /fitWithin\(bmp\.width, bmp\.height, 1600\)/);
   assert.ok(ph.indexOf("reencode(file)") < ph.indexOf(".upload("));
@@ -94,7 +94,7 @@ test("the never-pay warning is one shared constant shown wherever the disclaimer
   for (const [p, s] of allSrc) { if (p !== "lib/house-swaps.ts") assert.doesNotMatch(s, /Never pay anyone/, p); }
 });
 test("photo uploads refuse non-photos and over-5MB files, and withdrawing removes the files", () => {
-  const pm = read("components/house-swaps/PhotoManager.tsx");
+  const pm = read("components/house-swaps/PhotoManager.tsx") + read("lib/house-swaps-photo-upload.ts");
   assert.match(pm, /MAX_PHOTO_BYTES/);
   assert.match(pm, /is not a photo/);
   assert.match(read("components/house-swaps/StatusControls.tsx"), /storage\.from\("house-swap-photos"\)\.remove\(photoPaths\)/);
@@ -192,6 +192,38 @@ test("three-step advert form: progress, per-step validation, focus on step chang
   // A tap that is close to two communities must choose neither, never the whole area.
   assert.match(map, /if \(near\.length > 1\) \{ setTooClose\(/, "an ambiguous tap refuses and says so");
   assert.ok(map.indexOf("if (near.length > 1)") < map.indexOf("onRegion(id)"), "the ambiguity check runs before the whole-area choice");
+});
+test("photos can be chosen while writing the advert, and are uploaded straight after it is saved", () => {
+  const page = read("app/house-swaps/my/page.tsx");
+  assert.doesNotMatch(page, /Save your advert first/, "the awkward save-first note is gone");
+  assert.match(page, /userId=\{userId\}/, "the form can put photos in the member's own folder");
+
+  const picker = read("components/house-swaps/PhotoPicker.tsx");
+  assert.match(picker, /type="file"/);
+  assert.match(picker, /accept="image\/jpeg,image\/png,image\/webp"/, "the same file types as before");
+  assert.match(picker, /URL\.createObjectURL/, "previews");
+  assert.match(picker, /URL\.revokeObjectURL/, "and the previews are released again");
+  assert.match(picker, /Remove<span className="sr-only"> photo/, "each photo can be removed on its own");
+  assert.match(picker, /MAX_PHOTOS/, "the six-photo limit is the shared one");
+
+  const form = read("components/house-swaps/MyAdvertForm.tsx");
+  const submitBody = form.slice(form.indexOf("const r = await saveAdvert(f)"));
+  assert.ok(submitBody.indexOf("await saveAdvert(f)") < submitBody.indexOf("await uploadChosen(photos)"), "the advert is saved BEFORE its photos are uploaded");
+  assert.match(form, /disabled=\{pending \|\| !!uploading\}/, "no duplicate submissions while saving or uploading");
+  assert.match(form, /Uploading photo \$\{uploading\.done/, "progress names the photo being uploaded");
+  assert.match(form, /Try the photos again/, "a failed upload offers a retry");
+  assert.match(form, /if \(!failures\) setPhotos\(\[\]\)/, "once uploaded, the saved advert's own list takes over");
+
+  // One upload path, so the privacy work cannot drift between the two places photos are added.
+  const shared = read("lib/house-swaps-photo-upload.ts");
+  assert.match(shared, /createImageBitmap/, "re-encoded through a canvas, which carries pixels only");
+  assert.match(shared, /canvas\.toBlob/);
+  assert.match(shared, /MAX_PHOTO_BYTES = 5 \* 1024 \* 1024/, "the 5 MB limit is unchanged");
+  assert.match(shared, /add_my_house_swap_photo/, "registered through the existing RPC");
+  assert.match(shared, /remove\(\[path\]\)/, "a file that cannot be attached is deleted again");
+  for (const f of ["components/house-swaps/PhotoPicker.tsx", "components/house-swaps/PhotoManager.tsx"]) {
+    assert.doesNotMatch(read(f), /createImageBitmap/, `${f} must use the shared upload path, not its own`);
+  }
 });
 test("communities show wherever the home's area shows; the filters accept communities", () => {
   for (const p of ["components/house-swaps/ListingCard.tsx", "components/house-swaps/MatchCard.tsx", "components/house-swaps/ModerationCard.tsx", "app/house-swaps/[id]/page.tsx"]) assert.match(read(p), /homeLocationText/, p);
