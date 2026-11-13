@@ -132,18 +132,19 @@ export type WantState = WantSel & { anywhere: boolean };
 export const ANYWHERE: WantState = { anywhere: true, regionIds: [], placeIds: [] };
 
 /**
- * While the form is open we KEEP every community the member chose, including ones inside a region they later chose as a whole.
- * Nothing is dropped, so narrowing a whole region back down to communities never loses an earlier choice.
- * What is saved and shown is the EFFECTIVE selection (`effectiveWants`), where a community inside a whole region is redundant.
+ * What is held is exactly what is shown and saved: no hidden state. A choice only ever leaves the list when the member removes it,
+ * or when they choose the whole area that covers it (which asks for MORE places, not fewer, and is announced on screen).
  */
-const keepWants = (sel: WantSel): WantSel => ({
-  regionIds: [...new Set(sel.regionIds.filter((r) => REGION_IDS.includes(r)))],
-  placeIds: [...new Set(sel.placeIds.filter(isPlaceId))],
-});
-/** The selection as the advert means it: a whole region stands in for its own communities. */
 export const effectiveWants = (s: WantSel): WantSel => normaliseWants(s);
+/** Communities already covered by a whole area that is being chosen, so the screen can say what just happened. */
+export const coveredBy = (s: WantSel, regionId: string): string[] => s.placeIds.filter((p) => regionOf(p) === regionId);
+/** True when this community cannot be chosen on its own because the whole area around it is already chosen. */
+export const coveredAlready = (s: WantSel, placeId: string): boolean => {
+  const p = placeById(placeId);
+  return !!p && s.regionIds.includes(p.regionId);
+};
 const wantNorm = (s: WantState): WantState => {
-  const n = keepWants(s);
+  const n = normaliseWants(s);
   return { anywhere: !n.regionIds.length && !n.placeIds.length ? s.anywhere : false, ...n };
 };
 
@@ -156,15 +157,12 @@ export function toggleWantRegion(s: WantState, regionId: string): WantState {
   return wantNorm({ anywhere: false, regionIds: has ? s.regionIds.filter((r) => r !== regionId) : [...s.regionIds, regionId], placeIds: s.placeIds });
 }
 /**
- * Choosing a community inside a region that was chosen as a whole narrows the choice to communities:
- * the whole region comes off and every community already chosen in it is kept, plus this one.
+ * Add or remove one community. A community inside a whole area that is already chosen CANNOT be toggled here: the choice stands
+ * until the member removes the whole area themselves, so nothing of theirs is ever taken away by a tap meant to add something.
  */
 export function toggleWantPlace(s: WantState, placeId: string): WantState {
   const p = placeById(placeId);
-  if (!p) return s;
-  if (s.regionIds.includes(p.regionId)) {
-    return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => r !== p.regionId), placeIds: [...s.placeIds, placeId] });
-  }
+  if (!p || s.regionIds.includes(p.regionId)) return s;
   if (s.placeIds.includes(placeId)) return wantNorm({ ...s, anywhere: false, placeIds: s.placeIds.filter((x) => x !== placeId) });
   return wantNorm({ ...s, anywhere: false, placeIds: [...s.placeIds, placeId] });
 }
@@ -181,14 +179,14 @@ export function toggleWantGroup(s: WantState, group: string): WantState {
     const drop = new Set(ps.map((p) => p.id));
     return wantNorm({ anywhere: false, regionIds: s.regionIds, placeIds: s.placeIds.filter((x) => !drop.has(x)) });
   }
-  const regions = new Set(ps.map((p) => p.regionId));
-  return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => !regions.has(r as RegionId)), placeIds: [...new Set([...s.placeIds, ...ps.map((p) => p.id)])] });
+  if (ps.some((p) => s.regionIds.includes(p.regionId))) return s; // already covered by a whole area the member chose
+  return wantNorm({ anywhere: false, regionIds: s.regionIds, placeIds: [...new Set([...s.placeIds, ...ps.map((p) => p.id)])] });
 }
-/** The x on a "Selected" chip deletes: removing a whole region also forgets the communities remembered inside it. */
+/** The x on a chip removes exactly that one destination and nothing else. */
 export function removeWant(s: WantState, id: string): WantState {
   if (isPlaceId(id)) return wantNorm({ ...s, anywhere: false, placeIds: s.placeIds.filter((x) => x !== id) });
   if (!REGION_IDS.includes(id)) return s;
-  return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => r !== id), placeIds: s.placeIds.filter((x) => regionOf(x) !== id) });
+  return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => r !== id), placeIds: s.placeIds });
 }
 /** How many places the advert actually asks for: whole regions plus communities outside them. */
 export function wantCount(s: WantState): number {

@@ -251,7 +251,7 @@ export function ShetlandMap({ mode, regionIds, placeIds, onRegion, onPlace, onSk
       </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-ink-muted">{radio ? "Tap an area to choose it, then a dot if you want to name a community." : "Tap an area to choose all of it. Tap a dot to choose just that community."}</p>
+        <p className="text-xs text-ink-muted">{radio ? "One place only: tap an area to choose it, then a dot to name a community. Tapping another area replaces it." : "Tap an area to add all of it, or a dot to add one community. Everything you add stays until you remove it."}</p>
         {tooClose && <p role="status" className="w-full rounded-lg border border-amber/60 bg-amber/10 px-3 py-2 text-sm font-semibold text-ink">{tooClose}</p>}
         {onSkip && <button type="button" className="inline-flex min-h-[44px] items-center text-sm font-semibold text-navy-light underline" onClick={onSkip}>Skip the map, use the list</button>}
       </div>

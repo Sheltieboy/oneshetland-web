@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import {
-  GROUPS, GROUP_NOTE, REGIONS, ANYWHERE, chooseHomePlace, chooseHomeRegion, describeLocation, effectiveWants, isGroupChosen, keepHomeBroad, placeById, placesIn, placesInGroup,
+  GROUPS, GROUP_NOTE, REGIONS, ANYWHERE, chooseHomePlace, chooseHomeRegion, coveredAlready, coveredBy, describeLocation, effectiveWants, isGroupChosen, keepHomeBroad, placeById, placesIn, placesInGroup,
   regionName, removeWant, searchLocations, toggleAnywhere, toggleWantGroup, toggleWantPlace, toggleWantRegion, wantCount, type HomeState, type Place, type WantState,
 } from "@/lib/house-swaps-geo";
 import { ShetlandMap } from "./ShetlandMap";
@@ -16,10 +16,20 @@ const chipBase = "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 r
 const chipCls = (on: boolean, included = false) => `${chipBase} ${on ? "border-navy bg-navy text-paper" : included ? "border-navy bg-paper text-navy" : "border-line-strong bg-paper text-ink hover:bg-sand"}`;
 const Tick = () => <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 13 10 18 19 7" /></svg>;
 
+/**
+ * A tick box you can see. Destinations ("wants") are a MULTIPLE choice, so each one carries a real box that fills in when it is on
+ * and stays on when the next one is chosen. Step 1's home is a single choice, so it keeps the plain chip: tapping another one replaces it.
+ */
+const Box = ({ on, mixed }: { on: boolean; mixed?: boolean }) => (
+  <span aria-hidden className={`grid h-5 w-5 shrink-0 place-items-center rounded border-2 ${on ? "border-paper bg-paper text-navy" : mixed ? "border-navy bg-paper text-navy" : "border-ink-muted bg-paper text-transparent"}`}>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 13 10 18 19 7" /></svg>
+  </span>
+);
+
 function Chip({ on, included, radio, label, children, onClick }: { on: boolean; included?: boolean; radio?: boolean; label: string; children: React.ReactNode; onClick: () => void }) {
   return (
     <button type="button" role={radio ? "radio" : "checkbox"} aria-checked={on ? true : included ? "mixed" : false} aria-label={label} onClick={onClick} className={chipCls(on, included)}>
-      {(on || included) && <Tick />}{children}
+      {radio ? ((on || included) && <Tick />) : <Box on={on} mixed={included} />}{children}
     </button>
   );
 }
@@ -31,6 +41,7 @@ function Chip({ on, included, radio, label, children, onClick }: { on: boolean; 
 export function LocationPicker(props: Props) {
   const uid = useId();
   const [query, setQuery] = useState("");
+  const [note, setNote] = useState<string | null>(null);
   const [view, setView] = useState<"map" | "list">("map"); // on a phone one at a time; on a wide screen both show
   const search = useRef<HTMLInputElement>(null);
   const home = props.mode === "home";
@@ -44,8 +55,26 @@ export function LocationPicker(props: Props) {
   const effW = wantV ? effectiveWants(wantV) : null;
   const mapRegions = homeV ? (homeV.regionId ? [homeV.regionId] : []) : effW!.regionIds;
   const mapPlaces = homeV ? (homeV.placeId ? [homeV.placeId] : []) : effW!.placeIds;
-  const onRegion = (id: string) => (props.mode === "home" ? props.onChange(chooseHomeRegion(props.value, id)) : props.onChange(toggleWantRegion(props.value, id)));
-  const onPlace = (id: string) => (props.mode === "home" ? props.onChange(chooseHomePlace(props.value, id)) : props.onChange(toggleWantPlace(props.value, id)));
+  // Nothing changes without a word on screen: a whole area that now covers communities says so, and a community that is already
+  // covered says why it cannot be chosen on its own. Neither case ever takes a destination away behind the member's back.
+  const onRegion = (id: string) => {
+    if (props.mode === "home") { setNote(null); return props.onChange(chooseHomeRegion(props.value, id)); }
+    const w = props.value as WantState;
+    const taken = w.regionIds.includes(id) ? [] : coveredBy(w, id).map((p) => placeById(p)?.name ?? p);
+    setNote(taken.length ? `All of ${regionName(id)} now covers ${taken.join(", ")}, so ${taken.length === 1 ? "it is" : "they are"} no longer listed separately.` : null);
+    props.onChange(toggleWantRegion(w, id));
+  };
+  const onPlace = (id: string) => {
+    if (props.mode === "home") { setNote(null); return props.onChange(chooseHomePlace(props.value, id)); }
+    const w = props.value as WantState;
+    if (coveredAlready(w, id)) {
+      const p = placeById(id);
+      setNote(`${p?.name} is already covered by All of ${regionName(p!.regionId)}. Remove that whole area first if you want ${p?.name} on its own.`);
+      return;
+    }
+    setNote(null);
+    props.onChange(toggleWantPlace(w, id));
+  };
 
   function skip() { setView("list"); setTimeout(() => search.current?.focus(), 30); }
 
@@ -70,7 +99,7 @@ export function LocationPicker(props: Props) {
 
       {!home && !searching && (
         <div role="group" aria-label="Open to anywhere">
-          <Chip on={wantV!.anywhere} label="Anywhere in Shetland" onClick={() => props.onChange(toggleAnywhere(props.value as WantState) as never)}>Anywhere in Shetland</Chip>
+          <Chip on={wantV!.anywhere} label="Anywhere in Shetland" onClick={() => { setNote(null); props.onChange(toggleAnywhere(props.value as WantState) as never); }}>Anywhere in Shetland</Chip>
         </div>
       )}
 
@@ -121,23 +150,30 @@ export function LocationPicker(props: Props) {
   );
 
   const empty = homeV ? !homeV.regionId : wantCount(wantV!) === 0 && !wantV!.anywhere;
-  const clear = () => (props.mode === "home" ? props.onChange({ regionId: "", placeId: "" }) : props.onChange(ANYWHERE));
+  const clear = () => { setNote(null); return props.mode === "home" ? props.onChange({ regionId: "", placeId: "" }) : props.onChange(ANYWHERE); };
 
   return (
     <div className="space-y-4" aria-invalid={props.invalid || undefined}>
       <p className="rounded-xl border border-teal/50 bg-teal/10 px-4 py-3 text-sm text-ink">{GROUP_NOTE} We never ask for an address, street or postcode.</p>
 
+      <p className={`rounded-xl px-4 py-3 text-sm font-semibold ${home ? "bg-sand text-ink" : "bg-navy text-paper"}`}>
+        {home
+          ? "This is where you live now. It is one place only \u2014 choosing another area replaces it."
+          : "These are the places you would move to. Choose as many areas and communities as you like \u2014 nothing you pick is removed unless you remove it."}
+      </p>
+
       <div aria-live="polite" className="sticky top-16 z-20 -mx-1 flex max-h-[38vh] flex-wrap items-center gap-2 overflow-y-auto rounded-xl border border-line bg-paper px-3 py-2 shadow-sm">
-        <span className="text-sm font-bold text-ink">{homeV ? "Your home:" : summary.length > 1 ? `Where you want to move (${summary.length}):` : "Where you want to move:"}</span>
+        <span className="text-sm font-bold text-ink">{homeV ? "Your home \u2014 one place:" : summary.length > 1 ? `Where you want to move \u2014 ${summary.length} chosen:` : "Where you want to move \u2014 choose as many as you like:"}</span>
         {wantV?.anywhere && <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-pill bg-navy px-3 text-sm font-semibold text-paper"><Tick />Anywhere in Shetland</span>}
         {summary.map((s) => (
           <span key={s.id} className="inline-flex min-h-[44px] items-center gap-1 rounded-pill bg-navy pl-3 text-sm font-semibold text-paper">
             <Tick />{s.label}
-            <button type="button" className="grid h-11 w-9 place-items-center rounded-r-pill hover:bg-navy-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-paper" aria-label={`Remove ${s.label}`} onClick={() => (props.mode === "home" ? props.onChange(homeV!.placeId ? keepHomeBroad(homeV!) : { regionId: "", placeId: "" }) : props.onChange(removeWant(wantV!, s.id)))}><span aria-hidden>{"×"}</span></button>
+            <button type="button" className="grid h-11 w-9 place-items-center rounded-r-pill hover:bg-navy-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-paper" aria-label={`Remove ${s.label}`} onClick={() => { setNote(null); return props.mode === "home" ? props.onChange(homeV!.placeId ? keepHomeBroad(homeV!) : { regionId: "", placeId: "" }) : props.onChange(removeWant(wantV!, s.id)); }}><span aria-hidden>{"×"}</span></button>
           </span>
         ))}
         {empty && <span className="text-sm text-ink-muted">Nothing chosen yet.</span>}
         {!empty && !(wantV?.anywhere) && <button type="button" onClick={clear} className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-navy-light underline">Clear</button>}
+        {note && <p role="status" className="w-full rounded-lg border border-amber/60 bg-amber/10 px-3 py-2 text-sm font-semibold text-ink">{note}</p>}
       </div>
 
       <div className="lg:hidden" role="tablist" aria-label="How to choose">
