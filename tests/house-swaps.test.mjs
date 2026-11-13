@@ -16,7 +16,7 @@ test("vocabulary matches the database", () => {
 });
 test("browse query parsing ignores junk and round-trips", () => {
   const q = hs.parseBrowseQuery({ area: "shetland_north", beds: "3", type: "flat,zzz,house", feat: ["ground_floor", "bad"], want: "nope", page: "3" });
-  assert.deepEqual(q, { area: "shetland_north", beds: "3", types: ["flat", "house"], features: ["ground_floor"], want: null, page: 3 });
+  assert.deepEqual(q, { area: "shetland_north", place: null, beds: "3", types: ["flat", "house"], features: ["ground_floor"], want: null, page: 3 });
   assert.equal(hs.parseBrowseQuery({ beds: "9", page: "-4" }).beds, null);
   assert.equal(hs.parseBrowseQuery({ page: "-4" }).page, 1);
   assert.equal(hs.browseHref(q), "/house-swaps?area=shetland_north&beds=3&type=flat%2Chouse&feat=ground_floor&page=3");
@@ -48,7 +48,7 @@ test("advert validation", () => {
 });
 test("payload matches the RPC", () => {
   const p = hs.advertPayload({ ...good, anywhere: false, want_area_ids: ["lerwick_bressay"], headline: "  Hi  ", want_notes: "" });
-  assert.deepEqual(Object.keys(p).sort(), ["acknowledged", "description", "have_area_id", "have_bedrooms", "have_features", "have_type", "headline", "landlord_type", "want_area_ids", "want_features", "want_max_bedrooms", "want_min_bedrooms", "want_notes", "want_types"]);
+  assert.deepEqual(Object.keys(p).sort(), ["acknowledged", "description", "have_area_id", "have_bedrooms", "have_features", "have_place_id", "have_type", "headline", "landlord_type", "want_area_ids", "want_features", "want_max_bedrooms", "want_min_bedrooms", "want_notes", "want_place_ids", "want_types"]);
   assert.equal(p.headline, "Hi"); assert.equal(p.want_notes, null); assert.equal(p.landlord_type, null);
   assert.deepEqual(hs.advertPayload({ ...good, anywhere: true, want_area_ids: ["lerwick_bressay"] }).want_area_ids, []);
 });

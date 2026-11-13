@@ -2,7 +2,16 @@ import Link from "next/link";
 import {
   ACCESS_FEATURE_IDS, AREAS, BEDROOM_FILTERS, FEATURES, PROPERTY_TYPES, activeFilterChips, activeFilterCount, type BrowseQuery,
 } from "@/lib/house-swaps";
+import { REGIONS, placesIn } from "@/lib/house-swaps-geo";
 import { btnPrimary, fieldCls } from "./Shell";
+
+/** Communities grouped under their region (works without JavaScript: one grouped select). */
+const PlaceOptions = ({ all }: { all?: string }) => (
+  <>
+    {all && <option value="">{all}</option>}
+    {REGIONS.map((r) => <optgroup key={r.id} label={r.name}>{placesIn(r.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>)}
+  </>
+);
 
 const check = "flex min-h-[44px] cursor-pointer items-center gap-2.5 rounded-xl border border-line-strong bg-paper px-3 text-sm font-semibold text-ink has-[:checked]:border-navy has-[:checked]:bg-navy/5 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-navy";
 
@@ -20,12 +29,18 @@ export function BrowseFilters({ q }: { q: BrowseQuery }) {
           <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-open:rotate-180"><polyline points="6 9 12 15 18 9" /></svg>
         </summary>
         <form method="get" action="/house-swaps" className="space-y-5 border-t border-line p-5">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <label htmlFor="f-area" className="block text-sm font-semibold text-ink">Where the home is</label>
               <select id="f-area" name="area" defaultValue={q.area ?? ""} className={fieldCls}>
                 <option value="">Anywhere in Shetland</option>
                 {AREAS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="f-place" className="block text-sm font-semibold text-ink">Or a community <span className="font-normal text-ink-muted">(takes over from the area)</span></label>
+              <select id="f-place" name="place" defaultValue={q.place ?? ""} className={fieldCls}>
+                <PlaceOptions all="Any community" />
               </select>
             </div>
             <div>
@@ -39,7 +54,8 @@ export function BrowseFilters({ q }: { q: BrowseQuery }) {
               <label htmlFor="f-want" className="block text-sm font-semibold text-ink">Looking to move to</label>
               <select id="f-want" name="want" defaultValue={q.want ?? ""} className={fieldCls}>
                 <option value="">Anywhere</option>
-                {AREAS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                <optgroup label="Whole areas">{AREAS.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</optgroup>
+                {REGIONS.map((r) => <optgroup key={r.id} label={`Communities: ${r.name}`}>{placesIn(r.id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>)}
               </select>
             </div>
           </div>

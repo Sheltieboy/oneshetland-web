@@ -24,6 +24,8 @@ export const INTRODUCTIONS_ONLY = "Introductions only: we help you find each oth
 export const CONTACT_RULE =
   "Please keep phone numbers, email addresses and web links out of your advert. You can talk privately in the messages here once someone gets in touch.";
 
+import { describeLocation, describeWants, isPlaceId, normaliseWants, placeById, regionName, regionOf } from "./house-swaps-geo.ts";
+
 // ── Vocabulary (mirrors the database: the server rejects anything else) ─────────────────────────────────────────────────────────────────────────
 
 export type AreaId = "lerwick_bressay" | "shetland_central" | "shetland_north" | "shetland_south" | "shetland_west" | "whalsay_skerries" | "yell_unst_fetlar";
@@ -86,7 +88,9 @@ export type MyPhoto = Photo & { id: string };
 export type PublicListing = {
   id: string; headline: string | null; description: string | null;
   have_area_id: string; have_area_name: string; have_bedrooms: number; have_type: string; have_features: string[]; landlord_type: string | null;
-  want_area_ids: string[]; want_area_names: string[]; want_min_bedrooms: number | null; want_max_bedrooms: number | null;
+  /** The community inside the home's region (null/absent when the member kept it broad, and on adverts made before communities existed). */
+  have_place_id?: string | null; have_place_name?: string | null;
+  want_area_ids: string[]; want_area_names: string[]; want_place_ids?: string[]; want_place_names?: string[]; want_min_bedrooms: number | null; want_max_bedrooms: number | null;
   want_types: string[]; want_features: string[]; want_notes: string | null;
   photos: Photo[]; last_confirmed_at: string; created_at: string;
   /** 'sample' = a fictional advert with no owner; 'preview' = made during the private preview; 'live'. */
@@ -116,7 +120,8 @@ export type MyListing = Omit<PublicListing, "photos" | "have_area_name" | "want_
 export type MatchKind = "mutual" | "has_what_you_want" | "wants_what_you_have";
 export type MatchRow = {
   listing_id: string; match_kind: MatchKind; reasons: string[]; headline: string | null; have_area_id: string; have_area_name: string;
-  have_bedrooms: number; have_type: string; have_features: string[]; want_area_names: string[];
+  have_place_id?: string | null; have_place_name?: string | null;
+  have_bedrooms: number; have_type: string; have_features: string[]; want_area_ids?: string[]; want_area_names: string[]; want_place_ids?: string[]; want_place_names?: string[];
   want_min_bedrooms: number | null; want_max_bedrooms: number | null; last_confirmed_at: string; data_origin?: DataOrigin;
 };
 
@@ -129,7 +134,7 @@ export type ThreadMessage = { id: string; mine: boolean; body: string; created_a
 
 export type QueueRow = {
   id: string; moderation_state: ModerationState; status: AdvertStatus; moderation_reason: string | null; headline: string | null; description: string | null;
-  have_area_name: string; have_bedrooms: number; have_type: string; have_features: string[]; want_area_names: string[];
+  have_area_name: string; have_place_name?: string | null; have_bedrooms: number; have_type: string; have_features: string[]; want_area_names: string[]; want_place_names?: string[];
   want_min_bedrooms: number | null; want_max_bedrooms: number | null; want_notes: string | null; photos: Photo[]; open_reports: number; updated_at: string; data_origin?: DataOrigin;
 };
 
@@ -158,6 +163,20 @@ export function wantAreasText(names: string[]): string {
   return names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
 }
 
+/** Where an advert's home is: "Scalloway, Central Mainland" when it names a community, the region alone otherwise. */
+export function homeLocationText(x: { have_area_id?: string | null; have_area_name?: string | null; have_place_id?: string | null; have_place_name?: string | null }): string {
+  if (x.have_place_id) return describeLocation(x.have_area_id, x.have_place_id);
+  if (x.have_place_name) return x.have_area_name ? `${x.have_place_name}, ${x.have_area_name}` : x.have_place_name;
+  return x.have_area_name || (x.have_area_id ? regionName(x.have_area_id) : "Shetland");
+}
+
+/** What an advert is looking for, by place: ids when the row has them (compact, grouped), the names the database gave otherwise. */
+export function wantsText(x: { want_area_ids?: string[] | null; want_place_ids?: string[] | null; want_area_names?: string[] | null; want_place_names?: string[] | null }): string {
+  if (x.want_area_ids || x.want_place_ids) return describeWants({ regionIds: x.want_area_ids ?? [], placeIds: x.want_place_ids ?? [] });
+  const names = [...(x.want_area_names ?? []), ...(x.want_place_names ?? [])];
+  return names.length ? wantAreasText(names) : "Anywhere in Shetland";
+}
+
 export function wantTypesText(types: string[]): string | null {
   if (!types.length) return null;
   const l = types.map((t) => typeLabel(t).toLowerCase());
@@ -165,11 +184,11 @@ export function wantTypesText(types: string[]): string | null {
 }
 
 /** The headline to show: the member's own, or a sensible plain one built from the facts (never empty). */
-export function displayHeadline(l: { headline: string | null; have_bedrooms: number; have_type: string; have_area_name?: string | null }): string {
+export function displayHeadline(l: { headline: string | null; have_bedrooms: number; have_type: string; have_area_name?: string | null; have_place_name?: string | null }): string {
   const h = l.headline?.trim();
   if (h) return h;
   const beds = l.have_bedrooms === 0 ? "Studio" : `${l.have_bedrooms}-bedroom`;
-  return `${beds} ${typeLabel(l.have_type).toLowerCase()}${l.have_area_name ? ` in ${l.have_area_name}` : ""}`;
+  return `${beds} ${typeLabel(l.have_type).toLowerCase()}${l.have_place_name || l.have_area_name ? ` in ${l.have_place_name || l.have_area_name}` : ""}`;
 }
 
 export const MATCH_KIND_LABEL: Record<MatchKind, string> = {
@@ -256,11 +275,12 @@ export function hasContactDetails(text: string | null | undefined): boolean {
 // ── Browse query (URL state) ────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 export type BrowseQuery = {
-  area: string | null;        // where the home is
+  area: string | null;        // where the home is: a broad region
+  place: string | null;       // where the home is: a community (implies its region)
   beds: string | null;        // "0".."4" or "5+"
   types: string[];            // property types (any of)
   features: string[];         // features the home must have (all of)
-  want: string | null;        // advert is looking to move to this area (or is open to anywhere)
+  want: string | null;        // advert is looking to move to this region or community (a region id or a community id; or is open to anywhere)
   page: number;
 };
 type SP = Record<string, string | string[] | undefined>;
@@ -272,19 +292,22 @@ const list = (v: string | string[] | undefined, allowed: string[]): string[] => 
 export const BEDROOM_FILTERS = ["0", "1", "2", "3", "4", "5+"] as const;
 
 export function parseBrowseQuery(sp: SP): BrowseQuery {
-  const area = first(sp.area), want = first(sp.want), beds = first(sp.beds), page = parseInt(first(sp.page), 10);
+  const place = first(sp.place), area = first(sp.area), want = first(sp.want), beds = first(sp.beds), page = parseInt(first(sp.page), 10);
   return {
-    area: AREA_IDS.includes(area) ? area : null,
+    // A community wins over a region (it implies one); an unknown or mismatched id is ignored so old and hand-edited URLs still load.
+    area: isPlaceId(place) ? regionOf(place) : AREA_IDS.includes(area) ? area : null,
+    place: isPlaceId(place) ? place : null,
     beds: (BEDROOM_FILTERS as readonly string[]).includes(beds) ? beds : null,
     types: list(sp.type, TYPE_IDS),
     features: list(sp.feat, FEATURE_IDS),
-    want: AREA_IDS.includes(want) ? want : null,
+    want: AREA_IDS.includes(want) || isPlaceId(want) ? want : null,
     page: Number.isFinite(page) && page > 1 ? Math.min(page, 200) : 1,
   };
 }
 export function browseHref(q: Partial<BrowseQuery>, base = "/house-swaps"): string {
   const p = new URLSearchParams();
-  if (q.area) p.set("area", q.area);
+  if (q.place) p.set("place", q.place);
+  else if (q.area) p.set("area", q.area);
   if (q.beds) p.set("beds", q.beds);
   if (q.types?.length) p.set("type", q.types.join(","));
   if (q.features?.length) p.set("feat", q.features.join(","));
@@ -294,16 +317,17 @@ export function browseHref(q: Partial<BrowseQuery>, base = "/house-swaps"): stri
   return s ? `${base}?${s}` : base;
 }
 export function activeFilterCount(q: BrowseQuery): number {
-  return (q.area ? 1 : 0) + (q.beds ? 1 : 0) + (q.types.length ? 1 : 0) + (q.features.length ? 1 : 0) + (q.want ? 1 : 0);
+  return (q.area || q.place ? 1 : 0) + (q.beds ? 1 : 0) + (q.types.length ? 1 : 0) + (q.features.length ? 1 : 0) + (q.want ? 1 : 0);
 }
 /** Chips describing the filters in use; each carries the address that removes just that filter. */
 export function activeFilterChips(q: BrowseQuery): { label: string; href: string }[] {
   const out: { label: string; href: string }[] = [];
-  if (q.area) out.push({ label: `Home in ${areaName(q.area)}`, href: browseHref({ ...q, area: null, page: 1 }) });
+  if (q.place) out.push({ label: `Home in ${describeLocation(q.area, q.place)}`, href: browseHref({ ...q, area: null, place: null, page: 1 }) });
+  else if (q.area) out.push({ label: `Home in ${areaName(q.area)}`, href: browseHref({ ...q, area: null, page: 1 }) });
   if (q.beds) out.push({ label: q.beds === "0" ? "Studio / bedsit" : q.beds === "5+" ? "5 or more bedrooms" : `${q.beds} bedroom${q.beds === "1" ? "" : "s"}`, href: browseHref({ ...q, beds: null, page: 1 }) });
   if (q.types.length) out.push({ label: q.types.map(typeLabel).join(" or "), href: browseHref({ ...q, types: [], page: 1 }) });
   for (const f of q.features) out.push({ label: featureLabel(f), href: browseHref({ ...q, features: q.features.filter((x) => x !== f), page: 1 }) });
-  if (q.want) out.push({ label: `Looking to move to ${areaName(q.want)}`, href: browseHref({ ...q, want: null, page: 1 }) });
+  if (q.want) out.push({ label: `Looking to move to ${isPlaceId(q.want) ? describeLocation(null, q.want) : areaName(q.want)}`, href: browseHref({ ...q, want: null, page: 1 }) });
   return out;
 }
 
@@ -311,21 +335,21 @@ export function activeFilterChips(q: BrowseQuery): { label: string; href: string
 
 export type AdvertForm = {
   headline: string; description: string;
-  have_area_id: string; have_bedrooms: number | null; have_type: string; have_features: string[]; landlord_type: string;
-  want_area_ids: string[]; anywhere: boolean; want_min_bedrooms: number | null; want_max_bedrooms: number | null; want_types: string[]; want_features: string[]; want_notes: string;
+  have_area_id: string; have_place_id: string; have_bedrooms: number | null; have_type: string; have_features: string[]; landlord_type: string;
+  want_area_ids: string[]; want_place_ids: string[]; anywhere: boolean; want_min_bedrooms: number | null; want_max_bedrooms: number | null; want_types: string[]; want_features: string[]; want_notes: string;
   acknowledged: boolean;
 };
 export const EMPTY_ADVERT: AdvertForm = {
-  headline: "", description: "", have_area_id: "", have_bedrooms: null, have_type: "", have_features: [], landlord_type: "",
-  want_area_ids: [], anywhere: true, want_min_bedrooms: null, want_max_bedrooms: null, want_types: [], want_features: [], want_notes: "", acknowledged: false,
+  headline: "", description: "", have_area_id: "", have_place_id: "", have_bedrooms: null, have_type: "", have_features: [], landlord_type: "",
+  want_area_ids: [], want_place_ids: [], anywhere: true, want_min_bedrooms: null, want_max_bedrooms: null, want_types: [], want_features: [], want_notes: "", acknowledged: false,
 };
 export type AdvertErrors = Partial<Record<"have_area_id" | "have_bedrooms" | "have_type" | "headline" | "description" | "want_notes" | "want_bedrooms" | "acknowledged" | "want_area_ids", string>>;
 
 export function advertFromListing(l: MyListing): AdvertForm {
   return {
     headline: l.headline ?? "", description: l.description ?? "",
-    have_area_id: l.have_area_id, have_bedrooms: l.have_bedrooms, have_type: l.have_type, have_features: [...l.have_features], landlord_type: l.landlord_type ?? "",
-    want_area_ids: [...l.want_area_ids], anywhere: l.want_area_ids.length === 0, want_min_bedrooms: l.want_min_bedrooms, want_max_bedrooms: l.want_max_bedrooms,
+    have_area_id: l.have_area_id, have_place_id: l.have_place_id ?? "", have_bedrooms: l.have_bedrooms, have_type: l.have_type, have_features: [...l.have_features], landlord_type: l.landlord_type ?? "",
+    want_area_ids: [...l.want_area_ids], want_place_ids: [...(l.want_place_ids ?? [])], anywhere: l.want_area_ids.length === 0 && (l.want_place_ids ?? []).length === 0, want_min_bedrooms: l.want_min_bedrooms, want_max_bedrooms: l.want_max_bedrooms,
     want_types: [...l.want_types], want_features: [...l.want_features], want_notes: l.want_notes ?? "",
     acknowledged: false,
   };
@@ -335,6 +359,7 @@ export function validateAdvert(f: AdvertForm): { ok: boolean; errors: AdvertErro
   const e: AdvertErrors = {};
   if (!AREA_IDS.includes(f.have_area_id)) e.have_area_id = "Please choose the area your home is in.";
   if (f.have_bedrooms == null || !Number.isInteger(f.have_bedrooms) || f.have_bedrooms < 0 || f.have_bedrooms > 8) e.have_bedrooms = "Please say how many bedrooms your home has.";
+  if (f.have_place_id && regionOf(f.have_place_id) !== f.have_area_id) e.have_area_id = "Please choose the area your home is in.";
   if (!TYPE_IDS.includes(f.have_type)) e.have_type = "Please choose the type of home.";
   if (f.headline.trim().length > LIMITS.headline) e.headline = `Please keep the headline to ${LIMITS.headline} characters.`;
   else if (hasContactDetails(f.headline)) e.headline = CONTACT_RULE;
@@ -343,19 +368,20 @@ export function validateAdvert(f: AdvertForm): { ok: boolean; errors: AdvertErro
   if (f.want_notes.trim().length > LIMITS.notes) e.want_notes = `Please keep this to ${LIMITS.notes} characters.`;
   else if (hasContactDetails(f.want_notes)) e.want_notes = CONTACT_RULE;
   if (f.want_min_bedrooms != null && f.want_max_bedrooms != null && f.want_min_bedrooms > f.want_max_bedrooms) e.want_bedrooms = "The smallest number of bedrooms can't be more than the largest.";
-  if (!f.anywhere && f.want_area_ids.length === 0) e.want_area_ids = "Choose at least one area, or pick \"Open to anywhere in Shetland\".";
+  if (!f.anywhere && f.want_area_ids.length === 0 && f.want_place_ids.length === 0) e.want_area_ids = "Choose at least one area or community, or pick \"Anywhere in Shetland\".";
   if (!f.acknowledged) e.acknowledged = "Please tick the box to say you understand.";
   return { ok: Object.keys(e).length === 0, errors: e };
 }
 
 /** The exact JSON the upsert_my_house_swap RPC takes. */
 export function advertPayload(f: AdvertForm): Record<string, unknown> {
+  const wants = normaliseWants({ regionIds: f.want_area_ids, placeIds: f.want_place_ids });
   return {
     acknowledged: f.acknowledged,
     headline: f.headline.trim() || null, description: f.description.trim() || null,
-    have_area_id: f.have_area_id, have_bedrooms: f.have_bedrooms, have_type: f.have_type, have_features: f.have_features,
+    have_area_id: f.have_area_id, have_place_id: f.have_place_id || null, have_bedrooms: f.have_bedrooms, have_type: f.have_type, have_features: f.have_features,
     landlord_type: f.landlord_type || null,
-    want_area_ids: f.anywhere ? [] : f.want_area_ids,
+    want_area_ids: f.anywhere ? [] : wants.regionIds, want_place_ids: f.anywhere ? [] : wants.placeIds,
     want_min_bedrooms: f.want_min_bedrooms, want_max_bedrooms: f.want_max_bedrooms,
     want_types: f.want_types, want_features: f.want_features, want_notes: f.want_notes.trim() || null,
   };
@@ -363,12 +389,12 @@ export function advertPayload(f: AdvertForm): Record<string, unknown> {
 
 /** A live preview model of how the advert will read, built from the form alone. */
 export function advertPreview(f: AdvertForm) {
-  const have_area_name = f.have_area_id ? areaName(f.have_area_id) : "";
+  const have_area_name = f.have_area_id ? describeLocation(f.have_area_id, f.have_place_id) : "";
   return {
-    headline: f.headline.trim() || (f.have_bedrooms != null && f.have_type ? displayHeadline({ headline: null, have_bedrooms: f.have_bedrooms, have_type: f.have_type, have_area_name: have_area_name || null }) : "Your headline will appear here"),
+    headline: f.headline.trim() || (f.have_bedrooms != null && f.have_type ? displayHeadline({ headline: null, have_bedrooms: f.have_bedrooms, have_type: f.have_type, have_area_name: f.have_place_id ? placeById(f.have_place_id)?.name ?? null : have_area_name || null }) : "Your headline will appear here"),
     haveLine: [f.have_bedrooms == null ? null : bedroomsLabel(f.have_bedrooms), f.have_type ? typeLabel(f.have_type) : null, have_area_name || null].filter(Boolean).join(" · "),
     haveFeatures: f.have_features.map(featureLabel),
-    wantAreas: f.anywhere ? "Open to anywhere in Shetland" : wantAreasText(f.want_area_ids.map(areaName)),
+    wantAreas: f.anywhere ? "Anywhere in Shetland" : describeWants({ regionIds: f.want_area_ids, placeIds: f.want_place_ids }),
     wantBeds: wantBedroomsText(f.want_min_bedrooms, f.want_max_bedrooms),
     wantTypes: wantTypesText(f.want_types),
     wantFeatures: f.want_features.map(featureLabel),

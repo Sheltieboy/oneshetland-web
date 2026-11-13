@@ -1,0 +1,309 @@
+{
+  "_comment": "Settlement-level points, British National Grid (EPSG:27700) metres, from OS Open Names (OGL) unless 'proxy' says otherwise. Region = intended Shetland Partnership locality.",
+  "lerwick": {
+    "region": "lerwick_bressay",
+    "name": "Lerwick",
+    "e": 447467,
+    "n": 1141434,
+    "src": "OS Open Names: Lerwick (Town)"
+  },
+  "bressay": {
+    "region": "lerwick_bressay",
+    "name": "Bressay",
+    "e": 449211,
+    "n": 1141441,
+    "src": "OS Open Names: postcode unit ZE2 9EN (Maryfield ferry settlement, Bressay)",
+    "proxy": true
+  },
+  "scalloway": {
+    "region": "shetland_central",
+    "name": "Scalloway",
+    "e": 440235,
+    "n": 1139435,
+    "src": "OS Open Names: Scalloway (Village)"
+  },
+  "burra_bridge_end_toogs": {
+    "region": "shetland_central",
+    "name": "Bridge End, Burra",
+    "e": 437024,
+    "n": 1133080,
+    "src": "OS Open Names: Bridge End (Village)"
+  },
+  "burra_hamnavoe": {
+    "region": "shetland_central",
+    "name": "Hamnavoe, Burra",
+    "e": 437689,
+    "n": 1135477,
+    "src": "OS Open Names: Hamnavoe (Village)"
+  },
+  "tingwall": {
+    "region": "shetland_central",
+    "name": "Tingwall",
+    "e": 443245,
+    "n": 1145938,
+    "src": "OS Open Names: Tingwall Primary School (no Tingwall settlement entry)",
+    "proxy": true
+  },
+  "weisdale": {
+    "region": "shetland_central",
+    "name": "Weisdale",
+    "e": 439485,
+    "n": 1152885,
+    "src": "OS Open Names: Weisdale (Village)"
+  },
+  "whiteness": {
+    "region": "shetland_central",
+    "name": "Whiteness",
+    "e": 438948,
+    "n": 1145508,
+    "src": "OS Open Names: White Ness (Village)"
+  },
+  "brae": {
+    "region": "shetland_north",
+    "name": "Brae",
+    "e": 435890,
+    "n": 1167920,
+    "src": "OS Open Names: Brae (Village)"
+  },
+  "firth": {
+    "region": "shetland_north",
+    "name": "Firth",
+    "e": 444346,
+    "n": 1174162,
+    "src": "OS Open Names: Firth (Village)"
+  },
+  "hillswick": {
+    "region": "shetland_north",
+    "name": "Hillswick",
+    "e": 428069,
+    "n": 1176688,
+    "src": "OS Open Names: Hillswick (Village)"
+  },
+  "mossbank": {
+    "region": "shetland_north",
+    "name": "Mossbank",
+    "e": 445089,
+    "n": 1175128,
+    "src": "OS Open Names: Mossbank (Village)"
+  },
+  "north_roe": {
+    "region": "shetland_north",
+    "name": "North Roe",
+    "e": 436774,
+    "n": 1189342,
+    "src": "OS Open Names: North Roe (Village)"
+  },
+  "ollaberry": {
+    "region": "shetland_north",
+    "name": "Ollaberry",
+    "e": 436110,
+    "n": 1180306,
+    "src": "OS Open Names: Ollaberry (Village)"
+  },
+  "south_nesting": {
+    "region": "shetland_north",
+    "name": "Nesting",
+    "e": 445083,
+    "n": 1154041,
+    "src": "OS Open Names: South Nesting (Other Settlement)"
+  },
+  "urafirth": {
+    "region": "shetland_north",
+    "name": "Urafirth",
+    "e": 429427,
+    "n": 1178359,
+    "src": "OS Open Names: Urafirth (Village)"
+  },
+  "vidlin": {
+    "region": "shetland_north",
+    "name": "Vidlin",
+    "e": 447850,
+    "n": 1165418,
+    "src": "OS Open Names: Vidlin (Hamlet)"
+  },
+  "voe": {
+    "region": "shetland_north",
+    "name": "Voe",
+    "e": 440557,
+    "n": 1163125,
+    "src": "OS Open Names: Voe (Village)"
+  },
+  "bigton": {
+    "region": "shetland_south",
+    "name": "Bigton",
+    "e": 437932,
+    "n": 1121304,
+    "src": "OS Open Names: Bigton (Village)"
+  },
+  "boddam": {
+    "region": "shetland_south",
+    "name": "Boddam",
+    "e": 439263,
+    "n": 1115141,
+    "src": "OS Open Names: Boddam (Village)"
+  },
+  "cunningsburgh": {
+    "region": "shetland_south",
+    "name": "Cunningsburgh",
+    "e": 443663,
+    "n": 1128492,
+    "src": "OS Open Names: Cunningsburgh (Other Settlement)"
+  },
+  "fair_isle": {
+    "region": "shetland_south",
+    "name": "Fair Isle",
+    "e": 420801,
+    "n": 1070962,
+    "src": "OS Open Names: Fair Isle Primary School (main settlement area)",
+    "proxy": true
+  },
+  "sandwick": {
+    "region": "shetland_south",
+    "name": "Sandwick",
+    "e": 442788,
+    "n": 1124354,
+    "src": "OS Open Names: Sandwick (Village)"
+  },
+  "virkie": {
+    "region": "shetland_south",
+    "name": "Virkie",
+    "e": 438892,
+    "n": 1111459,
+    "src": "OS Open Names: postcode unit ZE3 9JL (Virkie; no Virkie settlement entry)",
+    "proxy": true
+  },
+  "aith": {
+    "region": "shetland_west",
+    "name": "Aith",
+    "e": 434170,
+    "n": 1155796,
+    "src": "OS Open Names: Aith (Village)"
+  },
+  "bixter": {
+    "region": "shetland_west",
+    "name": "Bixter",
+    "e": 433183,
+    "n": 1152254,
+    "src": "OS Open Names: Bixter (Hamlet)"
+  },
+  "sandness": {
+    "region": "shetland_west",
+    "name": "Sandness",
+    "e": 418857,
+    "n": 1157266,
+    "src": "OS Open Names: Sandness (Village)"
+  },
+  "skeld": {
+    "region": "shetland_west",
+    "name": "Skeld",
+    "e": 431133,
+    "n": 1144919,
+    "src": "OS Open Names: Easter Skeld (Village)"
+  },
+  "tresta": {
+    "region": "shetland_west",
+    "name": "Tresta",
+    "e": 436353,
+    "n": 1151025,
+    "src": "OS Open Names: Tresta (Other Settlement)"
+  },
+  "walls": {
+    "region": "shetland_west",
+    "name": "Walls",
+    "e": 423837,
+    "n": 1149359,
+    "src": "OS Open Names: Walls (Village)"
+  },
+  "whalsay_brough": {
+    "region": "whalsay_skerries",
+    "name": "Brough, Whalsay",
+    "e": 455539,
+    "n": 1164991,
+    "src": "OS Open Names: Brough (Village)"
+  },
+  "whalsay_symbister": {
+    "region": "whalsay_skerries",
+    "name": "Symbister, Whalsay",
+    "e": 454383,
+    "n": 1162269,
+    "src": "OS Open Names: Symbister (Village)"
+  },
+  "out_skerries": {
+    "region": "whalsay_skerries",
+    "name": "Out Skerries",
+    "e": 468183,
+    "n": 1171630,
+    "src": "OS Open Names: Housay (Hamlet)"
+  },
+  "fetlar": {
+    "region": "yell_unst_fetlar",
+    "name": "Fetlar",
+    "e": 462247,
+    "n": 1190734,
+    "src": "OS Open Names: Houbie (Village)"
+  },
+  "unst_baltasound": {
+    "region": "yell_unst_fetlar",
+    "name": "Baltasound, Unst",
+    "e": 460725,
+    "n": 1209068,
+    "src": "OS Open Names: Baltasound (Village)"
+  },
+  "unst_haroldswick": {
+    "region": "yell_unst_fetlar",
+    "name": "Haroldswick, Unst",
+    "e": 463558,
+    "n": 1212629,
+    "src": "OS Open Names: Haroldswick (Village)"
+  },
+  "unst_uyeasound": {
+    "region": "yell_unst_fetlar",
+    "name": "Uyeasound, Unst",
+    "e": 459634,
+    "n": 1201286,
+    "src": "OS Open Names: Uyeasound (Other Settlement)"
+  },
+  "yell_burravoe": {
+    "region": "yell_unst_fetlar",
+    "name": "Burravoe, Yell",
+    "e": 452020,
+    "n": 1179858,
+    "src": "OS Open Names: Burravoe (Village)"
+  },
+  "yell_cullivoe": {
+    "region": "yell_unst_fetlar",
+    "name": "Cullivoe, Yell",
+    "e": 454263,
+    "n": 1202583,
+    "src": "OS Open Names: Cullivoe (Village)"
+  },
+  "yell_mid_yell": {
+    "region": "yell_unst_fetlar",
+    "name": "Mid Yell",
+    "e": 451495,
+    "n": 1190836,
+    "src": "OS Open Names: Mid Yell (Village)"
+  },
+  "eshaness": {
+    "region": "shetland_north",
+    "name": "Eshaness",
+    "e": 424250,
+    "n": 1178997,
+    "src": "OS Open Names: Braewick (Other Settlement) - no Eshaness settlement entry; the headland point is unsuitable",
+    "proxy": true
+  },
+  "sullom": {
+    "region": "shetland_north",
+    "name": "Sullom",
+    "e": 435607,
+    "n": 1173254,
+    "src": "OS Open Names: Sullom (Other Settlement)"
+  },
+  "gulberwick": {
+    "region": "shetland_south",
+    "name": "Gulberwick",
+    "e": 444128,
+    "n": 1138443,
+    "src": "OS Open Names: Gulberwick (Village)"
+  }
+}

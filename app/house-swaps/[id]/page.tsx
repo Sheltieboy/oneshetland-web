@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getListing, getMatches, getThreads, getMyListing, getUnreadCount, currentUserId, requireHouseSwaps } from "@/lib/house-swaps-data";
 import {
-  HOUSE_SWAPS_INTRO, MATCH_KIND_HELP, MATCH_KIND_LABEL, SAMPLE_NO_MESSAGES, displayHeadline, freshnessText, isSample, landlordLabel, wantAreasText, wantBedroomsText, wantTypesText,
+  HOUSE_SWAPS_INTRO, MATCH_KIND_HELP, MATCH_KIND_LABEL, SAMPLE_NO_MESSAGES, displayHeadline, freshnessText, isSample, landlordLabel, homeLocationText, wantsText, wantBedroomsText, wantTypesText,
 } from "@/lib/house-swaps";
 import { Disclaimer, Panel, SwapsHeader, SwapsNav, btnPrimary, btnSecondary } from "@/components/house-swaps/Shell";
 import { Chip, FeatureChips, HomeChips, SampleBadge } from "@/components/house-swaps/Chips";
@@ -50,16 +50,16 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         <div className="mt-4"><Gallery photos={l.photos} title={title} /></div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <Panel aria-labelledby="have">
-            <h2 id="have" className="text-xs font-black uppercase tracking-widest text-ink-muted">What I have</h2>
+          <Panel aria-labelledby="have" className="border-l-[6px] border-l-navy">
+            <h2 id="have" className="text-xs font-black uppercase tracking-widest text-navy">What I have</h2>
             <p className="mt-3 font-display text-2xl font-bold text-ink">{l.have_bedrooms === 0 ? "Bedsit / studio" : `${l.have_bedrooms} bedroom${l.have_bedrooms === 1 ? "" : "s"}`}</p>
-            <div className="mt-2"><HomeChips bedrooms={l.have_bedrooms} type={l.have_type} area={l.have_area_name} /></div>
+            <div className="mt-2"><HomeChips bedrooms={l.have_bedrooms} type={l.have_type} area={homeLocationText(l)} /></div>
             <div className="mt-3"><FeatureChips features={l.have_features} /></div>
             {landlord && <p className="mt-4 text-sm text-ink-soft">Landlord: <Chip>{landlord}</Chip></p>}
           </Panel>
-          <Panel aria-labelledby="want">
-            <h2 id="want" className="text-xs font-black uppercase tracking-widest text-ink-muted">What I&apos;m looking for</h2>
-            <div className="mt-3"><WantLines areas={wantAreasText(l.want_area_names)} beds={wantBedroomsText(l.want_min_bedrooms, l.want_max_bedrooms)} types={wantTypesText(l.want_types)} features={l.want_features} /></div>
+          <Panel aria-labelledby="want" className="border-l-[6px] border-l-teal-dark bg-teal/10">
+            <h2 id="want" className="text-xs font-black uppercase tracking-widest text-navy">What I&apos;m looking for</h2>
+            <div className="mt-3"><WantLines areas={wantsText(l)} beds={wantBedroomsText(l.want_min_bedrooms, l.want_max_bedrooms)} types={wantTypesText(l.want_types)} features={l.want_features} /></div>
             {l.want_notes && <p className="mt-3 whitespace-pre-line break-words text-sm text-ink-soft">{l.want_notes}</p>}
           </Panel>
         </div>

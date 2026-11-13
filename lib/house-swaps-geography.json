@@ -1,0 +1,282 @@
+{
+  "_source": "Communities = the 43 AREAS OF CHOICE in the joint Shetland Islands Council / Hjaltland Housing Association housing application form (stock as at March 2024; the areas-of-choice table on page 8, extract kept in docs/house-swaps/source-allocation-areas-2024.txt). Regions = the seven Shetland Partnership localities. The council's own 'Housing Market Areas/Localities and SIC Housing Allocation Areas' sheet (Oct 2024) lists 40 because it covers council stock only: Eshaness, Sullom and Gulberwick have Hjaltland stock but no council stock, which is why the council page says 43 areas while that sheet shows 40. Names are location labels for a discovery service; they do not determine housing eligibility. 'Out Skerries' is the SIC sheet's wording for the form's 'Skerries'.",
+  "regions": [
+    "lerwick_bressay",
+    "shetland_central",
+    "shetland_north",
+    "shetland_south",
+    "shetland_west",
+    "whalsay_skerries",
+    "yell_unst_fetlar"
+  ],
+  "places": [
+    {
+      "id": "lerwick",
+      "region": "lerwick_bressay",
+      "name": "Lerwick",
+      "official": "Lerwick"
+    },
+    {
+      "id": "bressay",
+      "region": "lerwick_bressay",
+      "name": "Bressay",
+      "official": "Bressay"
+    },
+    {
+      "id": "scalloway",
+      "region": "shetland_central",
+      "name": "Scalloway",
+      "official": "Scalloway"
+    },
+    {
+      "id": "burra_bridge_end_toogs",
+      "region": "shetland_central",
+      "name": "Burra: Bridge End & Toogs",
+      "official": "Burra—Bridge End/ Toogs",
+      "group": "Burra"
+    },
+    {
+      "id": "burra_hamnavoe",
+      "region": "shetland_central",
+      "name": "Burra: Hamnavoe",
+      "official": "Burra—Hamnavoe",
+      "group": "Burra"
+    },
+    {
+      "id": "tingwall",
+      "region": "shetland_central",
+      "name": "Tingwall",
+      "official": "Tingwall"
+    },
+    {
+      "id": "weisdale",
+      "region": "shetland_central",
+      "name": "Weisdale",
+      "official": "Weisdale"
+    },
+    {
+      "id": "whiteness",
+      "region": "shetland_central",
+      "name": "Whiteness",
+      "official": "Whiteness"
+    },
+    {
+      "id": "brae",
+      "region": "shetland_north",
+      "name": "Brae",
+      "official": "Brae"
+    },
+    {
+      "id": "firth",
+      "region": "shetland_north",
+      "name": "Firth",
+      "official": "Firth"
+    },
+    {
+      "id": "hillswick",
+      "region": "shetland_north",
+      "name": "Hillswick",
+      "official": "Hillswick"
+    },
+    {
+      "id": "mossbank",
+      "region": "shetland_north",
+      "name": "Mossbank",
+      "official": "Mossbank"
+    },
+    {
+      "id": "sullom",
+      "region": "shetland_north",
+      "name": "Sullom",
+      "official": "Sullom"
+    },
+    {
+      "id": "north_roe",
+      "region": "shetland_north",
+      "name": "North Roe",
+      "official": "North Roe"
+    },
+    {
+      "id": "ollaberry",
+      "region": "shetland_north",
+      "name": "Ollaberry",
+      "official": "Ollaberry"
+    },
+    {
+      "id": "eshaness",
+      "region": "shetland_north",
+      "name": "Eshaness",
+      "official": "Eshaness"
+    },
+    {
+      "id": "south_nesting",
+      "region": "shetland_north",
+      "name": "South Nesting",
+      "official": "South Nesting"
+    },
+    {
+      "id": "urafirth",
+      "region": "shetland_north",
+      "name": "Urafirth",
+      "official": "Urafirth"
+    },
+    {
+      "id": "vidlin",
+      "region": "shetland_north",
+      "name": "Vidlin",
+      "official": "Vidlin"
+    },
+    {
+      "id": "voe",
+      "region": "shetland_north",
+      "name": "Voe",
+      "official": "Voe"
+    },
+    {
+      "id": "bigton",
+      "region": "shetland_south",
+      "name": "Bigton",
+      "official": "Bigton"
+    },
+    {
+      "id": "boddam",
+      "region": "shetland_south",
+      "name": "Boddam",
+      "official": "Boddam"
+    },
+    {
+      "id": "cunningsburgh",
+      "region": "shetland_south",
+      "name": "Cunningsburgh",
+      "official": "Cunningsburgh"
+    },
+    {
+      "id": "gulberwick",
+      "region": "shetland_south",
+      "name": "Gulberwick",
+      "official": "Gulberwick"
+    },
+    {
+      "id": "fair_isle",
+      "region": "shetland_south",
+      "name": "Fair Isle",
+      "official": "Fair Isle"
+    },
+    {
+      "id": "sandwick",
+      "region": "shetland_south",
+      "name": "Sandwick",
+      "official": "Sandwick"
+    },
+    {
+      "id": "virkie",
+      "region": "shetland_south",
+      "name": "Virkie",
+      "official": "Virkie"
+    },
+    {
+      "id": "aith",
+      "region": "shetland_west",
+      "name": "Aith",
+      "official": "Aith"
+    },
+    {
+      "id": "bixter",
+      "region": "shetland_west",
+      "name": "Bixter",
+      "official": "Bixter"
+    },
+    {
+      "id": "sandness",
+      "region": "shetland_west",
+      "name": "Sandness",
+      "official": "Sandness"
+    },
+    {
+      "id": "skeld",
+      "region": "shetland_west",
+      "name": "Skeld",
+      "official": "Skeld"
+    },
+    {
+      "id": "tresta",
+      "region": "shetland_west",
+      "name": "Tresta",
+      "official": "Tresta"
+    },
+    {
+      "id": "walls",
+      "region": "shetland_west",
+      "name": "Walls",
+      "official": "Walls"
+    },
+    {
+      "id": "whalsay_brough",
+      "region": "whalsay_skerries",
+      "name": "Whalsay: Brough",
+      "official": "Whalsay—Brough",
+      "group": "Whalsay"
+    },
+    {
+      "id": "whalsay_symbister",
+      "region": "whalsay_skerries",
+      "name": "Whalsay: Symbister",
+      "official": "Whalsay-Symbister",
+      "group": "Whalsay"
+    },
+    {
+      "id": "out_skerries",
+      "region": "whalsay_skerries",
+      "name": "Out Skerries",
+      "official": "Out Skerries"
+    },
+    {
+      "id": "fetlar",
+      "region": "yell_unst_fetlar",
+      "name": "Fetlar",
+      "official": "Fetlar"
+    },
+    {
+      "id": "unst_baltasound",
+      "region": "yell_unst_fetlar",
+      "name": "Unst: Baltasound",
+      "official": "Unst—Baltasound",
+      "group": "Unst"
+    },
+    {
+      "id": "unst_haroldswick",
+      "region": "yell_unst_fetlar",
+      "name": "Unst: Haroldswick",
+      "official": "Unst—Haroldswick",
+      "group": "Unst"
+    },
+    {
+      "id": "unst_uyeasound",
+      "region": "yell_unst_fetlar",
+      "name": "Unst: Uyeasound",
+      "official": "Unst—Uyeasound",
+      "group": "Unst"
+    },
+    {
+      "id": "yell_burravoe",
+      "region": "yell_unst_fetlar",
+      "name": "Yell: Burravoe",
+      "official": "Yell—Burravoe",
+      "group": "Yell"
+    },
+    {
+      "id": "yell_cullivoe",
+      "region": "yell_unst_fetlar",
+      "name": "Yell: Cullivoe",
+      "official": "Yell—Cullivoe",
+      "group": "Yell"
+    },
+    {
+      "id": "yell_mid_yell",
+      "region": "yell_unst_fetlar",
+      "name": "Yell: Mid Yell",
+      "official": "Yell—Mid Yell",
+      "group": "Yell"
+    }
+  ]
+}

@@ -8,6 +8,7 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { placesIn, regionOf } from "@/lib/house-swaps-geo";
 import { callRpc, type RpcResult } from "@/lib/notices-rpc";
 import { PAGE_SIZE, isUuid, type BrowseQuery, type MatchRow, type MyListing, type PublicListing, type QueueRow, type ThreadMessage, type ThreadRow, type ModerationTab, type ReportRow, type InviteRow } from "@/lib/house-swaps";
 
@@ -52,16 +53,27 @@ export const currentUserId = cache(async (): Promise<string | null> => {
 
 type Page<T> = { rows: T[]; hasMore: boolean };
 
+export function wantFilter(want: string): string {
+  const anywhere = "and(want_area_ids.eq.{},want_place_ids.eq.{})";
+  const region = regionOf(want);
+  if (region) return [`want_place_ids.cs.{${want}}`, `want_area_ids.cs.{${region}}`, anywhere].join(",");
+  const inside = placesIn(want).map((p) => p.id).join(",");
+  return [`want_area_ids.cs.{${want}}`, inside ? `want_place_ids.ov.{${inside}}` : "", anywhere].filter(Boolean).join(",");
+}
+
 export async function getBrowse(q: BrowseQuery): Promise<RpcResult<Page<PublicListing>>> {
   try {
     const sb = await createClient();
     let qb = sb.from("house_swap_listings_public").select("*");
-    if (q.area) qb = qb.eq("have_area_id", q.area);
+    // Home: a community is exact; a region matches every advert in it (adverts kept at region level, and all their communities).
+    if (q.place) qb = qb.eq("have_place_id", q.place);
+    else if (q.area) qb = qb.eq("have_area_id", q.area);
     if (q.beds) qb = q.beds === "5+" ? qb.gte("have_bedrooms", 5) : qb.eq("have_bedrooms", Number(q.beds));
     if (q.types.length) qb = qb.in("have_type", q.types);
     if (q.features.length) qb = qb.contains("have_features", q.features);
-    // "looking to move to X": adverts that list X, plus those open to anywhere (an empty list).
-    if (q.want) qb = qb.or(`want_area_ids.cs.{${q.want}},want_area_ids.eq.{}`);
+    // "Looking to move to X" (X a region or a community). Semantics, kept from before and widened for communities: adverts that NAME X, or that name
+    // somewhere that covers X (a community's whole region), or a community inside X (when X is a region), plus those open to anywhere (both lists empty).
+    if (q.want) qb = qb.or(wantFilter(q.want));
     const from = (q.page - 1) * PAGE_SIZE;
     const { data, error } = await qb.order("last_confirmed_at", { ascending: false }).order("id").range(from, from + PAGE_SIZE);
     if (error) return { ok: false, error: error.message || "The adverts could not be loaded." };

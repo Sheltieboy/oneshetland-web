@@ -86,9 +86,9 @@ export default async function MyAdvertPage() {
         )}
 
         <h2 className="mb-4 font-display text-3xl font-bold text-ink">{l ? "Edit your advert" : "Your advert"}</h2>
-        {l && <p className="mb-4 text-sm text-ink-muted">Tick the box at the bottom to save changes. Photos are saved as soon as you add them.</p>}
+        {l && <p className="mb-4 text-sm text-ink-muted">Move through the three steps and choose Save changes on the last one. Photos are saved as soon as you add them.</p>}
         <MyAdvertForm
-          key={l ? l.id : "new"}
+          key="advert"
           initial={l ? advertFromListing(l) : EMPTY_ADVERT}
           editing={!!l}
           photosSlot={l ? <PhotoManager photos={l.photos} userId={userId} /> : (

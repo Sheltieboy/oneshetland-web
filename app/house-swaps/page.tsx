@@ -12,7 +12,7 @@ export const metadata = { title: "House Swaps · Noticeboard" };
 
 type SP = Promise<Record<string, string | string[] | undefined>>;
 
-/** The public House Swaps noticeboard. URL state drives the filters (?area=&beds=&type=&feat=&want=&page=), newest-confirmed first. Works signed out. */
+/** The public House Swaps noticeboard. URL state drives the filters (?area=&place=&beds=&type=&feat=&want=&page=), newest-confirmed first. Works signed out. */
 export default async function HouseSwapsPage({ searchParams }: { searchParams: SP }) {
   await requireHouseSwaps();
   const q = parseBrowseQuery(await searchParams);

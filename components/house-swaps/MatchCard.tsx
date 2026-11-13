@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  MATCH_KIND_LABEL, bedroomsShort, displayHeadline, freshnessText, isSample, typeLabel, wantAreasText, wantBedroomsText, type MatchRow,
+  MATCH_KIND_LABEL, bedroomsShort, displayHeadline, freshnessText, homeLocationText, isSample, typeLabel, wantsText, wantBedroomsText, type MatchRow,
 } from "@/lib/house-swaps";
 import { FeatureChips, SampleBadge } from "./Chips";
 
@@ -12,12 +12,12 @@ export function MatchCard({ m, showKind = true }: { m: MatchRow; showKind?: bool
       {showKind && <p className="text-[11px] font-black uppercase tracking-widest text-navy-light">{MATCH_KIND_LABEL[m.match_kind]}</p>}
       <h3 className="mt-1 break-words font-display text-lg font-bold leading-snug text-ink">
         <Link href={`/house-swaps/${m.listing_id}`} className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-navy">
-          {displayHeadline({ headline: m.headline, have_bedrooms: m.have_bedrooms, have_type: m.have_type, have_area_name: m.have_area_name })}
+          {displayHeadline({ headline: m.headline, have_bedrooms: m.have_bedrooms, have_type: m.have_type, have_area_name: m.have_area_name, have_place_name: m.have_place_name })}
         </Link>
       </h3>
-      <p className="mt-1 text-sm font-semibold text-ink-soft">{bedroomsShort(m.have_bedrooms)} · {typeLabel(m.have_type)} · {m.have_area_name}</p>
+      <p className="mt-1 text-sm font-semibold text-ink-soft">{bedroomsShort(m.have_bedrooms)} · {typeLabel(m.have_type)} · {homeLocationText(m)}</p>
       <div className="mt-2"><FeatureChips features={m.have_features} /></div>
-      <p className="mt-2 text-sm text-ink-muted">Looking for: {wantBedroomsText(m.want_min_bedrooms, m.want_max_bedrooms).toLowerCase()}, {wantAreasText(m.want_area_names).replace(/^Open/, "open")}</p>
+      <p className="mt-2 text-sm text-ink-muted">Looking for: {wantBedroomsText(m.want_min_bedrooms, m.want_max_bedrooms).toLowerCase()}, {wantsText(m).replace(/^Anywhere/, "anywhere")}</p>
       {m.reasons.length > 0 && (
         <div className="mt-3 rounded-xl bg-sand/60 p-3">
           <p className="text-xs font-bold text-ink-muted">Why this may suit</p>

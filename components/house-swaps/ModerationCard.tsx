@@ -1,8 +1,14 @@
 import { moderateAdvert } from "@/app/house-swaps/actions";
-import { STATUS_PLAIN, bedroomsLabel, formatWhen, photoUrl, typeLabel, wantAreasText, wantBedroomsText, type QueueRow } from "@/lib/house-swaps";
+import { STATUS_PLAIN, bedroomsLabel, formatWhen, photoUrl, typeLabel, homeLocationText, wantsText, wantBedroomsText, type QueueRow } from "@/lib/house-swaps";
 import { ActionForm } from "./ActionForm";
 import { FeatureChips } from "./Chips";
 import { btnDanger, btnPrimary, btnSecondary, fieldCls } from "./Shell";
+
+/** The staff queue (admin_house_swap_queue) returns region names only: until it also returns communities, say so rather than claim "anywhere". */
+function queueWants(r: QueueRow): string {
+  if (r.want_place_names) return wantsText(r);
+  return r.want_area_names.length ? `${wantsText(r)} (and any named communities, not listed here)` : "Anywhere in Shetland, or named communities (not listed here)";
+}
 
 /** A staff view of one advert, in full, with Approve / Reject / Hide. Functional rather than fancy. */
 export function ModerationCard({ r, tab }: { r: QueueRow; tab: string }) {
@@ -17,8 +23,8 @@ export function ModerationCard({ r, tab }: { r: QueueRow; tab: string }) {
       </div>
       <h3 className="mt-3 break-words font-display text-xl font-bold text-ink">{r.headline || "(no headline)"}</h3>
       <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-        <div><dt className="font-bold text-ink-muted">Has</dt><dd className="text-ink">{bedroomsLabel(r.have_bedrooms)} · {typeLabel(r.have_type)} · {r.have_area_name}</dd><dd className="mt-1"><FeatureChips features={r.have_features} /></dd></div>
-        <div><dt className="font-bold text-ink-muted">Wants</dt><dd className="text-ink">{wantBedroomsText(r.want_min_bedrooms, r.want_max_bedrooms)}; {wantAreasText(r.want_area_names)}</dd></div>
+        <div><dt className="font-bold text-ink-muted">Has</dt><dd className="text-ink">{bedroomsLabel(r.have_bedrooms)} · {typeLabel(r.have_type)} · {homeLocationText(r)}</dd><dd className="mt-1"><FeatureChips features={r.have_features} /></dd></div>
+        <div><dt className="font-bold text-ink-muted">Wants</dt><dd className="text-ink">{wantBedroomsText(r.want_min_bedrooms, r.want_max_bedrooms)}; {queueWants(r)}</dd></div>
       </dl>
       {r.description && <div className="mt-3"><p className="text-xs font-bold text-ink-muted">Description</p><p className="whitespace-pre-line break-words text-sm text-ink-soft">{r.description}</p></div>}
       {r.want_notes && <div className="mt-3"><p className="text-xs font-bold text-ink-muted">Looking-for notes</p><p className="whitespace-pre-line break-words text-sm text-ink-soft">{r.want_notes}</p></div>}

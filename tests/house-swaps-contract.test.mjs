@@ -156,3 +156,41 @@ test("invite actions are staff-only RPCs on the member's own session; emails are
   assert.doesNotMatch(read("components/house-swaps/InvitesPanel.tsx"), /add_house_swap_purge|purge/i);
   for (const [p, s] of allSrc) if (!/InvitesPanel|actions\.ts|house-swaps\.ts/.test(p)) assert.doesNotMatch(s, /\.email\b/, p);
 });
+
+test("three-step advert form: progress, per-step validation, focus on step change, one acknowledgement, location picker with map and list", () => {
+  const form = read("components/house-swaps/MyAdvertForm.tsx");
+  assert.match(form, /aria-current=\{current \? "step" : undefined\}/);
+  assert.match(form, /validateStep\(step, f\)/);
+  assert.match(form, /heading\.current\?\.focus/);
+  assert.match(form, /scrollIntoView\(\{ block: "start" \}\)/);
+  assert.equal((form.match(/\{NEVER_PAY\}/g) ?? []).length, 1, "never-pay shown once");
+  assert.equal((form.match(/type="checkbox" checked=\{f\.acknowledged\}/g) ?? []).length, 1, "a single acknowledgement tick");
+  assert.match(form, /<LocationPicker mode="home"/);
+  assert.match(form, /<LocationPicker mode="wants"/);
+  assert.match(form, /saveAdvert\(f\)/, "same server action");
+  assert.doesNotMatch(read("app/house-swaps/my/page.tsx"), /key=\{l \?/, "the form is never remounted by a save or a photo change");
+  const picker = read("components/house-swaps/LocationPicker.tsx");
+  assert.match(picker, /Just keep it broad/);
+  assert.match(picker, /Search for an area or community/);
+  assert.match(picker, /<ShetlandMap/);
+  assert.match(picker, /GROUP_NOTE/);
+  const map = read("components/house-swaps/ShetlandMap.tsx");
+  assert.match(map, /MAP_ATTRIBUTION/);
+  assert.match(map, /tabIndex=\{0\}/);
+  assert.match(map, /aria-checked/);
+  assert.match(map, /Fair Isle/);
+  assert.doesNotMatch(map, /fetch\(|<img|https?:\/\//, "the map loads nothing from elsewhere");
+});
+test("communities show wherever the home's area shows; the filters accept communities", () => {
+  for (const p of ["components/house-swaps/ListingCard.tsx", "components/house-swaps/MatchCard.tsx", "components/house-swaps/ModerationCard.tsx", "app/house-swaps/[id]/page.tsx"]) assert.match(read(p), /homeLocationText/, p);
+  assert.match(read("components/house-swaps/BrowseFilters.tsx"), /name="place"/);
+  assert.match(read("lib/house-swaps-data.ts"), /want_place_ids\.ov/);
+  assert.match(read("lib/house-swaps.ts"), /have_place_id: f\.have_place_id \|\| null/);
+});
+
+test("wizard: a red message clears as soon as that part is put right (no stale errors after the first failed Next)", () => {
+  const src = readFileSync(new URL("../components/house-swaps/MyAdvertForm.tsx", import.meta.url), "utf8");
+  assert.match(src, /each red message clears as soon as that part is put right/);
+  assert.match(src, /validateAdvert\(f\)\.errors/);
+  assert.match(src, /marked in red\|need another look/, "the summary line clears when no field message is left");
+});

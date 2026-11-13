@@ -1,0 +1,9 @@
+{
+  "lerwick_bressay": ["Lerwick South - 02","Lerwick South - 03","Lerwick South - 04","Lerwick North - 01","Lerwick North - 02","Lerwick North - 03","Lerwick North - 04","Lerwick North - 05","Lerwick North - 06","Lerwick North - 07"],
+  "shetland_central": ["Central Shetland - 01","Central Shetland - 02","Central Shetland - 03","Central Shetland - 04"],
+  "shetland_north": ["East and West Mainland - 01","North Mainland - 01","North Mainland - 02","North Mainland - 03"],
+  "shetland_south": ["Shetland South - 01","Shetland South - 02","Shetland South - 03","Shetland South - 04","Lerwick South - 01"],
+  "shetland_west": ["East and West Mainland - 02","East and West Mainland - 03","East and West Mainland - 04"],
+  "whalsay_skerries": ["North and East Isles - 03","North and East Isles - 04"],
+  "yell_unst_fetlar": ["North and East Isles - 01","North and East Isles - 02"]
+}

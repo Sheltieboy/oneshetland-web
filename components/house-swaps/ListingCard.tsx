@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  displayHeadline, freshnessText, isSample, photoUrl, wantAreasText, wantBedroomsText, wantTypesText, type PublicListing,
+  displayHeadline, freshnessText, homeLocationText, isSample, photoUrl, wantsText, wantBedroomsText, wantTypesText, type PublicListing,
 } from "@/lib/house-swaps";
 import { FeatureChips, HomeChips, SampleBadge } from "./Chips";
 
@@ -34,15 +34,15 @@ export function ListingCard({ l, note }: { l: PublicListing; note?: React.ReactN
         </h2>
         {note}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <section aria-label="What I have" className="min-w-0 rounded-xl bg-sand/60 p-3.5">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-ink-muted">What I have</h3>
-            <div className="mt-2"><HomeChips bedrooms={l.have_bedrooms} type={l.have_type} area={l.have_area_name} /></div>
+          <section aria-label="What I have" className="min-w-0 rounded-xl border-l-4 border-l-navy bg-navy/5 p-3.5">
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-navy">What I have</h3>
+            <div className="mt-2"><HomeChips bedrooms={l.have_bedrooms} type={l.have_type} area={homeLocationText(l)} /></div>
             <div className="mt-2"><FeatureChips features={l.have_features} /></div>
           </section>
-          <section aria-label="What I'm looking for" className="min-w-0 rounded-xl border border-line p-3.5">
-            <h3 className="text-[11px] font-black uppercase tracking-widest text-ink-muted">What I&apos;m looking for</h3>
+          <section aria-label="What I'm looking for" className="min-w-0 rounded-xl border-l-4 border-l-teal-dark bg-teal/10 p-3.5">
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-navy">What I&apos;m looking for</h3>
             <div className="mt-2">
-              <WantLines areas={wantAreasText(l.want_area_names)} beds={wantBedroomsText(l.want_min_bedrooms, l.want_max_bedrooms)} types={wantTypesText(l.want_types)} features={l.want_features} />
+              <WantLines areas={wantsText(l)} beds={wantBedroomsText(l.want_min_bedrooms, l.want_max_bedrooms)} types={wantTypesText(l.want_types)} features={l.want_features} />
             </div>
           </section>
         </div>
