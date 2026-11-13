@@ -130,8 +130,20 @@ export function searchLocations(query: string): { regions: Region[]; places: Pla
 /** What "wants" looks like while editing: anywhere is its own switch, mutually exclusive with the rest. */
 export type WantState = WantSel & { anywhere: boolean };
 export const ANYWHERE: WantState = { anywhere: true, regionIds: [], placeIds: [] };
+
+/**
+ * While the form is open we KEEP every community the member chose, including ones inside a region they later chose as a whole.
+ * Nothing is dropped, so narrowing a whole region back down to communities never loses an earlier choice.
+ * What is saved and shown is the EFFECTIVE selection (`effectiveWants`), where a community inside a whole region is redundant.
+ */
+const keepWants = (sel: WantSel): WantSel => ({
+  regionIds: [...new Set(sel.regionIds.filter((r) => REGION_IDS.includes(r)))],
+  placeIds: [...new Set(sel.placeIds.filter(isPlaceId))],
+});
+/** The selection as the advert means it: a whole region stands in for its own communities. */
+export const effectiveWants = (s: WantSel): WantSel => normaliseWants(s);
 const wantNorm = (s: WantState): WantState => {
-  const n = normaliseWants(s);
+  const n = keepWants(s);
   return { anywhere: !n.regionIds.length && !n.placeIds.length ? s.anywhere : false, ...n };
 };
 
@@ -143,16 +155,24 @@ export function toggleWantRegion(s: WantState, regionId: string): WantState {
   const has = s.regionIds.includes(regionId);
   return wantNorm({ anywhere: false, regionIds: has ? s.regionIds.filter((r) => r !== regionId) : [...s.regionIds, regionId], placeIds: s.placeIds });
 }
-/** Choosing a community inside a region that was chosen as a whole converts it to just that community. */
+/**
+ * Choosing a community inside a region that was chosen as a whole narrows the choice to communities:
+ * the whole region comes off and every community already chosen in it is kept, plus this one.
+ */
 export function toggleWantPlace(s: WantState, placeId: string): WantState {
   const p = placeById(placeId);
   if (!p) return s;
+  if (s.regionIds.includes(p.regionId)) {
+    return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => r !== p.regionId), placeIds: [...s.placeIds, placeId] });
+  }
   if (s.placeIds.includes(placeId)) return wantNorm({ ...s, anywhere: false, placeIds: s.placeIds.filter((x) => x !== placeId) });
-  if (s.regionIds.includes(p.regionId)) return { anywhere: false, regionIds: s.regionIds.filter((r) => r !== p.regionId), placeIds: [...s.placeIds, placeId] };
-  return { anywhere: false, regionIds: s.regionIds, placeIds: [...s.placeIds, placeId] };
+  return wantNorm({ ...s, anywhere: false, placeIds: [...s.placeIds, placeId] });
 }
 /** True when every community in the group is chosen by name (not merely covered by a whole region). */
-export const isGroupChosen = (s: WantState, group: string): boolean => placesInGroup(group).every((p) => s.placeIds.includes(p.id));
+export const isGroupChosen = (s: WantState, group: string): boolean => {
+  const eff = effectiveWants(s);
+  return placesInGroup(group).every((p) => eff.placeIds.includes(p.id));
+};
 /** "All of Yell": selects every community in the group, or clears them if they are all already chosen. From a whole region it converts to just the group. */
 export function toggleWantGroup(s: WantState, group: string): WantState {
   const ps = placesInGroup(group);
@@ -164,10 +184,17 @@ export function toggleWantGroup(s: WantState, group: string): WantState {
   const regions = new Set(ps.map((p) => p.regionId));
   return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => !regions.has(r as RegionId)), placeIds: [...new Set([...s.placeIds, ...ps.map((p) => p.id)])] });
 }
+/** The x on a "Selected" chip deletes: removing a whole region also forgets the communities remembered inside it. */
 export function removeWant(s: WantState, id: string): WantState {
-  return isPlaceId(id) ? toggleWantPlace(s, id) : toggleWantRegion(s, id);
+  if (isPlaceId(id)) return wantNorm({ ...s, anywhere: false, placeIds: s.placeIds.filter((x) => x !== id) });
+  if (!REGION_IDS.includes(id)) return s;
+  return wantNorm({ anywhere: false, regionIds: s.regionIds.filter((r) => r !== id), placeIds: s.placeIds.filter((x) => regionOf(x) !== id) });
 }
-export function wantCount(s: WantState): number { return s.regionIds.length + s.placeIds.length; }
+/** How many places the advert actually asks for: whole regions plus communities outside them. */
+export function wantCount(s: WantState): number {
+  const eff = effectiveWants(s);
+  return eff.regionIds.length + eff.placeIds.length;
+}
 
 export type HomeState = { regionId: string; placeId: string };
 /** Choosing a region keeps the chosen community only if it is inside that region. */

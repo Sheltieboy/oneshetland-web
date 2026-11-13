@@ -50,9 +50,14 @@ test('wants reducers: anywhere is exclusive; region then community converts; gro
   s = g.toggleWantRegion(s, 'shetland_central')
   assert.deepEqual(s, { anywhere: false, regionIds: ['shetland_central'], placeIds: [] })
   s = g.toggleWantPlace(s, 'scalloway')
-  assert.deepEqual(s, { anywhere: false, regionIds: [], placeIds: ['scalloway'] }, 'tapping a dot in a whole region converts to that community only')
+  assert.deepEqual(s, { anywhere: false, regionIds: [], placeIds: ['scalloway'] }, 'tapping a dot in a whole region narrows to communities')
   s = g.toggleWantRegion(s, 'shetland_central')
-  assert.deepEqual(s, { anywhere: false, regionIds: ['shetland_central'], placeIds: [] }, 'choosing the whole region swallows its communities')
+  assert.deepEqual(s, { anywhere: false, regionIds: ['shetland_central'], placeIds: ['scalloway'] }, 'the whole region stands in for its communities, which are remembered')
+  assert.deepEqual(g.effectiveWants(s), { regionIds: ['shetland_central'], placeIds: [] }, 'what is saved and shown is the whole region alone')
+  assert.equal(g.wantCount(s), 1)
+  s = g.toggleWantRegion(s, 'shetland_central')
+  assert.deepEqual(s, { anywhere: false, regionIds: [], placeIds: ['scalloway'] }, 'turning the whole region off brings the community back')
+  s = g.toggleWantRegion(s, 'shetland_central')
   s = g.toggleAnywhere(s)
   assert.deepEqual(s, g.ANYWHERE)
   s = g.toggleWantGroup(g.toggleAnywhere(s), 'Yell')
@@ -84,6 +89,54 @@ test('advert payload carries the two new fields and normalises wants', () => {
   assert.deepEqual(p.want_place_ids, ['lerwick'])
   const q = hs.advertPayload({ ...good, anywhere: true, want_area_ids: ['shetland_north'], want_place_ids: ['lerwick'] })
   assert.deepEqual([q.want_area_ids, q.want_place_ids, q.have_place_id], [[], [], null])
+})
+test('several communities in one region are all kept, within and across regions (the Sandness/Walls report)', () => {
+  // Sandness, then the whole of its region by mistake, then Walls: Sandness must survive.
+  let s = g.toggleWantPlace(g.ANYWHERE, 'sandness')
+  s = g.toggleWantRegion(s, 'shetland_west')
+  s = g.toggleWantPlace(s, 'walls')
+  assert.deepEqual(g.effectiveWants(s).placeIds.sort(), ['sandness', 'walls'])
+  assert.deepEqual(g.effectiveWants(s).regionIds, [], 'the whole region gives way to the communities')
+  // A third in the same region, and two more in other regions.
+  s = g.toggleWantPlace(s, 'aith')
+  s = g.toggleWantPlace(s, 'brae')
+  s = g.toggleWantPlace(s, 'lerwick')
+  const eff = g.effectiveWants(s)
+  assert.deepEqual(eff.placeIds.sort(), ['aith', 'brae', 'lerwick', 'sandness', 'walls'])
+  assert.equal(g.wantCount(s), 5)
+  assert.equal(g.describeWants(eff, 10).includes('Sandness'), true)
+  // A whole region alongside communities elsewhere.
+  s = g.toggleWantRegion(s, 'shetland_north')
+  const eff2 = g.effectiveWants(s)
+  assert.deepEqual(eff2.regionIds, ['shetland_north'])
+  assert.ok(eff2.placeIds.includes('sandness') && eff2.placeIds.includes('walls') && eff2.placeIds.includes('lerwick'))
+  assert.ok(!eff2.placeIds.includes('brae'), 'Brae is covered by the whole of its region')
+  // Tapping a chosen community off removes only that one.
+  s = g.toggleWantPlace(s, 'walls')
+  assert.ok(!g.effectiveWants(s).placeIds.includes('walls'))
+  assert.ok(g.effectiveWants(s).placeIds.includes('sandness'))
+  // The x on a whole-region chip is a real delete: it takes the communities remembered inside it.
+  const del = g.removeWant(s, 'shetland_north')
+  assert.deepEqual(del.regionIds, [])
+  assert.ok(!del.placeIds.includes('brae'))
+  assert.ok(del.placeIds.includes('sandness'))
+})
+
+test('the advert payload saves every chosen community, and reopening an advert keeps them', () => {
+  let s = g.toggleWantPlace(g.ANYWHERE, 'sandness')
+  s = g.toggleWantRegion(s, 'shetland_west')
+  s = g.toggleWantPlace(s, 'walls')
+  s = g.toggleWantPlace(s, 'lerwick')
+  const payload = hs.advertPayload({ ...good, anywhere: false, want_area_ids: s.regionIds, want_place_ids: s.placeIds })
+  assert.deepEqual([...payload.want_place_ids].sort(), ['lerwick', 'sandness', 'walls'])
+  assert.deepEqual(payload.want_area_ids, [])
+  const reopened = hs.advertFromListing({
+    have_area_id: 'shetland_central', have_place_id: null, have_bedrooms: 2, have_type: 'flat', have_features: [], landlord_type: null,
+    headline: null, description: null, want_area_ids: payload.want_area_ids, want_place_ids: payload.want_place_ids,
+    want_min_bedrooms: null, want_max_bedrooms: null, want_types: [], want_features: [], want_notes: null,
+  })
+  assert.deepEqual([...reopened.want_place_ids].sort(), ['lerwick', 'sandness', 'walls'])
+  assert.equal(reopened.anywhere, false)
 })
 test('validation: place must belong to the region; communities alone satisfy the wants rule', () => {
   assert.ok(hs.validateAdvert({ ...good, have_place_id: 'voe' }).errors.have_area_id)

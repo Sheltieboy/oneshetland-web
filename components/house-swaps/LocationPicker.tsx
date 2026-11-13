@@ -2,7 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import {
-  GROUPS, GROUP_NOTE, REGIONS, ANYWHERE, chooseHomePlace, chooseHomeRegion, describeLocation, isGroupChosen, keepHomeBroad, placeById, placesIn, placesInGroup,
+  GROUPS, GROUP_NOTE, REGIONS, ANYWHERE, chooseHomePlace, chooseHomeRegion, describeLocation, effectiveWants, isGroupChosen, keepHomeBroad, placeById, placesIn, placesInGroup,
   regionName, removeWant, searchLocations, toggleAnywhere, toggleWantGroup, toggleWantPlace, toggleWantRegion, wantCount, type HomeState, type Place, type WantState,
 } from "@/lib/house-swaps-geo";
 import { ShetlandMap } from "./ShetlandMap";
@@ -39,8 +39,11 @@ export function LocationPicker(props: Props) {
 
   const homeV = props.mode === "home" ? props.value : null;
   const wantV = props.mode === "wants" ? props.value : null;
-  const mapRegions = homeV ? (homeV.regionId ? [homeV.regionId] : []) : wantV!.regionIds;
-  const mapPlaces = homeV ? (homeV.placeId ? [homeV.placeId] : []) : wantV!.placeIds;
+  // Several communities inside one region are all kept; what the map, the chips and the summary show is the effective choice,
+  // where a region chosen as a whole stands in for its own communities.
+  const effW = wantV ? effectiveWants(wantV) : null;
+  const mapRegions = homeV ? (homeV.regionId ? [homeV.regionId] : []) : effW!.regionIds;
+  const mapPlaces = homeV ? (homeV.placeId ? [homeV.placeId] : []) : effW!.placeIds;
   const onRegion = (id: string) => (props.mode === "home" ? props.onChange(chooseHomeRegion(props.value, id)) : props.onChange(toggleWantRegion(props.value, id)));
   const onPlace = (id: string) => (props.mode === "home" ? props.onChange(chooseHomePlace(props.value, id)) : props.onChange(toggleWantPlace(props.value, id)));
 
@@ -49,10 +52,10 @@ export function LocationPicker(props: Props) {
   // The "Selected" summary: removable chips.
   const summary: { id: string; label: string }[] = homeV
     ? (homeV.regionId ? [{ id: "home", label: describeLocation(homeV.regionId, homeV.placeId) + (homeV.placeId ? "" : " (whole area)") }] : [])
-    : [...wantV!.regionIds.map((r) => ({ id: r, label: `All of ${regionName(r)}` })), ...wantV!.placeIds.map((p) => ({ id: p, label: placeById(p)?.name ?? p }))];
+    : [...effW!.regionIds.map((r) => ({ id: r, label: `All of ${regionName(r)}` })), ...effW!.placeIds.map((p) => ({ id: p, label: placeById(p)?.name ?? p }))];
 
   const placeChips = (places: Place[], regionWhole: (p: Place) => boolean) => places.map((p) => {
-    const on = homeV ? homeV.placeId === p.id : wantV!.placeIds.includes(p.id);
+    const on = homeV ? homeV.placeId === p.id : effW!.placeIds.includes(p.id);
     const inc = !homeV && !on && regionWhole(p);
     return <Chip key={p.id} on={on} included={inc} radio={!!homeV} label={`${p.name}${inc ? ", included in the whole region" : ""}`} onClick={() => onPlace(p.id)}>{p.name}</Chip>;
   });
@@ -147,7 +150,7 @@ export function LocationPicker(props: Props) {
       )}
 
       <div aria-live="polite" className="flex flex-wrap items-center gap-2 border-t border-line pt-3">
-        <span className="text-sm font-bold text-ink">Selected:</span>
+        <span className="text-sm font-bold text-ink">Selected{!homeV && summary.length > 1 ? ` (${summary.length})` : ""}:</span>
         {wantV?.anywhere && <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-pill bg-navy px-3 text-sm font-semibold text-paper"><Tick />Anywhere in Shetland</span>}
         {summary.map((s) => (
           <span key={s.id} className="inline-flex min-h-[44px] items-center gap-1 rounded-pill bg-navy pl-3 text-sm font-semibold text-paper">
