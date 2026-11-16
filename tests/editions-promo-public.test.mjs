@@ -114,6 +114,57 @@ describe("link files", () => {
   test("the apple-app-site-association route serves those paths and assetlinks is untouched in kind", async () => {
     assert.match(read("app/.well-known/apple-app-site-association/route.ts"), /paths: APP_LINK_PATHS/);
   });
+
+  /**
+   * What actually matters is not which strings are in the list, but which URLs end up opening the app. Apple applies the
+   * FIRST entry that matches and treats `*` as any run of characters, `/` included — so a single stray star can hand the
+   * app a staff page. This resolves real URLs the way Apple would and checks the answer.
+   */
+  const opensInApp = (url) => {
+    const re = (p) => new RegExp("^" + p.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".") + "$");
+    for (const entry of APP_LINK_PATHS) {
+      const not = entry.startsWith("NOT ");
+      if (re(not ? entry.slice(4) : entry).test(url)) return !not;   // first match wins
+    }
+    return false;
+  };
+
+  test("every claimed URL has a screen in the app, and nothing staff-only or web-only is claimed", () => {
+    // Public viewing paths the app can render. Each maps to a route file in the app repo.
+    for (const url of [
+      "/t/abc123", "/g/claim-code", "/give/11111111-1111-1111-1111-111111111111",
+      "/editions", "/editions/shetland-folk-festival", "/organisers/up-helly-aa-committee",
+      "/house-swaps",                                   // app/house-swaps.tsx
+      "/almanac", "/almanac/a-winter-in-lerwick",       // app/almanac.tsx, app/almanac/[slug].tsx
+      "/whats-on/regular", "/whats-on/regular/knitting-group",  // app/whats-on/regular.tsx + /[slug].tsx
+    ]) assert.equal(opensInApp(url), true, `${url} should open the app`);
+
+    // Staff, management and member-area pages: the app has no screen for these, so they must stay on the web.
+    for (const url of [
+      "/house-swaps/moderate",                          // staff moderation, web-only by design
+      "/house-swaps/my", "/house-swaps/matches", "/house-swaps/messages", "/house-swaps/messages/abc",
+      "/house-swaps/about", "/house-swaps/0b8bbbb8-2053-480d-bccb-435e200ab082",
+      "/organise", "/organise/dashboard", "/organisers/up-helly-aa-committee/membership",
+      "/editions/shetland-folk-festival/calendar.ics",
+      "/editions/shetland-folk-festival/programme/day-1/calendar.ics",
+      "/whats-on", "/whats-on/calendar", "/whats-on/some-event-id", "/", "/local", "/admin",
+    ]) assert.equal(opensInApp(url), false, `${url} must NOT open the app`);
+  });
+
+  test("the association file Apple fetches is valid for Apple", () => {
+    // Shape: applinks.details[].appID + paths, exclusions before positives, no duplicates, every path absolute.
+    assert.ok(APP_LINK_PATHS.length === new Set(APP_LINK_PATHS).size, "no duplicate entries");
+    for (const p of APP_LINK_PATHS) {
+      const bare = p.startsWith("NOT ") ? p.slice(4) : p;
+      assert.ok(bare.startsWith("/"), `${p} must be an absolute path`);
+      assert.doesNotMatch(bare, /^https?:|\s$|^\s/, `${p} must be a path, not a URL, and must not be padded`);
+    }
+    const route = read("app/.well-known/apple-app-site-association/route.ts");
+    assert.match(route, /"Content-Type": "application\/json"/, "Apple requires application/json");
+    assert.match(route, /status: 200/, "must be 200, and Apple follows no redirects");
+    assert.doesNotMatch(route, /redirect\(/, "a redirect makes the file invalid to Apple");
+    assert.match(route, /apps: \[\]/, "applinks.apps must be present and empty");
+  });
 });
 
 describe("shared markdown vectors", () => {
