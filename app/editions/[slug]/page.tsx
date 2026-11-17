@@ -8,6 +8,8 @@ import { breadcrumbSchema } from "@/lib/seo-schema";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { TrackView } from "@/components/analytics/TrackView";
 import { Prose } from "@/components/editions/Prose";
+import { EditorialBody } from "@/components/editions/EditorialBody";
+import { hasEditorialBlocks } from "@/lib/editions/blocks";
 import { SessionCard } from "@/components/editions/SessionCard";
 import { Journal } from "@/components/editions/Journal";
 import { SponsorStrip } from "@/components/editions/SponsorStrip";
@@ -61,7 +63,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
             {home ? (
               <>
                 <p className="ed-display ed-lede" style={{ margin: 0 }}>{home.title}</p>
-                <Prose source={home.body} level={3} dropcap className="mt-8" />
+                {!hasEditorialBlocks(home.body) && <Prose source={home.body} level={3} dropcap className="mt-8" />}
               </>
             ) : (
               <>
@@ -73,6 +75,8 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
           </div>
         </div>
       </section>
+
+      {home && hasEditorialBlocks(home.body) && <EditorialBody source={home.body} />}
 
       <div className="ed-wrap ed-rise" style={{ paddingBottom: "var(--ed-section)" }}>
         <h2 className="sr-only">At a glance</h2>

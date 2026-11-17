@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { parseMarkdown, type Inline } from "@/lib/editions/markdown";
+import { parseMarkdown, type Inline, type Block } from "@/lib/editions/markdown";
 
 /**
  * Renders the organiser's pages. The text goes through lib/editions/markdown (a small safe subset) and comes out as React elements, so no HTML
@@ -20,6 +20,21 @@ function inline(parts: Inline[]): ReactNode[] {
     }
     return <span key={i}>{p.v}</span>;
   });
+}
+
+/** The element builder on its own, so editorial sections can reuse it without another wrapper div. */
+export function ProseBlocks({ blocks, level = 3 }: { blocks: Block[]; level?: 2 | 3 | 4 }) {
+  const H = (n: number) => `h${Math.min(6, n)}` as "h2" | "h3" | "h4" | "h5";
+  return (
+    <>
+      {blocks.map((b, i) => {
+        if (b.t === "p") return <p key={i}>{inline(b.inline)}</p>;
+        if (b.t === "ul") return <ul key={i}>{b.items.map((it, j) => <li key={j}>{inline(it)}</li>)}</ul>;
+        const Tag = b.t === "h2" ? H(level) : H(level + 1);
+        return <Tag key={i}>{inline(b.inline)}</Tag>;
+      })}
+    </>
+  );
 }
 
 export function Prose({ source, level = 3, className = "", dropcap = false }: { source: string | null | undefined; level?: 2 | 3 | 4; accent?: string; className?: string; dropcap?: boolean }) {

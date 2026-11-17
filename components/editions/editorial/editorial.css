@@ -471,3 +471,105 @@ a.ed-logo:hover img { opacity: 1; filter: none; }
   .ed-ev__side { order: 0; position: sticky; top: 5.5rem; border-top: 1px solid var(--ed-ink); }
 }
 @media (max-width: 36rem) { .ed-ev__pager { grid-template-columns: 1fr; } .ed-ev__pg--next { text-align: left; justify-items: start; } }
+
+/* ── editorial blocks (EditorialBody) ──────────────────────────────────────────────────────────────
+   Page bodies composed as a magazine. Everything here uses the brand tokens only, so an Edition's one
+   colour still decides the whole look. .ed-img::after already lays the brand tone over every
+   photograph, which is what lets a set of unrelated pictures read as one publication. */
+.ed-ratio-34 { aspect-ratio: 3 / 4; }
+.ed-ratio-11 { aspect-ratio: 1 / 1; }
+
+.ed-eb__root > * + * { margin-top: clamp(2.5rem, 6vw, 4.5rem); }
+.ed-eb__root > .ed-eb__band + .ed-eb__band { margin-top: 0; }
+
+/* the standfirst: the sentence that sets the tone, set in the display face */
+.ed-eb__lede { max-width: 34ch; }
+.ed-eb__lede p {
+  margin: 0; font-family: var(--ed-display); font-weight: var(--ed-d-weight);
+  font-size: clamp(1.45rem, 1rem + 2.1vw, 2.6rem); line-height: 1.18; letter-spacing: var(--ed-d-track);
+  color: var(--ed-ink); text-wrap: balance;
+}
+.ed-eb__lede p + p { margin-top: 0.7em; }
+
+/* a contained photograph with an optional caption */
+.ed-eb__fig { margin: 0; }
+.ed-eb__cap { margin-top: 0.75rem; font-size: 0.82rem; line-height: 1.45; color: var(--ed-ink-3); max-width: 46ch; }
+
+/* full-width photographic band: the page breaks its measure and the photograph takes over */
+.ed-eb__band { position: relative; isolation: isolate; padding-block: clamp(4rem, 12vw, 9rem); color: var(--ed-on-deep); background: var(--ed-deep); overflow: hidden; }
+.ed-eb__band--plain { background:
+  radial-gradient(70% 90% at 100% 0%, color-mix(in srgb, var(--ed-brand) 70%, transparent), transparent 72%),
+  radial-gradient(60% 70% at 0% 112%, color-mix(in srgb, var(--ed-alt) 45%, transparent), transparent 70%), var(--ed-deep); }
+.ed-eb__bandmedia { position: absolute; inset: 0; z-index: -2; }
+.ed-eb__bandmedia > img { width: 100%; height: 100%; object-fit: cover; }
+.ed-eb__bandscrim { position: absolute; inset: 0; z-index: -1; background:
+  linear-gradient(to top, var(--ed-deep) 0%, color-mix(in srgb, var(--ed-deep) 86%, transparent) 42%, color-mix(in srgb, var(--ed-deep) 58%, transparent) 100%); }
+.ed-eb__bandbody { max-width: 38ch; color: var(--ed-on-deep); }
+.ed-eb__band--centre .ed-eb__bandbody { margin-inline: auto; text-align: center; max-width: 42ch; }
+.ed-eb__bandbody :is(h2, h3) { color: var(--ed-on-deep); margin-top: 0; }
+.ed-eb__bandbody p { color: color-mix(in srgb, var(--ed-on-deep) 88%, transparent); }
+.ed-eb__bandbody a { color: var(--ed-glow); }
+
+/* image beside text */
+.ed-eb__split { display: grid; gap: clamp(1.5rem, 4vw, 3rem); align-items: center; }
+@media (min-width: 48rem) {
+  .ed-eb__split { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); }
+  .ed-eb__split--right .ed-eb__splitfig { order: 2; }
+}
+.ed-eb__splitfig { margin: 0; min-width: 0; }
+.ed-eb__splitbody { min-width: 0; max-width: 46ch; }
+.ed-eb__splitbody :is(h2, h3):first-child { margin-top: 0; }
+
+/* featured cards */
+.ed-eb__cards { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--ed-line); border-block: 1px solid var(--ed-line); }
+@media (min-width: 40rem) { .ed-eb__cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 62rem) { .ed-eb__cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.ed-eb__card { background: var(--ed-ground); }
+.ed-eb__cardlink { display: grid; gap: 0.4rem; padding: clamp(1.25rem, 3vw, 1.9rem); min-height: 100%; text-decoration: none; color: inherit; transition: background 0.3s var(--ed-ease); }
+a.ed-eb__cardlink:hover, a.ed-eb__cardlink:focus-visible { background: var(--ed-tint); }
+.ed-eb__cardtitle { font-family: var(--ed-display); font-weight: var(--ed-d-weight); font-size: 1.22rem; line-height: 1.2; color: var(--ed-ink); }
+.ed-eb__cardblurb { font-size: 0.9rem; line-height: 1.5; color: var(--ed-ink-3); }
+.ed-eb__cardgo { color: var(--ed-accent); font-size: 1rem; }
+a.ed-eb__cardlink:hover .ed-eb__cardgo { transform: translateX(3px); display: inline-block; transition: transform 0.3s var(--ed-ease); }
+
+/* call to action */
+.ed-eb__cta { display: grid; gap: clamp(1.25rem, 3vw, 2rem); padding: clamp(1.75rem, 5vw, 3rem); background: var(--ed-ground-2); border: 1px solid var(--ed-line); align-items: center; }
+@media (min-width: 48rem) { .ed-eb__cta { grid-template-columns: minmax(0, 1fr) auto; } }
+.ed-eb__ctabody { max-width: 48ch; }
+.ed-eb__ctabody :is(h2, h3):first-child { margin-top: 0; }
+.ed-eb__ctabody p:last-child { margin-bottom: 0; }
+.ed-eb__ctabtn { justify-self: start; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-eb__cardlink, a.ed-eb__cardlink:hover .ed-eb__cardgo { transition: none; transform: none; }
+}
+
+/* ── editorial blocks: refinements ─────────────────────────────────────────────────────────────────
+   The section nav scrolls sideways with a fade, which is right on a phone. On a wide screen the fade
+   has nothing to hide and reads as a clipped word, so above 48rem the row simply wraps instead. */
+@media (min-width: 48rem) {
+  .ed-nav__list { flex-wrap: wrap; overflow-x: visible; row-gap: 0.35rem; -webkit-mask-image: none; mask-image: none; }
+}
+
+/* A headline over a full-width photograph has to carry the whole band. */
+.ed-eb__bandbody :is(h2, h3) {
+  font-family: var(--ed-display); font-weight: var(--ed-d-weight); letter-spacing: var(--ed-d-track);
+  font-size: clamp(1.75rem, 1.1rem + 2.6vw, 3.1rem); line-height: 1.1; text-wrap: balance; margin-bottom: 0.5rem;
+}
+.ed-eb__bandbody p { font-size: clamp(1rem, 0.95rem + 0.3vw, 1.15rem); line-height: 1.6; }
+.ed-eb__band--centre .ed-eb__bandbody p { margin-inline: auto; }
+
+/* On a phone a split is not a squeezed desktop row: the picture leads, full width, then the words. */
+@media (max-width: 47.99rem) {
+  .ed-eb__split { gap: 1.1rem; }
+  .ed-eb__splitfig .ed-img { border-radius: 0; margin-inline: calc(var(--ed-gutter) * -1); width: calc(100% + var(--ed-gutter) * 2); }
+  .ed-eb__cards { border-block: 0; gap: 0; }
+  .ed-eb__card + .ed-eb__card { border-top: 1px solid var(--ed-line); }
+  .ed-eb__cta { padding-inline: var(--ed-gutter); margin-inline: calc(var(--ed-gutter) * -1); }
+  .ed-eb__ctabtn { justify-self: stretch; text-align: center; }
+}
+
+/* A wide band crops to roughly 4:1. A portrait photograph with a clear subject cannot survive that —
+   the subject falls outside the strip at every focus value — so a band takes a landscape image, a
+   subject-free texture, or no image at all (the gradient variant below). */
+.ed-eb__band--plain { padding-block: clamp(3rem, 8vw, 5.5rem); }
