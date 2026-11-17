@@ -5,6 +5,8 @@ import { breadcrumbSchema } from "@/lib/seo-schema";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { TrackView } from "@/components/analytics/TrackView";
 import { Prose } from "@/components/editions/Prose";
+import { EditorialBody } from "@/components/editions/EditorialBody";
+import { hasEditorialBlocks } from "@/lib/editions/blocks";
 import { SponsorStrip } from "@/components/editions/SponsorStrip";
 
 export const dynamic = "force-dynamic";
@@ -51,9 +53,12 @@ export default async function EditionPageRoute({ params }: { params: Promise<{ s
           <div className="ed-intro__side"><p className="ed-eyebrow ed-eyebrow--accent" style={{ margin: 0 }}>{p.nav_label}</p></div>
           <div style={{ minWidth: 0 }}>
             <h2 id="page-h" className="ed-display ed-h1" style={{ margin: 0 }}>{p.title}</h2>
-            <Prose source={p.body} level={3} dropcap className="mt-8" />
+            {/* A page written before blocks existed renders exactly as it always has. Only a body that
+                really uses blocks takes the editorial layout, which needs the full width below. */}
+            {!hasEditorialBlocks(p.body) && <Prose source={p.body} level={3} dropcap className="mt-8" />}
           </div>
         </div>
+        {hasEditorialBlocks(p.body) && <div className="mt-10"><EditorialBody source={p.body} /></div>}
       </article>
     </>
   );

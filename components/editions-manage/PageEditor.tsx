@@ -10,12 +10,14 @@ import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { EmptyState, Field, Notice, Pill, btnDanger, btnPrimary, btnSecondary, inputCls } from "./kit";
 import { useAction } from "./use-action";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { PageImageHelper } from "./PageImageHelper";
+import { BlockGuide } from "./BlockGuide";
 
 type Draft = { id: string | null; title: string; nav_label: string; slug: string; body: string; in_nav: boolean; is_home: boolean };
 const blank = (isFirst: boolean): Draft => ({ id: null, title: "", nav_label: "", slug: "", body: "", in_nav: true, is_home: isFirst });
 const fromPage = (p: EditionPage): Draft => ({ id: p.id, title: p.title, nav_label: p.nav_label, slug: p.slug, body: p.body, in_nav: p.in_nav, is_home: p.is_home });
 
-export function PageEditor({ organiserSlug, editionSlug, pages, summary }: { organiserSlug: string; editionSlug: string; pages: EditionPage[]; summary?: string | null }) {
+export function PageEditor({ organiserSlug, organiserId, editionSlug, pages, summary }: { organiserSlug: string; organiserId: string; editionSlug: string; pages: EditionPage[]; summary?: string | null }) {
   const router = useRouter();
   const confirm = useConfirm();
   const save = useAction();
@@ -104,7 +106,9 @@ export function PageEditor({ organiserSlug, editionSlug, pages, summary }: { org
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className={tab === "preview" ? "hidden lg:block" : ""}>
                   <textarea id="pg-body" className={inputCls + " font-mono text-sm"} rows={14} value={draft.body} onChange={(e) => set("body", e.target.value)} maxLength={20000} aria-describedby="pg-help" />
-                  <p id="pg-help" className="mt-1 text-xs text-ink-muted">{draft.body.length.toLocaleString()}/20,000. Use ## for headings, - for lists, **bold**, *italic* and [link text](https://…).</p>
+                  <p id="pg-help" className="mt-1 text-xs text-ink-muted">{draft.body.length.toLocaleString()}/20,000. Use ## for headings, - for lists, **bold**, *italic* and [link text](https://…). For a photograph, a standfirst or a row of cards, use a block — see the guide below.</p>
+                  <PageImageHelper organiserId={organiserId} />
+                  <BlockGuide />
                 </div>
                 <div className={"rounded-xl border border-line bg-cream/40 p-4 " + (tab === "write" ? "hidden lg:block" : "")} aria-label="Preview">
                   <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">Preview</p>
