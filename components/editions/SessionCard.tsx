@@ -19,6 +19,8 @@ export function SessionCard({ session: s, venue, editionId, editionSlug, showDat
   const href = editionSlug ? itemPath(editionSlug, s) : null;
   const cancelled = s.status === "cancelled";
   const map = venue ? mapsUrl(venue) : null;
+  // A linked item usually has no edition venue: the event says where it is, in its own words.
+  const where = venue ? null : s.venue_text?.trim() || null;
   const dp = dayParts(s.starts_at);
   return (
     <article className={`ed-row${cancelled ? " ed-row--off" : ""}`}>
@@ -35,7 +37,7 @@ export function SessionCard({ session: s, venue, editionId, editionSlug, showDat
         </p>
         <h3 className="ed-row__title">{href ? <Link href={href}>{s.title}</Link> : s.title}</h3>
         {s.description && <p className="ed-row__desc" style={{ whiteSpace: "pre-line" }}>{s.description}</p>}
-        {(venue || s.price_text) && (
+        {(venue || where || s.price_text) && (
           <p className="ed-row__foot">
             {venue && (
               <span>
@@ -48,6 +50,7 @@ export function SessionCard({ session: s, venue, editionId, editionSlug, showDat
                 )}
               </span>
             )}
+            {where && <span>{where}</span>}
             {s.price_text && <strong>{s.price_text}</strong>}
           </p>
         )}

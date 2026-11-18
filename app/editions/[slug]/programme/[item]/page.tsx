@@ -34,7 +34,7 @@ function buildItems(b: PublicEditionBundle): Item[] {
     const v = s.venue_id ? venueById.get(s.venue_id) ?? null : null;
     return {
       kind: "session", id: s.id, title: s.title, description: s.description, starts_at: s.starts_at, ends_at: s.ends_at, status: s.status, image: isPhoto(s.image_url) ? s.image_url : null,
-      venue: v, where: v ? [v.name, v.address].filter(Boolean).join(", ") : null, price: s.price_text, ticket: s.ticket_mode === "external" && isHttps(s.ticket_url) ? s.ticket_url : null,
+      venue: v, where: v ? [v.name, v.address].filter(Boolean).join(", ") : (s.venue_text?.trim() || null), price: s.price_text, ticket: s.ticket_mode === "external" && isHttps(s.ticket_url) ? s.ticket_url : null,
       presenters: s.presenters ?? null, label: SESSION_KIND_LABEL[s.kind], businesses: b.sessionBusinesses[s.id] ?? [], session: s,
     };
   });

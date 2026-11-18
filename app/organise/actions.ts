@@ -13,7 +13,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { can, friendlyError } from "@/lib/editions/rules";
 import { inviteFields, isPartnerAction, noteField, type FindActivity, type FindBusiness, type FindHub } from "@/lib/editions/partners";
-import type { OrgRole } from "@/lib/editions/types";
+import type { LinkableEvent, OrgRole } from "@/lib/editions/types";
 import {
   editionFields, editionSlug, inviteInput, isOrgRole, isUuid, organiserProfile, pageFields, seriesName, sessionFields, sponsorFields,
   updateFields, venueFields,
@@ -349,6 +349,42 @@ export async function saveSession(slug: string, editionSlugArg: string, sessionI
   }
   revalidateEdition(slug, editionSlugArg, "programme");
   return { ok: true, id: sessionId };
+}
+
+/**
+ * Link a programme item to the What's On event it IS. From then on the database keeps its title, start, end, place
+ * and status in step with that event; the Edition's own description, photograph, price note and running order are
+ * untouched. The database decides who may link what — controlling the event, an approved partnership, or platform
+ * staff with one of OneShetland's own events — so this is a thin pass-through, not a second set of rules.
+ */
+export async function linkSessionToEvent(slug: string, editionSlugArg: string, sessionId: string, eventId: string): Promise<Result> {
+  const c = await editionCtx(slug, editionSlugArg, "editor");
+  if ("ok" in c) return c;
+  if (!isUuid(sessionId) || !isUuid(eventId)) return bad("That event could not be found.");
+  const { error } = await c.sb.rpc("edition_session_link_event", { p_session: sessionId, p_event: eventId });
+  if (error) return bad(friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg, "programme");
+  return { ok: true };
+}
+
+/** Stop following the event. The item keeps the details it is showing and becomes the Edition's own again. */
+export async function unlinkSessionFromEvent(slug: string, editionSlugArg: string, sessionId: string): Promise<Result> {
+  const c = await editionCtx(slug, editionSlugArg, "editor");
+  if ("ok" in c) return c;
+  if (!isUuid(sessionId)) return bad("That session could not be found.");
+  const { error } = await c.sb.rpc("edition_session_unlink_event", { p_session: sessionId });
+  if (error) return bad(friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg, "programme");
+  return { ok: true };
+}
+
+/** The What's On events this Edition may put in its programme: inside its dates, not already listed, and allowed. */
+export async function linkableEvents(slug: string, editionSlugArg: string, q: string): Promise<Result<{ events: LinkableEvent[] }>> {
+  const c = await editionCtx(slug, editionSlugArg, "editor");
+  if ("ok" in c) return c;
+  const { data, error } = await c.sb.rpc("edition_linkable_events", { p_edition: c.edition.id, p_q: typeof q === "string" ? q.slice(0, 60) : null });
+  if (error) return bad(friendlyError(error.message));
+  return { ok: true, events: Array.isArray(data) ? (data as LinkableEvent[]) : [] };
 }
 
 export async function deleteSession(slug: string, editionSlugArg: string, sessionId: string): Promise<Result> {

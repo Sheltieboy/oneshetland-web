@@ -28,7 +28,29 @@ export type EditionSession = {
   id: string; edition_id: string; title: string; description: string | null; starts_at: string; ends_at: string | null; venue_id: string | null;
   kind: SessionKind; ticket_mode: "none" | "external"; ticket_url: string | null; price_text: string | null; status: "scheduled" | "cancelled" | "changed"; position: number;
   image_url?: string | null; presenters?: string | null;
+  /**
+   * A programme item that IS a What's On event names it here, and the database keeps the two in step: title, start,
+   * end, place and the event's status are written by trigger whenever the event changes and cannot be edited by hand.
+   * Everything else above stays the Edition's own. See supabase/migrations/20270307000000_edition_sessions_linked_events.sql.
+   */
+  event_id?: string | null;
+  linked_at?: string | null;
+  /** Set when the event behind this item was DELETED. The item keeps its last known details and stays in the programme. */
+  event_detached_at?: string | null;
+  /** Where the linked event says it is. Sessions keep venue_id for the organiser's own venues; an event has free text. */
+  venue_text?: string | null;
+  /** The linked event's own status, mirrored. Null when this item is not linked. */
+  event_status?: string | null;
+  /** What the organiser asked for, kept apart from the event's own status so neither can quietly overwrite the other. */
+  organiser_status?: "scheduled" | "cancelled" | "changed";
 };
+
+/** A What's On event an Edition may put in its programme (public.edition_linkable_events). */
+export type LinkableEvent = { event_id: string; title: string; starts_at: string; ends_at: string | null; place: string | null; status: string };
+
+/** Where a programme item is: the organiser's own venue if it has one, else the linked event's own words. */
+export const sessionWhere = (s: EditionSession, venue?: { name: string; address: string | null } | null): string | null =>
+  venue ? [venue.name, venue.address].filter(Boolean).join(", ") : (s.venue_text?.trim() || null);
 export type EditionUpdate = { id: string; edition_id: string; title: string; body: string; pinned: boolean; published_at: string | null; image_url?: string | null };
 export type EditionSponsor = { id: string; edition_id: string; name: string; level: string | null; logo_url: string | null; url: string | null; position: number };
 export type EditionEntitlement = {
