@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/editions/validate";
-import { isIsoDay, promoError, validateFeature, validateGrant, validateReason } from "./calendar";
+import { isIsoDay, promoError, validateFeature, validateGrant, validateHouseFeature, validateHouseFlag, validateReason } from "./calendar";
 
 /** Admin promotion actions. requireAdmin() first, then as the signed-in administrator (the SQL functions check again, apply the integrity rules and audit every change). No service key. */
 export type Result = { ok: true } | { ok: false; error: string };
@@ -54,4 +54,32 @@ export async function featureEdition(input: { edition: string; kind: string; sta
   revalidatePath("/", "layout");
   refresh();
   return { ok: true };
+}
+
+/**
+ * An official OneShetland house promotion: the same one-step grant-and-book, for an Edition OneShetland runs
+ * itself, exempt from the commercial 14-days-in-90 homepage limit and left out of its count. Capacity, the
+ * publishing window and every other rule are enforced by the database exactly as before, and the booking is
+ * audited as promo_house_featured with the administrator, the dates and the reason.
+ */
+export async function featureEditionHouse(input: { edition: string; kind: string; start: string; days: string; reason: string }): Promise<Result> {
+  await requireAdmin();
+  const v = validateHouseFeature(input);
+  if (!v.ok) return v;
+  const { error } = await (await createClient()).rpc("admin_promo_feature_house", {
+    p_edition: v.edition, p_kind: v.kind, p_start: v.start, p_days: v.days, p_reason: v.reason,
+  });
+  if (error) return fail(error);
+  revalidatePath("/", "layout");
+  refresh();
+  return { ok: true };
+}
+
+/** Mark (or unmark) an organiser as OneShetland's own. Only then can its Editions have a house promotion. Audited. */
+export async function setOrganiserHouse(input: { organiser: string; house: boolean; reason: string }): Promise<Result> {
+  await requireAdmin();
+  const v = validateHouseFlag(input);
+  if (!v.ok) return v;
+  const { error } = await (await createClient()).rpc("admin_set_edition_organiser_house", { p_org: v.organiser, p_house: v.house, p_reason: v.reason });
+  if (error) return fail(error); refresh(); return { ok: true };
 }

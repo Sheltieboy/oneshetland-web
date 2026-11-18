@@ -90,6 +90,8 @@ const HINT: Record<string, string> = {
   homepage_would_fall_outside: "Moving the discovery days would leave its homepage days outside them. Move the homepage days first.",
   not_booked: "That booking has already been cancelled or has finished.",
   too_far: "That is too far ahead to book.",
+  not_house: "That Edition is not one of OneShetland's own, so it cannot have a house promotion. Mark its organiser as OneShetland's own first, or book it as an ordinary promotion.",
+  not_verified: "Only a verified, non-test organiser can be marked as OneShetland's own.",
 };
 export function promoError(message: string | null | undefined, hint?: string | null): string {
   const h = (hint ?? "").trim();
@@ -108,8 +110,10 @@ export function promoError(message: string | null | undefined, hint?: string | n
  * Every rule below is also enforced by edition_promo_validate; this says no first, and says why.
  */
 export type FeatureCandidate = {
-  edition_id: string; title: string; slug: string; organiser_name: string;
+  edition_id: string; title: string; slug: string; organiser_id: string; organiser_name: string;
   starts_on: string; ends_on: string; entitlement_ends_at: string | null; is_public: boolean;
+  /** This Edition is OneShetland's own, so it may be given a house promotion. Set by an administrator, never by an organiser. */
+  is_house: boolean;
 };
 
 export function parseCandidates(rows: unknown): FeatureCandidate[] {
@@ -117,10 +121,10 @@ export function parseCandidates(rows: unknown): FeatureCandidate[] {
   return rows.flatMap((r): FeatureCandidate[] => {
     const x = r as Record<string, unknown>;
     return typeof x?.edition_id === "string" && typeof x?.title === "string"
-      ? [{ edition_id: x.edition_id, title: x.title, slug: String(x.slug ?? ""), organiser_name: String(x.organiser_name ?? ""),
+      ? [{ edition_id: x.edition_id, title: x.title, slug: String(x.slug ?? ""), organiser_id: String(x.organiser_id ?? ""), organiser_name: String(x.organiser_name ?? ""),
           starts_on: String(x.starts_on ?? ""), ends_on: String(x.ends_on ?? ""),
           entitlement_ends_at: typeof x.entitlement_ends_at === "string" ? x.entitlement_ends_at : null,
-          is_public: x.is_public === true }]
+          is_public: x.is_public === true, is_house: x.is_house === true }]
       : [];
   });
 }
@@ -129,7 +133,32 @@ export function parseCandidates(rows: unknown): FeatureCandidate[] {
 export const lastBookableDay = (c: Pick<FeatureCandidate, "entitlement_ends_at">): string | null =>
   c.entitlement_ends_at ? addDays(c.entitlement_ends_at.slice(0, 10), -1) : null;
 
+/* ── house promotions ───────────────────────────────────────────────────────────────────────────────────────────
+ *
+ * An official OneShetland campaign (Christmas & New Year, for instance) is editorial rather than advertising: it
+ * carries no money and runs for a season. The commercial fairness rule — 14 homepage days in any 90 — would make a
+ * 49-day run impossible, so a house promotion is exempt from that one rule and is left out of its count. Everything
+ * else still applies, capacity included: a house promotion takes one of the three homepage places a day and is
+ * refused when a day is full. Only an administrator can make one, and only for an Edition OneShetland runs itself.
+ */
+export const HOUSE_DAYS = { min: 1, max: 400 } as const;
+
 export type FeatureInput = { edition?: unknown; kind?: unknown; start?: unknown; days?: unknown; reason?: unknown };
+export function validateHouseFeature(input: FeatureInput): { ok: true; edition: string; kind: PromoKind; start: string; days: number; reason: string } | { ok: false; error: string } {
+  const v = validateFeature({ ...input, days: HOUSE_DAYS.min });
+  if (!v.ok) return v;
+  const days = Number((input as { days?: unknown }).days);
+  if (!Number.isInteger(days) || days < HOUSE_DAYS.min || days > HOUSE_DAYS.max) return { ok: false, error: `Choose ${HOUSE_DAYS.min} to ${HOUSE_DAYS.max} days.` };
+  return { ...v, days };
+}
+
+export function validateHouseFlag(input: { organiser?: unknown; house?: unknown; reason?: unknown }): { ok: true; organiser: string; house: boolean; reason: string } | { ok: false; error: string } {
+  const organiser = String(input.organiser ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(organiser)) return { ok: false, error: "Choose an organiser." };
+  const r = validateReason(input.reason); if (!r.ok) return r;
+  return { ok: true, organiser, house: input.house === true, reason: r.reason };
+}
+
 export function validateFeature(input: FeatureInput): { ok: true; edition: string; kind: PromoKind; start: string; days: number; reason: string } | { ok: false; error: string } {
   const edition = String(input.edition ?? "");
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(edition)) return { ok: false, error: "Choose an Edition to feature." };
