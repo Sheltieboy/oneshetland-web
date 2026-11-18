@@ -55,8 +55,9 @@ test("the flag is the public switch, read once per request in the layout and pas
 });
 
 test("the default is off, in the function and in both components, so a caller that forgets the prop shows nothing", () => {
-  assert.match(header, /editionsEnabled = false \}/);
-  assert.match(menu, /editionsEnabled = false \}/);
+  // Allow further props after it (the seasonal brand flag is one); the default itself is what matters.
+  assert.match(header, /editionsEnabled = false\s*[,}]/);
+  assert.match(menu, /editionsEnabled = false\s*[,}]/);
   assert.equal(primaryNav(undefined).some((s) => s.key === "editions"), false);
 });
 

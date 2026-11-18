@@ -2,8 +2,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { SECTIONS } from "@/lib/sections";
 import { HouseSwapsFooterLink } from "@/components/house-swaps/NavFlag";
+import { brandMark } from "@/lib/festive";
 
-export function SiteFooter() {
+export function SiteFooter({ festive = false }: { festive?: boolean } = {}) {
   return (
     <footer className="mt-24 bg-navy text-paper">
       <div className="mx-auto max-w-6xl px-5 py-14">
@@ -11,7 +12,7 @@ export function SiteFooter() {
           <div>
             <div className="flex items-center gap-2.5">
               <span className="grid h-11 w-11 place-items-center rounded-xl bg-paper p-1.5">
-                <Image src="/brand/logo-mark-keyed.png" alt="" width={32} height={32} unoptimized className="h-8 w-8" />
+                <Image src={brandMark(festive)} alt="" width={32} height={32} unoptimized className="h-8 w-8" />
               </span>
               <span className="font-display text-xl font-semibold tracking-tight">OneShetland</span>
             </div>

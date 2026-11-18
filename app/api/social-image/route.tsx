@@ -10,6 +10,7 @@ import { CATEGORY_LABEL } from "@/lib/activities";
 import { getSpotlightEvent } from "@/lib/social-event-row";
 import { presentRow } from "@/lib/event-runs";
 import { eventOrganiser } from "@/lib/event-organiser";
+import { brandMark, isFestive } from "@/lib/festive";
 
 /**
  * /api/social-image — branded 1080×1080 social cards for the Peerie Press
@@ -70,7 +71,7 @@ const fmtDow = (iso: string) =>
   new Date(iso).toLocaleDateString("en-GB", { weekday: "short", timeZone: "Europe/London" }).toUpperCase();
 
 /** Shared page chrome: cream ground, faint ring watermark, branded footer. */
-function Frame({ children, ringUrl, accent }: { children: React.ReactNode; ringUrl: string; accent: string }) {
+function Frame({ children, ringUrl, markUrl, accent }: { children: React.ReactNode; ringUrl: string; markUrl: string; accent: string }) {
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", background: CREAM, position: "relative", fontFamily: "Inter" }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -79,7 +80,7 @@ function Frame({ children, ringUrl, accent }: { children: React.ReactNode; ringU
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 64px", height: 110, borderTop: `6px solid ${accent}`, background: "#ffffff" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={ringUrl} width={54} height={54} alt="" />
+          <img src={markUrl} width={54} height={54} alt="" />
           <span style={{ fontFamily: "Fraunces", fontSize: 38, color: NAVY }}>OneShetland</span>
         </div>
         <span style={{ fontSize: 26, fontWeight: 700, color: INK_SOFT }}>oneshetland.com</span>
@@ -96,6 +97,10 @@ export async function GET(req: NextRequest) {
   const p = req.nextUrl.searchParams;
   const kind = p.get("kind") ?? "";
   const ringUrl = new URL("/brand/logo-mark-keyed.png", req.nextUrl.origin).toString();
+  /* The lockup at the foot of every card wears the festive mark in season (lib/festive.ts). The
+     watermark above keeps the ordinary ring: at 8% opacity the snow and the gold would not read,
+     and a second seasonal image per card is bytes for nothing. */
+  const markUrl = new URL(brandMark(isFestive()), req.nextUrl.origin).toString();
   const fonts = await loadFonts();
   const sb = publicClient();
   const opts = {
@@ -121,7 +126,7 @@ export async function GET(req: NextRequest) {
     const wordSize = w.word.length > 12 ? 96 : w.word.length > 8 ? 128 : 160;
     return new ImageResponse(
       (
-        <Frame ringUrl={ringUrl} accent={TEAL}>
+        <Frame ringUrl={ringUrl} markUrl={markUrl} accent={TEAL}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "84px 72px 0", gap: 30 }}>
             <Eyebrow text="Spik · Word of the day" color={TEAL} />
             <div style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
@@ -210,7 +215,7 @@ export async function GET(req: NextRequest) {
       new Date(iso).toLocaleDateString("en-GB", { day: "numeric", timeZone: "Europe/London" });
     return new ImageResponse(
       (
-        <Frame ringUrl={ringUrl} accent={EVENTS}>
+        <Frame ringUrl={ringUrl} markUrl={markUrl} accent={EVENTS}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "72px 72px 0", gap: 14 }}>
             <Eyebrow text="What's On" color={EVENTS} />
             <span style={{ fontFamily: "Fraunces", fontSize: 84, color: NAVY, lineHeight: 1.05, marginBottom: 22 }}>
@@ -352,7 +357,7 @@ export async function GET(req: NextRequest) {
     });
     return new ImageResponse(
       (
-        <Frame ringUrl={ringUrl} accent={JOBS}>
+        <Frame ringUrl={ringUrl} markUrl={markUrl} accent={JOBS}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "72px 72px 0", gap: 14 }}>
             <Eyebrow text="Jobs & Shifts" color={JOBS} />
             <span style={{ fontFamily: "Fraunces", fontSize: 76, color: NAVY, lineHeight: 1.05, marginBottom: 18 }}>Hiring in Shetland</span>
@@ -417,7 +422,7 @@ export async function GET(req: NextRequest) {
     else if (n >= 6) grid = <div style={{ display: "flex", flexDirection: "column", gap: GAP }}><div style={{ display: "flex", gap: GAP }}>{[0, 1, 2].map((i) => <Tile key={i} i={i} w={cols(3)} h={rowsOf(2)} big={false} />)}</div><div style={{ display: "flex", gap: GAP }}>{[3, 4, 5].map((i) => <Tile key={i} i={i} w={cols(3)} h={rowsOf(2)} big={false} />)}</div></div>;
     return new ImageResponse(
       (
-        <Frame ringUrl={ringUrl} accent="#0f766e">
+        <Frame ringUrl={ringUrl} markUrl={markUrl} accent="#0f766e">
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "44px 40px 0", gap: 10 }}>
             <div style={{ display: "flex", flexDirection: "column", height: 142, gap: 6, paddingLeft: 8 }}>
               <Eyebrow text="Regular activities" color="#0f766e" />
@@ -455,7 +460,7 @@ export async function GET(req: NextRequest) {
     const big = title.length > 46 ? 62 : title.length > 28 ? 74 : 88;
     return new ImageResponse(
       (
-        <Frame ringUrl={ringUrl} accent={ACCESS}>
+        <Frame ringUrl={ringUrl} markUrl={markUrl} accent={ACCESS}>
           <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "0 72px", gap: 28, justifyContent: "center" }}>
             <Eyebrow text={eyebrow} color={ACCESS} />
             <span style={{ fontFamily: "Fraunces", fontSize: big, color: NAVY, lineHeight: 1.06 }}>{title}</span>

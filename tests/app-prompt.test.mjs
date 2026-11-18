@@ -94,7 +94,7 @@ describe("UI contract (source)", () => {
   const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
   test("accessible close button and CTA link; real logo; decorative image has empty alt", () => {
     assert.match(src, /<button[\s\S]*type="button"[\s\S]*aria-label="Close/); assert.match(src, /<a\s[\s\S]*href=\{cfg\.storeUrl\}/);
-    assert.match(src, /\/brand\/logo-mark-keyed\.png/); assert.match(src, /alt=""/);
+    assert.match(src, /brandMark\(festive\)/, "the real mark, asked for by lib/festive.ts"); assert.match(src, /alt=""/);
     assert.match(src, /focus-visible:outline/);
   });
   test("not a modal: no dialog role, no aria-modal, no overlay, no focus trap or focus stealing", () => {
@@ -107,7 +107,7 @@ describe("UI contract (source)", () => {
   });
   test("client-only, mounted once in the root layout beside the site footer, hidden on private routes; no SSR output", () => {
     assert.match(readFileSync(new URL("../components/site/AppInstallPrompt.tsx", import.meta.url), "utf8"), /^"use client";/);
-    assert.match(layout, /<HideOnPrivateRoutes><AppInstallPrompt \/><\/HideOnPrivateRoutes>/);
+    assert.match(layout, /<HideOnPrivateRoutes><AppInstallPrompt [^>]*\/><\/HideOnPrivateRoutes>/);
     assert.match(src, /useSyncExternalStore\(noopSubscribe, readUa, \(\) => ""\)/);
   });
   test("it waits for the analytics-consent banner to be answered so two bottom bars never stack", () => { assert.match(src, /os_analytics_consent/); assert.match(src, /consentAnswered/); });

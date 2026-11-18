@@ -3,6 +3,7 @@
 import { useRef, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { brandMark, isFestive } from "@/lib/festive";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { logCompliance, TERMS_VERSION, PRIVACY_VERSION } from "@/lib/compliance";
@@ -128,7 +129,9 @@ function SignUpInner() {
     <section className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-16">
       <div className="rounded-xl border border-line bg-paper p-8 shadow-soft sm:p-10">
         <Link href="/" className="mb-6 flex items-center justify-center gap-2.5" aria-label="OneShetland home">
-          <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={36} height={36} unoptimized className="h-9 w-9" />
+          {/* The festive mark in season, so this card matches the header above it. This page is a client
+              component with no server parent to pass the answer down, so it asks directly: see lib/festive.ts. */}
+          <Image src={brandMark(isFestive())} alt="OneShetland" width={36} height={36} unoptimized className="h-9 w-9" />
           <span className="font-display text-xl font-bold text-navy">OneShetland</span>
         </Link>
         <p className="eyebrow text-teal">Join OneShetland</p>

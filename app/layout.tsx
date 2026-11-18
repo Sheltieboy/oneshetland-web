@@ -19,6 +19,7 @@ import { SavedProvider } from "@/components/saved/SavedProvider";
 import { getSavedEnabled } from "@/lib/saved.server";
 import { getEditionsEnabled } from "@/lib/editions/data.server";
 import { houseSwapsEnabled } from "@/lib/house-swaps-data";
+import { isFestive } from "@/lib/festive";
 import { HouseSwapsNavProvider } from "@/components/house-swaps/NavFlag";
 
 /**
@@ -97,6 +98,10 @@ export default async function RootLayout({
   const editionsEnabled = await getEditionsEnabled();
   // House Swaps: its menu entry exists only while the feature is switched on (any failure counts as off).
   const houseSwaps = await houseSwapsEnabled();
+  // Christmas and New Year: the site chrome wears the festive ring mark until 6 January, UK dates.
+  // Decided here, on the server, so every piece of chrome agrees and no client works the date out
+  // for itself. lib/festive.ts holds the window; nothing has to be deployed to end it.
+  const festive = isFestive();
 
   return (
     <html
@@ -151,10 +156,10 @@ export default async function RootLayout({
           <ConfirmProvider>
            <SavedProvider enabled={savedEnabled} signedIn={!!account}>
            <HouseSwapsNavProvider enabled={houseSwaps}>
-            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} editionsEnabled={editionsEnabled} {...entryPointProps()} /></HideOnPrivateRoutes>
+            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} editionsEnabled={editionsEnabled} festive={festive} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
-            <HideOnEditionPages><HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes></HideOnEditionPages>
-            <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
+            <HideOnEditionPages><HideOnPrivateRoutes><SiteFooter festive={festive} /></HideOnPrivateRoutes></HideOnEditionPages>
+            <HideOnPrivateRoutes><AppInstallPrompt festive={festive} /></HideOnPrivateRoutes>
            </HouseSwapsNavProvider>
            </SavedProvider>
           </ConfirmProvider>

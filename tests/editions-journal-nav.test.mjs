@@ -31,7 +31,7 @@ describe("one footer, everywhere on an Edition", () => {
   test("the OneShetland site footer is hidden on Edition and organiser pages only", () => {
     for (const p of ["/editions/zz-fest", "/editions/zz-fest/programme", "/editions/zz-fest/about", "/organisers/zz-org", "/organisers/zz-org/membership"]) assert.ok(EDITION_OWN_FOOTER.test(p), p);
     for (const p of ["/", "/editions", "/editions/", "/whats-on", "/directory/x", "/organise/zz-org", "/account/editions", "/admin/editions", "/organisersx"]) assert.ok(!EDITION_OWN_FOOTER.test(p), `${p} keeps the site footer`);
-    assert.match(read("app/layout.tsx"), /<HideOnEditionPages><HideOnPrivateRoutes><SiteFooter \/><\/HideOnPrivateRoutes><\/HideOnEditionPages>/);
+    assert.match(read("app/layout.tsx"), /<HideOnEditionPages><HideOnPrivateRoutes><SiteFooter [^>]*\/><\/HideOnPrivateRoutes><\/HideOnEditionPages>/);
   });
   test("the Edition's own footer leads with the organiser, is understated about OneShetland, and keeps the legal links", async () => {
     const html = await frame(await Home({ params: P({ slug: "zz-fest" }) }));
