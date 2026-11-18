@@ -16,7 +16,9 @@
  */
 import test, { describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement as h } from "react";
 
@@ -28,6 +30,26 @@ const { EditionsEntryPanel } = await import("../components/editions-manage/Editi
 const { EditionsLaunchAdmin: LaunchAdmin } = await import("../components/admin/EditionsLaunchAdmin.tsx");
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+
+/**
+ * The paired BACKEND migration, found by searching the sibling checkouts for it by name.
+ *
+ * Two things this gets right that the first version did not. It does not hard-code which sibling directory holds the backend — a test pinned to
+ * one directory name is how a previous contract test went permanently red — and when the file genuinely cannot be found the tests below call
+ * t.skip() rather than returning. The first version returned, so once the migration was renumbered from 20270106000000 to 20270303000000 both
+ * backend assertions reported a tick while reading nothing at all. A test that cannot find its subject must say so, not pass.
+ */
+const BACKEND_MIGRATION = "20270303000000_editions_launch_switches_and_catalogue.sql";
+const migrationSql = (() => {
+  const siblings = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+  let names = [];
+  try { names = readdirSync(siblings, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name); } catch { return null; }
+  for (const n of names) {
+    const candidate = join(siblings, n, "supabase", "migrations", BACKEND_MIGRATION);
+    if (existsSync(candidate)) return readFileSync(candidate, "utf8");
+  }
+  return null;
+})();
 const dataServer = read("lib/editions/data.server.ts");
 const entryPanel = read("components/editions-manage/EditionsEntryPanel.tsx");
 const launchAction = read("app/admin/editions/launch/actions.ts");
@@ -79,13 +101,9 @@ describe("the free package", () => {
     assert.equal(validateNew({ ...free, isFree: false, price: "0", active: false }).ok, true);
   });
 
-  test("the migration adds it switched OFF, free, 365 days, and granting nothing", () => {
-    // read from the backend migration if the sibling checkout is present; skipped rather than silently passed when it is not
-    let sql = null;
-    for (const dir of ["oneshetland-be-ednlaunch", "oneshetland-be-houseswaps"]) {
-      try { sql = readFileSync(new URL(`../../${dir}/supabase/migrations/20270106000000_editions_launch_switches_and_catalogue.sql`, import.meta.url), "utf8"); break; } catch { /* next */ }
-    }
-    if (!sql) { console.warn("  backend checkout not present: the migration assertions are skipped"); return; }
+  test("the migration adds it switched OFF, free, 365 days, and granting nothing", (t) => {
+    if (!migrationSql) return t.skip(`no sibling checkout carries ${BACKEND_MIGRATION}`);
+    const sql = migrationSql;
     // Anchor on the STATEMENT, not on text that also appears in the comment above it.
     const at = sql.indexOf("insert into public.edition_packages");
     assert.ok(at > -1, "the insert is there");
@@ -275,12 +293,9 @@ describe("public visibility and organiser registration are separate", () => {
     }
   });
 
-  test("the database enforces it too: the website is the explanation, not the gate", () => {
-    let sql = null;
-    for (const dir of ["oneshetland-be-ednlaunch", "oneshetland-be-houseswaps"]) {
-      try { sql = readFileSync(new URL(`../../${dir}/supabase/migrations/20270106000000_editions_launch_switches_and_catalogue.sql`, import.meta.url), "utf8"); break; } catch { /* next */ }
-    }
-    if (!sql) { console.warn("  backend checkout not present: the migration assertions are skipped"); return; }
+  test("the database enforces it too: the website is the explanation, not the gate", (t) => {
+    if (!migrationSql) return t.skip(`no sibling checkout carries ${BACKEND_MIGRATION}`);
+    const sql = migrationSql;
     assert.match(sql, /if not \(public\.editions_signup_open\(\) or public\.edition_staff\(\)\) then/);
     assert.match(sql, /hint = 'signup_closed'/);
     // the existing-organiser return must come BEFORE the guard, or today's organisers would be locked out
