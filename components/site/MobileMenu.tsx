@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { PRIMARY_NAV, MORE_NAV, EDITIONS_NAV } from "@/lib/sections";
 import { HouseSwapsMenuTile } from "@/components/house-swaps/NavFlag";
 import { mobileNavGroups } from "@/lib/nav-groups";
 import { ADD_EVENT_HREF, ADD_EVENT_MENU_LABEL } from "@/lib/event-entry-points";
@@ -13,7 +13,6 @@ import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 
-const GROUPS = mobileNavGroups(PRIMARY_NAV, MORE_NAV);
 const FOCUSABLE = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -23,9 +22,10 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input, [tabindex]:not([tabin
  * it is locked while it is open. Escape closes it, focus moves in and returns to the menu button on close, and Tab stays within the menu and its
  * button. No animation. Every destination the old menu had is here (the groups are built from lib/sections.ts), plus the same account links.
  */
-export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, addEvent = false }: {
-  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean;
+export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, addEvent = false, editionsEnabled = false }: {
+  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean; editionsEnabled?: boolean;
 }) {
+  const groups = mobileNavGroups(editionsEnabled ? PRIMARY_NAV.flatMap((s) => s.key === "whats-on" ? [s, EDITIONS_NAV] : [s]) : PRIMARY_NAV, MORE_NAV);
   const panel = useRef<HTMLDivElement>(null);
   const savedOn = useSaved().enabled;   // My Saved entry: only when the feature is on
   const [top, setTop] = useState<number | null>(null);
@@ -111,7 +111,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
           </section>
         )}
 
-        {GROUPS.map((g, gi) => (
+        {groups.map((g, gi) => (
           <Fragment key={g.title ?? "featured"}>
           <section aria-labelledby={g.title ? `menu-g-${gi}` : undefined} aria-label={g.title ? undefined : "Popular"} className="mt-5">
             {g.title && <h2 id={`menu-g-${gi}`} className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-ink-muted">{g.title}</h2>}
