@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { cancelPromoBooking, grantPromoRight, reschedulePromoBooking } from "@/app/admin/editions/promotions/actions";
-import { GRANT_DAYS, KIND_TITLE, summarise, usageLabel, usageOf, type BookingRow, type CalendarDay, type PromoKind } from "@/app/admin/editions/promotions/calendar";
+import { cancelPromoBooking, featureEdition, grantPromoRight, reschedulePromoBooking } from "@/app/admin/editions/promotions/actions";
+import { GRANT_DAYS, KIND_TITLE, lastBookableDay, londonToday, previewWindow, summarise, usageLabel, usageOf, windowFull, windowUnknown, type BookingRow, type CalendarDay, type FeatureCandidate, type PromoKind } from "@/app/admin/editions/promotions/calendar";
 import { Field, Notice, Panel, Pill, btnPrimary, btnQuiet, btnSecondary, inputCls } from "@/components/editions-manage/kit";
 import { useAction } from "@/components/editions-manage/use-action";
 import { day as dayLabel } from "@/components/admin/EditionsAdminParts";
@@ -12,12 +12,23 @@ const USE_TONE = { free: "gray", some: "green", full: "amber", over: "red" } as 
 const KINDS: PromoKind[] = ["homepage", "discovery"];
 
 /** The administrator's promotion calendar: capacity by day, who is booked, cancel or move with a reason, and grant promotion days. Every change is audited by the database. */
-export function EditionsPromoCalendar({ range, days, bookings, editions, error }: { range: { from: string; to: string }; days: CalendarDay[]; bookings: BookingRow[]; editions: { id: string; label: string }[]; error: string | null }) {
+// `candidates` defaults to none: a caller that does not pass it gets the "nothing can be featured yet" message, not a crash.
+export function EditionsPromoCalendar({ range, days, bookings, editions, candidates = [], error, candidatesError = null }: { range: { from: string; to: string }; days: CalendarDay[]; bookings: BookingRow[]; editions: { id: string; label: string }[]; candidates?: FeatureCandidate[]; error: string | null; candidatesError?: string | null }) {
   const router = useRouter();
   const act = useAction();
   const [open, setOpen] = useState<{ id: string; mode: "cancel" | "move" } | null>(null);
   const [reason, setReason] = useState(""); const [start, setStart] = useState("");
   const [g, setG] = useState({ edition: editions[0]?.id ?? "", kind: "homepage", days: "7", reason: "" }); const gA = useAction();
+  // Featuring an Edition: the one action that grants the days AND books them, so no second screen is needed.
+  const [f, setF] = useState({ edition: candidates[0]?.edition_id ?? "", kind: "homepage" as PromoKind, start: londonToday(), days: "7", reason: "" });
+  const fA = useAction();
+  const chosen = candidates.find((c) => c.edition_id === f.edition);
+  const fWindow = previewWindow(days, f.kind, f.start, Number(f.days) || 0);
+  const fFull = windowFull(fWindow);
+  const fUnknown = windowUnknown(fWindow);
+  const fLast = chosen ? lastBookableDay(chosen) : null;
+  const fEnd = fWindow.length ? fWindow[fWindow.length - 1].day : null;
+  const fBeyond = !!(fLast && fEnd && fEnd > fLast);
   const close = () => { setOpen(null); setReason(""); setStart(""); };
   const submit = () => { if (!open) return; const id = open.id;
     act.run(() => (open.mode === "cancel" ? cancelPromoBooking({ booking: id, reason }) : reschedulePromoBooking({ booking: id, start, reason })), { success: open.mode === "cancel" ? "Booking cancelled." : "Booking moved.", onOk: () => { close(); router.refresh(); } }); };
@@ -62,7 +73,51 @@ export function EditionsPromoCalendar({ range, days, bookings, editions, error }
               <tbody className="divide-y divide-line">{days.filter((d) => d.kind === k).map((d) => (<tr key={`${d.day}-${k}`}><td className="whitespace-nowrap px-3 py-1.5">{dayLabel(d.day)}</td><td className="whitespace-nowrap px-3 py-1.5"><Pill label={usageLabel(d)} tone={USE_TONE[usageOf(d)]} /></td><td className="px-3 py-1.5 text-ink-soft">{d.bookings.map((b) => b.edition_title).join(", ") || "None"}</td></tr>))}</tbody></table></div></div>))}
       </Panel>
 
-      <Panel title="Grant a promotion right" sub="Gives an Edition promotion days without a payment (a goodwill or partnership grant). The organiser then schedules them, and the usual availability rules still apply. A reason is required and kept in the audit trail.">
+      <Panel title="Feature an Edition" sub="Choose an Edition, a place and the dates. This grants the promotion days and books them in one step — there is no need to open the entitlement or organiser screens. The same availability, capacity and fairness rules apply as when an organiser books.">
+        {candidatesError ? (
+          <p role="alert" className="rounded-card border border-rose-300 bg-rose-50/70 px-3 py-2 text-sm font-semibold text-rose-800">{candidatesError}</p>
+        ) : candidates.length === 0 ? (
+          <p className="text-sm text-ink-muted">Nothing can be featured yet. An Edition becomes available here once it is published and approved, run by a verified Business or Hub, and covered by a live publishing package.</p>
+        ) : (
+          <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); fA.run(() => featureEdition({ ...f, days: f.days }), { success: "Featured. It will appear on its first day.", onOk: () => { setF({ ...f, reason: "" }); router.refresh(); } }); }}>
+            <div className="sm:col-span-2"><Field label="Edition" htmlFor="f-ed">
+              <select id="f-ed" className={inputCls} value={f.edition} onChange={(e) => setF({ ...f, edition: e.target.value })}>
+                {candidates.map((c) => <option key={c.edition_id} value={c.edition_id}>{c.title} — {c.organiser_name}</option>)}
+              </select></Field></div>
+            <Field label="Where" htmlFor="f-kind">
+              <select id="f-kind" className={inputCls} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as PromoKind })}>
+                <option value="homepage">{KIND_TITLE.homepage}</option><option value="discovery">{KIND_TITLE.discovery}</option>
+              </select></Field>
+            <Field label="First day" htmlFor="f-start"><input id="f-start" type="date" className={inputCls} value={f.start} onChange={(e) => setF({ ...f, start: e.target.value })} /></Field>
+            <Field label="Days" htmlFor="f-days" hint={`${GRANT_DAYS.min} to ${GRANT_DAYS.max}`}><input id="f-days" className={inputCls} inputMode="numeric" value={f.days} onChange={(e) => setF({ ...f, days: e.target.value })} /></Field>
+            <Field label="Why" htmlFor="f-reason" hint="At least 5 characters. Kept in the audit trail."><input id="f-reason" className={inputCls} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></Field>
+
+            {chosen && (
+              <p className="text-xs text-ink-muted sm:col-span-3">
+                {chosen.title} runs {chosen.starts_on} to {chosen.ends_on}.{" "}
+                {fLast ? `Its publishing period covers promotion up to ${fLast}.` : "It has no live publishing period, so it cannot be promoted."}{" "}
+                {chosen.is_public ? "It is visible to visitors now." : "It is not visible to visitors yet, so featuring it will do nothing until Editions is switched on."}
+              </p>
+            )}
+            {fWindow.length > 0 && (
+              <div className="sm:col-span-3 rounded-card border border-line bg-sand/40 px-3 py-2 text-xs text-ink-soft">
+                <strong className="text-ink">{fWindow[0].day} to {fWindow[fWindow.length - 1].day}</strong>{" · "}
+                {fFull.length > 0
+                  ? <span className="font-semibold text-rose-700">No place free on {fFull.slice(0, 3).join(", ")}{fFull.length > 3 ? ` and ${fFull.length - 3} more` : ""}. Choose other dates.</span>
+                  : fBeyond
+                    ? <span className="font-semibold text-rose-700">That runs past {fLast}, the end of this Edition&rsquo;s publishing period.</span>
+                    : fUnknown.length > 0
+                      ? <span className="font-semibold text-amber-800">{fUnknown.length === fWindow.length ? "This window is outside the dates shown above, so availability has not been checked." : `${fUnknown.length} of these days fall outside the dates shown above, so their availability has not been checked.`} Widen the date range to see them. You can still book: the database checks availability either way, and will refuse if a day is full.</span>
+                      : <span>Every day in this window has a free place.</span>}
+              </div>
+            )}
+            <div className="sm:col-span-3"><button type="submit" className={btnPrimary} disabled={fA.pending || fFull.length > 0 || fBeyond || !chosen}>{fA.pending ? "Featuring…" : "Feature it"}</button></div>
+          </form>
+        )}
+        <Notice msg={fA.msg} />
+      </Panel>
+
+      <Panel title="Grant a promotion right" sub="Gives an Edition promotion days for the ORGANISER to schedule themselves — a goodwill or partnership grant where they pick the dates. To choose the dates yourself, use Feature an Edition above.">
         <form className="grid gap-3 sm:grid-cols-4" onSubmit={(e) => { e.preventDefault(); gA.run(() => grantPromoRight(g), { success: "Promotion days granted.", onOk: () => { setG({ ...g, reason: "" }); router.refresh(); } }); }}>
           <div className="sm:col-span-2"><Field label="Edition" htmlFor="pg-e"><select id="pg-e" className={inputCls} value={g.edition} onChange={(e) => setG({ ...g, edition: e.target.value })}>{editions.length === 0 && <option value="">No published Editions</option>}{editions.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select></Field></div>
           <Field label="Kind" htmlFor="pg-k"><select id="pg-k" className={inputCls} value={g.kind} onChange={(e) => setG({ ...g, kind: e.target.value })}><option value="homepage">Homepage days</option><option value="discovery">Enhanced discovery days</option></select></Field>

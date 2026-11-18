@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/editions/validate";
-import { isIsoDay, promoError, validateGrant, validateReason } from "./calendar";
+import { isIsoDay, promoError, validateFeature, validateGrant, validateReason } from "./calendar";
 
 /** Admin promotion actions. requireAdmin() first, then as the signed-in administrator (the SQL functions check again, apply the integrity rules and audit every change). No service key. */
 export type Result = { ok: true } | { ok: false; error: string };
@@ -32,4 +32,26 @@ export async function grantPromoRight(input: { edition: string; kind: string; da
   const v = validateGrant(input); if (!v.ok) return v;
   const { error } = await (await createClient()).rpc("admin_grant_promo_right", { p_edition: v.edition, p_kind: v.kind, p_days: v.days, p_reason: v.reason });
   if (error) return fail(error); refresh(); return { ok: true };
+}
+
+/**
+ * Feature an Edition: grant the days and book them in one step. This is the action the Promotions screen needed and
+ * did not have — admin_grant_promo_right only ever created days and left the organiser to schedule them, which an
+ * administrator cannot do for a Business or Hub they do not run.
+ *
+ * The database grants and books in one transaction, under the same availability, capacity and fairness rules an
+ * organiser booking goes through, and audits it as promo_featured_by_staff.
+ */
+export async function featureEdition(input: { edition: string; kind: string; start: string; days: string; reason: string }): Promise<Result> {
+  await requireAdmin();
+  const v = validateFeature({ ...input, days: Number(input.days) });
+  if (!v.ok) return v;
+  const { error } = await (await createClient()).rpc("admin_promo_feature", {
+    p_edition: v.edition, p_kind: v.kind, p_start: v.start, p_days: v.days, p_reason: v.reason,
+  });
+  if (error) return fail(error);
+  // the homepage strip reads this on every request
+  revalidatePath("/", "layout");
+  refresh();
+  return { ok: true };
 }
