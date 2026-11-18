@@ -20,11 +20,12 @@ describe("navigation says Work and still goes to /jobs", () => {
     assert.ok(![...PRIMARY_NAV, ...MORE_NAV, ...SECTIONS].some((s) => s.label === "Jobs"));
     for (const f of ["components/site/SiteHeader.tsx", "components/site/SiteFooter.tsx"]) assert.match(read(f), /from "@\/lib\/sections"/, f);
     // The mobile menu is its own component now; it builds its tiles from the same two lists (grouped by lib/nav-groups.ts).
-    assert.match(read("components/site/MobileMenu.tsx"), /mobileNavGroups\(PRIMARY_NAV, MORE_NAV\)/, "the mobile menu uses the same list");
+    assert.match(read("components/site/MobileMenu.tsx"), /mobileNavGroups\(primaryNav\(editionsEnabled\), MORE_NAV\)/, "the mobile menu uses the same list");
   });
+  // Cruise moved from the bar to "More" when Editions took a place in it (tests/editions-nav.test.mjs covers that move and that nothing was lost).
   test("no other section was renamed or moved", () => {
-    assert.deepEqual(PRIMARY_NAV.map((s) => s.label), ["What's On", "Local", "Shop", "Games", "Cruise", "Work", "Directory", "Hubs"]);
-    assert.deepEqual(MORE_NAV.map((s) => s.label), ["Notices", "Get it done", "Spik", "Da Boats", "Aald Memories", "Fetch"]);
+    assert.deepEqual(PRIMARY_NAV.map((s) => s.label), ["What's On", "Local", "Shop", "Games", "Work", "Directory", "Hubs"]);
+    assert.deepEqual(MORE_NAV.map((s) => s.label), ["Cruise", "Notices", "Get it done", "Spik", "Da Boats", "Aald Memories", "Fetch"]);
   });
 });
 

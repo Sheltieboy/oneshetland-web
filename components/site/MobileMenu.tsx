@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Fragment } from "react";
 import { createPortal } from "react-dom";
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
-import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { MORE_NAV, primaryNav } from "@/lib/sections";
 import { HouseSwapsMenuTile } from "@/components/house-swaps/NavFlag";
 import { mobileNavGroups } from "@/lib/nav-groups";
 import { ADD_EVENT_HREF, ADD_EVENT_MENU_LABEL } from "@/lib/event-entry-points";
@@ -13,7 +13,6 @@ import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 
-const GROUPS = mobileNavGroups(PRIMARY_NAV, MORE_NAV);
 const FOCUSABLE = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])';
 
 /**
@@ -23,9 +22,11 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input, [tabindex]:not([tabin
  * it is locked while it is open. Escape closes it, focus moves in and returns to the menu button on close, and Tab stays within the menu and its
  * button. No animation. Every destination the old menu had is here (the groups are built from lib/sections.ts), plus the same account links.
  */
-export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, addEvent = false }: {
-  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean;
+export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, addEvent = false, editionsEnabled = false }: {
+  onClose: () => void; user: HeaderUser; signInHref: string; headerRef: RefObject<HTMLElement | null>; toggleRef: RefObject<HTMLButtonElement | null>; addEvent?: boolean; editionsEnabled?: boolean;
 }) {
+  // The same list the top bar uses, grouped for the sheet. With the switch off, Editions is absent and the groups are exactly as before.
+  const groups = mobileNavGroups(primaryNav(editionsEnabled), MORE_NAV);
   const panel = useRef<HTMLDivElement>(null);
   const savedOn = useSaved().enabled;   // My Saved entry: only when the feature is on
   const [top, setTop] = useState<number | null>(null);
@@ -46,9 +47,10 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
     return () => { html.style.overflow = prev.h; body.style.overflow = prev.b; html.style.overscrollBehavior = prev.hb; };
   }, []);
 
-  // Close at desktop width, where this menu is not used.
+  // Close at the width where the inline navigation takes over and this menu is not used. It must be the SAME 1440 as the
+  // min-[1440px]: classes here and in components/site/SiteHeader.tsx (see the note on the header row for why 1440).
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
+    const mq = window.matchMedia("(min-width: 1440px)");
     const on = () => { if (mq.matches) onClose(); };
     mq.addEventListener("change", on); return () => mq.removeEventListener("change", on);
   }, [onClose]);
@@ -82,7 +84,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
       role="dialog"
       aria-modal="true"
       aria-label="Site menu"
-      className="fixed inset-x-0 z-[105] overflow-y-auto overscroll-contain border-t border-line/70 bg-cream xl:hidden"
+      className="fixed inset-x-0 z-[105] overflow-y-auto overscroll-contain border-t border-line/70 bg-cream min-[1440px]:hidden"
       style={{ top: top ?? 64, height: `calc(100dvh - ${top ?? 64}px)`, WebkitOverflowScrolling: "touch" }}
     >
       <nav aria-label="Main" className="mx-auto w-full max-w-2xl px-4 pt-4" style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}>
@@ -111,7 +113,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
           </section>
         )}
 
-        {GROUPS.map((g, gi) => (
+        {groups.map((g, gi) => (
           <Fragment key={g.title ?? "featured"}>
           <section aria-labelledby={g.title ? `menu-g-${gi}` : undefined} aria-label={g.title ? undefined : "Popular"} className="mt-5">
             {g.title && <h2 id={`menu-g-${gi}`} className="mb-2 px-1 text-[11px] font-bold uppercase tracking-widest text-ink-muted">{g.title}</h2>}
