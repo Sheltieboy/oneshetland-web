@@ -42,7 +42,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
   const single = edition.starts_on === edition.ends_on;
   const facts: { label: string; value: string; note?: string }[] = [
     { label: "When", value: single ? s0.day : `${s0.day}\u2013${s1.day}`, note: single ? `${s0.weekdayLong} ${s0.month} ${s0.year}` : s0.month === s1.month ? `${s0.month} ${s0.year}` : `${s0.monthShort} to ${s1.monthShort} ${s1.year}` },
-    ...(venues.length > 0 ? [{ label: "Where", value: String(venues.length), note: venues.slice(0, 2).map((v) => v.name).join(" · ") }] : []),
+    ...(venues.length > 0 ? [{ label: "Venues", value: String(venues.length), note: venues.length === 1 ? "Place hosting programme events" : "Places hosting programme events" }] : []),
     ...(programmeCount > 0 ? [{ label: "Programme", value: String(programmeCount), note: programmeCount === 1 ? "event" : "events, talks and sessions" }] : []),
     ...(takingPart > 0 ? [{ label: "Taking part", value: String(takingPart), note: partners.hubs.length > 0 ? "local businesses, Hubs and activities" : "local businesses and activities" }] : []),
   ];
