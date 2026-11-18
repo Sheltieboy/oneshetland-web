@@ -99,3 +99,58 @@ export function promoError(message: string | null | undefined, hint?: string | n
   if (/edition not found/i.test(message ?? "")) return "That Edition could not be found.";
   return "That could not be done. Check the dates and try again.";
 }
+
+/* ── featuring an Edition from the admin screen ─────────────────────────────────────────────────────────────────
+ *
+ * Granting days and booking dates used to be two different jobs in two different places: an administrator granted
+ * here and then had to become the organiser to pick the dates, which for somebody else's festival they cannot.
+ * This is the one action — admin_promo_feature grants and books together — so the form has to carry the dates too.
+ * Every rule below is also enforced by edition_promo_validate; this says no first, and says why.
+ */
+export type FeatureCandidate = {
+  edition_id: string; title: string; slug: string; organiser_name: string;
+  starts_on: string; ends_on: string; entitlement_ends_at: string | null; is_public: boolean;
+};
+
+export function parseCandidates(rows: unknown): FeatureCandidate[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.flatMap((r): FeatureCandidate[] => {
+    const x = r as Record<string, unknown>;
+    return typeof x?.edition_id === "string" && typeof x?.title === "string"
+      ? [{ edition_id: x.edition_id, title: x.title, slug: String(x.slug ?? ""), organiser_name: String(x.organiser_name ?? ""),
+          starts_on: String(x.starts_on ?? ""), ends_on: String(x.ends_on ?? ""),
+          entitlement_ends_at: typeof x.entitlement_ends_at === "string" ? x.entitlement_ends_at : null,
+          is_public: x.is_public === true }]
+      : [];
+  });
+}
+
+/** The last day a booking may cover: promotion has to finish inside the Edition's publishing period. */
+export const lastBookableDay = (c: Pick<FeatureCandidate, "entitlement_ends_at">): string | null =>
+  c.entitlement_ends_at ? addDays(c.entitlement_ends_at.slice(0, 10), -1) : null;
+
+export type FeatureInput = { edition?: unknown; kind?: unknown; start?: unknown; days?: unknown; reason?: unknown };
+export function validateFeature(input: FeatureInput): { ok: true; edition: string; kind: PromoKind; start: string; days: number; reason: string } | { ok: false; error: string } {
+  const edition = String(input.edition ?? "");
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(edition)) return { ok: false, error: "Choose an Edition to feature." };
+  const kind = input.kind === "discovery" ? "discovery" : input.kind === "homepage" ? "homepage" : null;
+  if (!kind) return { ok: false, error: "Choose the homepage or enhanced discovery." };
+  const start = String(input.start ?? "");
+  if (!isIsoDay(start)) return { ok: false, error: "Choose the first day." };
+  const days = Number(input.days);
+  if (!Number.isInteger(days) || days < GRANT_DAYS.min || days > GRANT_DAYS.max) return { ok: false, error: `Choose ${GRANT_DAYS.min} to ${GRANT_DAYS.max} days.` };
+  const r = validateReason(input.reason); if (!r.ok) return r;
+  return { ok: true, edition, kind, start, days, reason: r.reason };
+}
+
+/** What the chosen window would look like against the calendar, so the screen can warn before the database refuses. */
+export function previewWindow(days: CalendarDay[], kind: PromoKind, start: string, length: number): { day: string; booked: number; capacity: number; full: boolean }[] {
+  if (!isIsoDay(start) || !Number.isInteger(length) || length < 1) return [];
+  const byDay = new Map(days.filter((d) => d.kind === kind).map((d) => [d.day, d]));
+  return Array.from({ length }, (_, i) => addDays(start, i)).map((day) => {
+    const d = byDay.get(day);
+    const capacity = d?.capacity ?? 0, booked = d?.booked ?? 0;
+    return { day, booked, capacity, full: d ? booked >= capacity : false };
+  });
+}
+export const windowFull = (w: ReturnType<typeof previewWindow>) => w.filter((d) => d.full).map((d) => d.day);
