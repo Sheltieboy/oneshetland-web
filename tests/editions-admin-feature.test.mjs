@@ -73,6 +73,14 @@ describe("one action grants and books", () => {
     assert.match(page, /candidates=\{parseCandidates\(cand\.data\)\}/);
   });
 
+  // Rendering the component with the prop proves the component. This proves the PAGE actually passes the failure
+  // on: without it, a failed read falls through to parseCandidates(undefined) -> [] and reads as "nothing to
+  // feature", which is exactly how a missing migration would look like an empty catalogue.
+  test("the page passes a failed candidate read through, rather than letting it fall through as an empty list", () => {
+    assert.match(page, /candidatesError=\{cand\.error \?/);
+    assert.match(page, /20270305000000/, "and it names the likely cause");
+  });
+
   test("granting days and featuring are now different things, and say so", () => {
     assert.match(panel, /Feature an Edition/);
     assert.doesNotMatch(panel, /The organiser then schedules them/, "the old wording described the defect");
@@ -123,6 +131,25 @@ describe("the window preview", () => {
   });
   test("a window with room reports none full", () => {
     assert.deepEqual(C.windowFull(C.previewWindow(days, "homepage", "2026-12-03", 1)), []);
+  });
+
+  // A day the loaded calendar does not cover is UNKNOWN, never free. Reporting it as free would tell an
+  // administrator "every day has a free place" about days the screen has never seen.
+  test("days outside the loaded range are unknown, not available", () => {
+    const w = C.previewWindow(days, "homepage", "2026-12-20", 3);
+    assert.deepEqual(C.windowUnknown(w), ["2026-12-20", "2026-12-21", "2026-12-22"]);
+    assert.deepEqual(C.windowFull(w), [], "and an unknown day is not reported as full either");
+    assert.equal(w.every((d) => d.known === false), true);
+  });
+  test("a window that straddles the edge reports only the days beyond it as unknown", () => {
+    const w = C.previewWindow(days, "homepage", "2026-12-03", 3);
+    assert.deepEqual(C.windowUnknown(w), ["2026-12-04", "2026-12-05"]);
+    assert.equal(w[0].known, true);
+  });
+  test("a known-full day is still reported full when the window also has unknown days", () => {
+    const w = C.previewWindow(days, "homepage", "2026-12-02", 4);
+    assert.deepEqual(C.windowFull(w), ["2026-12-02"]);
+    assert.equal(C.windowUnknown(w).length, 2);
   });
   test("it only counts the kind being booked", () => {
     const mixed = [dayRow("2026-12-01", "discovery", 6, 6), dayRow("2026-12-01", "homepage", 0)];
@@ -181,8 +208,23 @@ describe("the panel, rendered", () => {
     assert.match(html, /<button[^>]*\sdisabled=""[^>]*>Feature it<\/button>/, "the button is disabled when every day is full");
   });
 
+  test("a window beyond the loaded range is never called free", () => {
+    const loaded = Array.from({ length: 3 }, (_, i) => dayRow(C.addDays(C.londonToday(), i), "homepage", 0));
+    const html = render({ candidates: [CANDIDATE], days: loaded });   // the form defaults to 7 days from today
+    assert.doesNotMatch(html, /Every day in this window has a free place/, "4 of the 7 days were never loaded");
+    assert.match(html, /availability has not been checked/);
+    assert.match(html, /Widen the date range/);
+  });
+
+  test("a candidate-loading failure is shown, not swallowed", () => {
+    const html = render({ candidatesError: "The list of Editions you can feature could not be loaded." });
+    assert.match(html, /could not be loaded/);
+    assert.match(html, /role="alert"/);
+    assert.doesNotMatch(html, /Nothing can be featured yet/, "a failure must not read as an empty list");
+  });
+
   test("a window with room says so and leaves the button usable", () => {
-    const free = Array.from({ length: 7 }, (_, i) => dayRow(C.addDays(C.londonToday(), i), "homepage", 0));
+    const free = Array.from({ length: 10 }, (_, i) => dayRow(C.addDays(C.londonToday(), i), "homepage", 0));
     const html = render({ candidates: [CANDIDATE], days: free });
     assert.match(html, /Every day in this window has a free place/);
     assert.doesNotMatch(html, /<button[^>]*\sdisabled=""[^>]*>Feature it<\/button>/);

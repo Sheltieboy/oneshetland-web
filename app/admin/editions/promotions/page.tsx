@@ -27,7 +27,7 @@ export default async function PromotionsPage({ searchParams }: { searchParams: P
     <div className="space-y-6">
       <EditionsTabs active="promotions" waiting={(await reviewCounts()).waiting} />
       <div><h1 className="font-display text-3xl font-bold text-ink">Promotions</h1><p className="mt-1 max-w-2xl text-sm text-ink-soft">Who is booked on the homepage and in enhanced discovery, and how full each day is. Feature an Edition here, or cancel, move and grant days — always with a reason, and always inside the same availability rules organisers book under.</p></div>
-      <EditionsPromoCalendar range={range} days={days} bookings={bookingRows(days)} editions={editions} candidates={parseCandidates(cand.data)} error={cal.error ? "The calendar could not be loaded. Check that the promotion migrations are applied." : null} />
+      <EditionsPromoCalendar range={range} days={days} bookings={bookingRows(days)} editions={editions} candidates={parseCandidates(cand.data)} candidatesError={cand.error ? "The list of Editions you can feature could not be loaded, so nothing is offered below. This usually means migration 20270305000000 has not been applied yet." : null} error={cal.error ? "The calendar could not be loaded. Check that the promotion migrations are applied." : null} />
     </div>
   );
 }

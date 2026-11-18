@@ -143,14 +143,25 @@ export function validateFeature(input: FeatureInput): { ok: true; edition: strin
   return { ok: true, edition, kind, start, days, reason: r.reason };
 }
 
-/** What the chosen window would look like against the calendar, so the screen can warn before the database refuses. */
-export function previewWindow(days: CalendarDay[], kind: PromoKind, start: string, length: number): { day: string; booked: number; capacity: number; full: boolean }[] {
+/**
+ * What the chosen window would look like against the calendar.
+ *
+ * A day the loaded range does not cover is `known: false` — NOT free. The calendar is fetched for one date range
+ * (60 days by default), so a booking that starts beyond it has no data behind it, and reporting those days as
+ * available would be a false reassurance: the screen would say "every day has a free place" about days it has
+ * never seen. Unknown days are reported as unknown and the database remains the authority.
+ */
+export function previewWindow(days: CalendarDay[], kind: PromoKind, start: string, length: number): { day: string; booked: number; capacity: number; full: boolean; known: boolean }[] {
   if (!isIsoDay(start) || !Number.isInteger(length) || length < 1) return [];
   const byDay = new Map(days.filter((d) => d.kind === kind).map((d) => [d.day, d]));
   return Array.from({ length }, (_, i) => addDays(start, i)).map((day) => {
     const d = byDay.get(day);
-    const capacity = d?.capacity ?? 0, booked = d?.booked ?? 0;
-    return { day, booked, capacity, full: d ? booked >= capacity : false };
+    return d
+      ? { day, booked: d.booked, capacity: d.capacity, full: d.booked >= d.capacity, known: true }
+      : { day, booked: 0, capacity: 0, full: false, known: false };
   });
 }
-export const windowFull = (w: ReturnType<typeof previewWindow>) => w.filter((d) => d.full).map((d) => d.day);
+/** Days with no free place. Only days the calendar actually covers can be known full. */
+export const windowFull = (w: ReturnType<typeof previewWindow>) => w.filter((d) => d.known && d.full).map((d) => d.day);
+/** Days the loaded range does not cover, so nothing is known about them. */
+export const windowUnknown = (w: ReturnType<typeof previewWindow>) => w.filter((d) => !d.known).map((d) => d.day);

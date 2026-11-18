@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { cancelPromoBooking, featureEdition, grantPromoRight, reschedulePromoBooking } from "@/app/admin/editions/promotions/actions";
-import { GRANT_DAYS, KIND_TITLE, lastBookableDay, londonToday, previewWindow, summarise, usageLabel, usageOf, windowFull, type BookingRow, type CalendarDay, type FeatureCandidate, type PromoKind } from "@/app/admin/editions/promotions/calendar";
+import { GRANT_DAYS, KIND_TITLE, lastBookableDay, londonToday, previewWindow, summarise, usageLabel, usageOf, windowFull, windowUnknown, type BookingRow, type CalendarDay, type FeatureCandidate, type PromoKind } from "@/app/admin/editions/promotions/calendar";
 import { Field, Notice, Panel, Pill, btnPrimary, btnQuiet, btnSecondary, inputCls } from "@/components/editions-manage/kit";
 import { useAction } from "@/components/editions-manage/use-action";
 import { day as dayLabel } from "@/components/admin/EditionsAdminParts";
@@ -13,7 +13,7 @@ const KINDS: PromoKind[] = ["homepage", "discovery"];
 
 /** The administrator's promotion calendar: capacity by day, who is booked, cancel or move with a reason, and grant promotion days. Every change is audited by the database. */
 // `candidates` defaults to none: a caller that does not pass it gets the "nothing can be featured yet" message, not a crash.
-export function EditionsPromoCalendar({ range, days, bookings, editions, candidates = [], error }: { range: { from: string; to: string }; days: CalendarDay[]; bookings: BookingRow[]; editions: { id: string; label: string }[]; candidates?: FeatureCandidate[]; error: string | null }) {
+export function EditionsPromoCalendar({ range, days, bookings, editions, candidates = [], error, candidatesError = null }: { range: { from: string; to: string }; days: CalendarDay[]; bookings: BookingRow[]; editions: { id: string; label: string }[]; candidates?: FeatureCandidate[]; error: string | null; candidatesError?: string | null }) {
   const router = useRouter();
   const act = useAction();
   const [open, setOpen] = useState<{ id: string; mode: "cancel" | "move" } | null>(null);
@@ -25,6 +25,7 @@ export function EditionsPromoCalendar({ range, days, bookings, editions, candida
   const chosen = candidates.find((c) => c.edition_id === f.edition);
   const fWindow = previewWindow(days, f.kind, f.start, Number(f.days) || 0);
   const fFull = windowFull(fWindow);
+  const fUnknown = windowUnknown(fWindow);
   const fLast = chosen ? lastBookableDay(chosen) : null;
   const fEnd = fWindow.length ? fWindow[fWindow.length - 1].day : null;
   const fBeyond = !!(fLast && fEnd && fEnd > fLast);
@@ -73,7 +74,9 @@ export function EditionsPromoCalendar({ range, days, bookings, editions, candida
       </Panel>
 
       <Panel title="Feature an Edition" sub="Choose an Edition, a place and the dates. This grants the promotion days and books them in one step — there is no need to open the entitlement or organiser screens. The same availability, capacity and fairness rules apply as when an organiser books.">
-        {candidates.length === 0 ? (
+        {candidatesError ? (
+          <p role="alert" className="rounded-card border border-rose-300 bg-rose-50/70 px-3 py-2 text-sm font-semibold text-rose-800">{candidatesError}</p>
+        ) : candidates.length === 0 ? (
           <p className="text-sm text-ink-muted">Nothing can be featured yet. An Edition becomes available here once it is published and approved, run by a verified Business or Hub, and covered by a live publishing package.</p>
         ) : (
           <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); fA.run(() => featureEdition({ ...f, days: f.days }), { success: "Featured. It will appear on its first day.", onOk: () => { setF({ ...f, reason: "" }); router.refresh(); } }); }}>
@@ -103,7 +106,9 @@ export function EditionsPromoCalendar({ range, days, bookings, editions, candida
                   ? <span className="font-semibold text-rose-700">No place free on {fFull.slice(0, 3).join(", ")}{fFull.length > 3 ? ` and ${fFull.length - 3} more` : ""}. Choose other dates.</span>
                   : fBeyond
                     ? <span className="font-semibold text-rose-700">That runs past {fLast}, the end of this Edition&rsquo;s publishing period.</span>
-                    : <span>Every day in this window has a free place.</span>}
+                    : fUnknown.length > 0
+                      ? <span className="font-semibold text-amber-800">{fUnknown.length === fWindow.length ? "This window is outside the dates shown above, so availability has not been checked." : `${fUnknown.length} of these days fall outside the dates shown above, so their availability has not been checked.`} Widen the date range to see them. You can still book: the database checks availability either way, and will refuse if a day is full.</span>
+                      : <span>Every day in this window has a free place.</span>}
               </div>
             )}
             <div className="sm:col-span-3"><button type="submit" className={btnPrimary} disabled={fA.pending || fFull.length > 0 || fBeyond || !chosen}>{fA.pending ? "Featuring…" : "Feature it"}</button></div>
