@@ -9,7 +9,7 @@ import type { Section } from "@/lib/sections";
 export type NavGroup = { title: string | null; featured?: boolean; items: Section[] };
 
 /** The four most-used sections, shown first and larger. */
-const FEATURED = ["whats-on", "local", "shop", "jobs"];
+const FEATURED = ["whats-on", "editions", "local", "shop", "jobs"];
 const GROUPS: { title: string; keys: string[] }[] = [
   { title: "Find & get things done", keys: ["directory", "get-it-done", "fetch"] },
   { title: "Island life", keys: ["cruise", "notices", "hubs", "boats", "memories", "spik", "games"] },
