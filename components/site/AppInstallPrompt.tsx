@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { PROMPTS, SHOW_DELAY_MS, createPromptController, decidePrompt, isExcludedRoute, type PromptPlatform } from "@/lib/app-prompt";
+import { brandMark } from "@/lib/festive";
 
 /**
  * AppInstallPrompt — a slim, dismissible "get the app" bar for eligible phones (today: Android phones only; see lib/app-prompt.ts).
@@ -19,7 +20,7 @@ const BAR_HEIGHT = 96;
 const noopSubscribe = () => () => {};
 const readUa = () => (typeof navigator === "undefined" ? "" : navigator.userAgent);
 
-export function AppInstallPrompt() {
+export function AppInstallPrompt({ festive = false }: { festive?: boolean } = {}) {
   const pathname = usePathname() ?? "/";
   const ua = useSyncExternalStore(noopSubscribe, readUa, () => "");
   const [active, setActive] = useState<PromptPlatform | null>(null);
@@ -69,7 +70,7 @@ export function AppInstallPrompt() {
         style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
       >
         <div className="mx-auto flex max-w-md items-center gap-2.5 rounded-card border border-line-strong bg-paper py-2 pl-3 pr-1 shadow-lift">
-          <Image src="/brand/logo-mark-keyed.png" alt="" width={36} height={36} unoptimized className="h-9 w-9 shrink-0" />
+          <Image src={brandMark(festive)} alt="" width={36} height={36} unoptimized className="h-9 w-9 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-semibold leading-tight text-ink">{cfg.headline}</p>
             <p className="mt-0.5 text-xs leading-tight text-ink-soft">{cfg.subline}</p>

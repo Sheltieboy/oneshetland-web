@@ -13,11 +13,12 @@ import { SiteSearch } from "@/components/search/SiteSearch";
 import { MobileMenu } from "@/components/site/MobileMenu";
 import { useSaved } from "@/components/saved/context";
 import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
+import { brandMark } from "@/lib/festive";
 
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
-export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, editionsEnabled = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean; editionsEnabled?: boolean }) {
+export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, editionsEnabled = false, festive = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean; editionsEnabled?: boolean; festive?: boolean }) {
   // Editions appears in the bar only while the public switch is on (lib/sections.ts decides where); Cruise lives in "More" either way.
   const nav = primaryNav(editionsEnabled);
   const savedOn = useSaved().enabled;   // My Saved menu entry: only when the feature is on
@@ -47,7 +48,9 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5 min-[1440px]:max-w-[90rem]">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-          <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
+          {/* The ring mark, or its festive version between mid-November and 5 January. The date is decided
+              on the server in the root layout and arrives as a prop: see lib/festive.ts. */}
+          <Image src={brandMark(festive)} alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
           <span className="font-display text-xl font-semibold tracking-tight text-navy">
             OneShetland
           </span>

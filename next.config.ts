@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
    *  serverless bundling (Netlify) traces them in. */
   outputFileTracingIncludes: {
     "/api/social-image": ["./assets/social-fonts/*.ttf"],
+    /** The seasonal brand routes read one of two PNGs off disk at request time, so trace both in.
+     *  Named one by one rather than as a folder glob — and the folder they sit in is kept to those
+     *  four files, because the tracer cannot follow a path whose last segment is decided at runtime
+     *  and bundles everything under assets/brand into BOTH functions. assets/brand/README.md says so
+     *  too; it is why the 2.2MB festive master lives in public/brand/festive/ instead. */
+    "/apple-icon": ["./assets/brand/apple-icon.png", "./assets/brand/apple-icon-festive.png"],
+    "/opengraph-image": ["./assets/brand/opengraph-image.png", "./assets/brand/opengraph-image-festive.png"],
   },
   /**
    * Security headers (M1). Netlify already sends HSTS and nosniff; these are the
