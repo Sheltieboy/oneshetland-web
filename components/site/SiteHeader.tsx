@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { PRIMARY_NAV, MORE_NAV, EDITIONS_NAV } from "@/lib/sections";
+import { MORE_NAV, primaryNav } from "@/lib/sections";
 import { HouseSwapsMoreLink } from "@/components/house-swaps/NavFlag";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
@@ -18,7 +18,8 @@ type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
 export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, editionsEnabled = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean; editionsEnabled?: boolean }) {
-  const primaryNav = editionsEnabled ? PRIMARY_NAV.flatMap((s) => s.key === "whats-on" ? [s, EDITIONS_NAV] : [s]) : PRIMARY_NAV;
+  // Editions appears in the bar only while the public switch is on (lib/sections.ts decides where); Cruise lives in "More" either way.
+  const nav = primaryNav(editionsEnabled);
   const savedOn = useSaved().enabled;   // My Saved menu entry: only when the feature is on
   // The mobile menu is open only on the page it was opened on, so any navigation closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
@@ -45,11 +46,11 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-0.5 xl:flex">
-          {primaryNav.map((s) => (
+          {nav.map((s) => (
             <Link
               key={s.key}
               href={s.href}
-              className={`whitespace-nowrap rounded-pill ${editionsEnabled ? "px-2" : "px-3"} py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink`}
+              className="whitespace-nowrap rounded-pill px-3 py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
             >
               {s.label}
             </Link>

@@ -11,7 +11,10 @@ export type Section = {
   blurb: string;
 };
 
-/** An additional destination shown only after public Editions access is enabled. */
+/**
+ * Editions is a destination of its own, but it is NOT in SECTIONS: the footer and the home grid read that list, and nothing about Editions may
+ * appear until the public switch is on. It is spliced into the navigation by primaryNav() below, which the header and the mobile menu both use.
+ */
 export const EDITIONS_NAV: Section = {
   key: "editions",
   label: "Editions",
@@ -137,17 +140,27 @@ export const SECTIONS: Section[] = [
 ];
 
 /** The handful shown directly in the top navigation bar, in display order.
- *  (Home is the wordmark; Profile lives in the header user menu.) */
-const PRIMARY_NAV_ORDER = ["whats-on", "local", "shop", "games", "cruise", "jobs", "directory", "hubs"];
+ *  (Home is the wordmark; Profile lives in the header user menu.) Cruise moved to the "More" menu when Editions took a place in the bar: the bar
+ *  only fits eight before it crowds the wordmark and the right-hand actions at 1280px, which is where it appears. */
+const PRIMARY_NAV_ORDER = ["whats-on", "local", "shop", "games", "jobs", "directory", "hubs"];
 export const PRIMARY_NAV = PRIMARY_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
 
-/** Secondary sections tucked behind the "More" menu in the header. */
-const MORE_NAV_ORDER = ["notices", "get-it-done", "spik", "boats", "memories", "fetch"];
+/** Secondary sections tucked behind the "More" menu in the header. Cruise leads it: of this set it is the one people look for most. */
+const MORE_NAV_ORDER = ["cruise", "notices", "get-it-done", "spik", "boats", "memories", "fetch"];
 export const MORE_NAV = MORE_NAV_ORDER
   .map((k) => SECTIONS.find((s) => s.key === k))
   .filter((s): s is Section => Boolean(s));
+
+/**
+ * The top-bar list for this request. Editions sits immediately after What's On, and ONLY when the public switch is on; off, this is PRIMARY_NAV
+ * unchanged, so nothing about Editions reaches a visitor. One function, used by both the header and the mobile menu, so the two cannot drift.
+ */
+export function primaryNav(editionsEnabled: boolean): Section[] {
+  if (!editionsEnabled) return PRIMARY_NAV;
+  return PRIMARY_NAV.flatMap((s) => (s.key === "whats-on" ? [s, EDITIONS_NAV] : [s]));
+}
 
 /** Hero photo per section (in /public/heroes). Sections without one use the
  *  section colour as a tinted fallback. */

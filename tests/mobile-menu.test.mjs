@@ -28,7 +28,7 @@ test("a destination added to the sections later is never lost: unnamed sections 
   assert.equal(SECTIONS.some((s) => s.key === "future"), false);
 });
 test("account, sign-in and business navigation are at the TOP of the menu in both states, and sign-out is present when signed in", () => {
-  const top = menu.indexOf("Your account"), signIn = menu.indexOf("Sign in"), grid = menu.indexOf("GROUPS.map");
+  const top = menu.indexOf("Your account"), signIn = menu.indexOf("Sign in"), grid = menu.indexOf("groups.map(");
   assert.ok(top > 0 && signIn > 0 && top < grid && signIn < grid, "account blocks come before the section tiles");
   for (const t of ['href="/account"', 'href="/notifications"', 'href="/business"', "Join / Sign in", "Sign out", 'action="/auth/sign-out" method="post"']) assert.ok(menu.includes(t), t);
   assert.match(menu, /signInHref/); assert.match(header, /signInHref=\{`\/sign-in\?next=\$\{encodeURIComponent\(pathname\)\}`\}/, "the same sign-in redirect as before");

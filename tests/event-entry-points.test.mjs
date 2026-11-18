@@ -117,7 +117,11 @@ describe("account area", async () => {
   });
   test("the account layout and the root layout pass the prop only through entryPointProps() (absent when off)", () => {
     assert.match(read("app/account/layout.tsx"), /<AccountSidebar isAdmin=\{isAdmin\} isBusiness=\{isBusiness\} \{\.\.\.entryPointProps\(\)\} \{\.\.\.myEvents\} \/>/);
-    assert.match(read("app/layout.tsx"), /<SiteHeader user=\{user\} fetchStatus=\{fetchStatus\} \{\.\.\.entryPointProps\(\)\} \/>/);
+    // Other props may sit alongside it (the Editions launch added editionsEnabled); what this pins is that the add-event prop reaches the header
+    // ONLY by spreading entryPointProps(), never written out by hand.
+    const root = read("app/layout.tsx");
+    assert.match(root, /<SiteHeader user=\{user\} fetchStatus=\{fetchStatus\}[^>]*\{\.\.\.entryPointProps\(\)\}[^>]*\/>/);
+    assert.doesNotMatch(root, /<SiteHeader[^>]*addEvent=/, "addEvent must come from entryPointProps(), not be passed directly");
   });
   test("overview page (rendered, signed in): no card when off; exactly one card when on, and the other cards are unchanged", async () => {
     fake.auth.getUser = async () => ({ data: { user: { id: "u1", email: "ann@example.com" } } });
