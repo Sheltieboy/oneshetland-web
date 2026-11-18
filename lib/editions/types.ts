@@ -45,6 +45,19 @@ export type EditionSession = {
   organiser_status?: "scheduled" | "cancelled" | "changed";
 };
 
+/**
+ * A linked event moved, and the Edition's own hand-written pages may still say the old thing. Raised by the
+ * database (public.edition_content_notices) and read through public.edition_content_review. It is a PROMPT: nothing
+ * is edited, nothing is blocked, and `pages` is a best-effort text match, not a finding.
+ */
+export type ContentNotice = {
+  notice_id: string; session_id: string; title: string;
+  was_at: string; now_at: string; was_place: string | null; now_place: string | null;
+  cues: string[];
+  pages: { id: string; slug: string; title: string; matched: string[] }[];
+  created_at: string;
+};
+
 /** A What's On event an Edition may put in its programme (public.edition_linkable_events). */
 export type LinkableEvent = { event_id: string; title: string; starts_at: string; ends_at: string | null; place: string | null; status: string };
 

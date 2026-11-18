@@ -5,7 +5,7 @@ import { getAccount } from "@/lib/auth";
 import { isLocalPath } from "@/lib/redirect";
 import {
   EDITION_COLUMNS, ORGANISER_COLUMNS, ORGANISER_PUBLIC_COLUMNS, UPDATE_MANAGE_COLUMNS, UPDATE_PUBLIC_COLUMNS, VENUE_PUBLIC_COLUMNS,
-  type Edition, type EditionEntitlement, type EditionPage, type EditionSession, type EditionSponsor, type EditionUpdate, type EditionVenue, type Organiser, type OrgRole,
+  type ContentNotice, type Edition, type EditionEntitlement, type EditionPage, type EditionSession, type EditionSponsor, type EditionUpdate, type EditionVenue, type Organiser, type OrgRole,
 } from "./types";
 import { parseReadiness, type Readiness } from "./rules";
 import { parseReviewStatus, type ReviewStatus } from "./journey";
@@ -124,6 +124,20 @@ export async function getPublicPartners(editionId: string): Promise<PublicPartne
   const offerRows = arr<PublicPartnerOffer>(offers.data);
   const businesses = arr<Omit<PublicPartnerBusiness, "offers">>(biz.data).map((b) => ({ ...b, offers: offerRows.filter((o) => o.business_id === b.business_id) }));
   return { businesses, events: arr<PublicPartnerEvent>(events.data), activities: arr<PublicPartnerActivity>(acts.data), hubs };
+}
+
+/**
+ * Open "your own words may have gone stale" notices for this Edition, with the pages that still carry the old
+ * wording. Editor+ only (the database refuses anyone else). Tolerant: a database without the function, or any other
+ * failure, simply shows no warning — this must never be the thing that breaks a manage screen.
+ */
+export async function getContentReview(editionId: string): Promise<ContentNotice[]> {
+  try {
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("edition_content_review", { p_edition: editionId });
+    if (error) return [];
+    return arr<ContentNotice>(data);
+  } catch { return []; }
 }
 
 /** Rows for the organiser's Partners screen (database enforces editor+). */

@@ -17,14 +17,17 @@ type Draft = { id: string | null; title: string; nav_label: string; slug: string
 const blank = (isFirst: boolean): Draft => ({ id: null, title: "", nav_label: "", slug: "", body: "", in_nav: true, is_home: isFirst });
 const fromPage = (p: EditionPage): Draft => ({ id: p.id, title: p.title, nav_label: p.nav_label, slug: p.slug, body: p.body, in_nav: p.in_nav, is_home: p.is_home });
 
-export function PageEditor({ organiserSlug, organiserId, editionSlug, pages, summary }: { organiserSlug: string; organiserId: string; editionSlug: string; pages: EditionPage[]; summary?: string | null }) {
+export function PageEditor({ organiserSlug, organiserId, editionSlug, pages, summary, openPageId = null }: { organiserSlug: string; organiserId: string; editionSlug: string; pages: EditionPage[]; summary?: string | null; /** ".../pages?open=<id>" opens that page straight into the editor: how the stale-wording warning links to the page it found. Read on the server, so there is no effect and nothing to hydrate around. */ openPageId?: string | null }) {
   const router = useRouter();
   const confirm = useConfirm();
   const save = useAction();
   const del = useAction();
   const move = useAction();
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [slugTouched, setSlugTouched] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(() => {
+    const p = openPageId ? pages.find((x) => x.id === openPageId) : null;
+    return p ? fromPage(p) : null;
+  });
+  const [slugTouched, setSlugTouched] = useState(!!openPageId);
   const [tab, setTab] = useState<"write" | "preview">("write");
 
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setDraft((d) => {
@@ -34,6 +37,8 @@ export function PageEditor({ organiserSlug, organiserId, editionSlug, pages, sum
     return n;
   });
   const open = (d: Draft) => { setDraft(d); setSlugTouched(!!d.id); setTab("write"); save.setMsg(null); };
+
+
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -62,7 +67,7 @@ export function PageEditor({ organiserSlug, organiserId, editionSlug, pages, sum
         ) : (
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-card border border-line bg-paper">
             {pages.map((p, i) => (
-              <li key={p.id} className={"flex items-center gap-2 px-3 py-2.5 " + (draft?.id === p.id ? "bg-sand/60" : "")}>
+              <li key={p.id} id={`page-${p.id}`} className={"flex items-center gap-2 px-3 py-2.5 " + (draft?.id === p.id ? "bg-sand/60" : "")}>
                 <button type="button" onClick={() => open(fromPage(p))} className="min-w-0 flex-1 text-left">
                   <span className="block truncate text-sm font-semibold text-ink">{p.title}</span>
                   <span className="mt-0.5 flex flex-wrap gap-1.5 text-xs text-ink-muted">/{p.slug}{p.is_home && <Pill label="Home" tone="blue" />}{!p.in_nav && !p.is_home && <Pill label="Not in menu" />}</span>
