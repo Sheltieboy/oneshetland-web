@@ -107,7 +107,9 @@ describe("the approvals queue", () => {
   test("the Editions landing defaults to approvals; commerce is its own page; the old verification queue is gone", () => {
     assert.equal(parseTab(undefined), "approvals"); assert.equal(parseTab("nope"), "approvals"); assert.equal(parseTab("audit"), "audit");
     assert.match(read("app/admin/editions/page.tsx"), /if \(tab === "approvals"\) redirect\("\/admin\/editions\/approvals"\)/);
-    assert.deepEqual(TABS.map((t) => t.key), ["approvals", "organisers", "editions", "entitlements", "commerce", "promotions", "audit"]);
+    // Launch (the two switches) sits second, beside Approvals: it is the pair of settings that decide whether any of the rest is visible.
+    assert.deepEqual(TABS.map((t) => t.key), ["approvals", "launch", "organisers", "editions", "entitlements", "commerce", "promotions", "audit"]);
+    assert.equal(TABS.find((t) => t.key === "launch").href, "/admin/editions/launch");
     assert.equal(TABS.find((t) => t.key === "entitlements").label, "Manual package adjustments");
     assert.doesNotMatch(q, /edition_organiser_verifications|queueRows/);
   });

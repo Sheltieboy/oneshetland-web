@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { grantOrgEntitlement, resolveException, setCollectionSuspended, setCommerceConfig, setFeeOverride, upsertPackage, voidOrgEntitlement } from "@/app/admin/editions/commerce/actions";
+import { createPackage, grantOrgEntitlement, resolveException, retirePackage, setCollectionSuspended, setCommerceConfig, setFeeOverride, upsertPackage, voidOrgEntitlement } from "@/app/admin/editions/commerce/actions";
 import { COMMERCE_KEYS, previewFee, type FeeConfig } from "@/app/admin/editions/commerce/config";
 import { ALL_FEATURES, KIND_WORD, NO_RESTRICTIONS_NOTE, canEditRow, describeGrants, describeIncludes, isRetired, kindOf, retiredCount, visibleCatalogue, type CatalogueRow } from "@/app/admin/editions/commerce/catalogue";
 import { FEATURE_LABEL, pounds, toPence } from "@/lib/editions/commerce";
@@ -52,6 +52,10 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
   // packages and promotions: the rate card. Rows are edited in place (name, price, on sale); retired rows are hidden by default and can never be switched back on.
   const [showRetired, setShowRetired] = useState(false);
   const [pk, setPk] = useState<{ code: string; name: string; description: string; price: string; sort: string; active: boolean } | null>(null); const pkA = useAction();
+  // Creating a row, and retiring one. Both used to need SQL: the form could only edit rows a migration had written, and could not mark one free.
+  const BLANK_NEW = { code: "", name: "", description: "", price: "", sort: "0", active: false, isFree: false, kind: "package" as "package" | "promotion", durationDays: "365", maxMembers: "", discoveryDays: "", homepageDays: "", grouped: false };
+  const [neu, setNeu] = useState<typeof BLANK_NEW | null>(null); const newA = useAction();
+  const [retiring, setRetiring] = useState<{ code: string; name: string; reason: string } | null>(null); const retA = useAction();
   const edit = (p: Pkg) => setPk({ code: p.code, name: p.name, description: p.description ?? "", price: (p.price_pence / 100).toFixed(2), sort: String(p.sort), active: p.active });
   const shown = visibleCatalogue(packages, showRetired); const nRetired = retiredCount(packages);
   const editing = pk ? packages.find((p) => p.code === pk.code) : undefined;
@@ -89,7 +93,7 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
 
       <Panel title="Packages and promotions" sub="The rate card organisers choose from once an Edition is approved. Same prices for Businesses and Hubs. Changing a row never changes orders already paid.">
         <p className="mb-3 rounded-card bg-sand/60 px-3 py-2 text-sm text-ink-soft">{NO_RESTRICTIONS_NOTE}</p>
-        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line">{shown.map((p) => (<li key={p.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"><div className="min-w-0"><p className="font-semibold text-ink">{p.name} <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold text-ink-soft">{KIND_WORD[kindOf(p)]}</span>{p.is_free ? <span className="ml-2 rounded-pill bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">Free</span> : null}</p><p className="text-ink-soft">{p.is_free ? "Free" : pounds(p.price_pence)} · {describeIncludes(p, (f) => FEATURE_LABEL[f] ?? f)}</p>{(p.grants?.discovery_days || p.grants?.homepage_days) ? <p className="text-ink-soft">Includes: {describeGrants(p.grants)}</p> : null}</div><div className="flex items-center gap-3"><Pill label={isRetired(p) ? "Retired" : p.active ? "On sale" : "Off"} tone={isRetired(p) ? "red" : p.active ? "green" : "gray"} />{canEditRow(p) && <button type="button" className={btnQuiet} onClick={() => edit(p)}>Edit</button>}</div></li>))}</ul>
+        <ul className="divide-y divide-line overflow-hidden rounded-card border border-line">{shown.map((p) => (<li key={p.code} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm"><div className="min-w-0"><p className="font-semibold text-ink">{p.name} <span className="ml-1 rounded-pill bg-sand px-2 py-0.5 text-xs font-semibold text-ink-soft">{KIND_WORD[kindOf(p)]}</span>{p.is_free ? <span className="ml-2 rounded-pill bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">Free</span> : null}</p><p className="text-ink-soft">{p.is_free ? "Free" : pounds(p.price_pence)} · {describeIncludes(p, (f) => FEATURE_LABEL[f] ?? f)}</p>{(p.grants?.discovery_days || p.grants?.homepage_days) ? <p className="text-ink-soft">Includes: {describeGrants(p.grants)}</p> : null}</div><div className="flex items-center gap-3"><Pill label={isRetired(p) ? "Retired" : p.active ? "On sale" : "Off"} tone={isRetired(p) ? "red" : p.active ? "green" : "gray"} />{canEditRow(p) && <button type="button" className={btnQuiet} onClick={() => edit(p)}>Edit</button>}{canEditRow(p) && <button type="button" className={btnQuiet + " text-rose-700"} onClick={() => { setPk(null); setNeu(null); setRetiring({ code: p.code, name: p.name, reason: "" }); }}>Retire</button>}</div></li>))}</ul>
         {nRetired > 0 && <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={showRetired} onChange={(e) => setShowRetired(e.target.checked)} /> Show retired ({nRetired})</label>}
         {showRetired && nRetired > 0 && <p className="mt-1 text-xs text-ink-muted">Retired rows are kept for old orders. They cannot be edited or switched back on.</p>}
         {pk && editing ? (
@@ -105,6 +109,45 @@ export function EditionsCommerceAdmin({ config, packages, organisers, entitlemen
           </form>
         ) : null}
         <Notice msg={pkA.msg} />
+
+        {/* Retiring a row. One-way, needs a reason, and never touches an order already placed — each carries its own package snapshot. */}
+        {retiring && (
+          <form className="mt-4 rounded-card border border-rose-200 bg-rose-50/60 p-4" onSubmit={(e) => { e.preventDefault(); retA.run(() => retirePackage(retiring.code, retiring.reason), { success: "Retired.", onOk: () => { setRetiring(null); router.refresh(); } }); }}>
+            <p className="text-sm font-semibold text-ink">Retire {retiring.name}?</p>
+            <p className="mt-1 text-sm text-ink-soft">It comes off sale for good and cannot be switched back on. Orders already placed keep working, and packages already bought run to their end date.</p>
+            <div className="mt-3"><Field label="Why" htmlFor="ret-r" hint="At least 5 characters. Kept in the audit log."><input id="ret-r" className={inputCls} value={retiring.reason} maxLength={300} onChange={(e) => setRetiring({ ...retiring, reason: e.target.value })} /></Field></div>
+            <div className="mt-3 flex gap-3"><button type="submit" className={btnPrimary} disabled={retA.pending}>Retire it</button><button type="button" className={btnSecondary} onClick={() => setRetiring(null)}>Cancel</button></div>
+          </form>
+        )}
+        <Notice msg={retA.msg} />
+
+        {/* Creating a row. Until now the catalogue could only edit what a migration had written, and could not mark a package free — which is why
+            the free launch package needed SQL. Every rule below is also enforced by the database. */}
+        <div className="mt-5 border-t border-line pt-5">
+          {neu ? (
+            <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => { e.preventDefault(); newA.run(() => createPackage(neu), { success: "Added. It is off sale until you switch it on.", onOk: () => { setNeu(null); router.refresh(); } }); }}>
+              <p className="text-sm font-semibold text-ink sm:col-span-3">New {KIND_WORD[neu.kind].toLowerCase()}</p>
+              <Field label="Kind" htmlFor="n-kind" hint="A promotion grants promotion days only and never extends publishing."><select id="n-kind" className={inputCls} value={neu.kind} onChange={(e) => setNeu({ ...neu, kind: e.target.value as "package" | "promotion" })}><option value="package">Package</option><option value="promotion">Promotion</option></select></Field>
+              <Field label="Code" htmlFor="n-code" hint="Permanent. Lower-case letters, numbers and underscores."><input id="n-code" className={inputCls} value={neu.code} maxLength={40} onChange={(e) => setNeu({ ...neu, code: e.target.value })} /></Field>
+              <Field label="Name" htmlFor="n-name"><input id="n-name" className={inputCls} value={neu.name} maxLength={80} onChange={(e) => setNeu({ ...neu, name: e.target.value })} /></Field>
+              <div className="sm:col-span-3"><Field label="Description" htmlFor="n-desc" hint="Shown to organisers. Up to 600 characters."><textarea id="n-desc" className={inputCls} rows={3} maxLength={600} value={neu.description} onChange={(e) => setNeu({ ...neu, description: e.target.value })} /></Field></div>
+              <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={neu.isFree} onChange={(e) => setNeu({ ...neu, isFree: e.target.checked, price: e.target.checked ? "" : neu.price })} /> Free package</label>
+              <Field label="Price (£)" htmlFor="n-price" hint={neu.isFree ? "A free package costs nothing." : "What the organiser is charged."}><input id="n-price" className={inputCls} inputMode="decimal" disabled={neu.isFree} value={neu.isFree ? "" : neu.price} onChange={(e) => setNeu({ ...neu, price: e.target.value })} /></Field>
+              <Field label="Order on the page" htmlFor="n-sort"><input id="n-sort" className={inputCls} inputMode="numeric" value={neu.sort} onChange={(e) => setNeu({ ...neu, sort: e.target.value })} /></Field>
+              {neu.kind === "package" && <Field label="Publishing period (days)" htmlFor="n-days" hint="1 to 800. 365 is twelve months."><input id="n-days" className={inputCls} inputMode="numeric" value={neu.durationDays} onChange={(e) => setNeu({ ...neu, durationDays: e.target.value })} /></Field>}
+              {neu.kind === "package" && <Field label="Member limit" htmlFor="n-max" hint="Blank for no cap."><input id="n-max" className={inputCls} inputMode="numeric" value={neu.maxMembers} onChange={(e) => setNeu({ ...neu, maxMembers: e.target.value })} /></Field>}
+              <Field label="Discovery days" htmlFor="n-dd" hint="Blank for none."><input id="n-dd" className={inputCls} inputMode="numeric" value={neu.discoveryDays} onChange={(e) => setNeu({ ...neu, discoveryDays: e.target.value })} /></Field>
+              <Field label="Homepage days" htmlFor="n-hd" hint="Blank for none."><input id="n-hd" className={inputCls} inputMode="numeric" value={neu.homepageDays} onChange={(e) => setNeu({ ...neu, homepageDays: e.target.value })} /></Field>
+              <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={neu.grouped} onChange={(e) => setNeu({ ...neu, grouped: e.target.checked })} /> Homepage days must fall inside the discovery days</label>
+              <label className="flex items-end gap-2 pb-2 text-sm font-semibold text-ink"><input type="checkbox" className="h-5 w-5" checked={neu.active} onChange={(e) => setNeu({ ...neu, active: e.target.checked })} /> On sale straight away</label>
+              <p className="text-xs text-ink-muted sm:col-span-3">{neu.kind === "promotion" ? "A promotion carries no features and no publishing period." : `Every package carries all ${ALL_FEATURES.length} features. Leave the promotion days blank unless this package is meant to include promotion.`}</p>
+              <div className="flex gap-3 sm:col-span-3"><button type="submit" className={btnPrimary} disabled={newA.pending}>Add it</button><button type="button" className={btnSecondary} onClick={() => setNeu(null)}>Cancel</button></div>
+            </form>
+          ) : (
+            <button type="button" className={btnSecondary} onClick={() => { setPk(null); setRetiring(null); setNeu({ ...BLANK_NEW }); }}>Add a package or promotion</button>
+          )}
+          <Notice msg={newA.msg} />
+        </div>
       </Panel>
 
       <Panel title="Organiser abilities" sub="Grant or withdraw what an organiser may do (take payments, memberships and so on). Each grant has an end date and a reason.">

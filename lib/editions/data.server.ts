@@ -28,14 +28,33 @@ export const getEditionsEnabled = cache(async (): Promise<boolean> => {
 });
 
 /**
- * Who may use the organiser area while Editions ships dark: staff, and anyone who already belongs to an organiser. When the flag is on, any signed-in user may
- * start an organiser profile. The database is still the authority for every read and write; this only decides whether the pages exist for the visitor.
+ * May someone who does not already run Editions START them for a Business or Hub they control? A SEPARATE question from whether Editions is
+ * visible to the public, and the answer to it since the launch switches were split.
+ *
+ * It used to be the same flag. editions_enabled() meant both "visitors may discover published Editions" and "anyone signed in may start one", so
+ * making the first Edition public would have opened organiser registration to the whole membership on the same day. Fails CLOSED, and an older
+ * database without the function reads as closed, which is the safe direction.
  */
-export const getEditionsAccess = cache(async (): Promise<{ signedIn: boolean; enabled: boolean; staff: boolean; member: boolean; allowed: boolean }> => {
+export const getEditionsSignupOpen = cache(async (): Promise<boolean> => {
+  try {
+    const sb = await createClient();
+    const { data, error } = await sb.rpc("editions_signup_open");
+    return !error && data === true;
+  } catch { return false; }
+});
+
+/**
+ * Who may use the organiser area: staff, anyone who already belongs to an organiser, and — only while new organiser access is open — any signed-in
+ * person (the database still decides what they may actually do, and refuses to create an organiser for a Business or Hub they do not control).
+ *
+ * `enabled` is reported separately because it means something different: whether the public can see Editions at all. Nothing here reads it for
+ * access any more. The database is the authority for every read and write; this only decides whether the pages exist for this visitor.
+ */
+export const getEditionsAccess = cache(async (): Promise<{ signedIn: boolean; enabled: boolean; signupOpen: boolean; staff: boolean; member: boolean; allowed: boolean }> => {
   const sb = await createClient();
   const { data: { user } } = await sb.auth.getUser();
-  const enabled = await getEditionsEnabled();
-  if (!user) return { signedIn: false, enabled, staff: false, member: false, allowed: false };
+  const [enabled, signupOpen] = await Promise.all([getEditionsEnabled(), getEditionsSignupOpen()]);
+  if (!user) return { signedIn: false, enabled, signupOpen, staff: false, member: false, allowed: false };
   const [{ data: staff }, access] = await Promise.all([
     sb.rpc("edition_staff"),
     sb.rpc("edition_has_organiser_access"),
@@ -44,7 +63,9 @@ export const getEditionsAccess = cache(async (): Promise<{ signedIn: boolean; en
   let isMember = access.data === true;
   if (access.error) { const { count } = await sb.from("edition_organiser_members").select("organiser_id", { count: "exact", head: true }).eq("user_id", user.id); isMember = (count ?? 0) > 0; }
   const isStaff = staff === true;
-  return { signedIn: true, enabled, staff: isStaff, member: isMember, allowed: enabled || isStaff || isMember };
+  // An existing organiser or a staff member keeps access however the switches stand: closing registration must never take Editions away from
+  // somebody already running one.
+  return { signedIn: true, enabled, signupOpen, staff: isStaff, member: isMember, allowed: signupOpen || isStaff || isMember };
 });
 
 export type PublicPartnerBusiness = {
