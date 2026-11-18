@@ -4,6 +4,7 @@ import { KIND_LABEL } from "@/lib/editions/types";
 import { dateRangeLabel, phaseOf } from "@/lib/editions/rules";
 import { PhasePill, TestPill } from "./kit";
 import { EditionStatePill } from "./JourneyPanels";
+import { ContentReviewPanel } from "./ContentReviewPanel";
 
 export const EDITION_TABS = [
   { key: "overview", label: "Overview", path: "" },
@@ -47,6 +48,9 @@ export function EditionHeader({ organiser, edition, active }: { organiser: Organ
           ))}
         </ul>
       </nav>
+      {/* A linked What's On listing moved and the Edition's own prose may not have caught up. Shown on every manage
+          screen because the organiser may be on any of them; it warns and does nothing else. */}
+      <ContentReviewPanel editionId={edition.id} organiserSlug={organiser.slug} editionSlug={edition.slug} />
     </header>
   );
 }

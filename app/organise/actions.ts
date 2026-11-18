@@ -367,6 +367,21 @@ export async function linkSessionToEvent(slug: string, editionSlugArg: string, s
   return { ok: true };
 }
 
+/**
+ * "I have read my pages." Marks one stale-wording warning as checked. It edits no page and changes nothing a
+ * visitor sees — the warning simply stops being shown.
+ */
+export async function markContentNoticeChecked(slug: string, editionSlugArg: string, noticeId: string): Promise<Result> {
+  const c = await editionCtx(slug, editionSlugArg, "editor");
+  if ("ok" in c) return c;
+  if (!isUuid(noticeId)) return bad("That warning could not be found.");
+  const { error } = await c.sb.rpc("edition_content_notice_resolve", { p_notice: noticeId });
+  if (error) return bad(friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg, "pages");
+  revalidateEdition(slug, editionSlugArg, "programme");
+  return { ok: true };
+}
+
 /** Stop following the event. The item keeps the details it is showing and becomes the Edition's own again. */
 export async function unlinkSessionFromEvent(slug: string, editionSlugArg: string, sessionId: string): Promise<Result> {
   const c = await editionCtx(slug, editionSlugArg, "editor");
