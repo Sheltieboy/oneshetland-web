@@ -17,6 +17,7 @@ import { AppInstallPrompt } from "@/components/site/AppInstallPrompt";
 import { entryPointProps } from "@/lib/event-entry-points";
 import { SavedProvider } from "@/components/saved/SavedProvider";
 import { getSavedEnabled } from "@/lib/saved.server";
+import { getEditionsEnabled } from "@/lib/editions/data.server";
 import { houseSwapsEnabled } from "@/lib/house-swaps-data";
 import { HouseSwapsNavProvider } from "@/components/house-swaps/NavFlag";
 
@@ -92,6 +93,8 @@ export default async function RootLayout({
     : null;
   // My Saved: read once here. Off (the default) means nothing about it renders anywhere.
   const savedEnabled = await getSavedEnabled();
+  // Keep the Editions navigation hidden until the public launch switch is on.
+  const editionsEnabled = await getEditionsEnabled();
   // House Swaps: its menu entry exists only while the feature is switched on (any failure counts as off).
   const houseSwaps = await houseSwapsEnabled();
 
@@ -148,7 +151,7 @@ export default async function RootLayout({
           <ConfirmProvider>
            <SavedProvider enabled={savedEnabled} signedIn={!!account}>
            <HouseSwapsNavProvider enabled={houseSwaps}>
-            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} {...entryPointProps()} /></HideOnPrivateRoutes>
+            <HideOnPrivateRoutes><SiteHeader user={user} fetchStatus={fetchStatus} editionsEnabled={editionsEnabled} {...entryPointProps()} /></HideOnPrivateRoutes>
             <main className="flex-1">{children}</main>
             <HideOnEditionPages><HideOnPrivateRoutes><SiteFooter /></HideOnPrivateRoutes></HideOnEditionPages>
             <HideOnPrivateRoutes><AppInstallPrompt /></HideOnPrivateRoutes>
