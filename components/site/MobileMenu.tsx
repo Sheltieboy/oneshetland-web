@@ -47,9 +47,10 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
     return () => { html.style.overflow = prev.h; body.style.overflow = prev.b; html.style.overscrollBehavior = prev.hb; };
   }, []);
 
-  // Close at desktop width, where this menu is not used.
+  // Close at the width where the inline navigation takes over and this menu is not used. It must be the SAME 1440 as the
+  // min-[1440px]: classes here and in components/site/SiteHeader.tsx (see the note on the header row for why 1440).
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1280px)");
+    const mq = window.matchMedia("(min-width: 1440px)");
     const on = () => { if (mq.matches) onClose(); };
     mq.addEventListener("change", on); return () => mq.removeEventListener("change", on);
   }, [onClose]);
@@ -83,7 +84,7 @@ export function MobileMenu({ onClose, user, signInHref, headerRef, toggleRef, ad
       role="dialog"
       aria-modal="true"
       aria-label="Site menu"
-      className="fixed inset-x-0 z-[105] overflow-y-auto overscroll-contain border-t border-line/70 bg-cream xl:hidden"
+      className="fixed inset-x-0 z-[105] overflow-y-auto overscroll-contain border-t border-line/70 bg-cream min-[1440px]:hidden"
       style={{ top: top ?? 64, height: `calc(100dvh - ${top ?? 64}px)`, WebkitOverflowScrolling: "touch" }}
     >
       <nav aria-label="Main" className="mx-auto w-full max-w-2xl px-4 pt-4" style={{ paddingBottom: "max(2rem, calc(env(safe-area-inset-bottom) + 1.5rem))" }}>

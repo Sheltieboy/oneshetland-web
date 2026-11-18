@@ -127,9 +127,47 @@ test("the bar is not squeezed to make room: every item keeps the padding it had"
   assert.doesNotMatch(header, /editionsEnabled \? "px-2"/, "the item count is unchanged, so nothing needs compressing");
 });
 
-test("the breakpoint and the mobile menu button are untouched", () => {
-  assert.match(header, /className="hidden items-center gap-0\.5 xl:flex"/);
-  assert.match(menu, /min-width: 1280px/);
+/* ── the width at which the bar appears ───────────────────────────────────────────────────────────────────────── */
+
+/**
+ * The bar used to appear at xl (1280px) while the header row was capped at max-w-7xl (1280px) at EVERY width above it.
+ * The fullest signed-in header does not fit in 1240px of content, so it overflowed its own row and gave the page a
+ * horizontal scrollbar — on the live site as well as here. Raising the breakpoint alone could not fix it, because the
+ * cap applied at 1536 exactly as at 1280. So the row may now reach 1440px, and the bar appears at 1440px.
+ */
+test("one number decides it, in all five places", () => {
+  assert.equal((header.match(/min-\[1440px\]:/g) ?? []).length, 3, "the row cap, the nav, and the menu button");
+  assert.match(header, /max-w-7xl[^"]*min-\[1440px\]:max-w-\[90rem\]/, "the row may grow past 1280 from the breakpoint up");
+  assert.match(header, /<nav className="hidden items-center gap-0\.5 min-\[1440px\]:flex">/);
+  assert.match(header, /aria-controls="site-menu"[\s\S]{0,400}min-\[1440px\]:hidden/);
+  assert.match(menu, /min-\[1440px\]:hidden/, "the sheet itself");
+  assert.match(menu, /matchMedia\("\(min-width: 1440px\)"\)/, "and the query that closes it");
+});
+
+test("there is always exactly one way in: the bar and the menu button swap at the same width", () => {
+  // The nav is `hidden` + `min-[1440px]:flex`; the button is shown by default + `min-[1440px]:hidden`. Complementary at
+  // one number. If these ever drifted apart, a band of widths would have both or — far worse — neither.
+  const navShown = /className="hidden items-center gap-0\.5 (min-\[\d+px\]):flex"/.exec(header)?.[1];
+  const buttonHidden = /aria-controls="site-menu"[\s\S]{0,400}(min-\[\d+px\]):hidden/.exec(header)?.[1];
+  const sheetHidden = /bg-cream (min-\[\d+px\]):hidden/.exec(menu)?.[1];
+  const query = /matchMedia\("\(min-width: (\d+)px\)"\)/.exec(menu)?.[1];
+  assert.ok(navShown && buttonHidden && sheetHidden && query, "all four must be present");
+  assert.equal(navShown, buttonHidden, "the bar appears exactly where the menu button goes");
+  assert.equal(navShown, sheetHidden, "and where the sheet stops being used");
+  assert.equal(navShown, `min-[${query}px]`, "the media query must match the classes, or the open sheet never closes");
+});
+
+test("the old 1280 breakpoint is gone from the header pair, so nothing is half-moved", () => {
+  assert.doesNotMatch(header, /xl:flex|xl:hidden/);
+  assert.doesNotMatch(menu, /xl:hidden|min-width: 1280px/);
+});
+
+test("'For businesses' deliberately stays at 1280: nobody who had it loses it", () => {
+  assert.match(header, /href="\/business"[\s\S]{0,400}xl:inline-flex/);
+});
+
+test("below the breakpoint the row is capped exactly as it was", () => {
+  assert.match(header, /max-w-7xl/, "max-w-7xl is still the default; the wider cap is additive");
 });
 
 test("an Edition's own navigation is not touched by any of this", () => {

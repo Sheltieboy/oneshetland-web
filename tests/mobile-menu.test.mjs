@@ -53,8 +53,18 @@ test("touch targets are at least 44px (tiles and buttons are 48px), tiles wrap l
   assert.doesNotMatch(menu, /animate-|transition-transform|duration-/); assert.match(header, /h-11 w-11/);
 });
 test("navigating closes it without an effect (open only on the page it was opened on), search closes it, and desktop width closes it", () => {
-  assert.match(header, /const open = openAt === pathname/); assert.match(header, /setOpenAt\(null\); setSearch/); assert.match(menu, /min-width: 1280px/);
+  assert.match(header, /const open = openAt === pathname/); assert.match(header, /setOpenAt\(null\); setSearch/);
+  // The width itself moved from 1280 to 1440 at the Editions launch (tests/editions-nav.test.mjs says why, and holds every
+  // place that carries it to the same number). What matters here is only that the query exists and matches the class.
+  const query = /matchMedia\("\(min-width: (\d+)px\)"\)/.exec(menu)?.[1];
+  assert.ok(query, "the menu still closes itself at the width where the inline navigation takes over");
+  assert.ok(menu.includes(`min-[${query}px]:hidden`), "and the sheet is hidden at that same width");
 });
-test("desktop navigation is untouched: the inline nav and 'More' menu are still there and the menu button is hidden at xl", () => {
-  assert.match(header, /className="hidden items-center gap-0\.5 xl:flex"/); assert.match(header, /MORE_NAV\.map\(\(s\) =>/); assert.match(header, /text-navy[^"]*xl:hidden/);
+test("desktop navigation is untouched: the inline nav and 'More' menu are still there, and the menu button appears exactly where the nav does not", () => {
+  assert.match(header, /className="hidden items-center gap-0\.5 min-\[\d+px\]:flex"/);
+  assert.match(header, /MORE_NAV\.map\(\(s\) =>/);
+  assert.match(header, /text-navy[^"]*min-\[\d+px\]:hidden/);
+  const navAt = /gap-0\.5 min-\[(\d+)px\]:flex/.exec(header)?.[1];
+  const buttonAt = /text-navy[^"]*min-\[(\d+)px\]:hidden/.exec(header)?.[1];
+  assert.equal(navAt, buttonAt, "one of the two is always available");
 });

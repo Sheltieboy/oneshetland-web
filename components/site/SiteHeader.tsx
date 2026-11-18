@@ -35,7 +35,16 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
 
   return (
     <header ref={headerRef} className="sticky top-0 z-50 border-b border-line/70 bg-cream/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5">
+      {/* THE HEADER'S WIDTH, and why 1440.
+          max-w-7xl caps this row at 1280px at EVERY viewport above 1280, so a wider screen never gave the bar more room. The
+          fullest signed-in header — the wordmark, the nav, search, a basket with items, "For businesses", a Fetch delivery pill
+          at its longest label, the notification bell and an account name at its 8rem cap — measures 1372px, so it overflowed
+          its own row by 112px even at 1536px, and off-screen at 1280. Raising the breakpoint alone could not fix that.
+          So from 1440px the row may reach 1440px (1400px of content, 28px clear of the 1372px worst case), and below it the
+          menu button takes over. 1440 is the first step that clears 1372 + the row's 40px of side padding.
+          The same 1440 appears on the nav and the menu button below, and in components/site/MobileMenu.tsx — all five together,
+          or the bar and the button can both be hidden at once. tests/editions-nav.test.mjs holds them to it. */}
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-5 min-[1440px]:max-w-[90rem]">
         {/* Wordmark */}
         <Link href="/" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
           <Image src="/brand/logo-mark-keyed.png" alt="OneShetland" width={40} height={40} priority unoptimized className="h-10 w-10" />
@@ -45,7 +54,7 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
         </Link>
 
         {/* Desktop nav */}
-        <nav className="hidden items-center gap-0.5 xl:flex">
+        <nav className="hidden items-center gap-0.5 min-[1440px]:flex">
           {nav.map((s) => (
             <Link
               key={s.key}
@@ -100,6 +109,8 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
             <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
           </button>
           <BasketPill />
+          {/* Deliberately still xl (1280px), not 1440: between 1280 and 1440 the inline nav folds into the menu button, and
+              with 669px of nav gone there is ample room, so there is no reason to take this away from anyone who had it. */}
           <Link
             href="/business"
             className="hidden whitespace-nowrap rounded-pill px-3 py-2 text-sm font-semibold text-ink-soft transition-colors hover:bg-sand hover:text-ink xl:inline-flex"
@@ -166,7 +177,7 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, 
             aria-expanded={open}
             aria-controls="site-menu"
             onClick={() => { setSearch(false); setOpen((o) => !o); }}
-            className="grid h-11 w-11 place-items-center rounded-pill border border-line-strong text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy xl:hidden"
+            className="grid h-11 w-11 place-items-center rounded-pill border border-line-strong text-navy focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-navy min-[1440px]:hidden"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
               {open ? (
