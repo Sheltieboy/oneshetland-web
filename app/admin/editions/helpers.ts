@@ -1,9 +1,10 @@
 /** Pure helpers for the Editions admin area (no I/O, unit-tested). The database remains the authority for every rule here. */
 import { friendlyError } from "@/lib/editions/rules";
 
-/** The Editions admin sections. Approvals is the landing page; Commerce is its own page (packages and fees). */
+/** The Editions admin sections. Approvals is the landing page; Launch (the two switches) and Commerce (packages and fees) are their own pages. */
 export const TABS = [
   { key: "approvals", label: "Approvals", href: "/admin/editions/approvals" },
+  { key: "launch", label: "Launch", href: "/admin/editions/launch" },
   { key: "organisers", label: "Organisers", href: "/admin/editions?tab=organisers" },
   { key: "editions", label: "Editions", href: "/admin/editions?tab=editions" },
   { key: "entitlements", label: "Manual package adjustments", href: "/admin/editions?tab=entitlements" },

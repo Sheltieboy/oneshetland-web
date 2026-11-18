@@ -7,7 +7,7 @@ import { adminError } from "../helpers";
 import { isUuid } from "@/lib/editions/validate";
 import { COMMERCE_KEYS, validateConfigValue } from "./config";
 import { toPence } from "@/lib/editions/commerce";
-import { upsertArgs, validateEdit, type CatalogueRow } from "./catalogue";
+import { newArgs, upsertArgs, validateEdit, validateNew, validateRetire, type CatalogueRow } from "./catalogue";
 
 /** Admin commercial model. requireAdmin() first, then as the signed-in admin (the SQL functions check again and audit every change). No service key. */
 export type Result = { ok: true } | { ok: false; error: string };
@@ -30,6 +30,30 @@ export async function upsertPackage(input: Record<string, unknown>): Promise<Res
   if (readErr || !row) return { ok: false, error: "That package could not be found." };
   if ((row as CatalogueRow).retired_at) return { ok: false, error: "That package is retired. It cannot be changed or switched back on." };
   const { error } = await sb.rpc("admin_upsert_edition_package", upsertArgs(row as CatalogueRow, v));
+  if (error) return fail(error.message);
+  refresh(); return { ok: true };
+}
+/**
+ * A NEW package or promotion. The code is checked against the rows that exist so an administrator is told "edit that one instead" rather than
+ * silently overwriting a live row — admin_upsert_edition_package is an upsert on `code`, so without this check a typo could rewrite Launch.
+ */
+export async function createPackage(input: Record<string, unknown>): Promise<Result> {
+  await requireAdmin();
+  const sb = await createClient();
+  const { data: rows, error: readErr } = await sb.from("edition_packages").select("code");
+  if (readErr) return { ok: false, error: "The catalogue could not be read. Try again." };
+  const v = validateNew(input, ((rows ?? []) as { code: string }[]).map((r) => r.code));
+  if (!v.ok) return v;
+  const { error } = await sb.rpc("admin_upsert_edition_package", newArgs(v.value));
+  if (error) return fail(error.message);
+  refresh(); return { ok: true };
+}
+/** Retiring takes a row off sale for good. Orders already placed keep their own snapshot, and entitlements already bought run to their end date. */
+export async function retirePackage(code: string, reason: string): Promise<Result> {
+  await requireAdmin();
+  const v = validateRetire(code, reason); if (!v.ok) return v;
+  const sb = await createClient();
+  const { error } = await sb.rpc("admin_retire_edition_package", { p_code: v.code, p_reason: v.reason });
   if (error) return fail(error.message);
   refresh(); return { ok: true };
 }

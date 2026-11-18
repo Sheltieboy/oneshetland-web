@@ -13,8 +13,12 @@ type Start = (parentId: string) => Promise<{ ok: true; slug: string } | { ok: fa
 /**
  * "Run your own festivals and Editions", the same for a Business owner and for a Hub's owner or committee. One primary button: start Editions for the Business or Hub (nothing to
  * name, nothing to register, no web address to choose), or open the Editions tools if they are already started.
+ *
+ * `canStart` is whether new organiser access is open (admin_config `editions.signup_open`, read on the server). It governs STARTING only: a
+ * Business or Hub that already runs Editions always gets the "Open Editions tools" button, whatever the switch says. The database enforces the
+ * same rule in edition_ensure_organiser, so this is the explanation, never the gate.
  */
-export function EditionsEntryPanel({ kind, parentId, parentName, state, start }: { kind: "hub" | "business"; parentId: string; parentName: string; state: EntryState; start: Start }) {
+export function EditionsEntryPanel({ kind, parentId, parentName, state, start, canStart = true }: { kind: "hub" | "business"; parentId: string; parentName: string; state: EntryState; start: Start; canStart?: boolean }) {
   const router = useRouter();
   const go = useAction();
   const card = "rounded-card border border-line bg-paper p-5 shadow-soft";
@@ -38,11 +42,18 @@ export function EditionsEntryPanel({ kind, parentId, parentName, state, start }:
         A festival, a show, a season or a campaign with its own page, programme and journal, run by {parentName}. It uses your {who}&rsquo;s name and logo, so there is nothing to register.
         You can build and preview in private, and OneShetland checks each Edition before it goes public.
       </p>
-      <div className="mt-4">
-        <button type="button" className={btnPrimary} disabled={go.pending} onClick={() => go.run(() => start(parentId), { onOk: (r) => { router.push(`/organise/${r.slug}`); router.refresh(); } })}>
-          {go.pending ? "Setting up…" : `Start Editions for ${parentName}`}
-        </button>
-      </div>
+      {canStart ? (
+        <div className="mt-4">
+          <button type="button" className={btnPrimary} disabled={go.pending} onClick={() => go.run(() => start(parentId), { onOk: (r) => { router.push(`/organise/${r.slug}`); router.refresh(); } })}>
+            {go.pending ? "Setting up…" : `Start Editions for ${parentName}`}
+          </button>
+        </div>
+      ) : (
+        <p className="mt-4 rounded-card border border-line bg-sand/50 px-4 py-3 text-sm text-ink-soft">
+          Editions is not open for new organisers just yet. We are starting with a small number of festivals and will open it more widely soon —
+          if you would like to run one for {parentName}, get in touch and we will set it up with you.
+        </p>
+      )}
       <div className="mt-3"><Notice msg={go.msg} /></div>
     </section>
   );
