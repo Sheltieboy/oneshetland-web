@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { PRIMARY_NAV, MORE_NAV } from "@/lib/sections";
+import { PRIMARY_NAV, MORE_NAV, EDITIONS_NAV } from "@/lib/sections";
 import { HouseSwapsMoreLink } from "@/components/house-swaps/NavFlag";
 import { FetchStatusIndicator } from "@/components/fetch/FetchStatusIndicator";
 import { NotificationBell } from "@/components/site/NotificationBell";
@@ -17,7 +17,8 @@ import { SAVED_MENU_LABEL } from "@/lib/saved-copy";
 type HeaderUser = { name: string; avatarUrl: string | null } | null;
 type FetchStatus = { userId: string; status: string | null; count: number } | null;
 
-export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean }) {
+export function SiteHeader({ user = null, fetchStatus = null, addEvent = false, editionsEnabled = false }: { user?: HeaderUser; fetchStatus?: FetchStatus; addEvent?: boolean; editionsEnabled?: boolean }) {
+  const primaryNav = editionsEnabled ? PRIMARY_NAV.flatMap((s) => s.key === "whats-on" ? [s, EDITIONS_NAV] : [s]) : PRIMARY_NAV;
   const savedOn = useSaved().enabled;   // My Saved menu entry: only when the feature is on
   // The mobile menu is open only on the page it was opened on, so any navigation closes it without an effect.
   const [openAt, setOpenAt] = useState<string | null>(null);
@@ -44,11 +45,11 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-0.5 xl:flex">
-          {PRIMARY_NAV.map((s) => (
+          {primaryNav.map((s) => (
             <Link
               key={s.key}
               href={s.href}
-              className="whitespace-nowrap rounded-pill px-3 py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink"
+              className={`whitespace-nowrap rounded-pill ${editionsEnabled ? "px-2" : "px-3"} py-2 text-[0.9rem] font-medium text-ink-soft transition-colors hover:bg-sand hover:text-ink`}
             >
               {s.label}
             </Link>
@@ -185,7 +186,7 @@ export function SiteHeader({ user = null, fetchStatus = null, addEvent = false }
       </div>
 
       {/* Mobile menu: a scrolling, grouped sheet (components/site/MobileMenu.tsx) */}
-      {open && <MobileMenu onClose={closeMenu} user={user} signInHref={`/sign-in?next=${encodeURIComponent(pathname)}`} headerRef={headerRef} toggleRef={toggleRef} addEvent={addEvent} />}
+      {open && <MobileMenu onClose={closeMenu} user={user} signInHref={`/sign-in?next=${encodeURIComponent(pathname)}`} headerRef={headerRef} toggleRef={toggleRef} addEvent={addEvent} editionsEnabled={editionsEnabled} />}
       {search && (
         <div className="border-t border-line/70 bg-cream" onKeyDown={(e) => { if (e.key === "Escape") setSearch(false); }}>
           <div className="mx-auto max-w-3xl px-5 py-3"><SiteSearch autoFocus onNavigate={() => setSearch(false)} /></div>
