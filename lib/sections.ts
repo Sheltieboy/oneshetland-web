@@ -11,6 +11,16 @@ export type Section = {
   blurb: string;
 };
 
+/** An additional destination shown only after public Editions access is enabled. */
+export const EDITIONS_NAV: Section = {
+  key: "editions",
+  label: "Editions",
+  href: "/editions",
+  color: "#0e7490",
+  token: "navy",
+  blurb: "Festivals, seasons and special weeks across Shetland.",
+};
+
 export const SECTIONS: Section[] = [
   {
     key: "whats-on",
