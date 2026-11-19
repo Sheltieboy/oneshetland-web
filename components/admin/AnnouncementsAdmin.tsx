@@ -20,6 +20,10 @@ const btnPrimary = "min-h-11 rounded-pill bg-navy px-5 text-sm font-bold text-wh
 const STATE_TONE: Record<AnnouncementState, string> = { live: "bg-emerald-100 text-emerald-900", scheduled: "bg-sky-100 text-sky-900", ended: "bg-slate-200 text-slate-700", draft: "bg-sand text-ink-soft", withdrawn: "bg-rose-100 text-rose-900" };
 const STATE_LABEL: Record<AnnouncementState, string> = { live: "Live", scheduled: "Scheduled", ended: "Ended", draft: "Draft", withdrawn: "Withdrawn" };
 const FILTERS: { key: "all" | AnnouncementState; label: string }[] = [{ key: "all", label: "All" }, { key: "live", label: "Live" }, { key: "scheduled", label: "Scheduled" }, { key: "draft", label: "Drafts" }, { key: "ended", label: "Ended" }, { key: "withdrawn", label: "Withdrawn" }];
+/** What the site-media bucket accepts (storage.buckets.allowed_mime_types and file_size_limit). Checked here first so a refusal is explained
+ *  next to the button instead of surfacing as a raw storage error. GIFs upload byte-for-byte, so an animation keeps playing. */
+const UPLOAD_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+const UPLOAD_MAX_MB = 10;
 const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).format(new Date(iso)) : null);
 
 export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
@@ -29,6 +33,7 @@ export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
   const [editing, setEditing] = useState<{ id: string | null; draft: AnnouncementDraft } | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -75,15 +80,18 @@ export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
   const remove = (a: Announcement) => run(`Deleted “${a.title}”.`, async () => sb().from("home_announcements").delete().eq("id", a.id));
 
   async function upload(file: File) {
-    setUploading(true); setMsg(null);
+    setUploadError(null); setMsg(null);
+    const ext = UPLOAD_TYPES[file.type];
+    if (!ext) { setUploadError(`${file.name} is not a JPG, PNG, WebP or GIF image, so it can't be uploaded.`); return; }
+    if (file.size > UPLOAD_MAX_MB * 1024 * 1024) { setUploadError(`${file.name} is ${(file.size / 1048576).toFixed(1)} MB. Images must be ${UPLOAD_MAX_MB} MB or smaller.`); return; }
+    setUploading(true);
     try {
-      const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
       const path = `announcement-${Date.now()}.${ext}`;
       const { error } = await sb().storage.from("site-media").upload(path, file, { upsert: false, contentType: file.type });
       if (error) throw error;
       const url = sb().storage.from("site-media").getPublicUrl(path).data.publicUrl;
       setEditing((e) => (e ? { ...e, draft: { ...e.draft, image: url } } : e));
-    } catch (e) { setMsg({ ok: false, text: e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed." }); }
+    } catch (e) { setUploadError(e instanceof Error ? `Upload failed: ${e.message}` : "Upload failed."); }
     finally { setUploading(false); }
   }
 
@@ -97,7 +105,7 @@ export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
         <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
           {FILTERS.map((f) => <button key={f.key} type="button" aria-pressed={filter === f.key} onClick={() => setFilter(f.key)} className={`min-h-10 rounded-pill border px-3.5 text-[13px] font-bold ${filter === f.key ? "border-navy bg-navy text-white" : "border-line-strong bg-paper text-ink-soft"}`}>{f.label}</button>)}
         </div>
-        <button type="button" className={btnPrimary} onClick={() => { setMsg(null); setEditing({ id: null, draft: blankDraft() }); }}>New announcement</button>
+        <button type="button" className={btnPrimary} onClick={() => { setMsg(null); setUploadError(null); setEditing({ id: null, draft: blankDraft() }); }}>New announcement</button>
       </div>
 
       <p role="status" aria-live="polite" className={`min-h-6 text-sm font-semibold ${msg?.ok ? "text-emerald-800" : "text-rose-700"}`}>{msg?.text}</p>
@@ -121,7 +129,7 @@ export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
                 <p className="mt-1.5 font-semibold text-ink">{a.title}</p>
                 <p className="truncate text-[13px] text-ink-muted">{a.cta} → {a.href}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <button type="button" className={btn} disabled={busy} onClick={() => { setMsg(null); setEditing({ id: a.id, draft: draftFromAnnouncement(a) }); }}>Edit</button>
+                  <button type="button" className={btn} disabled={busy} onClick={() => { setMsg(null); setUploadError(null); setEditing({ id: a.id, draft: draftFromAnnouncement(a) }); }}>Edit</button>
                   {a.status !== "published" ? <button type="button" className={btn} disabled={busy} onClick={() => setStatus(a, "published")}>Publish</button> : <button type="button" className={btn} disabled={busy} onClick={() => setStatus(a, "withdrawn")}>Withdraw</button>}
                   {st === "live" && !firstLive && <button type="button" className={btn} disabled={busy} onClick={() => feature(a)}>Make featured</button>}
                   <button type="button" className={btn} disabled={busy} onClick={() => duplicate(a)}>Duplicate</button>
@@ -166,10 +174,12 @@ export function AnnouncementsAdmin({ initial }: { initial: Announcement[] }) {
                 <div className="flex items-center gap-3">
                   <div className="grid h-16 w-24 shrink-0 place-items-center overflow-hidden rounded-lg border border-line bg-sand/40 text-xs text-ink-muted">{safeImage(d.image) ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={safeImage(d.image) as string} alt="" className="h-full w-full object-cover" /> : "None"}</div>
                   <div className="flex flex-col gap-1.5">
-                    <label className={`${btn} inline-flex cursor-pointer items-center`}>{uploading ? "Uploading…" : "Upload image"}<input type="file" accept="image/*" className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} /></label>
+                    <label className={`${btn} inline-flex cursor-pointer items-center`}>{uploading ? "Uploading…" : "Upload image"}<input type="file" accept={Object.keys(UPLOAD_TYPES).join(",")} className="sr-only" disabled={uploading} onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} /></label>
                     {d.image && <button type="button" className="text-left text-xs font-semibold text-rose-700 hover:underline" onClick={() => set({ image: "" })}>Remove image</button>}
                   </div>
                 </div>
+                <p className="mt-1 text-[12px] text-ink-muted">JPG, PNG, WebP or animated GIF, up to {UPLOAD_MAX_MB} MB.</p>
+                {uploadError && <p role="alert" className="mt-1 text-[13px] font-semibold text-rose-700">{uploadError}</p>}
                 <label htmlFor="an-img" className="mb-1 mt-2 block text-[13px] text-ink-muted">Or paste an image address</label>
                 <input id="an-img" className={field} value={d.image} onChange={(e) => set({ image: e.target.value })} placeholder="https://… or /heroes/events.jpg" aria-invalid={!!errors.image} />{errors.image && <p className="mt-1 text-[13px] font-semibold text-rose-700">{errors.image}</p>}
               </div>
