@@ -4,7 +4,7 @@ import { gbp, salesTotals, isWalletFloat } from "@/lib/analytics-format";
 import { Card, Empty, StatusPill } from "@/components/admin/AdminUI";
 import { IntelKpi, MiniBars, BarList, Panel, Facts } from "@/components/admin/IntelUI";
 import { UsefulActions } from "@/components/admin/UsefulActions";
-import { ago, isStale, num, pct, trendText, type Overview, type UsefulActionsPayload } from "@/lib/admin-intel";
+import { ago, isStale, num, pct, trendText, type JobSyncRun, type Overview, type UsefulActionsPayload } from "@/lib/admin-intel";
 
 /** The Admin Intelligence report bodies. Pure presentation of an Overview; data is fetched by the page. */
 
@@ -208,10 +208,86 @@ export function CommercialView({ o, days, revenue }: { o: Overview; days: number
   );
 }
 
-export function HealthView({ o }: { o: Overview }) {
+/**
+ * The council jobs feed, in the terms operations needs.
+ *
+ * On 19 Nov 2026 myjobscotland's own job search answered HTTP 500 for everybody. The dashboard
+ * caught it within the hour and said FAILED — but not WHY, and not whether the public listings
+ * had gone stale, both of which the run log already records. Those two facts are the difference
+ * between "check it" and knowing what to do, so they are shown here:
+ *
+ *   · how long since a run SUCCEEDED — the real staleness signal. The feed being down for one
+ *     tick is nothing; the vacancies being a day old is what members notice.
+ *   · what each recent run said, successes included, because a run can succeed and still have
+ *     read only half the source (it then withholds pruning and says so).
+ *
+ * STALE_AFTER_HOURS is two missed ticks plus slack on a three-hourly schedule, matching the
+ * tolerance cron_job_health() already uses for this job.
+ */
+const STALE_AFTER_HOURS = 8;
+
+function JobFeedPanel({ runs }: { runs: JobSyncRun[] | null }) {
+  if (runs === null) {
+    return (
+      <Panel title="Council jobs feed" sub="public.job_sync_runs">
+        <p className="text-sm text-ink-soft">The run log could not be read, so the state of the feed is unknown. That is not the same as “no runs”: check the function logs before assuming the sync is fine.</p>
+      </Panel>
+    );
+  }
+  if (runs.length === 0) {
+    return (
+      <Panel title="Council jobs feed" sub="public.job_sync_runs">
+        <p className="text-sm text-ink-soft">No runs recorded. Either the schedule is not firing or the function cannot write its log — check <span className="font-mono text-xs">cron_job_health()</span> and the function logs.</p>
+      </Panel>
+    );
+  }
+  const lastOk = runs.find((r) => r.ok) ?? null;
+  const dataStale = isStale(lastOk?.ran_at, STALE_AFTER_HOURS);
+  const failures = runs.filter((r) => !r.ok).length;
+  return (
+    <Panel title="Council jobs feed" sub="Every recorded run, newest first. Shetland Islands Council vacancies via myjobscotland.">
+      <Facts rows={[
+        {
+          label: "Vacancies last brought up to date",
+          value: lastOk ? ago(lastOk.ran_at) : "never in the runs shown",
+          note: dataStale
+            ? `No successful run in ${STALE_AFTER_HOURS} hours: treat the public vacancies as out of date and check the source`
+            : "Public vacancies are current",
+        },
+        {
+          label: "Last run",
+          value: `${runs[0].ok ? "OK" : "FAILED"} · ${ago(runs[0].ran_at)}`,
+          note: runs[0].reason ?? (runs[0].ok ? `${num(runs[0].parsed)} kept, ${num(runs[0].removed)} closed vacancies removed` : "no reason recorded"),
+        },
+        {
+          label: "Failed runs shown",
+          value: `${num(failures)} of ${num(runs.length)}`,
+          note: failures === 0 ? "Nothing to chase" : "Repeated failures usually mean the source changed or is down, not that the sync stopped",
+        },
+      ]} />
+      <ul className="mt-3 divide-y divide-line text-sm">
+        {runs.map((r) => (
+          <li key={r.ran_at} className="py-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-ink-soft">{new Date(r.ran_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}</span>
+              <span className={"shrink-0 font-bold " + (r.ok ? "text-ink" : "text-red-700")}>{r.ok ? "OK" : "FAILED"}</span>
+            </div>
+            <p className="text-xs text-ink-muted">
+              {num(r.parsed)} kept · {num(r.removed)} removed{r.prune_skipped ? " · pruning withheld" : ""}{r.duration_ms != null ? ` · ${(r.duration_ms / 1000).toFixed(1)}s` : ""}
+            </p>
+            {r.reason ? <p className="mt-0.5 break-words text-xs text-ink-soft">{r.reason}</p> : null}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs text-ink-muted">A run that withheld pruning read only part of the source and deliberately kept every vacancy it already held. Nothing is ever deleted on an incomplete read, so a stale feed is the worst a bad run can do.</p>
+    </Panel>
+  );
+}
+
+export function HealthView({ o, jobRuns = null }: { o: Overview; jobRuns?: JobSyncRun[] | null }) {
   const h = o.health, d = o.days;
   const sync = h.job_sync_last;
-  const syncBad = sync && (!sync.ok || isStale(sync.ran_at, 8));
+  const syncBad = sync && (!sync.ok || isStale(sync.ran_at, STALE_AFTER_HOURS));
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -222,12 +298,13 @@ export function HealthView({ o }: { o: Overview }) {
       </div>
       <Panel title="Systems" sub="Only signals that are actually logged">
         <Facts rows={[
-          { label: "Council jobs sync", value: sync ? `${sync.ok ? "OK" : "FAILED"} · ${ago(sync.ran_at)}` : "no runs recorded", note: syncBad ? "Overdue or failed: check it" : `${num(h.job_sync_failed_7d)} failed run(s) in 7 days` },
+          { label: "Council jobs sync", value: sync ? `${sync.ok ? "OK" : "FAILED"} · ${ago(sync.ran_at)}` : "no runs recorded", note: sync?.reason ?? (syncBad ? "Overdue or failed: check it" : `${num(h.job_sync_failed_7d)} failed run(s) in 7 days`) },
           { label: "Push notifications", value: `${num(h.push_sent_period)} sent · ${num(h.push_errors_period)} errors`, note: `last ${d} days` },
           { label: "Emails", value: `${num(h.email_sent_period)} sent · ${num(h.email_failed_period)} failed or bounced`, note: `last ${d} days` },
           { label: "Analytics events", value: ago(o.engagement.last_event_at), note: isStale(o.engagement.last_event_at, 72) ? "No recent events: check the consent banner and ingestion" : "Receiving events" },
         ]} />
       </Panel>
+      <JobFeedPanel runs={jobRuns} />
       <Card><p className="text-sm text-ink-soft">Not monitored here yet: failed publishing operations, import failures and errors inside user journeys. They are not logged anywhere this dashboard can read, so no alert is shown for them.</p></Card>
     </div>
   );

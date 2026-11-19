@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/admin-data.server";
-import { getAdminIntelOverview, getUsefulActions } from "@/lib/admin-intel.server";
+import { getAdminIntelOverview, getJobSyncRuns, getUsefulActions } from "@/lib/admin-intel.server";
 import { getAnalyticsRevenue } from "@/lib/analytics-admin.server";
 import { AdminHeader, Card } from "@/components/admin/AdminUI";
 import { Freshness, OverviewView, MembersView, BusinessView, ContentView, CommercialView, HealthView } from "@/components/admin/IntelViews";
@@ -16,7 +16,12 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const days = parsePeriod(sp.days);
   const view = parseView(sp.view);
-  const [o, actions, revenue] = await Promise.all([getAdminIntelOverview(days), getUsefulActions(), view === "commercial" ? getAnalyticsRevenue(days) : Promise.resolve(null)]);
+  const [o, actions, revenue, jobRuns] = await Promise.all([
+    getAdminIntelOverview(days),
+    getUsefulActions(),
+    view === "commercial" ? getAnalyticsRevenue(days) : Promise.resolve(null),
+    view === "health" ? getJobSyncRuns() : Promise.resolve(null),
+  ]);
 
   return (
     <>
@@ -49,7 +54,7 @@ export default async function IntelligencePage({ searchParams }: { searchParams:
         view === "business" ? <BusinessView o={o} /> :
         view === "content" ? <ContentView o={o} /> :
         view === "commercial" ? <CommercialView o={o} days={days} revenue={revenue} /> :
-        <HealthView o={o} />}
+        <HealthView o={o} jobRuns={jobRuns} />}
 
       {o && (
         <div className="mt-8 space-y-3">

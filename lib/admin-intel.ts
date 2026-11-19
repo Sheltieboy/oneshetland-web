@@ -71,6 +71,26 @@ export interface Overview {
   unavailable: string[];
 }
 
+/**
+ * One recorded run of the council jobs sync (public.job_sync_runs, written by the Edge Function).
+ *
+ * The dashboard reads this table directly as the signed-in admin — row security already limits it
+ * to admins — rather than through admin_intel_overview, because the question operations actually
+ * asks is "when did it last SUCCEED, and what did it say", and that needs the history, not one
+ * row. `reason` is recorded on a good run too, so a feed that is working but degraded (one search
+ * down, pruning withheld) is visible instead of looking like an ordinary green run.
+ */
+export interface JobSyncRun {
+  ran_at: string;
+  source: string;
+  ok: boolean;
+  reason: string | null;
+  parsed: number;
+  removed: number;
+  prune_skipped: boolean;
+  duration_ms: number | null;
+}
+
 export type Trend = { dir: "up" | "down" | "flat" | "new" | "none"; pct: number | null };
 /** Previous-equivalent-period comparison. Zero in both = none (nothing to compare); zero before = new; never divides by zero. */
 export function trend(cur: number, prev: number): Trend {
