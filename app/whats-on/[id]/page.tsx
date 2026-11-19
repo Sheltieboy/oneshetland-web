@@ -24,6 +24,8 @@ import {
 import { getEventConditions, LERWICK_COORDS } from "@/lib/shetland-today";
 import { detectEventArea, detectEventStop, defaultStopForArea } from "@/lib/transit-data";
 import { SafeImage } from "@/components/ui/SafeImage";
+import { EventPoster } from "@/components/events/EventPoster";
+import { isUploadedEventImage } from "@/lib/event-media";
 import { ScarcityStrip, GoingCount, GettingTherePanel } from "@/components/events/EventInsights";
 import { TravelPlanner } from "@/components/events/TravelPlanner";
 import { GettingThereLinks } from "@/components/events/GettingThereLinks";
@@ -249,6 +251,13 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
             </div>
           ) : null}
 
+          {/* The hero above is cropped so the title can sit on it. This is the same picture whole,
+              which matters when the picture IS the information: a flyer with a number to ring. */}
+          {/* ONLY a picture somebody uploaded. Nearly every event has a cover, but most are platform
+              artwork the loaders supply so no listing looks bare. The hero may show those; this
+              section says "everything the organiser put on it", which over stock art is untrue. */}
+          {isUploadedEventImage(e.cover_url) ? <EventPoster src={e.cover_url as string} title={e.title} /> : null}
+
           <div className="mt-10 grid gap-4 sm:grid-cols-2">
             {dated ? (
               <InfoCard label={currentOcc ? (liveOccurrence(liveOcc, now) ? "On now" : "Next performance") : "Performances"}>
@@ -326,8 +335,8 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
               <h2 className="font-display text-2xl font-bold">Photos</h2>
               <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {e.gallery_urls.map((url, i) => (
-                  <div key={i} className="aspect-square overflow-hidden rounded-xl bg-sand">
-                    <SafeImage src={url} className="h-full w-full object-cover" />
+                  <div key={i} className="overflow-hidden rounded-xl bg-sand">
+                    <EventPoster src={url} title={`${e.title} — photo ${i + 1}`} variant="bare" />
                   </div>
                 ))}
               </div>
