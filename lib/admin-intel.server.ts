@@ -5,7 +5,7 @@
  */
 import "server-only";
 import { createClient as createServerClient } from "@/lib/supabase/server";
-import type { Overview, UsefulActionsPayload, Period } from "@/lib/admin-intel";
+import type { Overview, UsefulActionsPayload, Period, JobSyncRun } from "@/lib/admin-intel";
 
 async function rpc<T>(fn: string, args: Record<string, unknown>, label: string): Promise<T | null> {
   try {
@@ -21,3 +21,24 @@ async function rpc<T>(fn: string, args: Record<string, unknown>, label: string):
 
 export const getAdminIntelOverview = (days: Period | number = 30) => rpc<Overview>("admin_intel_overview", { p_days: days }, "overview");
 export const getUsefulActions = () => rpc<UsefulActionsPayload>("admin_useful_actions", {}, "useful actions");
+
+/**
+ * The last few council-jobs sync runs, newest first. A failure returns null, which the panel
+ * shows as "could not be read" rather than as "no runs" — a broken read must not look like a
+ * stopped sync, nor a stopped sync like all clear.
+ */
+export async function getJobSyncRuns(limit = 8): Promise<JobSyncRun[] | null> {
+  try {
+    const sb = await createServerClient();
+    const { data, error } = await sb
+      .from("job_sync_runs")
+      .select("ran_at, source, ok, reason, parsed, removed, prune_skipped, duration_ms")
+      .order("ran_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data as JobSyncRun[]) ?? [];
+  } catch (err) {
+    console.error("[admin-intel] job sync runs failed:", err);
+    return null;
+  }
+}
