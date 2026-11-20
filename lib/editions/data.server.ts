@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { type SupabaseClient } from "@supabase/supabase-js";
+import { presentedPreviewToken, previewClient } from "./preview-client.server";
 import { getAccount } from "@/lib/auth";
 import { isLocalPath } from "@/lib/redirect";
 import {
@@ -103,8 +105,8 @@ export type PublicEditionBundle = {
  * The partners shown on an Edition. Reads the security-invoker views, so the visitor's own row-level security still decides everything: a
  * business that stops being public, an offer that expires or loses its plan, or a link the owner withdrew simply is not returned.
  */
-export async function getPublicPartners(editionId: string): Promise<PublicPartners> {
-  const sb = await createClient();
+export async function getPublicPartners(editionId: string, client?: SupabaseClient): Promise<PublicPartners> {
+  const sb = client ?? (await createClient());
   const [biz, offers, events, acts, hubRows, hubItems] = await Promise.all([
     sb.from("edition_public_businesses").select("*").eq("edition_id", editionId).order("position").order("name"),
     sb.from("edition_public_offers").select("*").eq("edition_id", editionId),
@@ -173,8 +175,28 @@ export async function getMyPendingPartnerCount(): Promise<number> {
 const arr = <T,>(d: unknown): T[] => (Array.isArray(d) ? (d as T[]) : []);
 
 /** One Edition for the public page (or a member/staff preview of a draft). null = not visible to this person. */
+/**
+ * The Edition a visitor may see at `slug`, or null.
+ *
+ * Two attempts, in this order. First as the visitor themselves — anon, or signed in — which is what
+ * every public Edition and every organiser's own draft goes through, unchanged. Only if that sees
+ * nothing do we ask the second question: is this request holding a private preview link for this
+ * Edition? The token is never trusted here; it is handed to the database, which decides on its own
+ * which single Edition (if any) it unlocks. See lib/editions/preview-link.ts.
+ */
 export const getEditionBundle = cache(async (slug: string): Promise<PublicEditionBundle | null> => {
-  const sb = await createClient();
+  const asVisitor = await editionBundleWith(await createClient(), slug);
+  if (asVisitor) return asVisitor;
+
+  const token = await presentedPreviewToken(slug);
+  if (!token) return null;
+  const viaPreview = await editionBundleWith(previewClient(token), slug);
+  // Belt and braces over the database's own scoping: a token names exactly one Edition, so a bundle
+  // for any other address is refused here too rather than trusted.
+  return viaPreview && viaPreview.edition.slug === slug ? viaPreview : null;
+});
+
+const editionBundleWith = async (sb: SupabaseClient, slug: string): Promise<PublicEditionBundle | null> => {
   const { data: ed } = await sb.from("editions").select(EDITION_COLUMNS).eq("slug", slug).maybeSingle();
   if (!ed) return null;
   const edition = ed as Edition;
@@ -186,7 +208,7 @@ export const getEditionBundle = cache(async (slug: string): Promise<PublicEditio
     sb.from("edition_updates").select(UPDATE_PUBLIC_COLUMNS).eq("edition_id", edition.id).order("pinned", { ascending: false }).order("published_at", { ascending: false }),
     sb.from("edition_sponsors").select("*").eq("edition_id", edition.id).order("position"),
     edition.series_id ? sb.from("edition_series").select("name").eq("id", edition.series_id).maybeSingle() : Promise.resolve({ data: null }),
-    getPublicPartners(edition.id),
+    getPublicPartners(edition.id, sb),
   ]);
   if (!org.data) return null;
   const hub = await getHubIdentity((org.data as Organiser).hub_id);
@@ -205,7 +227,7 @@ export const getEditionBundle = cache(async (slug: string): Promise<PublicEditio
     updates: arr<EditionUpdate>(updates.data).filter((u) => u.published_at && u.published_at <= nowIso),
     sponsors: arr<EditionSponsor>(sponsors.data), seriesName: (series.data as { name?: string } | null)?.name ?? null, partners,
   };
-});
+};
 
 /** Free text for the index search: letters, numbers, spaces and a few safe marks only, so it cannot break out of the filter expression. */
 export const searchTerm = (raw: unknown): string => (typeof raw === "string" ? raw.normalize("NFKC").replace(/[^\p{L}\p{N} '&-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60) : "");

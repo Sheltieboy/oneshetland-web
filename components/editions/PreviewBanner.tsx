@@ -1,7 +1,8 @@
 import type { Edition, ReviewState } from "@/lib/editions/types";
 
 export type PreviewReasonKey =
-  | "suspended" | "archived" | "draft" | "in_review" | "changes_requested" | "rejected" | "approved_unpublished" | "no_package" | "parent_inactive" | "disabled" | "test";
+  | "suspended" | "archived" | "draft" | "in_review" | "changes_requested" | "rejected" | "approved_unpublished" | "no_package" | "parent_inactive" | "disabled" | "test"
+  | "shared_link";
 export type PreviewReason = { key: PreviewReasonKey; text: string };
 
 /**
@@ -11,9 +12,17 @@ export type PreviewReason = { key: PreviewReasonKey; text: string };
 export function previewReason(args: {
   edition: Pick<Edition, "status" | "is_test" | "suspended_reason"> & { review_state?: ReviewState | null };
   enabled: boolean; entitled: boolean; /** false = the Business or Hub that runs it is not active. Defaults to true. */ parentLive?: boolean;
+  /** true = this person is reading through a private preview link, not as a member of the team. */ viaSharedLink?: boolean;
+  /** Who shared it, for the wording. */ organiserName?: string;
 }): PreviewReason | null {
   const { edition: e, enabled, entitled } = args;
   const parentLive = args.parentLive !== false;
+  // Somebody who was sent a link is not "your team", and telling them the Edition has "not been sent
+  // to OneShetland yet" would be both confusing and none of their business. They get one quiet line:
+  // what they are looking at, who shared it, and that it is not public.
+  if (args.viaSharedLink) {
+    return { key: "shared_link", text: `A private preview${args.organiserName ? ` shared by ${args.organiserName}` : ""}. It is not published, so nobody else can see it yet.` };
+  }
   if (e.status === "suspended") return { key: "suspended", text: `OneShetland has suspended this Edition${e.suspended_reason ? `: ${e.suspended_reason}` : "."}` };
   if (e.status === "archived") return { key: "archived", text: "This Edition is archived, so it is no longer public." };
   switch (e.review_state ?? "not_submitted") {
@@ -35,8 +44,18 @@ export function previewReason(args: {
   return null;
 }
 
-export function PreviewBanner({ reason, subject = "Edition" }: { reason: { text: string } | null; subject?: string }) {
+export function PreviewBanner({ reason, subject = "Edition" }: { reason: (PreviewReason | { text: string }) | null; subject?: string }) {
   if (!reason) return null;
+  // A link recipient gets a single discreet line rather than the team's two-line working notice.
+  if ("key" in reason && reason.key === "shared_link") {
+    return (
+      <div role="note" className="border-b border-line bg-paper-2 text-ink-soft">
+        <div className="ed-wrap py-2 text-[0.8rem] leading-relaxed">
+          <span className="font-semibold text-ink">Private preview</span> &middot; {reason.text}
+        </div>
+      </div>
+    );
+  }
   return (
     <div role="note" className="border-b border-amber-300 bg-amber-100 text-amber-950">
       <div className="ed-wrap py-3 text-sm leading-relaxed">

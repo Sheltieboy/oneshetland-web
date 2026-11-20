@@ -15,6 +15,7 @@ import { HeroFrame } from "@/components/editions/editorial/HeroFrame";
 import { EditionHero } from "@/components/editions/EditionHero";
 import { EditionNav, type NavItem } from "@/components/editions/EditionNav";
 import { PreviewBanner, previewReason } from "@/components/editions/PreviewBanner";
+import { presentedPreviewToken } from "@/lib/editions/preview-client.server";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,18 @@ export default async function EditionLayout({ children, params }: { children: Re
     parentLive = par.data === true;
   }
   const publiclyOn = await getEditionsEnabled();
-  const reason = previewReason({ edition, enabled: publiclyOn, entitled, parentLive });
+  // Is this person reading through a private preview link rather than as a member of the team? They
+  // get the discreet one-line notice instead of the team's working banner, and no management controls.
+  let viaSharedLink = false;
+  if ((await presentedPreviewToken(slug)) !== null) {
+    const sb = await createClient();
+    const [{ data: canEdit }, { data: staff }] = await Promise.all([
+      sb.rpc("edition_can", { p_edition: edition.id, p_min: "editor" }),
+      sb.rpc("edition_staff"),
+    ]);
+    viaSharedLink = canEdit !== true && staff !== true;
+  }
+  const reason = previewReason({ edition, enabled: publiclyOn, entitled, parentLive, viaSharedLink, organiserName: organiser.name });
 
   const base = `/editions/${edition.slug}`;
   const nav = navFor(pages);
