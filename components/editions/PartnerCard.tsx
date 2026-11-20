@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EditionOutboundLink } from "./OutboundLink";
 import type { PublicPartnerBusiness } from "@/lib/editions/data.server";
 import { businessHref, categoryLabel, offerBadge } from "@/lib/editions/partners";
 import { responsiveImage } from "@/lib/editions/images";
@@ -10,7 +11,7 @@ const RATIO: Record<TileSize, string> = { lead: "ed-ratio-54", side: "ed-ratio-1
  * One participating business, set as a magazine tile: a photograph (its cover, else its logo on a tonal ground, else a monogram), then name, category and the
  * offers it chose for this Edition. Everything shown is read live from the business's own listing; the Edition stores nothing about it.
  */
-export function PartnerCard({ b, size = "grid" }: { b: PublicPartnerBusiness; size?: TileSize }) {
+export function PartnerCard({ b, size = "grid", editionId, page }: { b: PublicPartnerBusiness; size?: TileSize; /** Supplied by the Edition routes so a click to this seller can be counted. */ editionId?: string; page?: string }) {
   const cat = categoryLabel(b.category);
   const media = b.cover_url ? (
     <div className={`ed-img ${RATIO[size]}`}>
@@ -30,7 +31,9 @@ export function PartnerCard({ b, size = "grid" }: { b: PublicPartnerBusiness; si
       {media}
       <div className="ed-tile__body">
         {b.label && <p className="ed-eyebrow ed-eyebrow--accent" style={{ margin: 0 }}>{b.label}</p>}
-        <h3 className="ed-tile__title"><Link href={businessHref(b.business_id)}>{b.name}</Link></h3>
+        <h3 className="ed-tile__title">{editionId
+          ? <EditionOutboundLink href={businessHref(b.business_id)} editionId={editionId} page={page ?? "home"} block="partners" to="business">{b.name}</EditionOutboundLink>
+          : <Link href={businessHref(b.business_id)}>{b.name}</Link>}</h3>
         {(cat || b.address) && <p className="ed-tile__meta" style={{ margin: 0 }}>{[cat, b.address].filter(Boolean).join(" · ")}</p>}
         {b.description && size === "lead" && <p className="ed-tile__desc line-clamp-3">{b.description}</p>}
         {b.offers.length > 0 && (

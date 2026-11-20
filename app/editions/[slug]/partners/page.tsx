@@ -35,7 +35,7 @@ export default async function PartnersPage({ params }: { params: Promise<{ slug:
         <div className="ed-section">
           <div className="ed-wrap" style={{ display: "grid", gap: "var(--ed-section)" }}>
             <PartnersSection partners={partners} />
-            <SponsorStrip sponsors={sponsors} />
+            <SponsorStrip sponsors={sponsors} editionId={edition.id} page="home" />
           </div>
         </div>
       )}

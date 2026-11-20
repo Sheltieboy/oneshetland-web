@@ -1,3 +1,4 @@
+import { EditionOutboundLink } from "./OutboundLink";
 import type { EditionSponsor } from "@/lib/editions/types";
 
 const isHttps = (u: string | null | undefined): u is string => !!u && /^https:\/\/[^\s<>"']+$/.test(u);
@@ -6,7 +7,7 @@ const isHttps = (u: string | null | undefined): u is string => !!u && /^https:\/
  * Sponsors and partners: quiet, tiered by the organiser's own level names (in the order they first appear), logos set in one tone and blended onto the paper
  * so a mixed set of files looks like a single family. Linked only when the address is https; the first tier is set larger.
  */
-export function SponsorStrip({ sponsors, title = "Partners and sponsors" }: { sponsors: EditionSponsor[]; title?: string }) {
+export function SponsorStrip({ sponsors, title = "Partners and sponsors", editionId, page }: { sponsors: EditionSponsor[]; title?: string; editionId?: string; page?: string }) {
   if (sponsors.length === 0) return null;
   const tiers: { level: string | null; items: EditionSponsor[] }[] = [];
   for (const s of sponsors) {
@@ -28,9 +29,15 @@ export function SponsorStrip({ sponsors, title = "Partners and sponsors" }: { sp
               return (
                 <li key={s.id}>
                   {isHttps(s.url) ? (
-                    <a href={s.url} target="_blank" rel="noopener noreferrer sponsored" className="ed-logo">
-                      {tile}<span className="sr-only">{s.logo_url ? `${s.name}, ` : ""}opens in a new tab</span>
-                    </a>
+                    editionId ? (
+                      <EditionOutboundLink href={s.url!} editionId={editionId} page={page ?? "home"} block="sponsors" to="sponsor" external className="ed-logo">
+                        {tile}<span className="sr-only">{s.logo_url ? `${s.name}, ` : ""}opens in a new tab</span>
+                      </EditionOutboundLink>
+                    ) : (
+                      <a href={s.url!} target="_blank" rel="noopener noreferrer sponsored" className="ed-logo">
+                        {tile}<span className="sr-only">{s.logo_url ? `${s.name}, ` : ""}opens in a new tab</span>
+                      </a>
+                    )
                   ) : <div className="ed-logo">{tile}</div>}
                 </li>
               );
