@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 import { can, friendlyError } from "@/lib/editions/rules";
 import { inviteFields, isPartnerAction, noteField, type FindActivity, type FindBusiness, type FindHub } from "@/lib/editions/partners";
 import type { LinkableEvent, OrgRole } from "@/lib/editions/types";
+import { previewUrl } from "@/lib/editions/preview-link";
 import {
   editionFields, editionSlug, inviteInput, isOrgRole, isUuid, organiserProfile, pageFields, seriesName, sessionFields, sponsorFields,
   updateFields, venueFields,
@@ -570,5 +571,41 @@ export async function setPartnerDisplay(slug: string, editionSlugArg: string, li
   const { error } = await c.sb.rpc("edition_link_set_display", { p_link: linkId, p_label: l || null, p_position: Number.isFinite(position) ? Math.max(0, Math.min(999, Math.round(position))) : 0 });
   if (error) return bad(friendlyError(error.message));
   revalidatePartners(slug, editionSlugArg);
+  return { ok: true };
+}
+
+/* ── private preview links ─────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Mint a private, read-only preview link for one unpublished Edition.
+ *
+ * The token is generated in the DATABASE and returned exactly once, here. It is not stored anywhere
+ * the web can read it back, so it is shown to the person who made it and then only ever lives in the
+ * recipient's HttpOnly cookie. Minting again replaces the previous token, which revokes the old link.
+ */
+export async function createEditionPreviewLink(
+  slug: string, editionSlugArg: string, days: number,
+): Promise<Result & { url?: string; expiresAt?: string }> {
+  if (isDemoMode()) return bad(DEMO_BLOCKED);
+  const c = await editionCtx(slug, editionSlugArg, "admin");
+  if ("ok" in c) return c;
+  const n = Number(days);
+  if (!Number.isFinite(n) || n < 1 || n > 365) return bad("A preview link lasts between 1 and 365 days.");
+  const { data, error } = await c.sb.rpc("edition_preview_create", { p_edition: c.edition.id, p_days: Math.round(n) });
+  if (error) return bad(friendlyError(error.message));
+  const row = (Array.isArray(data) ? data[0] : data) as { token?: string; expires_at?: string } | null;
+  if (!row?.token) return bad("The preview link could not be created. Please try again.");
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL || "https://oneshetland.com").replace(/\/$/, "");
+  revalidateEdition(slug, editionSlugArg);
+  return { ok: true, url: previewUrl(origin, c.edition.slug, row.token), expiresAt: row.expires_at };
+}
+
+/** Revoke the link. Anyone holding it stops being able to open the Edition immediately. */
+export async function revokeEditionPreviewLink(slug: string, editionSlugArg: string): Promise<Result> {
+  const c = await editionCtx(slug, editionSlugArg, "admin");
+  if ("ok" in c) return c;
+  const { error } = await c.sb.rpc("edition_preview_revoke", { p_edition: c.edition.id });
+  if (error) return bad(friendlyError(error.message));
+  revalidateEdition(slug, editionSlugArg);
   return { ok: true };
 }

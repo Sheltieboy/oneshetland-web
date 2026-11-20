@@ -6,6 +6,7 @@ import { ChecklistPanel, StatusControls } from "@/components/editions-manage/Sta
 import { JourneyStepper, ReviewHistory, ReviewPanel } from "@/components/editions-manage/JourneyPanels";
 import { Panel, btnPrimary, btnSecondary } from "@/components/editions-manage/kit";
 import { InterestPanel, type Metric } from "@/components/editions-manage/InterestPanel";
+import { PreviewLinkPanel, type PreviewLinkState } from "@/components/editions-manage/PreviewLinkPanel";
 import { getPromoRights } from "@/lib/editions/commerce.server";
 import { unbookedCount } from "@/lib/editions/promo";
 import { editionPage } from "../../../gate";
@@ -18,6 +19,10 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
   const { organiser, role, bundle, sb } = await editionPage(slug, edSlug, `/organise/${slug}/editions/${edSlug}`);
   const { edition, review, checklist } = bundle;
   const { data: metrics } = await sb.rpc("edition_org_analytics", { p_org: organiser.id, p_edition: edition.id, p_days: 30 });
+  // Whether a private preview link is currently live. Never the token itself: that is returned once,
+  // when it is minted, and is not stored anywhere this screen can read it back.
+  const { data: previewRows } = await sb.rpc("edition_preview_state", { p_edition: edition.id });
+  const previewState = ((Array.isArray(previewRows) ? previewRows[0] : previewRows) ?? null) as PreviewLinkState;
   const counts = [
     ["Pages", bundle.pages.length, "pages"], ["Sessions", bundle.sessions.length, "programme"],
     ["Updates", bundle.updates.length, "updates"], ["Sponsors", bundle.sponsors.length, "sponsors"],
@@ -60,6 +65,10 @@ export default async function EditionOverview({ params }: { params: Promise<{ sl
           )}
 
           <Panel title="Review history" sub="What has happened to this Edition, newest first."><ReviewHistory review={review} /></Panel>
+
+          <Panel title="Share a private preview" sub="Let somebody see this Edition before it is published, without giving them an account or the ability to change anything.">
+            <PreviewLinkPanel organiserSlug={slug} editionSlug={edSlug} role={role} state={previewState} />
+          </Panel>
 
           <Panel title="Unpublish or archive">
             <p className="mb-4 text-sm text-ink-soft">
