@@ -3,6 +3,7 @@ import Link from "next/link";
 import { responsiveImage } from "@/lib/editions/images";
 import { parseEditorial, type Section } from "@/lib/editions/blocks";
 import { ProseBlocks } from "./Prose";
+import { EditionOutboundLink } from "./OutboundLink";
 
 /**
  * An Edition page body, laid out as a magazine rather than a column of text.
@@ -72,7 +73,7 @@ function Split({ s }: { s: Extract<Section, { t: "split" }> }) {
   );
 }
 
-function Cards({ s }: { s: Extract<Section, { t: "cards" }> }) {
+function Cards({ s, editionId, page }: { s: Extract<Section, { t: "cards" }>; editionId?: string; page?: string }) {
   return (
     <Wrap className="ed-eb">
       <ul className="ed-eb__cards">
@@ -86,7 +87,11 @@ function Cards({ s }: { s: Extract<Section, { t: "cards" }> }) {
           );
           return (
             <li key={i} className="ed-eb__card">
-              {c.href ? <Link href={c.href} className="ed-eb__cardlink">{inner}</Link> : <div className="ed-eb__cardlink">{inner}</div>}
+              {c.href
+                ? (editionId
+                    ? <EditionOutboundLink href={c.href} editionId={editionId} page={page ?? "home"} block="cards" className="ed-eb__cardlink">{inner}</EditionOutboundLink>
+                    : <Link href={c.href} className="ed-eb__cardlink">{inner}</Link>)
+                : <div className="ed-eb__cardlink">{inner}</div>}
             </li>
           );
         })}
@@ -95,18 +100,20 @@ function Cards({ s }: { s: Extract<Section, { t: "cards" }> }) {
   );
 }
 
-function Cta({ s }: { s: Extract<Section, { t: "cta" }> }) {
+function Cta({ s, editionId, page }: { s: Extract<Section, { t: "cta" }>; editionId?: string; page?: string }) {
   return (
     <Wrap className="ed-eb">
       <div className="ed-eb__cta">
         <div className="ed-prose ed-eb__ctabody"><ProseBlocks blocks={s.blocks} level={2} /></div>
-        {s.href && s.label && <Link href={s.href} className="ed-btn ed-btn--solid ed-eb__ctabtn">{s.label}</Link>}
+        {s.href && s.label && (editionId
+          ? <EditionOutboundLink href={s.href} editionId={editionId} page={page ?? "home"} block="cards" className="ed-btn ed-btn--solid ed-eb__ctabtn">{s.label}</EditionOutboundLink>
+          : <Link href={s.href} className="ed-btn ed-btn--solid ed-eb__ctabtn">{s.label}</Link>)}
       </div>
     </Wrap>
   );
 }
 
-export function EditorialBody({ source, dropcap = false }: { source: string | null | undefined; dropcap?: boolean }) {
+export function EditorialBody({ source, dropcap = false, editionId, page }: { source: string | null | undefined; dropcap?: boolean; /** Supplied by the Edition routes so card links can be counted. Omit and they are plain links, exactly as before. */ editionId?: string; page?: string }) {
   const sections = parseEditorial(source);
   if (sections.length === 0) return null;
   const first = sections.findIndex((s) => s.t === "prose");
@@ -125,8 +132,8 @@ export function EditorialBody({ source, dropcap = false }: { source: string | nu
           case "figure": return <Figure key={i} s={s} />;
           case "band": return <Band key={i} s={s} />;
           case "split": return <Split key={i} s={s} />;
-          case "cards": return <Cards key={i} s={s} />;
-          case "cta": return <Cta key={i} s={s} />;
+          case "cards": return <Cards key={i} s={s} editionId={editionId} page={page} />;
+          case "cta": return <Cta key={i} s={s} editionId={editionId} page={page} />;
         }
       })}
     </div>

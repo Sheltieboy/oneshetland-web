@@ -12,7 +12,7 @@ function sizeOf(i: number, n: number): TileSize {
 }
 
 /** "Taking part": participating businesses, Hubs and regular activities, in one section. Events appear in the programme instead. `limit` trims the home-page teaser. */
-export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }: { partners: PublicPartners; accent?: string; limit?: number; moreHref?: string; headingLevel?: 2 | 3 }) {
+export function PartnersSection({ partners, limit, moreHref, headingLevel = 2, editionId, page }: { partners: PublicPartners; accent?: string; limit?: number; moreHref?: string; headingLevel?: 2 | 3; editionId?: string; page?: string }) {
   const { businesses, activities, hubs = [] } = partners;
   if (businesses.length === 0 && activities.length === 0 && hubs.length === 0) return null;
   // A spread leads with photographs: businesses with a cover come first, then a logo, then neither (each group keeps the organiser's own order).
@@ -35,7 +35,7 @@ export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }:
           {shown.map((b, i) => {
             const size = sizeOf(i, shown.length);
             const cls = size === "wide" ? "ed-tile--wide" : size === "lead" ? "ed-tile--lead" : size === "side" ? (shown.length === 2 ? "ed-tile--half" : "ed-tile--side") : "ed-tile";
-            return <li key={b.link_id} className={cls} style={{ minWidth: 0 }}><PartnerCard b={b} size={size} /></li>;
+            return <li key={b.link_id} className={cls} style={{ minWidth: 0 }}><PartnerCard b={b} size={size} editionId={editionId} page={page} /></li>;
           })}
         </ul>
       )}
@@ -46,7 +46,7 @@ export function PartnersSection({ partners, limit, moreHref, headingLevel = 2 }:
             {(limit ? hubs.slice(0, Math.max(0, limit - shown.length)) : hubs).map((h, i, all) => {
               const size = shown.length > 0 ? "grid" : sizeOf(i, all.length);
               const cls = size === "wide" ? "ed-tile--wide" : size === "lead" ? "ed-tile--lead" : size === "side" ? (all.length === 2 ? "ed-tile--half" : "ed-tile--side") : "ed-tile";
-              return <li key={h.link_id} className={cls} style={{ minWidth: 0 }}><HubCard h={h} size={size} /></li>;
+              return <li key={h.link_id} className={cls} style={{ minWidth: 0 }}><HubCard h={h} size={size} editionId={editionId} page={page} /></li>;
             })}
           </ul>
         </div>

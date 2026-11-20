@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { EditionOutboundLink } from "./OutboundLink";
 import type { PublicPartnerHub } from "@/lib/editions/data.server";
 import { hubHref, hubTypeLabel } from "@/lib/editions/partners";
 import { responsiveImage } from "@/lib/editions/images";
@@ -13,7 +14,7 @@ const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { d
  * and place, and the events and activities IT chose to show. Everything is read live from the Hub's public profile; the Edition stores nothing about it, and never a member,
  * owner, payout or contact detail. The Hub's own colour appears only as a fine rule above the card, so the Edition's palette stays in charge of the page.
  */
-export function HubCard({ h, size = "grid" }: { h: PublicPartnerHub; size?: TileSize }) {
+export function HubCard({ h, size = "grid", editionId, page }: { h: PublicPartnerHub; size?: TileSize; editionId?: string; page?: string }) {
   const meta = [hubTypeLabel(h.type), h.area].filter(Boolean).join(" · ");
   const media = h.cover_url ? (
     <div className={`ed-img ${RATIO[size]}`}>
@@ -33,7 +34,9 @@ export function HubCard({ h, size = "grid" }: { h: PublicPartnerHub; size?: Tile
       {media}
       <div className="ed-tile__body">
         <p className="ed-eyebrow ed-eyebrow--accent" style={{ margin: 0 }}>{h.label || "Community Hub"}{h.is_verified ? " · Verified" : ""}</p>
-        <h3 className="ed-tile__title"><Link href={hubHref({ slug: h.slug, id: h.hub_id })}>{h.name}</Link></h3>
+        <h3 className="ed-tile__title">{editionId
+          ? <EditionOutboundLink href={hubHref({ slug: h.slug, id: h.hub_id })} editionId={editionId} page={page ?? "home"} block="partners" to="hub">{h.name}</EditionOutboundLink>
+          : <Link href={hubHref({ slug: h.slug, id: h.hub_id })}>{h.name}</Link>}</h3>
         {meta && <p className="ed-tile__meta" style={{ margin: 0 }}>{meta}</p>}
         {h.description && size !== "grid" && <p className="ed-tile__desc line-clamp-3">{h.description}</p>}
         {h.items.length > 0 && (

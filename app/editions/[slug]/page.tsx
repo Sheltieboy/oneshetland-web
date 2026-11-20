@@ -76,7 +76,7 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
         </div>
       </section>
 
-      {home && hasEditorialBlocks(home.body) && <EditorialBody source={home.body} />}
+      {home && hasEditorialBlocks(home.body) && <EditorialBody source={home.body} editionId={edition.id} page="home" />}
 
       <div className="ed-wrap ed-rise" style={{ paddingBottom: "var(--ed-section)" }}>
         <h2 className="sr-only">At a glance</h2>
@@ -102,12 +102,12 @@ export default async function EditionHome({ params }: { params: Promise<{ slug: 
       )}
 
       {takingPart > 0 && (
-        <div className="ed-section"><div className="ed-wrap"><PartnersSection partners={partners} limit={3} moreHref={`${base}/partners`} /></div></div>
+        <div className="ed-section"><div className="ed-wrap"><PartnersSection partners={partners} limit={3} moreHref={`${base}/partners`} editionId={edition.id} page="home" /></div></div>
       )}
 
       <Journal updates={updates} base={base} total={updates.length} />
 
-      {sponsors.length > 0 && <div className="ed-section"><div className="ed-wrap"><SponsorStrip sponsors={sponsors} /></div></div>}
+      {sponsors.length > 0 && <div className="ed-section"><div className="ed-wrap"><SponsorStrip sponsors={sponsors} editionId={edition.id} page="home" /></div></div>}
 
       <section aria-labelledby="edition-where" className="ed-section ed-section--deep">
         <div className="ed-wrap">

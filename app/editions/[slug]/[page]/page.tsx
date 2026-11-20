@@ -36,7 +36,7 @@ export default async function EditionPageRoute({ params }: { params: Promise<{ s
       <>
         <JsonLd data={breadcrumbSchema([...crumbs, { name: "Partners", path: editionPath(edition.slug, page) }])} />
         <TrackView event="edition_viewed" objectType="edition" objectId={edition.id} extra={{ page: "partners" }} />
-        <div className="ed-section"><div className="ed-wrap"><SponsorStrip sponsors={sponsors} /></div></div>
+        <div className="ed-section"><div className="ed-wrap"><SponsorStrip sponsors={sponsors} editionId={edition.id} page="home" /></div></div>
       </>
     );
   }
@@ -58,7 +58,7 @@ export default async function EditionPageRoute({ params }: { params: Promise<{ s
             {!hasEditorialBlocks(p.body) && <Prose source={p.body} level={3} dropcap className="mt-8" />}
           </div>
         </div>
-        {hasEditorialBlocks(p.body) && <div className="mt-10"><EditorialBody source={p.body} /></div>}
+        {hasEditorialBlocks(p.body) && <div className="mt-10"><EditorialBody source={p.body} editionId={edition.id} page={p.slug} /></div>}
       </article>
     </>
   );
