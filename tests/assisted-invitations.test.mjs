@@ -551,3 +551,71 @@ describe("11. an assistance grant is scoped, time-limited, auditable and revocab
     assert.match(page, /we will keep looking\s*\n?\s*after it/s);
   });
 });
+
+describe("12. one do-not-contact posture across both programmes", () => {
+  const sql = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/migrations/20270316000000_assisted_publishing_phase2.sql"), "utf8");
+  const rollback = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/rollbacks/20270316000000_assisted_publishing_phase2.rollback.sql"), "utf8");
+  const panel = read("components/admin/launch-partners/OutreachStopSection.tsx");
+  const status = read("lib/launch-partners/status.ts");
+  const workflow = read("lib/launch-partners/workflow.ts");
+
+  test("exactly ONE Launch Partner function is replaced, and it is the chokepoint", () => {
+    const replaced = [...sql.matchAll(/create or replace function public\.(launch[a-z_]*|_launch[a-z_]*|admin_launch[a-z_]*)\(/g)]
+      .map((m) => m[1]);
+    assert.deepEqual([...new Set(replaced)], ["_launch_partner_outreach_block"],
+      `this migration replaces more of the Launch Partner programme than the one gate: ${replaced.join(", ")}`);
+  });
+  test("and the proof refuses to commit if the send stops calling that gate", () => {
+    assert.match(sql, /the Launch Partner send no longer calls the do-not-contact gate: refusing to commit/);
+    assert.match(sql, /the Launch Partner do-not-contact gate is missing: refusing to commit/);
+  });
+  test("applying it is a no-op on the day, and the proof says so", () => {
+    assert.match(sql, /it changes NOTHING: assisted_contact_preferences is empty/);
+    assert.match(sql, /this is not a no-op change: refusing to commit/);
+  });
+  test("every key the Launch Partner screens already read is preserved", () => {
+    for (const k of ["'id'", "'scope'", "'reason'", "'note'", "'since'", "'by'", "'business_id'", "'address_recorded'"]) {
+      assert.ok(sql.includes(`${k}, `), `the gate no longer returns ${k}`);
+    }
+    assert.match(sql, /'contact_email', c\.contact_email/, "the new scope needs the address, for the lift");
+  });
+  test("a business-scoped suppression still wins, so its own screen can still lift it", () => {
+    assert.match(sql, /order by c\.business_scoped desc, c\.since desc/);
+    assert.match(sql, /the more specific rule and the only one liftable from that business's own screen/);
+  });
+  test("the type admits the third scope and a null business", () => {
+    assert.match(status, /scope: "business" \| "address" \| "assisted_decline";/);
+    assert.match(status, /business_id: string \| null;/);
+    assert.match(status, /contact_email\?: string \| null;/);
+  });
+  test("the panel never builds a business link for a decline", () => {
+    const declineBranch = panel.slice(panel.indexOf('o.scope === "assisted_decline" ? ('),
+      panel.indexOf("To lift it, open the business"));
+    assert.doesNotMatch(declineBranch, /for-business\/\$\{o\.business_id\}/,
+      "a decline carries no business_id, so it must not be linked");
+    assert.match(declineBranch, /liftAssistedContactPreferenceAction/, "the lift must be offered in place");
+    assert.match(declineBranch, /lift\.trim\(\)\.length < 10/, "the reason must be a real one");
+  });
+  test("it says clearly that the PERSON is blocked and the business is not", () => {
+    assert.match(panel, /contact declined a OneShetland invitation/);
+    assert.match(panel, /itself is not blocked: a different contact can still be invited/);
+    assert.match(panel, /affects both\s*\n?\s*Launch Partner outreach and OneShetland invitations/s);
+  });
+  test("and the workflow rail says which of the three rules stopped the send", () => {
+    assert.match(workflow, /assisted_decline" \? " \(this contact declined a OneShetland invitation/);
+  });
+  test("the rollback puts the gate back BEFORE it drops the table the gate reads", () => {
+    const gate = rollback.indexOf("create or replace function public._launch_partner_outreach_block");
+    const drop = rollback.indexOf("drop table if exists public.assisted_contact_preferences");
+    assert.ok(gate > -1 && drop > gate,
+      "the rollback would leave the Launch Partner send gate reading a table that no longer exists");
+    // Only the restored FUNCTION BODY, not everything between it and the drop (which is a list of
+    // drops that legitimately name the assisted objects).
+    const body = rollback.slice(gate, rollback.indexOf("$$;", gate));
+    assert.doesNotMatch(body, /assisted_contact_preferences/,
+      "the restored gate still references the assisted table");
+    assert.match(body, /from public\.launch_outreach_suppressions s/, "the restored gate is not the production one");
+  });
+});

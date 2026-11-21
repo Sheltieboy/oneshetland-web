@@ -6,6 +6,9 @@ import { useRouter } from "next/navigation";
 import { StatusPill } from "@/components/admin/AdminUI";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { resumeOutreachAction, stopOutreachAction } from "@/app/admin/launch-partners/actions";
+// The ONE import this programme takes from Assisted Publishing: lifting a person's own preference,
+// which belongs to them and not to either programme, so it is offered wherever it is shown.
+import { liftAssistedContactPreferenceAction } from "@/app/admin/assisted/actions";
 import { runGuarded } from "@/lib/launch-partners/invitation-replace";
 import { Section, inputCls } from "./fields";
 import type { OutreachBlock, PipelineRow } from "@/lib/launch-partners/status";
@@ -52,7 +55,9 @@ export function OutreachStopSection({ row, businessName }: { row: PipelineRow; b
           <p className="text-sm text-rose-900">
             {o.scope === "business"
               ? <>No Launch Partner invitation can be sent to <strong>{businessName}</strong>, whoever the contact is.</>
-              : <>This <strong>contact address</strong> was stopped through another business, so no Launch Partner invitation can be sent to it from here either.</>}
+              : o.scope === "assisted_decline"
+                ? <>This <strong>contact declined a OneShetland invitation</strong>{o.contact_email ? <> ({o.contact_email})</> : null}, so we do not write to them — here or anywhere else. <strong>{businessName}</strong> itself is not blocked: a different contact can still be invited.</>
+                : <>This <strong>contact address</strong> was stopped through another business, so no Launch Partner invitation can be sent to it from here either.</>}
             {" "}The send is refused by the server, so an old page or a second tab cannot get past it.
           </p>
           <dl className="grid gap-x-6 gap-y-1 text-sm text-rose-900 sm:grid-cols-2">
@@ -69,6 +74,30 @@ export function OutreachStopSection({ row, businessName }: { row: PipelineRow; b
                   <textarea value={lift} onChange={(e) => setLift(e.target.value)} maxLength={500} rows={2} className={inputCls + " mt-1 w-full"} placeholder="e.g. Added to the wrong business by mistake" />
                 </label>
                 <button disabled={busy || lift.trim().length < 3} onClick={async () => { if (await confirm({ title: "Allow Launch Partner outreach again?", body: `This lets Launch Partner invitations be sent to ${businessName} again. Only continue if they asked not to be contacted by mistake, or have asked to hear from you. Your reason is recorded.`, confirmLabel: "Remove suppression", danger: true })) { if (await go(() => resumeOutreachAction(row.id, lift, { confirm: true }))) setLift(""); } }} className="rounded-pill border border-rose-300 px-4 py-1.5 text-sm font-semibold text-rose-800 hover:bg-rose-50 disabled:opacity-40">Remove suppression</button>
+              </div>
+            </details>
+          ) : o.scope === "assisted_decline" ? (
+            <details className="rounded-lg border border-rose-300 bg-white p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-rose-900">They have told us it is all right…</summary>
+              <div className="mt-2 space-y-2">
+                <p className="text-sm text-ink-soft">
+                  This is the person&apos;s own preference, not a rule about the business. Only lift it if they have since
+                  told you it is all right to write to them. Your reason is kept with it, and lifting it opens both
+                  Launch Partner outreach and OneShetland invitations to this address again.
+                </p>
+                <label className="block text-sm font-semibold text-ink-soft">How did they tell you? (required)
+                  <textarea value={lift} onChange={(e) => setLift(e.target.value)} maxLength={500} rows={2} className={inputCls + " mt-1 w-full"} placeholder="e.g. She rang on 21 November and asked us to send it after all." />
+                </label>
+                <button
+                  disabled={busy || lift.trim().length < 10 || !o.contact_email}
+                  onClick={async () => {
+                    if (!o.contact_email) return;
+                    if (await confirm({ title: "Write to this address again?", body: `${o.contact_email} asked us not to write to them. Only continue if they have since told you otherwise. Your reason is recorded, and this affects both Launch Partner outreach and OneShetland invitations.`, confirmLabel: "Lift the preference", danger: true })) {
+                      if (await go(() => liftAssistedContactPreferenceAction({ email: o.contact_email!, reason: lift }))) setLift("");
+                    }
+                  }}
+                  className="rounded-pill border border-rose-300 px-4 py-1.5 text-sm font-semibold text-rose-800 hover:bg-rose-50 disabled:opacity-40"
+                >Lift the preference</button>
               </div>
             </details>
           ) : (
