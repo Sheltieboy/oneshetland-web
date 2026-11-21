@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 import type { LaunchLookupRow } from "@/lib/launch-grant";
 import { LaunchInvites, type InviteRow } from "@/components/admin/LaunchInvites";
 import { launchPreviewOptions } from "@/lib/launch-preview/registry";
+import { AddOnBehalf } from "@/components/admin/assisted/AddOnBehalf";
+import { AssistedRecords } from "@/components/admin/assisted/AssistedRecords";
+import { listAssisted } from "@/lib/assisted/client";
+import { createAssistedBusinessAction, forgetAssistedContactAction } from "@/app/admin/assisted/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,22 +18,29 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const { status, business, tier } = await searchParams;
   const invites = status === "invites";
   const launch = status === "launch";
+  const assisted = status === "assisted";
   const filter = (status === "approved" || status === "all" ? status : "pending") as "pending" | "approved" | "all";
-  const rows = launch || invites ? [] : await getBusinessClaims(filter);
+  const rows = launch || invites || assisted ? [] : await getBusinessClaims(filter);
+  const assistedRows = assisted ? await listAssisted("business") : [];
   // Admin-only RPC (it refuses everyone else); the page already sits behind requireAdmin.
   const grants = launch ? (((await (await createClient()).rpc("admin_list_launch_plans")).data ?? []) as GrantListRow[]) : [];
   const picked = launch && business ? (((await (await createClient()).rpc("admin_launch_business_lookup", { p_query: business })).data ?? []) as LaunchLookupRow[])[0] ?? null : null;
   const inviteRows = invites ? (((await (await createClient()).rpc("admin_list_launch_invites")).data ?? []) as InviteRow[]) : [];
-  const tabs: [string, string][] = [["pending", "Pending"], ["approved", "Approved"], ["all", "All"], ["launch", "Launch partner access"], ["invites", "Launch invitations"]];
+  const tabs: [string, string][] = [["pending", "Pending"], ["approved", "Approved"], ["all", "All"], ["assisted", "Added on behalf of…"], ["launch", "Launch partner access"], ["invites", "Launch invitations"]];
   return (
     <>
       <AdminHeader title="Business claims" sub="Verify who owns each directory listing." />
       <div className="mb-5 flex gap-2">
         {tabs.map(([k, label]) => (
-          <Link key={k} href={`/admin/claims?status=${k}`} className={"rounded-pill px-4 py-1.5 text-sm font-semibold " + ((launch ? "launch" : invites ? "invites" : filter) === k ? "bg-rose-600 text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{label}</Link>
+          <Link key={k} href={`/admin/claims?status=${k}`} className={"rounded-pill px-4 py-1.5 text-sm font-semibold " + ((launch ? "launch" : invites ? "invites" : assisted ? "assisted" : filter) === k ? "bg-rose-600 text-white" : "border border-line-strong text-ink-soft hover:bg-sand")}>{label}</Link>
         ))}
       </div>
-      {invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : <ClaimsManager key={filter} rows={rows as never[]} />}
+      {assisted ? (
+        <div className="space-y-5">
+          <AddOnBehalf kind="business" submit={createAssistedBusinessAction} />
+          <AssistedRecords rows={assistedRows} kind="business" forget={forgetAssistedContactAction} />
+        </div>
+      ) : invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : <ClaimsManager key={filter} rows={rows as never[]} />}
     </>
   );
 }
