@@ -295,10 +295,22 @@ export function InvitationPage({ slug, view, state, signedIn, signInHref, email,
                 <button type="submit" disabled={pending} className={primary}>{pending ? "Sending…" : "Send my request"}</button>
                 <button type="button" onClick={() => setShowForm(false)} className={secondary}>Back</button>
               </div>
-              {result && !result.ok && <p className="text-sm font-semibold text-rose-900">{result.error}</p>}
-              <p className="text-sm text-ink-soft">
-                Sending this does not change the {noun} and does not give you access yet. We confirm the connection first.
-              </p>
+              {result && !result.ok && (
+                <div className={`rounded-xl px-4 py-3 text-sm ${result.permanent ? "bg-rose-50 text-rose-900" : "text-rose-900"}`}>
+                  <p className="font-semibold">{result.error}</p>
+                  {result.permanent && (
+                    <p className="mt-1">
+                      <Link href="/support" className="font-semibold underline underline-offset-2">Get in touch →</Link>
+                    </p>
+                  )}
+                </div>
+              )}
+              {/* A permanent fault must not be followed by an invitation to try again. */}
+              {!(result && !result.ok && result.permanent) && (
+                <p className="text-sm text-ink-soft">
+                  Sending this does not change the {noun} and does not give you access yet. We confirm the connection first.
+                </p>
+              )}
             </form>
           </section>
         )}

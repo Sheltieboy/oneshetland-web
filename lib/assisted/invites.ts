@@ -123,3 +123,32 @@ export function claimHandoff(pathname: string, search: URLSearchParams): ClaimHa
       : null,
   };
 }
+
+/**
+ * Is this failure PERMANENT, or worth trying again?
+ *
+ * This exists because of a real incident: a CHECK constraint refused every Business claim, and the
+ * claim page told people "we couldn't send your request just now, please try again" — inviting them
+ * to retry something that could never succeed, and telling us nothing. A configuration or schema
+ * fault is not a transient one and must not be dressed as one.
+ *
+ * The caller never sees the SQL. It sees a boolean, and chooses its own words.
+ *
+ * It lives HERE, in the module with no server dependency, so a test can reach it without pulling in
+ * `server-only`, and so both the claim page and the server action can import it.
+ */
+export function isPermanentFailure(raw: string | null | undefined): boolean {
+  const m = (raw ?? "").toLowerCase();
+  return (
+    // a constraint, a missing column, a missing function, a type or enum mismatch: all schema faults
+    /violates (check|foreign key|not-null|unique) constraint/.test(m) ||
+    /\b(23502|23503|23505|23514|42703|42883|42P01|22P02)\b/.test(m) ||
+    /does not exist|undefined (column|function|table)|invalid input (syntax|value) for/.test(m) ||
+    /schema cache/.test(m)
+  );
+}
+
+/** What a claimant is told when the fault is ours and permanent. Deliberately carries no SQL. */
+export const PERMANENT_CLAIM_FAILURE =
+  "Something at our end is stopping this request going through, and trying again will not help. " +
+  "Nothing about the page has changed. Please get in touch and we will sort it out and come back to you.";
