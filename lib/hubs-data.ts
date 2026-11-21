@@ -52,6 +52,8 @@ export type Hub = {
   join_mode: JoinMode;
   is_active: boolean;
   is_verified: boolean;
+  /** Derived in the database from owner_id. False = nobody has claimed it and OneShetland maintains it. */
+  is_claimed: boolean;
   memberships_enabled: boolean;
   directory_enabled: boolean;
   is_charity: boolean;
@@ -196,7 +198,7 @@ const HUB_COLS =
   // Named, not `select *`: hubs is column-whitelisted, so `*` is a permission
 // error for a client role. owner_id is deliberately absent — it is granted to
 // authenticated only, these reads run as anon, and nothing here consumes it.
-  "id, name, slug, type, description, logo_url, cover_url, brand_color, contact_email, contact_phone, website, area, join_mode, is_active, is_verified, memberships_enabled, directory_enabled, is_charity, charity_number, created_at";
+  "id, name, slug, type, description, logo_url, cover_url, brand_color, contact_email, contact_phone, website, area, join_mode, is_active, is_verified, is_claimed, memberships_enabled, directory_enabled, is_charity, charity_number, created_at";
 
 /** Resolve a hex brand colour (falls back to the Hubs section purple). */
 export function hubAccent(hub: Pick<Hub, "brand_color">): string {

@@ -166,7 +166,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
       case "open_claiming": if (current.state !== "attention") current.note = "Lets the recipient claim from the preview."; break;
       case "review_email": current.note = emailCheck.problems[0] ?? "Check the saved email."; break;
       case "send": if (current.state !== "attention") current.note = "Needs the link from when it was generated — generate again if the page was reloaded."; break;
-      case "wait": current.note = row.first_viewed_at ? `Preview opened ${row.view_count} time${row.view_count === 1 ? "" : "s"}. Waiting for a claim.` : "Sent. Waiting for the recipient."; break;
+      case "wait": current.note = row.first_viewed_at ? `Invitation link fetched ${row.view_count} time${row.view_count === 1 ? "" : "s"} — this may be a mail scanner rather than the recipient. Waiting for a claim.` : "Sent. Waiting for the recipient."; break;
       case "approve_claim": current.note = "A claim is waiting for your decision."; break;
       case "grant": if (current.state !== "attention") current.note = "Claim approved. Choose Pro or Premium and an end date — right on this page."; break;
       case "owner_review": current.note = owner.edited ? "The owner has started editing their page and hasn't approved it yet." : "Waiting for the owner to review the setup you prepared."; break;
@@ -179,7 +179,7 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   const headline = current === null ? (published ? "Live" : "Nothing to do")
     : outreachStopped && current.id === "send" ? "Outreach stopped — do not send"
     : offline && current.id === "live" ? "Page taken offline"
-    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Opened — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? (wasLive ? "Taken offline earlier — waiting for the owner to go live again" : "Owner approved — waiting for them to go live") : "Waiting for them to go live")
+    : WAITING.has(current.id) && current.state !== "attention" ? (current.id === "wait" ? (row.first_viewed_at ? "Link fetched — waiting for a claim" : "Waiting for the recipient") : current.id === "owner_review" ? (owner.edited ? "Owner is editing — waiting for approval" : "Waiting for owner review") : current.id === "go_live" ? (wasLive ? "Taken offline earlier — waiting for the owner to go live again" : "Owner approved — waiting for them to go live") : "Waiting for them to go live")
     : current.state === "attention" ? `Needs attention: ${current.label}`
     : `Next: ${current.label}`;
   return { status, statusLabel: STATUS_LABEL[status], statusTone: STATUS_TONE[status], steps, current, headline };

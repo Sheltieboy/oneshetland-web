@@ -69,7 +69,10 @@ describe("The next action, from the real state", () => {
     assert.equal(w.steps.find((s) => s.id === "send").state, "complete"); assert.equal(w.steps.find((s) => s.id === "send").available, false);
     assert.ok(w.steps.every((s) => !s.action), "nothing is actionable in the rail while waiting");
     const viewed = wf(base({ stage: "sent", sent_at: "2026-10-06T11:00:00Z", invite: open, first_viewed_at: "2026-10-06T12:00:00Z", view_count: 2 }), "live");
-    assert.equal(viewed.current.id, "wait"); assert.match(viewed.headline, /Opened — waiting for a claim/); assert.match(viewed.current.note, /opened 2 times/i);
+    assert.equal(viewed.current.id, "wait"); assert.match(viewed.headline, /Link fetched — waiting for a claim/); assert.match(viewed.current.note, /fetched 2 times/i);
+    // A fetch is not a read: mail filters prefetch URLs, so neither the headline nor the note may claim a person opened it.
+    assert.doesNotMatch(viewed.headline, /\bopened\b/i, "the headline must not assert that a person opened it");
+    assert.match(viewed.current.note, /mail scanner/i, "the note must say the fetch may not be the recipient");
   });
   test("7 · A claim submitted → 'Approve claim' is current and leads to the existing Business claims screen", () => {
     const w = wf(base({ stage: "sent", sent_at: "2026-10-06T11:00:00Z", invite: { ...open, status: "claim pending" }, claim: { status: "pending", created_at: "2026-10-07T09:00:00Z" } }), "live");

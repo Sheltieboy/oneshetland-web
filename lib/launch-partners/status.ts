@@ -67,7 +67,7 @@ export const STATUS_ORDER: PipelineStatus[] = [
 ];
 
 export const STATUS_LABEL: Record<PipelineStatus, string> = {
-  candidate: "Candidate", preparing: "Preparing", ready_to_invite: "Ready to invite", sent: "Sent", viewed: "Viewed",
+  candidate: "Candidate", preparing: "Preparing", ready_to_invite: "Ready to invite", sent: "Sent", viewed: "Link fetched",
   claim_submitted: "Claim submitted", claimed: "Claimed", setting_up: "Setting up", ready_to_go_live: "Ready to go live", live: "Live", offline: "Offline", archived: "Archived",
 };
 
@@ -120,7 +120,7 @@ export function nextAction(r: PipelineRow, status: PipelineStatus = derivePipeli
       if (!r.has_contact_email || !r.has_email_draft) return "Add a contact and write the email";
       return "Send the invitation yourself, then record it";
     case "sent": return r.invite.status === "expired" || r.invite.status === "revoked" ? "Generate a fresh invitation" : "Wait for them to open it";
-    case "viewed": return "Wait for a claim — or follow up personally";
+    case "viewed": return "The link was fetched — which may be a mail scanner. Wait for a claim, or follow up personally";
     case "claim_submitted": return "Review and decide on the claim";
     case "claimed": return r.grant ? "Wait for them to start adding products" : "Grant launch-partner Premium";
     case "setting_up": return r.grant ? "Wait for the owner to review and approve their setup" : "Grant launch-partner Premium";
@@ -152,7 +152,7 @@ export function nextActionHref(r: PipelineRow, status: PipelineStatus = derivePi
 
 export interface PipelineCell { label: string; ok: boolean }
 
-/** The at-a-glance columns: Preview / Invitation / Viewed / Claim / Plan / Products. */
+/** The at-a-glance columns: Preview / Invitation / Fetched / Claim / Plan / Products. */
 export function pipelineCells(r: PipelineRow) {
   const inv = r.invite.status;
   return {

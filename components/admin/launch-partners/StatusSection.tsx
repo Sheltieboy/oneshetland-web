@@ -12,7 +12,7 @@ import { OUTREACH_REASON_LABEL } from "./OutreachStopSection";
 import type { CampaignEvent } from "@/lib/launch-partners/campaigns.server";
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "medium", timeStyle: "short" }) : null);
-const KIND: Record<string, string> = { created: "Campaign created", updated: "Edited", stage: "Stage changed", marked_sent: "Recorded as sent (by hand)", first_viewed: "Private preview opened for the first time", version_owner_edit: "Owner edited their page", profile_approved: "Owner approved their setup", went_live: "Owner went live", went_offline: "Page taken offline", republish_allowed: "Owner allowed to go live again", outreach_stopped: "Launch Partner outreach stopped", outreach_resumed: "Launch Partner outreach allowed again" };
+const KIND: Record<string, string> = { created: "Campaign created", updated: "Edited", stage: "Stage changed", marked_sent: "Recorded as sent (by hand)", first_viewed: "Invitation link fetched for the first time", version_owner_edit: "Owner edited their page", profile_approved: "Owner approved their setup", went_live: "Owner went live", went_offline: "Page taken offline", republish_allowed: "Owner allowed to go live again", outreach_stopped: "Launch Partner outreach stopped", outreach_resumed: "Launch Partner outreach allowed again" };
 
 /** Where this partner stands: the derived status, a milestone checklist from real facts, stage controls, and the audit trail. */
 export function StatusSection({ row, events }: { row: PipelineRow; events: CampaignEvent[] }) {
@@ -37,7 +37,7 @@ export function StatusSection({ row, events }: { row: PipelineRow; events: Campa
   }
   const milestones: [string, string | null | boolean][] = [
     ["Launch preview prepared", row.has_preview], ["Business page prepared", row.has_page_draft], ["Marked ready to invite", row.stage === "ready_to_invite" || row.stage === "sent"],
-    ["Private invitation generated", row.invite.created_at], ["Invitation sent (recorded by hand)", row.sent_at], ["Preview opened", row.first_viewed_at],
+    ["Private invitation generated", row.invite.created_at], ["Invitation sent (recorded by hand)", row.sent_at], ["Invitation link first fetched", row.first_viewed_at],
     ["Claim submitted", row.claim?.created_at ?? null], ["Claim approved — they own the business", isClaimed(row)], ["Launch-partner Premium granted", row.grant ? row.grant.expires_at : null],
     ["Products added or imported", row.product_count > 0 || row.import_batch_count > 0], ["Ready to go live (their approval)", row.setup_ready_at], ["Live", published ? row.live_at : null],
     ...(row.live_at && !published ? ([["Taken offline by an administrator", offline ? (row.offline_at ?? true) : false]] as [string, string | boolean][]) : []),
@@ -49,7 +49,7 @@ export function StatusSection({ row, events }: { row: PipelineRow; events: Campa
         <StatusPill label={STATUS_LABEL[status]} tone={STATUS_TONE[status]} />
         <p className="text-sm text-ink-soft"><span className="font-semibold text-ink">Next:</span> {nextAction(row, status)}</p>
       </div>
-      {row.view_count > 0 && <p className="text-sm text-ink-soft">Preview opened {row.view_count} time{row.view_count === 1 ? "" : "s"} · last {when(row.last_viewed_at)}. <span className="text-ink-muted">Counts a visit at most once every 30 minutes; a mail scanner opening the link can also register as a view.</span></p>}
+      {row.view_count > 0 && <p className="text-sm text-ink-soft">Invitation link fetched {row.view_count} time{row.view_count === 1 ? "" : "s"} · last {when(row.last_viewed_at)}. <span className="text-ink-muted">This counts fetches of the link, not confirmed reads: mail filters and link scanners routinely fetch a URL before anybody sees it, so treat it as “the link was reached”, never as evidence the recipient opened it. Counted at most once every 30 minutes.</span></p>}
       <ul className="grid gap-1.5 sm:grid-cols-2">
         {milestones.map(([label, v]) => (
           <li key={label} className="flex items-start gap-2 text-sm"><span aria-hidden className={v ? "text-emerald-600" : "text-ink-faint"}>{v ? "✓" : "○"}</span><span className={v ? "text-ink" : "text-ink-muted"}>{label}{typeof v === "string" && /^\d{4}-/.test(v) ? <span className="text-ink-muted"> · {when(v)}</span> : null}</span></li>
