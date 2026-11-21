@@ -21,10 +21,11 @@ type Props = {
   /** Phase 2 — every invitation for these records, already read on the server. */
   invites: InviteRow[];
   issue: (form: FormData) => Promise<IssueResult>;
-  markSent: (input: { slug: string; via: "email" | "copied" }) => Promise<{ ok: boolean; reason?: string; error?: string }>;
+  markSent: (input: { slug: string; via: "email" | "copied" }) => Promise<{ ok: boolean; reason?: string; by?: string; error?: string }>;
   revoke: (input: { slug: string; reason: string | null }) => Promise<{ ok: boolean; error?: string }>;
   audit: (slug: string) => Promise<AuditLine[]>;
   sendEmail: (input: { link: string; confirm: boolean; recipient: string }) => Promise<{ ok: true; id: string } | { ok: false; error: string; uncertain?: true }>;
+  liftContactPreference: (input: { email: string; reason: string }) => Promise<{ ok: boolean; lifted?: number; error?: string }>;
   supportState: (input: { kind: AssistedKind; id: string }) => Promise<SupportState>;
   recordSupport: (input: { kind: AssistedKind; id: string; days: number; note: string }) => Promise<{ ok: boolean; error?: string }>;
   endSupport: (input: { kind: AssistedKind; id: string; reason: string | null }) => Promise<{ ok: boolean; error?: string }>;
@@ -36,7 +37,7 @@ const when = (iso: string) => {
   catch { return iso.slice(0, 10); }
 };
 
-export function AssistedRecords({ rows, kind, forget, edit, invites, issue, markSent, revoke, audit, sendEmail, supportState, recordSupport, endSupport, supportLog }: Props) {
+export function AssistedRecords({ rows, kind, forget, edit, invites, issue, markSent, revoke, audit, sendEmail, liftContactPreference, supportState, recordSupport, endSupport, supportLog }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -170,6 +171,7 @@ export function AssistedRecords({ rows, kind, forget, edit, invites, issue, mark
                   revoke={revoke}
                   audit={audit}
                   sendEmail={sendEmail}
+                  liftContactPreference={liftContactPreference}
                 />
               ) : (
                 <ContinuedHelp

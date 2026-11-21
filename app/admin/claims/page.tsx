@@ -16,7 +16,7 @@ import {
   createAssistedBusinessAction, forgetAssistedContactAction, editAssistedAction,
   issueAssistedInviteAction, markAssistedInviteSentAction, revokeAssistedInviteAction,
   assistedInviteAuditAction, decideAssistedClaimAction, assistedSupportStateAction,
-  sendAssistedInviteEmailAction,
+  sendAssistedInviteEmailAction, liftAssistedContactPreferenceAction,
   recordAssistedSupportAction, endAssistedSupportAction, assistedSupportLogAction,
 } from "@/app/admin/assisted/actions";
 
@@ -63,6 +63,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
             revoke={revokeAssistedInviteAction}
             audit={assistedInviteAuditAction}
             sendEmail={sendAssistedInviteEmailAction}
+            liftContactPreference={liftAssistedContactPreferenceAction}
             supportState={assistedSupportStateAction}
             recordSupport={recordAssistedSupportAction}
             endSupport={endAssistedSupportAction}

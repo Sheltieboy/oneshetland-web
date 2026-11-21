@@ -116,9 +116,11 @@ export async function listInvites(kind?: AssistedKind, subjectId?: string): Prom
  */
 export async function issueInvite(
   kind: AssistedKind, subjectId: string,
-  invitedName: string | null, invitedEmail: string | null, days: number, overrideDeclined = false,
+  invitedName: string | null, invitedEmail: string | null, days: number,
+  overrideDeclined = false, overrideReason: string | null = null,
 ): Promise<
-  | { issued: true; slug: string; token: string; expires_at: string; superseded: number }
+  | { issued: true; slug: string; token: string; expires_at: string; superseded: number;
+      reinvited_after_decline: boolean; contact_blocked: boolean; contact_blocked_by: string | null }
   | { issued: false; reason: "previously_declined" }
   | { issued: false; reason: "error"; error: string }
 > {
@@ -127,16 +129,53 @@ export async function issueInvite(
     const { data, error } = await (await createClient()).rpc("admin_assisted_invite_issue", {
       p_kind: kind, p_subject_id: subjectId,
       p_invited_name: invitedName, p_invited_email: invitedEmail,
-      p_expires_at: expires, p_override_declined: overrideDeclined,
+      p_expires_at: expires, p_override_declined: overrideDeclined, p_override_reason: overrideReason,
     });
     if (error) return { issued: false, reason: "error", error: message(error) };
-    const d = (data ?? {}) as { issued?: boolean; reason?: string; slug?: string; token?: string; expires_at?: string; superseded?: number };
+    const d = (data ?? {}) as {
+      issued?: boolean; reason?: string; slug?: string; token?: string; expires_at?: string; superseded?: number;
+      reinvited_after_decline?: boolean; contact_blocked?: boolean; contact_blocked_by?: string | null;
+    };
     if (d.issued && d.slug && d.token) {
-      return { issued: true, slug: d.slug, token: d.token, expires_at: d.expires_at ?? expires, superseded: d.superseded ?? 0 };
+      return {
+        issued: true, slug: d.slug, token: d.token, expires_at: d.expires_at ?? expires, superseded: d.superseded ?? 0,
+        reinvited_after_decline: !!d.reinvited_after_decline,
+        contact_blocked: !!d.contact_blocked, contact_blocked_by: d.contact_blocked_by ?? null,
+      };
     }
     if (d.reason === "previously_declined") return { issued: false, reason: "previously_declined" };
     return { issued: false, reason: "error", error: "The invitation was not created." };
   } catch (e) { return { issued: false, reason: "error", error: message(e) }; }
+}
+
+/* ── contact preferences: who has asked us not to write to them ───────────── */
+
+export type ContactPreference = {
+  contact_email: string; source: "declined" | "admin";
+  subject_kind: AssistedKind | null; subject_id: string | null; note: string | null;
+  created_at: string; lifted_at: string | null; lift_reason: string | null;
+};
+
+export async function contactPreferences(): Promise<ContactPreference[]> {
+  try {
+    const { data, error } = await (await createClient()).rpc("admin_assisted_contact_preferences");
+    if (error) return [];
+    return (data ?? []) as ContactPreference[];
+  } catch { return []; }
+}
+
+/**
+ * Lift a preference, so we may write to that address again. The reason is compulsory in the
+ * database, not merely in the form, and it is kept.
+ */
+export async function liftContactPreference(email: string, reason: string): Promise<{ ok: boolean; lifted?: number; error?: string }> {
+  try {
+    const { data, error } = await (await createClient()).rpc("admin_assisted_contact_preference_lift", {
+      p_email: email, p_reason: reason,
+    });
+    if (error) return { ok: false, error: message(error) };
+    return { ok: true, lifted: (data as { lifted?: number } | null)?.lifted ?? 0 };
+  } catch (e) { return { ok: false, error: message(e) }; }
 }
 
 export async function revokeInvite(slug: string, reason: string | null): Promise<{ ok: boolean; error?: string }> {
@@ -148,12 +187,12 @@ export async function revokeInvite(slug: string, reason: string | null): Promise
 }
 
 export async function markSent(slug: string, via: "email" | "copied"):
-  Promise<{ ok: boolean; reason?: string; error?: string }> {
+  Promise<{ ok: boolean; reason?: string; by?: string; error?: string }> {
   try {
     const { data, error } = await (await createClient()).rpc("admin_assisted_invite_mark_sent", { p_slug: slug, p_via: via });
     if (error) return { ok: false, error: message(error) };
-    const d = (data ?? {}) as { ok?: boolean; reason?: string };
-    return { ok: !!d.ok, reason: d.reason };
+    const d = (data ?? {}) as { ok?: boolean; reason?: string; by?: string };
+    return { ok: !!d.ok, reason: d.reason, by: d.by };
   } catch (e) { return { ok: false, error: message(e) }; }
 }
 

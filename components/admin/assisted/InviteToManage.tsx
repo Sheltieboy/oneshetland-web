@@ -44,14 +44,16 @@ type Props = {
   subjectSlug: string | null;
   invites: InviteRow[];
   issue: (form: FormData) => Promise<IssueResult>;
-  markSent: (input: { slug: string; via: "email" | "copied" }) => Promise<{ ok: boolean; reason?: string; error?: string }>;
+  markSent: (input: { slug: string; via: "email" | "copied" }) => Promise<{ ok: boolean; reason?: string; by?: string; error?: string }>;
   revoke: (input: { slug: string; reason: string | null }) => Promise<{ ok: boolean; error?: string }>;
   audit: (slug: string) => Promise<AuditLine[]>;
   /** Asks the Edge Function to send it. The web app itself has no mail transport. */
   sendEmail: (input: { link: string; confirm: boolean; recipient: string }) => Promise<{ ok: true; id: string } | { ok: false; error: string; uncertain?: true }>;
+  /** Lets us write to an address again, after it asked us to stop. The reason is kept. */
+  liftContactPreference: (input: { email: string; reason: string }) => Promise<{ ok: boolean; lifted?: number; error?: string }>;
 };
 
-export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invites, issue, markSent, revoke, audit, sendEmail }: Props) {
+export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invites, issue, markSent, revoke, audit, sendEmail, liftContactPreference }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +63,8 @@ export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invi
   const [trail, setTrail] = useState<{ slug: string; lines: AuditLine[] } | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
+  const [lifting, setLifting] = useState(false);
+  const [lifted, setLifted] = useState(false);
 
   const live = invites.find((i) => !["revoked", "expired", "declined"].includes(i.status)) ?? invites[0] ?? null;
   const noun = kind === "hub" ? "Hub" : "listing";
@@ -117,9 +121,47 @@ export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invi
               <div className="sm:col-span-2"><dt className="inline font-semibold text-ink">They said </dt><dd className="inline text-ink-soft">{live.decline_reason}</dd></div>
             )}
           </dl>
-          {live.do_not_contact && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-900">
-              We have been asked not to contact this address. OneShetland will not send to it.
+          {live.do_not_contact && !lifted && (
+            <div className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-900">
+              <p className="font-semibold">
+                This address has asked us not to write to it, so OneShetland will not send to it — by email or by hand.
+              </p>
+              <p className="mt-1">
+                The organisation can still be invited; only writing to <strong>this person</strong> is closed. If they
+                have since told you it is all right, lift it and say how.
+              </p>
+              {!lifting ? (
+                <button type="button" onClick={() => setLifting(true)} className="mt-2 text-xs font-bold underline">
+                  They have told us it is all right…
+                </button>
+              ) : (
+                <form
+                  className="mt-2 space-y-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const f = new FormData(e.currentTarget);
+                    setBusy(true); setError(null);
+                    const r = await liftContactPreference({ email: live.invited_email ?? "", reason: String(f.get("reason") ?? "") });
+                    setBusy(false);
+                    if (!r.ok) setError(r.error ?? "Could not lift it.");
+                    else { setLifted(true); setLifting(false); }
+                  }}
+                >
+                  <input name="reason" required minLength={10} className="auth-input w-full"
+                    placeholder="e.g. She rang on 21 November and said to send it to her instead." />
+                  <div className="flex flex-wrap gap-3">
+                    <button type="submit" disabled={busy} className="min-h-11 rounded-pill bg-navy px-4 text-xs font-bold text-white disabled:opacity-60">
+                      {busy ? "Saving…" : "Lift it"}
+                    </button>
+                    <button type="button" onClick={() => setLifting(false)} className="text-xs font-bold underline">Cancel</button>
+                  </div>
+                </form>
+              )}
+            </div>
+          )}
+          {lifted && (
+            <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-900">
+              Lifted, with your reason kept. You may write to this address again.
             </p>
           )}
           {live.fetch_count > 0 && (
@@ -137,13 +179,25 @@ export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invi
           <p className="text-sm font-bold text-emerald-900">
             Invitation ready{issued.superseded > 0 ? " — and the previous one has been cancelled" : ""}.
           </p>
+          {issued.reinvitedAfterDecline && (
+            <p className="mt-1 text-xs font-semibold text-emerald-900">
+              This is a second ask after they declined. Your reason is in the audit trail.
+            </p>
+          )}
+          {issued.contactBlocked && (
+            <p className="mt-1 text-xs font-semibold text-rose-900">
+              {issued.contactBlockedBy
+                ? `We may not write to this address (${issued.contactBlockedBy}), so the Send button is not offered.`
+                : "We may not write to this address, so the Send button is not offered."}
+            </p>
+          )}
           <p className="mt-1 text-xs text-emerald-900">
             This is the only time the link is shown. It is not stored anywhere — only a one-way hash of it is — so if you
             lose it you will need to generate another, which cancels this one.
           </p>
           <code className="mt-2 block break-all rounded-lg bg-white px-3 py-2 text-xs text-ink">{issued.link}</code>
           {/* Sending by email is a separate, confirmed step. Generating one sends nothing. */}
-          {live?.invited_email && !live.do_not_contact && (
+          {live?.invited_email && !live.do_not_contact && !issued.contactBlocked && (
             <div className="mt-3 rounded-lg border border-line bg-white p-3">
               {sent ? (
                 <p className="text-sm font-bold text-emerald-900">Sent to {live.invited_email}.</p>
@@ -198,7 +252,7 @@ export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invi
                 setBusy(true); setError(null);
                 const r = await markSent({ slug: issued.slug, via: "copied" });
                 setBusy(false);
-                if (!r.ok) setError(r.reason === "do_not_contact" ? "That address is on the do-not-contact list." : (r.error ?? "Could not record that."));
+                if (!r.ok) setError(r.reason === "do_not_contact" ? `We may not write to that address${r.by ? ` (${r.by})` : ""}. Lift the preference first, with a reason.` : (r.error ?? "Could not record that."));
                 else setIssued(null);
               }}
             >
@@ -225,12 +279,21 @@ export function InviteToManage({ kind, subjectId, subjectName, subjectSlug, invi
             recorded against the invitation.
           </p>
           <form
-            className="mt-2"
+            className="mt-2 space-y-2"
             onSubmit={async (e) => { e.preventDefault(); await generate(new FormData(e.currentTarget), true); }}
           >
             <input type="hidden" name="days" value="30" />
+            <label className="block text-sm font-semibold text-amber-900" htmlFor={`od-${subjectId}`}>
+              What have you checked? <span className="font-normal">(required)</span>
+            </label>
+            <input id={`od-${subjectId}`} name="override_reason" required minLength={10} className="auth-input w-full"
+              placeholder="e.g. Spoke to the new secretary on 21 November; she asked us to send it again." />
+            <p className="text-xs text-amber-900">
+              Kept against the invitation, so a second ask is never anonymous. Even then, we will not WRITE to the
+              person who declined until their preference is lifted.
+            </p>
             <button type="submit" disabled={busy} className="min-h-11 rounded-pill bg-navy px-4 text-sm font-bold text-white disabled:opacity-60">
-              {busy ? "Generating…" : "Invite them again anyway"}
+              {busy ? "Generating…" : "Invite them again"}
             </button>
           </form>
         </div>

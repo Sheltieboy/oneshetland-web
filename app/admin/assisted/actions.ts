@@ -14,7 +14,8 @@ import { createBusiness, createHub, forgetContact, setRequest, updateBusiness, u
 import { publicPath, type AssistedKind, type CreateResult } from "@/lib/assisted/shape";
 import {
   decideClaim, inviteAudit, issueInvite, markSent, recordSupportPermission,
-  revokeInvite, revokeSupport, supportLog, supportState, type AuditLine, type SupportEdit,
+  revokeInvite, revokeSupport, supportLog, supportState, contactPreferences, liftContactPreference,
+  type AuditLine, type SupportEdit, type ContactPreference,
 } from "@/lib/assisted/invites.server";
 import { claimUrl } from "@/lib/assisted/invites";
 import { copyBlock, bodyHtml, subjectLine, type InvitationFacts } from "@/lib/assisted/email";
@@ -110,6 +111,11 @@ export type IssueResult =
       link: string;
       expiresAt: string;
       superseded: number;
+      /** True when this is a second ask after they declined; the override reason is in the audit. */
+      reinvitedAfterDecline: boolean;
+      /** They have asked us not to write to them, so the email path is closed until it is lifted. */
+      contactBlocked: boolean;
+      contactBlockedBy: string | null;
       /** Ready for the clipboard, so the invitation can go from Darren's own email. */
       copy: string;
       subject: string;
@@ -131,7 +137,7 @@ export async function issueAssistedInviteAction(form: FormData): Promise<IssueRe
   const days = Math.max(1, Math.min(120, Number(str(form.get("days")) || "30") || 30));
 
   const r = await issueInvite(kind, id, nul(form.get("invited_name")), nul(form.get("invited_email")), days,
-    bool(form.get("override_declined")));
+    bool(form.get("override_declined")), nul(form.get("override_reason")));
   if (!r.issued) return r;
 
   const facts: InvitationFacts = {
@@ -144,6 +150,8 @@ export async function issueAssistedInviteAction(form: FormData): Promise<IssueRe
   revalidatePath("/admin/hubs"); revalidatePath("/admin/claims");
   return {
     issued: true, slug: r.slug, link: facts.claimUrl!, expiresAt: r.expires_at, superseded: r.superseded,
+    reinvitedAfterDecline: r.reinvited_after_decline,
+    contactBlocked: r.contact_blocked, contactBlockedBy: r.contact_blocked_by,
     copy: copyBlock(facts), subject: subjectLine(facts),
   };
 }
@@ -251,4 +259,23 @@ export async function sendAssistedInviteEmailAction(
   }
   revalidatePath("/admin/hubs"); revalidatePath("/admin/claims");
   return { ok: false, error: r?.messages?.[0] ?? r?.error ?? "It could not be sent, and nothing was recorded as sent.", uncertain: r?.uncertain };
+}
+
+/* ── contact preferences ──────────────────────────────────────────────────── */
+
+export async function assistedContactPreferencesAction(): Promise<ContactPreference[]> {
+  await requireAdmin();
+  return contactPreferences();
+}
+
+/**
+ * Lift a preference so we may write to that address again. Declining must never permanently stop an
+ * organisation being invited — but it does stop us WRITING to the person who declined, until this is
+ * deliberately lifted with a reason that is kept.
+ */
+export async function liftAssistedContactPreferenceAction(input: { email: string; reason: string }) {
+  await requireAdmin();
+  const r = await liftContactPreference(input.email, input.reason);
+  if (r.ok) { revalidatePath("/admin/hubs"); revalidatePath("/admin/claims"); }
+  return r;
 }

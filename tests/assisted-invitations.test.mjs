@@ -448,3 +448,106 @@ describe("9. the migration promises what the web relies on", () => {
     assert.match(sql, /this migration created % hub claims: refusing to commit/);
   });
 });
+
+describe("10. declining: the person is respected, the organisation is not punished", () => {
+  const sql = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/migrations/20270316000000_assisted_publishing_phase2.sql"), "utf8");
+  const ui = read("components/admin/assisted/InviteToManage.tsx");
+  const page = read("components/assisted/InvitationPage.tsx");
+
+  test("a decline cancels that invitation and records a contact preference by ADDRESS", () => {
+    assert.match(sql, /the invitation is cancelled/);
+    assert.match(sql, /insert into public\.assisted_contact_preferences/);
+    assert.match(sql, /keyed by ADDRESS/i, "the reason for keying it by address must be written down");
+    assert.match(sql, /contact_preference_recorded/);
+  });
+  test("it never writes to the Launch Partner list, and says why it cannot", () => {
+    assert.doesNotMatch(sql, /insert into public\.launch_outreach_suppressions/);
+    assert.match(sql, /business_id` is NOT NULL/, "the reason a separate list exists must be recorded");
+    assert.match(sql, /launch_outreach_suppressions was altered: refusing to commit/);
+  });
+  test("the preference is append-only: written once, afterwards only lifted", () => {
+    assert.match(sql, /assisted_contact_preferences is append-only/);
+    assert.match(sql, /before update or delete on public\.assisted_contact_preferences/);
+    assert.match(sql, /the contact-preference append-only guard is missing: refusing to commit/);
+  });
+  test("both lists stop a send, and the refusal says which one", () => {
+    assert.match(sql, /function public\.assisted_contact_blocked/);
+    assert.match(sql, /they declined an invitation/);
+    assert.match(sql, /Launch Partner outreach was stopped/);
+    assert.match(ui, /r\.reason === "do_not_contact"/);
+    assert.match(ui, /by email or by hand/);
+  });
+  test("it stops writing to that PERSON, not inviting that organisation", () => {
+    assert.match(sql, /It stops SENDS, and nothing else/);
+    assert.match(sql, /can still be invited again after an administrator checks and says why/);
+    assert.match(ui, /The organisation can still be invited; only writing to/);
+  });
+  test("a second ask is possible, needs a reason, and is its own audit line", () => {
+    assert.match(sql, /must never PERMANENTLY stop the organisation being/);
+    assert.match(sql, /Write down what you checked before inviting them again/);
+    assert.match(sql, /'declined_override'/);
+    assert.match(ui, /name="override_reason" required minLength=\{10\}/);
+    assert.match(ui, /What have you checked\?/);
+    assert.doesNotMatch(ui, /Invite them again anyway/, "a second ask must not read as a shrug");
+  });
+  test("lifting a preference needs a reason, is offered in the same panel, and is kept", () => {
+    assert.match(sql, /function public\.admin_assisted_contact_preference_lift/);
+    assert.match(sql, /how they told us it was all right to write again/);
+    assert.match(sql, /lift_reason\s+text check \(lift_reason is null or \(char_length\(lift_reason\) between 10 and 500\)\)/);
+    assert.match(ui, /liftContactPreference\(\{ email:/);
+    assert.match(ui, /They have told us it is all right…/);
+  });
+  test("the Send button is withheld while the address is blocked", () => {
+    assert.match(ui, /!live\.do_not_contact && !issued\.contactBlocked/);
+    assert.match(ui, /the Send button is not offered/);
+  });
+  test("and no client can reach the preference list", () => {
+    assert.match(sql, /revoke all on public\.assisted_contact_preferences from anon, authenticated/);
+    assert.match(sql, /a client can read an invitation or assistance table: refusing to commit/);
+    const grant = sql.slice(sql.indexOf("to anon;") - 500, sql.indexOf("to anon;") + 10);
+    assert.doesNotMatch(grant, /contact_preference/);
+  });
+  test("the recipient's own page still says declining changes nothing", () => {
+    assert.match(page, /stays exactly as it is/);
+    assert.match(page, /we will not ask again/);
+  });
+});
+
+describe("11. an assistance grant is scoped, time-limited, auditable and revocable", () => {
+  const sql = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/migrations/20270316000000_assisted_publishing_phase2.sql"), "utf8");
+  test("scoped to one record", () => {
+    assert.match(sql, /subject_kind\s+text not null check \(subject_kind in \('business', 'hub'\)\)/);
+    assert.match(sql, /where subject_kind = p_kind and subject_id = p_id/);
+  });
+  test("time-limited, and void when the record changes hands", () => {
+    assert.match(sql, /expires_at\s+timestamptz not null/);
+    assert.match(sql, /Choose between 1 and 365 days/);
+    assert.match(sql, /and owner_at_grant = v_owner/, "a grant must not follow the record to a new owner");
+  });
+  test("revocable by either side", () => {
+    assert.match(sql, /function public\.assisted_support_revoke/);
+    assert.match(sql, /if v_owner is distinct from v_uid and not public\.is_admin\(\) then/);
+  });
+  test("auditable, with the fields each edit touched", () => {
+    assert.match(sql, /insert into public\.assisted_support_edits/);
+    assert.match(sql, /jsonb_object_agg\(k, true\)/);
+    assert.match(sql, /function public\.admin_assisted_support_log/);
+  });
+  test("and owner-granted is distinguishable from recorded-by-us, everywhere", () => {
+    assert.match(sql, /granted_via\s+text not null check \(granted_via in \('owner', 'owner_asked_us'\)\)/);
+    assert.match(sql, /assisted_support_note_when_recorded/);
+    const owner = read("components/assisted/OwnerHelpToggle.tsx");
+    assert.match(owner, /written down by OneShetland after you asked them to help/);
+    assert.match(owner, /You turned this on yourself/);
+    const admin = read("components/admin/assisted/ContinuedHelp.tsx");
+    assert.match(admin, /turned this on themselves/);
+    assert.match(admin, /You recorded this after they asked/);
+  });
+  test("and the organisation that would rather we managed it does nothing at all", () => {
+    const page = read("components/assisted/InvitationPage.tsx");
+    assert.match(page, /You do not have to do anything/);
+    assert.match(page, /we will keep looking\s*\n?\s*after it/s);
+  });
+});
