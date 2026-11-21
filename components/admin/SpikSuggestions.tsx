@@ -4,11 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
+import { SpikPrivateNote } from "@/components/admin/SpikPrivateNote";
 
 type Row = {
   id: string; word_id: string | null; word: string; field_label: string | null; field_name: string | null;
   current_value: string | null; suggested_value: string | null;
   submitter_name: string | null; show_name: boolean | null; status: string; created_at: string;
+  contributor_note?: string | null;
 };
 
 export function SpikSuggestions({ rows }: { rows: Row[] }) {
@@ -62,6 +64,7 @@ export function SpikSuggestions({ rows }: { rows: Row[] }) {
               <p className="mt-0.5 text-sm text-ink">{r.suggested_value}</p>
             </div>
           </div>
+          <SpikPrivateNote note={r.contributor_note} />
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {r.status === "pending" && r.word_id && (
               <button onClick={() => approve(r.id)} disabled={busy === r.id} className="rounded-pill bg-rose-600 px-4 py-1.5 text-sm font-semibold text-white hover:brightness-95 disabled:opacity-40">

@@ -286,6 +286,35 @@ export const SUGGEST_FIELDS: SuggestField[] = [
   { name: "origin", label: "Origin", type: "select", hint: "Where does this word come from?", options: ["scots", "old norse", "unknown"] },
 ];
 
+/* ── Private contributor notes (editorial review only, never published) ─────
+ * Stored in spik_word_submissions.contributor_note, spik_suggestions.contributor_note
+ * and spik_word_variation_notes — all readable by Spik editors (admins) only.
+ * Keep the wording identical to the app (oneshetland-delivers constants/spik-contributor-note.ts). */
+
+export const CONTRIBUTOR_NOTE_MAX = 1000;
+export const CONTRIBUTOR_NOTE_LABEL = "Additional information about this word";
+export const CONTRIBUTOR_NOTE_HINT =
+  "You can tell us about regional differences, pronunciation, alternative meanings or anything else that might help us understand this word. This information is only visible to Spik editors and won't be published automatically.";
+
+/** How sure the contributor is about a variation's region (private; shown to editors only). */
+export type RegionConfidence = "this_area" | "mixed" | "not_sure";
+export const REGION_CONFIDENCE_OPTIONS: { value: RegionConfidence; label: string }[] = [
+  { value: "this_area", label: "Mainly this area" },
+  { value: "mixed", label: "A mix of influences from different areas" },
+  { value: "not_sure", label: "I'm not sure" },
+];
+export const REGION_CONFIDENCE_LABEL: Record<RegionConfidence, string> = {
+  this_area: "Mainly this area",
+  mixed: "Mixed influences from different areas",
+  not_sure: "Not sure",
+};
+
+/** Trimmed note, or null when empty — never send a blank string (the database refuses it). */
+export function cleanContributorNote(s: string | null | undefined): string | null {
+  const t = (s ?? "").trim();
+  return t ? t.slice(0, CONTRIBUTOR_NOTE_MAX) : null;
+}
+
 /** Strip the HTML the WordPress source sometimes wraps fields in. */
 export function stripHtml(s: string | null | undefined): string {
   if (!s) return "";

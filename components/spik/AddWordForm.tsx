@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { SUGGEST_FIELDS, SPIK_COLOR } from "@/lib/spik-data";
+import { SUGGEST_FIELDS, SPIK_COLOR, cleanContributorNote } from "@/lib/spik-data";
+import { ContributorNoteField } from "@/components/spik/ContributorNoteField";
 
 /**
  * AddWordForm — submit a brand-new Shetland word to Spik. Captures the headword
@@ -17,6 +18,7 @@ export function AddWordForm() {
   const [user, setUser] = useState<User | null | undefined>(undefined); // undefined = still checking
   const [word, setWord] = useState("");
   const [values, setValues] = useState<Record<string, string>>({});
+  const [note, setNote] = useState(""); // private: editors only, never published
   const [submitterName, setSubmitterName] = useState("");
   const [showName, setShowName] = useState(true);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
@@ -49,6 +51,10 @@ export function AddWordForm() {
         show_name: showName,
         status: "pending",
       };
+      // Private note for the editors. Sent only when there is one, so a note-less submission is
+      // byte-for-byte what it was before this field existed.
+      const privateNote = cleanContributorNote(note);
+      if (privateNote) row.contributor_note = privateNote;
       // Map each filled attribute onto its dictionary column.
       for (const f of SUGGEST_FIELDS) {
         const v = (values[f.name] ?? "").trim();
@@ -135,6 +141,9 @@ export function AddWordForm() {
           )}
         </div>
       ))}
+
+      {/* Private note to the editors */}
+      <ContributorNoteField value={note} onChange={setNote} />
 
       {/* Attribution */}
       <div className="rounded-xl border border-line bg-paper p-5 shadow-soft">

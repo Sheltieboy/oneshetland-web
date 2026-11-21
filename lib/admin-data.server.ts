@@ -179,40 +179,59 @@ export async function getContentReports(status: "open" | "reviewing" | "actioned
 
 /* ── Spik suggestions ────────────────────────────────────────────────────── */
 
-export async function getSpikSuggestions(status: "pending" | "reviewed" | "all" = "pending") {
-  return safe((async () => {
-    const sb = await createServerClient();
-    let q = sb.from("spik_suggestions")
-      .select("id, word_id, word, field_name, field_label, current_value, suggested_value, submitter_name, show_name, status, created_at")
-      .order("created_at", { ascending: false }).limit(300);
+/*
+ * Private contributor notes (contributor_note, spik_word_variation_notes) are read here, with the
+ * administrator's own session — RLS lets only admins read them. Each loader asks for the note first
+ * and, if the database does not have the note columns yet (the migration lands before this code, but
+ * a rollback must not blank the review queue), falls back to the previous column list.
+ */
+async function selectWithFallback(
+  table: string,
+  withNotes: string,
+  legacy: string,
+  status: string,
+): Promise<Record<string, unknown>[]> {
+  const sb = await createServerClient();
+  const build = (cols: string) => {
+    let q = sb.from(table).select(cols).order("created_at", { ascending: false }).limit(300);
     if (status !== "all") q = q.eq("status", status);
-    const { data } = await q;
-    return (data ?? []) as Record<string, unknown>[];
-  })(), [] as Record<string, unknown>[]);
+    return q;
+  };
+  const first = await build(withNotes);
+  if (!first.error) return (first.data ?? []) as unknown as Record<string, unknown>[];
+  console.error(`[admin-data] ${table}: reading private notes failed, showing submissions without them:`, first.error.message);
+  const { data } = await build(legacy);
+  return (data ?? []) as unknown as Record<string, unknown>[];
+}
+
+const SUGGESTION_COLS = "id, word_id, word, field_name, field_label, current_value, suggested_value, submitter_name, show_name, status, created_at";
+const WORD_SUBMISSION_COLS = "id, word, alternate_spelling, pronunciation, short_meaning, spik_meaning, example_sentence, part_of_speech, category, usage_level, era, tone, origin, notes, submitter_name, show_name, status, published_word_id, created_at";
+const VARIATION_COLS = "id, word_id, region_id, region_name, variant_spelling, pronunciation, word_audio_url, sentence_text, sentence_audio_url, contributor_name, show_name, status, created_at, word:spik_dictionary(word)";
+
+export async function getSpikSuggestions(status: "pending" | "reviewed" | "all" = "pending") {
+  return safe(
+    selectWithFallback("spik_suggestions", `${SUGGESTION_COLS}, contributor_note`, SUGGESTION_COLS, status),
+    [] as Record<string, unknown>[],
+  );
 }
 
 export async function getSpikWordSubmissions(status: "pending" | "approved" | "rejected" | "all" = "pending") {
-  return safe((async () => {
-    const sb = await createServerClient();
-    let q = sb.from("spik_word_submissions")
-      .select("id, word, alternate_spelling, pronunciation, short_meaning, spik_meaning, example_sentence, part_of_speech, category, usage_level, era, tone, origin, notes, submitter_name, show_name, status, published_word_id, created_at")
-      .order("created_at", { ascending: false }).limit(300);
-    if (status !== "all") q = q.eq("status", status);
-    const { data } = await q;
-    return (data ?? []) as Record<string, unknown>[];
-  })(), [] as Record<string, unknown>[]);
+  return safe(
+    selectWithFallback("spik_word_submissions", `${WORD_SUBMISSION_COLS}, contributor_note`, WORD_SUBMISSION_COLS, status),
+    [] as Record<string, unknown>[],
+  );
 }
 
 export async function getSpikWordVariations(status: "pending" | "approved" | "rejected" | "all" = "pending") {
-  return safe((async () => {
-    const sb = await createServerClient();
-    let q = sb.from("spik_word_variations")
-      .select("id, word_id, region_name, variant_spelling, pronunciation, word_audio_url, sentence_text, sentence_audio_url, contributor_name, show_name, status, created_at, word:spik_dictionary(word)")
-      .order("created_at", { ascending: false }).limit(300);
-    if (status !== "all") q = q.eq("status", status);
-    const { data } = await q;
-    return (data ?? []) as Record<string, unknown>[];
-  })(), [] as Record<string, unknown>[]);
+  return safe(
+    selectWithFallback(
+      "spik_word_variations",
+      `${VARIATION_COLS}, private_detail:spik_word_variation_notes(note, also_region_names, region_confidence)`,
+      VARIATION_COLS,
+      status,
+    ),
+    [] as Record<string, unknown>[],
+  );
 }
 
 /* ── Da Boats: new-boat submissions ──────────────────────────────────────── */
