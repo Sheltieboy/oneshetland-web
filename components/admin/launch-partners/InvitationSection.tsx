@@ -129,7 +129,7 @@ export function InvitationSection({ row, claimMode, onLink, history = [] }: { ro
       )}
       <div className="rounded-xl bg-cream/70 p-4 text-sm text-ink-soft">
         <p className="font-bold text-ink">What the link does</p>
-        <p className="mt-1">Opens <code className="rounded bg-sand px-1">/launch/{row.slug}</code> privately. The token is moved into a cookie and removed from the address bar, so it isn&rsquo;t left in history, referrers or analytics. Opening it records that it was viewed (not a claim, not consent). Only a hash of the token is stored.</p>
+        <p className="mt-1">Opens <code className="rounded bg-sand px-1">/launch/{row.slug}</code> privately. The token is moved into a cookie and removed from the address bar, so it isn&rsquo;t left in history, referrers or analytics. Fetching it records that the link was reached — a mail filter or link scanner can do that before the recipient sees anything, so it is never proof that a person read it, and it is not a claim or consent. Only a hash of the token is stored.</p>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line p-4">
         <div>

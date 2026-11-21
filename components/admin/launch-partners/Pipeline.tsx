@@ -85,7 +85,7 @@ function PartnerCard({ r }: { r: PipelineRow }) {
   const c = pipelineCells(r);
   const cells: [string, string, boolean][] = [
     ["Preview", c.preview.label, c.preview.ok], ["Page", c.page.label, c.page.ok], ["Invitation", c.invitation.label, c.invitation.ok], ["Email", c.email.label, c.email.ok],
-    ["Viewed", c.viewed.label, c.viewed.ok], ["Claim", c.claim.label, c.claim.ok], ["Plan", c.plan.label, c.plan.ok], ["Products", c.products.label, c.products.ok],
+    ["Fetched", c.viewed.label, c.viewed.ok], ["Claim", c.claim.label, c.claim.ok], ["Plan", c.plan.label, c.plan.ok], ["Products", c.products.label, c.products.ok],
   ];
   return (
     <li>
