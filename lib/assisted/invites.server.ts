@@ -10,7 +10,10 @@ import "server-only";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import type { AssistedKind } from "@/lib/assisted/shape";
-import { claimCookieName, isSlug, isToken, type InviteClaimView, type InviteOpen, type InviteStatus } from "@/lib/assisted/invites";
+import {
+  claimCookieName, isSlug, isToken, isPermanentFailure,
+  type InviteClaimView, type InviteOpen, type InviteStatus,
+} from "@/lib/assisted/invites";
 
 const message = (e: unknown): string => {
   const m = e instanceof Error ? e.message : typeof e === "string" ? e : "";
@@ -214,12 +217,31 @@ export type WaitingClaim = {
   claimant_account_email: string | null; email_matches_invite: boolean | null; private_history: string[] | null;
 };
 
-export async function waitingClaims(): Promise<WaitingClaim[]> {
+/**
+ * The approval queue, and whether it could be read at all.
+ *
+ * This used to be `catch { return [] }`, which is how a broken function looked exactly like an empty
+ * queue: `admin_assisted_claims_waiting()` raised 42804 for a type mismatch, the error was swallowed,
+ * and the "Waiting for your decision" panel simply did not appear while a real claim sat waiting. A
+ * list that can legitimately be empty must never report a failure the same way.
+ */
+export type WaitingClaimsResult =
+  | { ok: true; claims: WaitingClaim[] }
+  | { ok: false; error: string; permanent: boolean };
+
+export async function waitingClaims(): Promise<WaitingClaimsResult> {
   try {
     const { data, error } = await (await createClient()).rpc("admin_assisted_claims_waiting");
-    if (error) return [];
-    return (data ?? []) as WaitingClaim[];
-  } catch { return []; }
+    if (error) {
+      console.error(`[assisted-claims] the approval queue could not be read: ${error.message}`);
+      return { ok: false, error: error.message, permanent: isPermanentFailure(error.message) };
+    }
+    return { ok: true, claims: (data ?? []) as WaitingClaim[] };
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    console.error(`[assisted-claims] the approval queue could not be read: ${m}`);
+    return { ok: false, error: m, permanent: isPermanentFailure(m) };
+  }
 }
 
 export async function decideClaim(kind: AssistedKind, claimId: string, decision: "approve" | "reject", note: string | null):

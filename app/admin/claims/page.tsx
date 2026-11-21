@@ -31,7 +31,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const rows = launch || invites || assisted ? [] : await getBusinessClaims(filter);
   const assistedRows = assisted ? await listAssisted("business") : [];
   const assistedInvites = assisted ? await listInvites("business") : [];
-  const assistedClaims = assisted ? (await waitingClaims()).filter((c) => c.claim_kind === "business") : [];
+  // Keep the result whole: an unreadable queue must not render as an empty one.
+  const assistedClaimsResult = assisted ? await waitingClaims() : ({ ok: true as const, claims: [] });
+  const assistedClaims = assistedClaimsResult.ok
+    ? { ok: true as const, claims: assistedClaimsResult.claims.filter((c) => c.claim_kind === "business") }
+    : assistedClaimsResult;
   // Admin-only RPC (it refuses everyone else); the page already sits behind requireAdmin.
   const grants = launch ? (((await (await createClient()).rpc("admin_list_launch_plans")).data ?? []) as GrantListRow[]) : [];
   const picked = launch && business ? (((await (await createClient()).rpc("admin_launch_business_lookup", { p_query: business })).data ?? []) as LaunchLookupRow[])[0] ?? null : null;
@@ -48,10 +52,10 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       {assisted ? (
         <div className="space-y-5">
           <AddOnBehalf kind="business" submit={createAssistedBusinessAction} />
-          {assistedClaims.length > 0 && (
+          {(!assistedClaimsResult.ok || assistedClaims.ok && assistedClaims.claims.length > 0) && (
             <div className="space-y-3">
               <h3 className="font-display text-lg font-bold text-ink">Waiting for your decision</h3>
-              <ClaimsWaiting claims={assistedClaims} decide={decideAssistedClaimAction} />
+              <ClaimsWaiting result={assistedClaims} decide={decideAssistedClaimAction} />
             </div>
           )}
           <AssistedRecords

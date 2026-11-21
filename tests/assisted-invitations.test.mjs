@@ -704,3 +704,64 @@ describe("13. a permanent failure must not be dressed as a temporary one", () =>
     assert.match(sql, /the isolated\s*\n?--\s*fixture created business_claims with the right COLUMNS but without this CHECK/s);
   });
 });
+
+describe("14. a broken approval queue must not look like an empty one", () => {
+  // From the second production fault: admin_assisted_claims_waiting() raised 42804, the wrapper
+  // swallowed it, and the panel rendered "nothing waiting" while a real claim sat unseen.
+  const server = read("lib/assisted/invites.server.ts");
+  const panel = read("components/admin/assisted/ClaimsWaiting.tsx");
+  const claimsPage = read("app/admin/claims/page.tsx");
+  const hubsPage = read("app/admin/hubs/page.tsx");
+  const sql = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/migrations/20270318000000_claims_waiting_email_cast.sql"), "utf8");
+
+  test("the reader returns a result, not a bare list", () => {
+    assert.match(server, /export type WaitingClaimsResult =/);
+    assert.match(server, /\{ ok: false; error: string; permanent: boolean \}/);
+    // Scoped to this function's own body: other readers legitimately return [] for an empty list.
+    const body = server.slice(server.indexOf("export async function waitingClaims"));
+    const justThisFn = body.slice(0, body.indexOf("\n}\n") + 3);
+    assert.doesNotMatch(justThisFn, /catch \{ return \[\]; \}/,
+      "the swallow-and-return-empty pattern is back in waitingClaims");
+    assert.match(justThisFn, /return \{ ok: false/);
+  });
+  test("and it logs the real reason for us", () => {
+    assert.match(server, /\[assisted-claims\] the approval queue could not be read/);
+  });
+  test("the panel says the queue is unreadable, and says not to trust it as empty", () => {
+    assert.match(panel, /could not be read/);
+    assert.match(panel, /do not treat this as an empty queue/i);
+    assert.match(panel, /Nothing has been changed, approved or rejected/);
+    assert.match(panel, /role="alert"/);
+  });
+  test("it distinguishes a permanent fault from a passing one", () => {
+    assert.match(panel, /result\.permanent \? ", and this will not fix itself" : ""/);
+    assert.match(panel, /It may be a passing fault/);
+  });
+  test("and it still says 'nothing waiting' only when the queue really is empty", () => {
+    const i = panel.indexOf("if (!result.ok)");
+    const j = panel.indexOf("if (!claims.length)");
+    assert.ok(i > -1 && j > i, "the empty-queue branch must come after the unreadable-queue branch");
+    assert.match(panel, /Nothing waiting\./);
+  });
+  test("both admin pages render the panel even when the queue is unreadable", () => {
+    for (const [name, src] of [["claims", claimsPage], ["hubs", hubsPage]]) {
+      assert.match(src, /an unreadable queue must not render as an empty one/,
+        `${name} does not keep the result whole`);
+      assert.match(src, /!\w+ClaimsResult\.ok \|\|/,
+        `${name} hides the panel when the queue cannot be read, which is exactly the fault`);
+      assert.match(src, /<ClaimsWaiting result=/, `${name} still passes a bare list`);
+    }
+  });
+  test("the migration casts both branches and proves itself by CALLING the function", () => {
+    assert.equal((sql.match(/u\.email::text/g) ?? []).length, 2);
+    assert.match(sql, /select count\(\*\) into n from public\.admin_assisted_claims_waiting\(\)/);
+    assert.match(sql, /the declared return type changed: refusing to commit/);
+    assert.match(sql, /anon can now reach the approval queue: refusing to commit/);
+    assert.match(sql, /all table-returning assisted functions execute/);
+  });
+  test("and it explains why 120 tests missed it", () => {
+    assert.match(sql, /fixture declared auth\.users\.email as `text`/);
+    assert.match(sql, /CALLS ALL SEVEN table-returning functions/);
+  });
+});

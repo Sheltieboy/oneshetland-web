@@ -32,16 +32,20 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const hubs = (data ?? []) as Hub[];
   const assistedRows = await listAssisted("hub");
   const hubInvites = await listInvites("hub");
-  const hubClaims = (await waitingClaims()).filter((c) => c.claim_kind === "hub");
+  // Keep the result whole: an unreadable queue must not render as an empty one.
+  const hubClaimsResult = await waitingClaims();
+  const hubClaims = hubClaimsResult.ok
+    ? { ok: true as const, claims: hubClaimsResult.claims.filter((c) => c.claim_kind === "hub") }
+    : hubClaimsResult;
   return (
     <>
       <AdminHeader title="Hubs" sub="Add a Hub for an organisation that asked us to, and set the two switches on each active Hub." />
       <section className="mb-6 space-y-5" aria-label="Added on behalf of others">
         <AddOnBehalf kind="hub" submit={createAssistedHubAction} />
-        {hubClaims.length > 0 && (
+        {(!hubClaimsResult.ok || hubClaims.ok && hubClaims.claims.length > 0) && (
           <div className="space-y-3">
             <h3 className="font-display text-lg font-bold text-ink">Waiting for your decision</h3>
-            <ClaimsWaiting claims={hubClaims} decide={decideAssistedClaimAction} />
+            <ClaimsWaiting result={hubClaims} decide={decideAssistedClaimAction} />
           </div>
         )}
         {assistedRows.length > 0 && (

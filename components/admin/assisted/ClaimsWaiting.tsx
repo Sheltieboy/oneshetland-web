@@ -12,7 +12,7 @@
  *     and this says so before the button is pressed rather than after.
  */
 import { useState } from "react";
-import type { WaitingClaim } from "@/lib/assisted/invites.server";
+import type { WaitingClaim, WaitingClaimsResult } from "@/lib/assisted/invites.server";
 import type { AssistedKind } from "@/lib/assisted/shape";
 
 const when = (iso: string) => {
@@ -20,13 +20,37 @@ const when = (iso: string) => {
   catch { return iso.slice(0, 10); }
 };
 
-export function ClaimsWaiting({ claims, decide }: {
-  claims: WaitingClaim[];
+export function ClaimsWaiting({ result, decide }: {
+  /** The whole result, not just the rows — an empty queue and an unreadable one must not look alike. */
+  result: WaitingClaimsResult;
   decide: (input: { kind: AssistedKind; claimId: string; decision: "approve" | "reject"; note: string | null }) =>
     Promise<{ ok: boolean; reason?: string; found?: string[]; error?: string }>;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState<Record<string, string>>({});
+
+  // THE DISTINCTION THAT WAS MISSING. A broken query used to render as "nothing waiting", so a real
+  // claim could sit unseen. If the queue cannot be read, the screen says so and says it loudly.
+  if (!result.ok) {
+    return (
+      <div role="alert" className="rounded-2xl border-2 border-rose-300 bg-rose-50 p-5">
+        <p className="text-sm font-bold text-rose-900">
+          The list of waiting requests could not be read{result.permanent ? ", and this will not fix itself" : ""}.
+        </p>
+        <p className="mt-1 text-sm text-rose-900">
+          There may be people waiting for a decision that are not shown here, so do not treat this as an empty queue.
+          {result.permanent
+            ? " Something at our end needs correcting before it will work."
+            : " It may be a passing fault — reload the page and see."}
+        </p>
+        <p className="mt-2 text-xs text-rose-900">
+          Nothing has been changed, approved or rejected. The reason is in the server log.
+        </p>
+      </div>
+    );
+  }
+
+  const claims = result.claims;
 
   if (!claims.length) {
     return (
