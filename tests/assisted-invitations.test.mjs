@@ -24,10 +24,12 @@ import { fileURLToPath } from "node:url";
 import {
   TOKEN_RE, SLUG_RE, isToken, isSlug, claimCookieName, claimPath, claimUrl,
   CLAIM_COOKIE_MAX_AGE, claimHandoff, INVITE_STATUSES, INVITE_STATUS_MEANING, whatYouCouldManage,
+  isPermanentFailure, PERMANENT_CLAIM_FAILURE,
 } from "../lib/assisted/invites.ts";
 import {
   subjectLine, bodyLines, bodyText, bodyHtml, copyBlock, emailGates, EMAIL_GATE_MESSAGE,
 } from "../lib/assisted/email.ts";
+
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const DELIVERS = join(ROOT, "..", "oneshetland-delivers");
@@ -617,5 +619,88 @@ describe("12. one do-not-contact posture across both programmes", () => {
     assert.doesNotMatch(body, /assisted_contact_preferences/,
       "the restored gate still references the assisted table");
     assert.match(body, /from public\.launch_outreach_suppressions s/, "the restored gate is not the production one");
+  });
+});
+
+describe("13. a permanent failure must not be dressed as a temporary one", () => {
+  // From a real incident: business_claims_source_check refused every Business claim, and the page
+  // said "please try again" - inviting a retry that could never work, and telling us nothing.
+  const sql = readFileSync(join(ROOT, "..", "oneshetland-be-edfinish",
+    "supabase/migrations/20270317000000_business_claims_allow_assisted_source.sql"), "utf8");
+  const actions = read("app/claim/[slug]/actions.ts");
+  const page = read("components/assisted/InvitationPage.tsx");
+
+  test("a constraint violation is recognised as permanent", () => {
+    for (const m of [
+      'new row for relation "business_claims" violates check constraint "business_claims_source_check"',
+      'ERROR: 23514: violates check constraint',
+      'null value in column "x" violates not-null constraint',
+      'duplicate key value violates unique constraint "y"',
+      'column "nope" does not exist',
+      'Could not find the function public.whatever in the schema cache',
+      'invalid input syntax for type uuid: "oops"',
+    ]) {
+      assert.equal(isPermanentFailure(m), true, `not recognised as permanent: ${m}`);
+    }
+  });
+  test("and a genuinely transient failure is not", () => {
+    for (const m of [
+      "fetch failed",
+      "TypeError: network error",
+      "canceling statement due to statement timeout",
+      "Please give your name and a contact email so we can check you are authorised.",
+      "This invitation is no longer valid.",
+      "",
+      null,
+      undefined,
+    ]) {
+      assert.equal(isPermanentFailure(m), false, `wrongly called permanent: ${m}`);
+    }
+  });
+  test("the claimant is told it will not help, and never shown the SQL", () => {
+    assert.match(PERMANENT_CLAIM_FAILURE, /trying again will not help/i);
+    assert.match(PERMANENT_CLAIM_FAILURE, /Nothing about the page has changed/i);
+    assert.match(PERMANENT_CLAIM_FAILURE, /get in touch/i);
+    for (const leak of ["constraint", "SQL", "column", "relation", "23514", "database", "postgres"]) {
+      assert.ok(!PERMANENT_CLAIM_FAILURE.toLowerCase().includes(leak.toLowerCase()),
+        `the claimant-facing message leaks "${leak}"`);
+    }
+  });
+  test("the action returns the message, not the error, and logs the real one for us", () => {
+    assert.match(actions, /isPermanentFailure\(r\.error\)/);
+    assert.match(actions, /console\.error\(`\[assisted-claim\] permanent failure/);
+    assert.match(actions, /error: PERMANENT_CLAIM_FAILURE, permanent: true/);
+    // the raw error must never be returned on the permanent branch
+    const branch = actions.slice(actions.indexOf("if (isPermanentFailure(r.error))"), actions.indexOf("return { ok: false, error: \"We couldn't send your request just now"));
+    assert.doesNotMatch(branch, /error: r\.error/, "the permanent branch returns the raw error to the claimant");
+  });
+  test("declining gets the same treatment", () => {
+    const decline = actions.slice(actions.indexOf("export async function declineOwnership"));
+    assert.match(decline, /isPermanentFailure/);
+    assert.match(decline, /PERMANENT_CLAIM_FAILURE/);
+  });
+  test("a transient failure still says 'in a moment', so the two read differently", () => {
+    assert.match(actions, /Please try again in a moment\./);
+  });
+  test("the page stops inviting a retry once the fault is permanent", () => {
+    assert.match(page, /result\.permanent/);
+    assert.match(page, /A permanent fault must not be followed by an invitation to try again/);
+    assert.match(page, /!\(result && !result\.ok && result\.permanent\)/);
+  });
+
+  test("the correction widens the constraint by one value and narrows nothing", () => {
+    assert.match(sql, /source in \('launch_partner_invitation', 'assisted_invitation'\)/);
+    assert.match(sql, /source is null or/);
+    assert.match(sql, /the Launch Partner value was dropped: refusing to commit/);
+    assert.match(sql, /NULL is no longer allowed, which would break the ordinary claim route/);
+    assert.match(sql, /the constraint was added NOT VALID: refusing to commit/);
+  });
+  test("it proves the behaviour, not just the constraint's text, and leaves nothing behind", () => {
+    assert.match(sql, /an assisted_invitation claim is STILL refused by a check constraint/);
+    assert.match(sql, /the self-proof left % row\(s\) behind: refusing to commit/);
+    assert.match(sql, /SELF_PROOF_ROLLBACK/);
+  });
+  test("and it says plainly why the test suite missed it", () => {
+    assert.match(sql, /the isolated\s*\n?--\s*fixture created business_claims with the right COLUMNS but without this CHECK/s);
   });
 });
