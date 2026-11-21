@@ -102,9 +102,23 @@ describe("this feature creates no account, sends nothing, and holds no service k
       assert.ok(!all.includes(forbidden), `${forbidden} appears in the assisted-publishing web layer`);
     }
   });
-  test("nothing is emailed or notified", () => {
-    for (const forbidden of ["postmark", "Postmark", "sendEmail", "notify-", "send-launch"]) {
-      assert.ok(!all.includes(forbidden), `${forbidden} appears in the assisted-publishing web layer`);
+  // Phase 2 adds an OPTIONAL invitation that an administrator may choose to email, so "this feature
+  // can never send anything" is no longer the truth. What must still be true — and is the thing that
+  // would actually hurt — is that CREATING a record emails nobody. So this now pins the creation
+  // path precisely, rather than the whole feature loosely.
+  test("creating a record emails nobody", () => {
+    const creation = [FORM, CLIENT, SHAPE,
+      ...ACTIONS.split(/export async function /).slice(1)
+        .filter((b) => /^createAssisted|^editAssisted|^setAssistedRequest|^forgetAssistedContact/.test(b))].join("\n");
+    for (const forbidden of ["postmark", "Postmark", "sendEmail", "notify-", "send-launch", "send-assisted", "functions.invoke"]) {
+      assert.ok(!creation.includes(forbidden), `${forbidden} is reachable from the creation path`);
+    }
+    assert.match(FORM, /No account is created and nothing is emailed/, "the form must say so on the screen");
+  });
+  test("and the web still holds no mail transport of its own", () => {
+    for (const forbidden of ["postmarkapp", "POSTMARK_API_KEY", "nodemailer", "sendgrid", "mailgun"]) {
+      assert.ok(!all.toLowerCase().includes(forbidden.toLowerCase()),
+        `${forbidden} appears in the assisted-publishing web layer — sending belongs to the Edge Function`);
     }
   });
   test("every action begins by requiring an administrator", () => {
@@ -162,7 +176,9 @@ describe("an unclaimed Hub does not pretend an organisation is behind it", () =>
 describe("an administrator can maintain an unclaimed record, and only an unclaimed one", () => {
   test("the edit form is offered for unclaimed records and withheld once claimed", () => {
     assert.match(RECORDS, /!r\.is_claimed && editing !== r\.subject_id/, "the Edit button is not gated on is_claimed");
-    assert.match(RECORDS, /Claimed — only its owner can edit it now/, "a claimed record does not say why it cannot be edited");
+    // Phase 2: the sentence now carries the one exception, which is the owner's own permission.
+    assert.match(RECORDS, /Claimed — only its owner can edit it, unless they ask us to help/,
+      "a claimed record does not say why it cannot be edited");
   });
   test("blank means keep, and the screen says so — it matches what the database does", () => {
     assert.match(RECORDS, /Leave a field blank to keep what is already there/);

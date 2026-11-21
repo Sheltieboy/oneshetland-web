@@ -4,7 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { AddOnBehalf } from "@/components/admin/assisted/AddOnBehalf";
 import { AssistedRecords } from "@/components/admin/assisted/AssistedRecords";
 import { listAssisted } from "@/lib/assisted/client";
-import { createAssistedHubAction, forgetAssistedContactAction, editAssistedAction } from "@/app/admin/assisted/actions";
+import { listInvites, waitingClaims } from "@/lib/assisted/invites.server";
+import { ClaimsWaiting } from "@/components/admin/assisted/ClaimsWaiting";
+import {
+  createAssistedHubAction, forgetAssistedContactAction, editAssistedAction,
+  issueAssistedInviteAction, markAssistedInviteSentAction, revokeAssistedInviteAction,
+  assistedInviteAuditAction, decideAssistedClaimAction, assistedSupportStateAction,
+  sendAssistedInviteEmailAction,
+  recordAssistedSupportAction, endAssistedSupportAction, assistedSupportLogAction,
+} from "@/app/admin/assisted/actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Hubs · Admin" };
@@ -23,12 +31,35 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
   const { data, error } = await query;
   const hubs = (data ?? []) as Hub[];
   const assistedRows = await listAssisted("hub");
+  const hubInvites = await listInvites("hub");
+  const hubClaims = (await waitingClaims()).filter((c) => c.claim_kind === "hub");
   return (
     <>
       <AdminHeader title="Hubs" sub="Add a Hub for an organisation that asked us to, and set the two switches on each active Hub." />
       <section className="mb-6 space-y-5" aria-label="Added on behalf of others">
         <AddOnBehalf kind="hub" submit={createAssistedHubAction} />
-        {assistedRows.length > 0 && <AssistedRecords rows={assistedRows} kind="hub" forget={forgetAssistedContactAction} edit={editAssistedAction} />}
+        {hubClaims.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="font-display text-lg font-bold text-ink">Waiting for your decision</h3>
+            <ClaimsWaiting claims={hubClaims} decide={decideAssistedClaimAction} />
+          </div>
+        )}
+        {assistedRows.length > 0 && (
+          <AssistedRecords
+            rows={assistedRows} kind="hub"
+            forget={forgetAssistedContactAction} edit={editAssistedAction}
+            invites={hubInvites}
+            issue={issueAssistedInviteAction}
+            markSent={markAssistedInviteSentAction}
+            revoke={revokeAssistedInviteAction}
+            audit={assistedInviteAuditAction}
+            sendEmail={sendAssistedInviteEmailAction}
+            supportState={assistedSupportStateAction}
+            recordSupport={recordAssistedSupportAction}
+            endSupport={endAssistedSupportAction}
+            supportLog={assistedSupportLogAction}
+          />
+        )}
       </section>
       <h2 className="mb-3 text-lg font-bold text-ink">Hub settings</h2>
       <form role="search" className="mb-5 flex flex-wrap gap-2" action="/admin/hubs" method="get">

@@ -22,6 +22,8 @@ import { OutcomeRow, UtilityRow } from "@/components/business/OutcomeRow";
 import { DashboardTop, AvailabilityChip } from "@/components/business/DashboardTop";
 import { LaunchSetupCard } from "@/components/business/LaunchSetupCard";
 import { getOwnerLaunchSetup } from "@/lib/launch-partners/owner-setup.server";
+import { OwnerHelpToggle } from "@/components/assisted/OwnerHelpToggle";
+import { ownerSupportStateAction, ownerGrantSupportAction, ownerEndSupportAction } from "@/app/assisted-help/actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Manage business" };
@@ -154,6 +156,17 @@ export default async function ManageBusinessPage({ params }: { params: Promise<{
         </div>
       </section>
 
+      {/* Help from OneShetland. By default nobody at OneShetland can edit a listing its owner has
+          claimed; this is the owner lending that permission back, for a time they choose. */}
+      <section className="mb-8">
+        <h2 className="eyebrow mb-2 text-ink-muted">Help</h2>
+        <OwnerHelpToggle
+          kind="business" id={business.id}
+          readState={ownerSupportStateAction}
+          grant={ownerGrantSupportAction}
+          end={ownerEndSupportAction}
+        />
+      </section>
 
     </div>
   );

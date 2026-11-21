@@ -8,12 +8,27 @@
  */
 import { useState } from "react";
 import { assistedState, BUSINESS_CATEGORIES, HUB_TYPES, publicPath, type AssistedKind, type AssistedRow } from "@/lib/assisted/shape";
+import { InviteToManage } from "./InviteToManage";
+import { ContinuedHelp } from "./ContinuedHelp";
+import type { AuditLine, InviteRow, SupportEdit, SupportState } from "@/lib/assisted/invites.server";
+import type { IssueResult } from "@/app/admin/assisted/actions";
 
 type Props = {
   rows: AssistedRow[];
   kind: AssistedKind;
   forget: (input: { kind: AssistedKind; id: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
   edit: (form: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
+  /** Phase 2 — every invitation for these records, already read on the server. */
+  invites: InviteRow[];
+  issue: (form: FormData) => Promise<IssueResult>;
+  markSent: (input: { slug: string; via: "email" | "copied" }) => Promise<{ ok: boolean; reason?: string; error?: string }>;
+  revoke: (input: { slug: string; reason: string | null }) => Promise<{ ok: boolean; error?: string }>;
+  audit: (slug: string) => Promise<AuditLine[]>;
+  sendEmail: (input: { link: string; confirm: boolean; recipient: string }) => Promise<{ ok: true; id: string } | { ok: false; error: string; uncertain?: true }>;
+  supportState: (input: { kind: AssistedKind; id: string }) => Promise<SupportState>;
+  recordSupport: (input: { kind: AssistedKind; id: string; days: number; note: string }) => Promise<{ ok: boolean; error?: string }>;
+  endSupport: (input: { kind: AssistedKind; id: string; reason: string | null }) => Promise<{ ok: boolean; error?: string }>;
+  supportLog: (input: { kind: AssistedKind; id: string }) => Promise<SupportEdit[]>;
 };
 
 const when = (iso: string) => {
@@ -21,7 +36,7 @@ const when = (iso: string) => {
   catch { return iso.slice(0, 10); }
 };
 
-export function AssistedRecords({ rows, kind, forget, edit }: Props) {
+export function AssistedRecords({ rows, kind, forget, edit, invites, issue, markSent, revoke, audit, sendEmail, supportState, recordSupport, endSupport, supportLog }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
@@ -138,8 +153,35 @@ export function AssistedRecords({ rows, kind, forget, edit }: Props) {
                     Edit the details
                   </button>
                 )}
-                {r.is_claimed && <p className="text-sm text-ink-muted">Claimed — only its owner can edit it now.</p>}
+                {r.is_claimed && <p className="text-sm text-ink-muted">Claimed — only its owner can edit it, unless they ask us to help.</p>}
               </div>
+
+              {/* Phase 2. An unclaimed record can be offered to its organisation; a claimed one cannot
+                  be edited here unless its owner has asked us to keep helping. */}
+              {!r.is_claimed ? (
+                <InviteToManage
+                  kind={r.subject_kind}
+                  subjectId={r.subject_id}
+                  subjectName={r.subject_name ?? "this organisation"}
+                  subjectSlug={r.slug}
+                  invites={invites.filter((i) => i.subject_id === r.subject_id)}
+                  issue={issue}
+                  markSent={markSent}
+                  revoke={revoke}
+                  audit={audit}
+                  sendEmail={sendEmail}
+                />
+              ) : (
+                <ContinuedHelp
+                  kind={r.subject_kind}
+                  subjectId={r.subject_id}
+                  subjectName={r.subject_name ?? "this organisation"}
+                  readState={supportState}
+                  record={recordSupport}
+                  end={endSupport}
+                  log={supportLog}
+                />
+              )}
 
               {!r.contact_forgotten && (r.requested_by_email || r.requested_by_name) && (
                 <button
