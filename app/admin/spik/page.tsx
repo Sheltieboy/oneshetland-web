@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSpikSuggestions, getSpikWordSubmissions, getSpikWordVariations } from "@/lib/admin-data.server";
+import { getRegions, getSpikSuggestions, getSpikWordSubmissions, getSpikWordVariations } from "@/lib/admin-data.server";
 import { AdminHeader, Empty } from "@/components/admin/AdminUI";
 import { SpikSuggestions } from "@/components/admin/SpikSuggestions";
 import { SpikWordSubmissions } from "@/components/admin/SpikWordSubmissions";
@@ -10,10 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function Page({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { status } = await searchParams;
   const filter = (status === "reviewed" || status === "all" ? status : "pending") as "pending" | "reviewed" | "all";
-  const [rows, newWords, variations] = await Promise.all([
+  const [rows, newWords, variations, regions] = await Promise.all([
     getSpikSuggestions(filter),
     getSpikWordSubmissions("pending"),
     getSpikWordVariations("pending"),
+    getRegions(),
   ]);
   const tabs: [string, string][] = [["pending", "Pending"], ["reviewed", "Reviewed"], ["all", "All"]];
 
@@ -37,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       </h2>
       {variations.length === 0
         ? <Empty>No local variations waiting for review.</Empty>
-        : <SpikVariationSubmissions rows={variations as never[]} />}
+        : <SpikVariationSubmissions rows={variations as never[]} regions={regions as never[]} />}
 
       {/* Edits suggested for existing words */}
       <h2 className="mb-3 mt-10 font-display text-xl font-bold text-ink">Edits to existing words</h2>

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { SUGGEST_FIELDS, SPIK_COLOR, type SuggestField } from "@/lib/spik-data";
+import { SUGGEST_FIELDS, SPIK_COLOR, cleanContributorNote, type SuggestField } from "@/lib/spik-data";
+import { ContributorNoteField } from "@/components/spik/ContributorNoteField";
 
 type CurrentValues = Record<string, string>;
 
@@ -20,6 +21,7 @@ export function SuggestForm({
   const [values, setValues] = useState<Record<string, string>>({});
   const [open, setOpen] = useState<string | null>(SUGGEST_FIELDS[0].name);
   const [submitterName, setSubmitterName] = useState("");
+  const [note, setNote] = useState(""); // private: editors only, never published
   const [showName, setShowName] = useState(true);
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
 
@@ -32,6 +34,9 @@ export function SuggestForm({
   async function submit() {
     if (count === 0) return;
     setStatus("saving");
+    // The private note rides on every row of this submission (one row per changed field), so the
+    // editor sees it whichever suggestion they open. Omitted entirely when empty.
+    const privateNote = cleanContributorNote(note);
     const rows = filled.map((f) => ({
       word_id: wordId,
       word,
@@ -42,6 +47,7 @@ export function SuggestForm({
       submitter_name: submitterName.trim() || null,
       show_name: showName,
       status: "pending",
+      ...(privateNote ? { contributor_note: privateNote } : {}),
     }));
     try {
       const sb = createClient();
@@ -94,6 +100,9 @@ export function SuggestForm({
           onChange={(v) => set(f.name, v)}
         />
       ))}
+
+      {/* Private note to the editors (goes with the suggestions above) */}
+      <ContributorNoteField value={note} onChange={setNote} id="suggest-contributor-note" />
 
       {/* Attribution */}
       <div className="rounded-xl border border-line bg-paper p-5 shadow-soft">

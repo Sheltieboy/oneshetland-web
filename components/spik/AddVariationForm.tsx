@@ -4,10 +4,19 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { SPIK_COLOR } from "@/lib/spik-data";
+import {
+  SPIK_COLOR,
+  REGION_CONFIDENCE_OPTIONS,
+  cleanContributorNote,
+  type RegionConfidence,
+} from "@/lib/spik-data";
 import { AudioInput } from "@/components/spik/AudioInput";
+import { ContributorNoteField } from "@/components/spik/ContributorNoteField";
 
 type Region = { id: string; slug: string; name: string };
+
+/** The "I'm not sure" choice in the area list: the variation is sent with no area and a Spik editor chooses one. */
+const NOT_SURE = "not-sure";
 
 /**
  * AddVariationForm — a signed-in contributor records how a word is said and
@@ -15,6 +24,16 @@ type Region = { id: string; slug: string; name: string };
  * written pronunciation, an audio clip of them saying the word, and an example
  * sentence with its own clip. Audio uploads to the `spik-audio` bucket; the row
  * lands in spik_word_variations as 'pending' for a moderator to approve.
+ *
+ * Region: the variation still has ONE public region (the word page groups by it).
+ * Anything more the contributor knows — other areas they've heard it in, that
+ * it's a mix of influences, or that they're not sure — plus the free-text
+ * "Additional information" goes to spik_word_variation_notes, which only the
+ * Spik editors can read. It is never published.
+ *
+ * "I'm not sure": a contributor who can't honestly pick one area can choose that instead. The
+ * variation is sent with no area (region_id null) and stays pending until an editor chooses one
+ * from the existing list — the database refuses to approve a variation without an area.
  */
 export function AddVariationForm({
   wordId,
@@ -34,8 +53,13 @@ export function AddVariationForm({
   const [sentence, setSentence] = useState("");
   const [sentenceAudio, setSentenceAudio] = useState<Blob | null>(null);
   const [showName, setShowName] = useState(true);
+  // Private, editors-only detail (spik_word_variation_notes).
+  const [alsoRegionIds, setAlsoRegionIds] = useState<string[]>([]);
+  const [confidence, setConfidence] = useState<RegionConfidence>("this_area");
+  const [note, setNote] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [noteSaveFailed, setNoteSaveFailed] = useState(false);
 
   useEffect(() => {
     const sb = createClient();
@@ -70,11 +94,21 @@ export function AddVariationForm({
     return sb.storage.from("spik-audio").getPublicUrl(path).data.publicUrl;
   }
 
+  const unsure = regionId === NOT_SURE;
+
+  function chooseRegion(value: string) {
+    setError(null);
+    setRegionId(value);
+    setAlsoRegionIds((ids) => ids.filter((i) => i !== value));
+    if (value === NOT_SURE) setConfidence("not_sure");
+    else if (confidence === "not_sure" && regionId === NOT_SURE) setConfidence("this_area");
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!regionId) {
-      setError("Please choose which part of Shetland this variation is from.");
+      setError("Please choose the part of Shetland you most connect this with, or \u201cI\u2019m not sure\u201d.");
       return;
     }
     if (!spelling.trim() && !wordAudio) {
@@ -86,7 +120,10 @@ export function AddVariationForm({
       const sb = createClient();
       const { data: { user: u } } = await sb.auth.getUser();
       if (!u) throw new Error("not-signed-in");
-      const region = regions.find((r) => r.id === regionId);
+      const region = unsure ? undefined : regions.find((r) => r.id === regionId);
+      // Chosen here (not by the database) so the private note can be linked to this variation without
+      // reading the pending row back — contributors cannot read pending rows through the API.
+      const variationId = crypto.randomUUID();
 
       const [wordAudioUrl, sentenceAudioUrl] = await Promise.all([
         wordAudio ? upload(sb, u.id, "word", wordAudio) : Promise.resolve(null),
@@ -94,8 +131,9 @@ export function AddVariationForm({
       ]);
 
       const { error: insErr } = await sb.from("spik_word_variations").insert({
+        id: variationId,
         word_id: wordId,
-        region_id: regionId,
+        region_id: region?.id ?? null, // null = "I'm not sure": an editor chooses the area before approving
         region_name: region?.name ?? "",
         variant_spelling: spelling.trim() || null,
         pronunciation: pronunciation.trim() || null,
@@ -108,6 +146,24 @@ export function AddVariationForm({
         status: "pending",
       });
       if (insErr) throw insErr;
+
+      // Private detail for the editors — only when there is something to tell them.
+      const privateNote = cleanContributorNote(note);
+      const also = alsoRegionIds.filter((id) => id !== regionId);
+      const regionConfidence: RegionConfidence = unsure ? "not_sure" : confidence;
+      if (privateNote || also.length > 0 || regionConfidence !== "this_area") {
+        const { error: noteErr } = await sb.from("spik_word_variation_notes").insert({
+          variation_id: variationId,
+          contributor_id: u.id,
+          note: privateNote,
+          also_region_ids: also,
+          region_confidence: regionConfidence,
+        });
+        if (noteErr) {
+          // The variation itself is safely with the editors; only the extra detail failed.
+          setNoteSaveFailed(true);
+        }
+      }
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -152,8 +208,15 @@ export function AddVariationForm({
         <span className="mx-auto grid h-14 w-14 place-items-center rounded-full text-2xl text-paper" style={{ background: SPIK_COLOR }} aria-hidden>✓</span>
         <h2 className="mt-5 font-display text-2xl font-bold">Thank you!</h2>
         <p className="mx-auto mt-2 max-w-md text-ink-soft">
-          Your variation of &ldquo;{word}&rdquo; has been sent for review. Once it&apos;s approved it&apos;ll appear on this word&apos;s page under your region.
+          {unsure
+            ? <>Your variation of &ldquo;{word}&rdquo; has been sent for review. A Spik editor will decide which area it belongs under before it appears on this word&apos;s page.</>
+            : <>Your variation of &ldquo;{word}&rdquo; has been sent for review. Once it&apos;s approved it&apos;ll appear on this word&apos;s page under your region.</>}
         </p>
+        {noteSaveFailed && (
+          <p className="mx-auto mt-3 max-w-md text-sm font-semibold text-rose-600">
+            We couldn&apos;t save your additional information, but your variation was sent. If it matters, please add it as a suggestion on this word.
+          </p>
+        )}
         <Link href={`/spik/${wordId}`} className="mt-6 inline-block rounded-pill px-5 py-3 font-semibold text-paper" style={{ background: SPIK_COLOR }}>
           Back to the word
         </Link>
@@ -163,21 +226,79 @@ export function AddVariationForm({
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      {/* Region — required */}
+      {/* Region — one public region (required), plus private detail for the editors */}
       <div className="rounded-xl border-2 bg-paper p-5 shadow-soft" style={{ borderColor: SPIK_COLOR }}>
         <label className="font-display text-lg font-bold" htmlFor="region">
           Where in Shetland? <span style={{ color: SPIK_COLOR }}>*</span>
         </label>
-        <p className="mt-1 text-sm text-ink-muted">The part of Shetland this spelling / pronunciation is from.</p>
+        <p className="mt-1 text-sm text-ink-muted">
+          Choose the area you most connect this spelling or pronunciation with. If you can&apos;t pick one, choose &ldquo;I&apos;m not sure&rdquo; and a Spik editor will decide.
+        </p>
         {regions.length === 0 ? (
           <p className="mt-3 text-sm text-rose-600">No regions are set up yet — ask an admin to add them in Control Centre.</p>
         ) : (
-          <select id="region" value={regionId} onChange={(e) => setRegionId(e.target.value)} className={inputCls + " mt-3"}>
+          <select id="region" value={regionId} onChange={(e) => chooseRegion(e.target.value)} className={inputCls + " mt-3"}>
             <option value="">Choose a region…</option>
             {regions.map((r) => (
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
+            <option value={NOT_SURE}>I&apos;m not sure — let the Spik editors decide</option>
           </select>
+        )}
+
+        {regions.length > 0 && (
+          <>
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-ink">
+                {unsure ? "Any areas you\u2019ve heard it in?" : "Heard in other areas too?"} <span className="text-xs font-normal text-ink-faint">· optional</span>
+              </legend>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {regions.filter((r) => r.id !== regionId).map((r) => {
+                  const on = alsoRegionIds.includes(r.id);
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setAlsoRegionIds((ids) => (on ? ids.filter((i) => i !== r.id) : [...ids, r.id]))}
+                      className={"rounded-pill border px-3 py-1.5 text-sm font-semibold transition " + (on ? "text-paper" : "border-line bg-cream/40 text-ink-soft hover:border-spik")}
+                      style={on ? { background: SPIK_COLOR, borderColor: SPIK_COLOR } : undefined}
+                    >
+                      {r.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            {!unsure && (
+            <fieldset className="mt-5">
+              <legend className="text-sm font-semibold text-ink">How would you describe where it comes from?</legend>
+              <div className="mt-2 space-y-2">
+                {REGION_CONFIDENCE_OPTIONS.map((o) => (
+                  <label key={o.value} className="flex cursor-pointer items-center gap-3 text-sm text-ink-soft">
+                    <input
+                      type="radio"
+                      name="region-confidence"
+                      value={o.value}
+                      checked={confidence === o.value}
+                      onChange={() => setConfidence(o.value)}
+                      className="h-4 w-4 accent-spik"
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            )}
+
+            <p className="mt-4 text-xs leading-relaxed text-ink-muted">
+              {unsure
+                ? <>Your variation won&apos;t appear on the word&apos;s page until a Spik editor has chosen an area for it. Any areas you pick here are only seen by the editors.</>
+                : <>Only the area chosen above appears on the word&apos;s page. The other areas and your answer here are only seen by the Spik editors.</>}{" "}
+              Places that aren&apos;t on the list can go in &ldquo;Additional information&rdquo; below.
+            </p>
+          </>
         )}
       </div>
 
@@ -211,6 +332,9 @@ export function AddVariationForm({
         value={sentenceAudio}
         onChange={setSentenceAudio}
       />
+
+      {/* Private note to the editors */}
+      <ContributorNoteField value={note} onChange={setNote} id="variation-contributor-note" />
 
       {/* Attribution */}
       <div className="rounded-xl border border-line bg-paper p-5 shadow-soft">

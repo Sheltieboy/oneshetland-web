@@ -4,12 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/admin/AdminUI";
+import { SpikPrivateNote } from "@/components/admin/SpikPrivateNote";
 
 type Row = {
   id: string; word: string; alternate_spelling: string | null; pronunciation: string | null;
   short_meaning: string | null; spik_meaning: string | null; example_sentence: string | null;
   part_of_speech: string | null; category: string | null; usage_level: string | null;
   era: string | null; tone: string | null; origin: string | null; notes: string | null;
+  contributor_note?: string | null;
   submitter_name: string | null; show_name: boolean | null; status: string;
   published_word_id: number | null; created_at: string;
 };
@@ -17,7 +19,7 @@ type Row = {
 const FIELDS: [keyof Row, string][] = [
   ["short_meaning", "Meaning"], ["spik_meaning", "Full meaning"], ["example_sentence", "Example"],
   ["pronunciation", "Pronunciation"], ["alternate_spelling", "Alt spelling"], ["part_of_speech", "Part of speech"],
-  ["category", "Category"], ["usage_level", "Usage"], ["era", "Era"], ["tone", "Tone"], ["origin", "Origin"], ["notes", "Notes"],
+  ["category", "Category"], ["usage_level", "Usage"], ["era", "Era"], ["tone", "Tone"], ["origin", "Origin"], ["notes", "Notes (published)"],
 ];
 
 export function SpikWordSubmissions({ rows }: { rows: Row[] }) {
@@ -67,6 +69,7 @@ export function SpikWordSubmissions({ rows }: { rows: Row[] }) {
               </div>
             ))}
           </dl>
+          <SpikPrivateNote note={r.contributor_note} />
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             {r.status === "pending" && (
