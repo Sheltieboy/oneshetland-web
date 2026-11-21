@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getProduct, gbp } from "@/lib/shop-data";
 import { AddToBasket } from "@/components/shop/AddToBasket";
-import { SafeImage } from "@/components/ui/SafeImage";
+import { ProductGallery } from "@/components/shop/ProductGallery";
+import { galleryFrom } from "@/lib/product-media";
 
 export const dynamic = "force-dynamic";
 
@@ -41,22 +42,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
         </Link>
       )}
       <div className="mt-4 grid gap-8 md:grid-cols-2">
-        {/* Photos */}
+        {/* The gallery — photographs and videos together, in the seller's order. With no videos and
+            no stored order this is exactly the list of photographs it has always been. */}
         <div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          {product.photos[0] ? (
-            <SafeImage src={product.photos[0]} className="aspect-square w-full rounded-card border border-line object-cover" fallback={<span />} />
-          ) : (
-            <div className="grid aspect-square w-full place-items-center rounded-card border border-line bg-cream text-5xl">🛍️</div>
-          )}
-          {product.photos.length > 1 && (
-            <div className="mt-2 flex gap-2 overflow-x-auto">
-              {product.photos.slice(1).map((p) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <SafeImage key={p} src={p} className="h-20 w-20 shrink-0 rounded-xl border border-line object-cover" fallback={<span />} />
-              ))}
-            </div>
-          )}
+          <ProductGallery items={galleryFrom(product.media, product.photos)} title={product.title} />
         </div>
 
         {/* Details */}

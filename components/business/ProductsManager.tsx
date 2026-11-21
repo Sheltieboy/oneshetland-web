@@ -22,28 +22,17 @@ import {
 
 const SHOP = "#4f46e5";
 
+import {
+  galleryFrom, mediaFromGallery, moveItem, photosFromGallery, rejectUpload,
+  MEDIA_LIMITS, durationLabel, type GalleryItem,
+} from "@/lib/product-media";
+import { uploadProductImage, uploadProductVideo } from "@/lib/product-video-upload";
+
 const pounds = (pence: number | null | undefined) => (pence == null ? "" : (pence / 100).toFixed(2));
 const toPence = (s: string): number | null => {
   const n = Number(String(s).replace(/[£\s]/g, ""));
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
 };
-
-async function uploadProductPhoto(businessId: string, file: File): Promise<string> {
-  const sb = createClient();
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) throw new Error("Not signed in");
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
-  const path = `${businessId}/products/${crypto.randomUUID()}.${ext}`;
-  const form = new FormData();
-  form.append("file", file);
-  const res = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/business-media/${path}`, {
-    method: "POST",
-    headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${session.access_token}`, "x-upsert": "true" },
-    body: form,
-  });
-  if (!res.ok) throw new Error(`Photo upload failed (${res.status})`);
-  return sb.storage.from("business-media").getPublicUrl(path).data.publicUrl;
-}
 
 type VariantRow = { id?: string; name: string; delta: string; stock: string };
 
@@ -53,7 +42,8 @@ type FormState = {
   description: string;
   category: string;
   price: string;
-  photos: string[];
+  /** Photographs AND videos, in the seller's order. photos/media are derived from it on save. */
+  gallery: GalleryItem[];
   stock_mode: StockMode;
   stock: string;
   lead_time_days: string;
@@ -63,7 +53,7 @@ type FormState = {
 };
 
 const EMPTY: FormState = {
-  title: "", description: "", category: "other", price: "", photos: [],
+  title: "", description: "", category: "other", price: "", gallery: [],
   stock_mode: "tracked", stock: "", lead_time_days: "14",
   collect_only: false, free_uk_post: false, variants: [],
 };
@@ -110,7 +100,7 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
   function editProduct(p: Product) {
     openForm({
       id: p.id, title: p.title, description: p.description ?? "", category: p.category ?? "other",
-      price: pounds(p.price_pence), photos: p.photos ?? [],
+      price: pounds(p.price_pence), gallery: galleryFrom((p as { media?: unknown }).media, p.photos ?? []),
       stock_mode: p.stock_mode, stock: p.stock == null ? "" : String(p.stock),
       lead_time_days: p.lead_time_days == null ? "14" : String(p.lead_time_days),
       collect_only: p.collect_only, free_uk_post: p.free_uk_post,
@@ -141,25 +131,51 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
     } finally { setBotBusy(false); }
   }
 
-  async function addPhotos(files: FileList | null) {
+  /**
+   * Add photographs or videos. One handler for both, because the gallery is one list — and because
+   * the limits differ per kind, each file is judged against the gallery AS IT STANDS, so adding
+   * three files cannot sneak past a limit the first two already reached.
+   */
+  async function addMedia(files: FileList | null) {
     if (!files?.length || !form) return;
     setBusy(true); setMsg(null);
+    let gallery = form.gallery;
+    let refused: string | null = null;
     try {
-      const urls: string[] = [];
-      for (const f of Array.from(files).slice(0, 5 - form.photos.length)) {
-        urls.push(await uploadProductPhoto(businessId, f));
+      for (const f of Array.from(files)) {
+        const no = rejectUpload(f, gallery);
+        if (no) { refused = no; continue; }
+        if (f.type === "video/mp4") {
+          setMsg("Reading the video and taking a thumbnail…");
+          const v = await uploadProductVideo(businessId, f);
+          gallery = [...gallery, { kind: "video", url: v.url, still: v.poster, duration: v.duration }];
+        } else {
+          const url = await uploadProductImage(businessId, f);
+          gallery = [...gallery, { kind: "image", url, still: url }];
+        }
+        set({ gallery });
       }
-      set({ photos: [...form.photos, ...urls] });
-    } catch (e) { setMsg(e instanceof Error ? e.message : "Upload failed"); }
-    finally { setBusy(false); }
+      setMsg(refused);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Upload failed");
+    } finally { setBusy(false); }
   }
+
+  const replaceItem = (i: number, files: FileList | null) => {
+    if (!form || !files?.length) return;
+    // Replace is remove-then-add, so every limit and every check applies exactly as it would anyway.
+    set({ gallery: form.gallery.filter((_, j) => j !== i) });
+    void addMedia(files);
+  };
 
   async function save() {
     if (!form) return;
     const price = toPence(form.price);
     if (!form.title.trim()) return setMsg("Give it a title");
     if (!price || price < 50) return setMsg("Price needs to be at least £0.50");
-    if (form.photos.length === 0) return setMsg("Add at least one photo — listings without photos don't sell");
+    // A gallery of only videos is fine: photosFromGallery falls back to their posters, so the
+    // product still has a thumbnail in the shop lists and the app. An EMPTY gallery is not.
+    if (form.gallery.length === 0) return setMsg("Add at least one photograph or video — listings without either don't sell");
 
     // Going live for the first time also needs a working payout route. A
     // product that was already active is left alone by this check — saving
@@ -179,7 +195,10 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
         description: form.description.trim() || null,
         category: form.category || null,
         price_pence: price,
-        photos: form.photos,
+        // photos stays the authoritative list of still images, for the 46 places that read it and
+        // for the mobile app. media carries the order and the videos. See lib/product-media.ts.
+        photos: photosFromGallery(form.gallery),
+        media: mediaFromGallery(form.gallery),
         stock_mode: form.stock_mode,
         stock: form.stock_mode === "tracked" && form.stock !== "" ? Math.max(0, Math.floor(Number(form.stock))) : null,
         lead_time_days: form.stock_mode === "made_to_order" ? Math.min(90, Math.max(1, Math.floor(Number(form.lead_time_days) || 14))) : null,
@@ -305,25 +324,64 @@ export function ProductsManager({ businessId, products: initial, variantsByProdu
               </select>
             </div>
 
-            {/* Photos */}
+            {/* The gallery — photographs and videos in one ordered list */}
             <div>
               <div className="flex flex-wrap gap-2">
-                {form.photos.map((url, i) => (
-                  <span key={url} className="relative">
+                {form.gallery.map((item, i) => (
+                  <span key={`${item.kind}:${item.url}`} className="relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={url} alt="" className="h-20 w-20 rounded-xl border border-line object-cover" />
-                    <button onClick={() => set({ photos: form.photos.filter((_, j) => j !== i) })}
-                      aria-label="Remove photo"
+                    <img src={item.still} alt="" className="h-20 w-20 rounded-xl border border-line object-cover" />
+
+                    {/* A video is obvious at a glance: a play badge, a VIDEO label and its length. */}
+                    {item.kind === "video" && (
+                      <>
+                        <span aria-hidden="true" className="pointer-events-none absolute inset-0 grid place-items-center rounded-xl bg-ink/35">
+                          <span className="grid h-7 w-7 place-items-center rounded-full bg-white/90 pl-0.5 text-[11px] text-ink">▶</span>
+                        </span>
+                        <span className="pointer-events-none absolute left-0.5 top-0.5 rounded bg-ink/80 px-1 text-[9px] font-bold uppercase tracking-wide text-white">
+                          Video{durationLabel(item.duration) ? ` ${durationLabel(item.duration)}` : ""}
+                        </span>
+                      </>
+                    )}
+                    {i === 0 && (
+                      <span className="pointer-events-none absolute bottom-0.5 left-0.5 rounded bg-teal px-1 text-[9px] font-bold uppercase tracking-wide text-white">
+                        Main
+                      </span>
+                    )}
+
+                    <button type="button" onClick={() => set({ gallery: form.gallery.filter((_, j) => j !== i) })}
+                      aria-label={item.kind === "video" ? "Remove this video" : "Remove this photograph"}
                       className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-rose-600 text-xs font-bold text-white">×</button>
+
+                    {/* Reorder, which the old photo editor had no way of doing at all. */}
+                    <span className="absolute -bottom-2 left-1/2 flex -translate-x-1/2 gap-0.5">
+                      <button type="button" disabled={i === 0} onClick={() => set({ gallery: moveItem(form.gallery, i, i - 1) })}
+                        aria-label={item.kind === "video" ? "Move this video earlier" : "Move this photograph earlier"}
+                        className="grid h-5 w-5 place-items-center rounded-full border border-line bg-white text-[10px] font-bold text-ink shadow-soft disabled:opacity-30">‹</button>
+                      <label aria-label={item.kind === "video" ? "Replace this video" : "Replace this photograph"}
+                        className="grid h-5 w-5 cursor-pointer place-items-center rounded-full border border-line bg-white text-[9px] font-bold text-ink shadow-soft" title="Replace">
+                        ⟳<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" className="hidden"
+                          onChange={(e) => { replaceItem(i, e.target.files); e.currentTarget.value = ""; }} />
+                      </label>
+                      <button type="button" disabled={i === form.gallery.length - 1} onClick={() => set({ gallery: moveItem(form.gallery, i, i + 1) })}
+                        aria-label={item.kind === "video" ? "Move this video later" : "Move this photograph later"}
+                        className="grid h-5 w-5 place-items-center rounded-full border border-line bg-white text-[10px] font-bold text-ink shadow-soft disabled:opacity-30">›</button>
+                    </span>
                   </span>
                 ))}
-                {form.photos.length < 5 && (
+
+                {form.gallery.length < MEDIA_LIMITS.maxItems && (
                   <label className="grid h-20 w-20 cursor-pointer place-items-center rounded-xl border-2 border-dashed border-line text-2xl text-ink-faint hover:border-teal">
-                    ＋<input type="file" accept="image/*" multiple className="hidden" onChange={(e) => addPhotos(e.target.files)} />
+                    ＋<input type="file" accept="image/jpeg,image/png,image/webp,video/mp4" multiple className="hidden"
+                      onChange={(e) => { void addMedia(e.target.files); e.currentTarget.value = ""; }} />
                   </label>
                 )}
               </div>
-              <p className="mt-1 text-xs text-ink-muted">Up to 5 photos. The first is the main one.</p>
+              <p className="mt-3 text-xs text-ink-muted">
+                Photographs and videos together — the first is the main one, and the arrows reorder them.
+                Up to {MEDIA_LIMITS.maxImages} photographs (JPEG, PNG or WebP) and {MEDIA_LIMITS.maxVideos} videos
+                (MP4, up to 50&nbsp;MB each). A thumbnail is taken from the video for you.
+              </p>
             </div>
 
             {/* Stock mode */}

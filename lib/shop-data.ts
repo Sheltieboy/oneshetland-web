@@ -16,6 +16,12 @@ export type Product = {
   price_pence: number;
   compare_at_pence: number | null;
   photos: string[];
+  /**
+   * The ordered gallery — images and videos together. `[]` for every product that has only
+   * photographs, which is the default. Combine it with `photos` through galleryFrom() in
+   * lib/product-media.ts; never read one without the other.
+   */
+  media?: unknown;
   stock_mode: StockMode;
   stock: number | null;
   reserved: number;
