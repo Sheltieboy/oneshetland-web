@@ -10,7 +10,15 @@ import { launchPreviewOptions } from "@/lib/launch-preview/registry";
 import { AddOnBehalf } from "@/components/admin/assisted/AddOnBehalf";
 import { AssistedRecords } from "@/components/admin/assisted/AssistedRecords";
 import { listAssisted } from "@/lib/assisted/client";
-import { createAssistedBusinessAction, forgetAssistedContactAction, editAssistedAction } from "@/app/admin/assisted/actions";
+import { listInvites, waitingClaims } from "@/lib/assisted/invites.server";
+import { ClaimsWaiting } from "@/components/admin/assisted/ClaimsWaiting";
+import {
+  createAssistedBusinessAction, forgetAssistedContactAction, editAssistedAction,
+  issueAssistedInviteAction, markAssistedInviteSentAction, revokeAssistedInviteAction,
+  assistedInviteAuditAction, decideAssistedClaimAction, assistedSupportStateAction,
+  sendAssistedInviteEmailAction, liftAssistedContactPreferenceAction,
+  recordAssistedSupportAction, endAssistedSupportAction, assistedSupportLogAction,
+} from "@/app/admin/assisted/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +30,8 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
   const filter = (status === "approved" || status === "all" ? status : "pending") as "pending" | "approved" | "all";
   const rows = launch || invites || assisted ? [] : await getBusinessClaims(filter);
   const assistedRows = assisted ? await listAssisted("business") : [];
+  const assistedInvites = assisted ? await listInvites("business") : [];
+  const assistedClaims = assisted ? (await waitingClaims()).filter((c) => c.claim_kind === "business") : [];
   // Admin-only RPC (it refuses everyone else); the page already sits behind requireAdmin.
   const grants = launch ? (((await (await createClient()).rpc("admin_list_launch_plans")).data ?? []) as GrantListRow[]) : [];
   const picked = launch && business ? (((await (await createClient()).rpc("admin_launch_business_lookup", { p_query: business })).data ?? []) as LaunchLookupRow[])[0] ?? null : null;
@@ -38,7 +48,27 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       {assisted ? (
         <div className="space-y-5">
           <AddOnBehalf kind="business" submit={createAssistedBusinessAction} />
-          <AssistedRecords rows={assistedRows} kind="business" forget={forgetAssistedContactAction} edit={editAssistedAction} />
+          {assistedClaims.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-display text-lg font-bold text-ink">Waiting for your decision</h3>
+              <ClaimsWaiting claims={assistedClaims} decide={decideAssistedClaimAction} />
+            </div>
+          )}
+          <AssistedRecords
+            rows={assistedRows} kind="business"
+            forget={forgetAssistedContactAction} edit={editAssistedAction}
+            invites={assistedInvites}
+            issue={issueAssistedInviteAction}
+            markSent={markAssistedInviteSentAction}
+            revoke={revokeAssistedInviteAction}
+            audit={assistedInviteAuditAction}
+            sendEmail={sendAssistedInviteEmailAction}
+            liftContactPreference={liftAssistedContactPreferenceAction}
+            supportState={assistedSupportStateAction}
+            recordSupport={recordAssistedSupportAction}
+            endSupport={endAssistedSupportAction}
+            supportLog={assistedSupportLogAction}
+          />
         </div>
       ) : invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : <ClaimsManager key={filter} rows={rows as never[]} />}
     </>

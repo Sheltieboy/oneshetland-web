@@ -3,6 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { getHub, hubAccent } from "@/lib/hubs-data";
 import { getHubMembers, isHubAdmin } from "@/lib/hubs-server";
 import { getHubEditionsEntry } from "@/lib/editions/data.server";
+import { OwnerHelpToggle } from "@/components/assisted/OwnerHelpToggle";
+import { ownerSupportStateAction, ownerGrantSupportAction, ownerEndSupportAction } from "@/app/assisted-help/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -105,6 +107,16 @@ export default async function ManageHubPage({ params }: { params: Promise<{ id: 
             </div>
           </div>
         ))}
+        {/* Help from OneShetland. Only the OWNER may lend this permission, so only the owner is
+            offered it; the database refuses anybody else, including a committee member. */}
+        {admin.role === "owner" && (
+          <OwnerHelpToggle
+            kind="hub" id={hub.id}
+            readState={ownerSupportStateAction}
+            grant={ownerGrantSupportAction}
+            end={ownerEndSupportAction}
+          />
+        )}
       </div>
     </>
   );

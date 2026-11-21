@@ -132,7 +132,14 @@ export function deriveWorkflow({ row, claimMode, email, lastGrant = null, owner 
   if (archived) return { status, statusLabel: STATUS_LABEL[status], statusTone: STATUS_TONE[status], steps, current: null, headline: "Archived — nothing to do" };
 
   // ── attention: something that was fine, or is needed, is not (these outrank the ordinary next step) ──
-  if (outreachStopped) mark("send", "attention", `Launch Partner outreach to this business has been stopped${row.outreach!.scope === "address" ? " (this contact address asked not to be contacted)" : ""}. Nothing can be sent — open Email to see why.`);
+  if (outreachStopped) {
+    // Three rules can stop a send, and the one that matters most to read correctly is the third:
+    // the person declined an Assisted Publishing invitation, so this is not about the business at all.
+    const why = row.outreach!.scope === "address" ? " (this contact address asked not to be contacted)"
+      : row.outreach!.scope === "assisted_decline" ? " (this contact declined a OneShetland invitation, so we do not write to them)"
+      : "";
+    mark("send", "attention", `Launch Partner outreach to this business has been stopped${why}. Nothing can be sent — open Email to see why.`);
+  }
   if (inviteGone) mark("generate_invite", "attention", `The invitation ${row.invite.status === "expired" ? "has expired" : "was revoked"} — generate a fresh one.`);
   if (sent && usable && claimMode === "holding" && !afterClaim) mark("open_claiming", "attention", "Claiming is closed, so the recipient cannot claim yet.");
   if (claimOther) mark("approve_claim", "attention", `The claim is ${claim!.status}.`);

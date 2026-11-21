@@ -15,10 +15,28 @@ export type PipelineStatus =
 
 /**
  * Launch Partner outreach has been stopped for this business (or for its contact address). ADMIN-ONLY: it carries the internal note, which
- * is never shown to the recipient or the owner. `scope` says which rule matched: the business itself, or only the contact address (the same
- * person asked not to be contacted about another business).
+ * is never shown to the recipient or the owner. `scope` says which rule matched:
+ *
+ *   "business"         — the business itself. The only one liftable from that business's own screen.
+ *   "address"          — only the contact address (the same person asked not to be contacted about another business).
+ *   "assisted_decline" — the same person DECLINED an Assisted Publishing invitation. It is about the PERSON and not about
+ *                        any one business, so `business_id` is null and `contact_email` carries the address instead, which
+ *                        is what the lift needs. One do-not-contact posture across both programmes.
+ *
+ * `business_id` is therefore null for "assisted_decline" and set for the other two.
  */
-export interface OutreachBlock { id: string; scope: "business" | "address"; reason: "requested" | "bounced" | "complaint" | "incorrect_contact" | "admin"; note: string | null; since: string; by: string | null; business_id: string; address_recorded: boolean }
+export interface OutreachBlock {
+  id: string;
+  scope: "business" | "address" | "assisted_decline";
+  reason: "requested" | "bounced" | "complaint" | "incorrect_contact" | "admin";
+  note: string | null;
+  since: string;
+  by: string | null;
+  business_id: string | null;
+  address_recorded: boolean;
+  /** Only for "assisted_decline": the address that asked us to stop, so the lift can be offered in place. */
+  contact_email?: string | null;
+}
 
 /** The facts the status is derived from — the shape of one row from admin_launch_partner_list. */
 export interface PipelineRow {

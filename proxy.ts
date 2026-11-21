@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { inviteHandoff } from "./lib/launch-preview/invite.ts";
 import { eventSubmissionsSignInRedirect } from "./lib/event-submissions-return.ts";
 import { previewHandoff } from "./lib/editions/preview-link.ts";
+import { claimHandoff } from "./lib/assisted/invites.ts";
 
 /**
  * Next 16 "proxy" (formerly middleware): keeps the Supabase auth session fresh
@@ -16,8 +17,11 @@ export async function proxy(request: NextRequest) {
   // Exactly the same handoff as the Launch Partner invitation above it: the token leaves the address
   // before it can reach the address bar, history, a Referer header or analytics, and lives in an
   // HttpOnly cookie scoped to that one Edition. Validity is decided later, by the database.
+  // Assisted-publishing invitation: /claim/{slug}?invite=<token>. The SAME handoff again, for the
+  // optional invitation to take over a listing or Hub OneShetland made on an organisation's behalf.
   const handoff = inviteHandoff(request.nextUrl.pathname, request.nextUrl.searchParams)
-    ?? previewHandoff(request.nextUrl.pathname, request.nextUrl.searchParams);
+    ?? previewHandoff(request.nextUrl.pathname, request.nextUrl.searchParams)
+    ?? claimHandoff(request.nextUrl.pathname, request.nextUrl.searchParams);
   if (handoff) {
     const clean = request.nextUrl.clone();
     clean.pathname = handoff.location;
