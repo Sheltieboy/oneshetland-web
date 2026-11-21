@@ -67,6 +67,33 @@ export async function createHub(input: HubInput): Promise<CreateResult> {
   } catch (e) { return { created: false, reason: "error", message: message(e) }; }
 }
 
+export type EditBusiness = { name?: string; category?: string; address?: string; description?: string | null; phone?: string | null; email?: string | null; website?: string | null; publish?: boolean };
+export type EditHub = { name?: string; type?: string; description?: string | null; area?: string | null; contactEmail?: string | null; contactPhone?: string | null; website?: string | null; publish?: boolean };
+
+/** Correct an UNCLAIMED listing. The database refuses the moment it is claimed — then the owner is in charge. */
+export async function updateBusiness(id: string, e: EditBusiness): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { error } = await (await createClient()).rpc("admin_assisted_update_business", {
+      p_id: id, p_name: e.name ?? null, p_category: e.category ?? null, p_address: e.address ?? null,
+      p_description: e.description ?? null, p_phone: e.phone ?? null, p_email: e.email ?? null,
+      p_website: e.website ?? null, p_publish: e.publish ?? null,
+    });
+    return error ? { ok: false, error: message(error.message) } : { ok: true };
+  } catch (err) { return { ok: false, error: message(err) }; }
+}
+
+/** Correct an UNCLAIMED Hub. Same rule: refused once somebody owns it. */
+export async function updateHub(id: string, e: EditHub): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const { error } = await (await createClient()).rpc("admin_assisted_update_hub", {
+      p_id: id, p_name: e.name ?? null, p_type: e.type ?? null, p_description: e.description ?? null,
+      p_area: e.area ?? null, p_contact_email: e.contactEmail ?? null, p_contact_phone: e.contactPhone ?? null,
+      p_website: e.website ?? null, p_publish: e.publish ?? null,
+    });
+    return error ? { ok: false, error: message(error.message) } : { ok: true };
+  } catch (err) { return { ok: false, error: message(err) }; }
+}
+
 /** What OneShetland has created on request. Returns [] rather than throwing if the function is absent. */
 export async function listAssisted(kind?: AssistedKind, limit = 100): Promise<AssistedRow[]> {
   try {

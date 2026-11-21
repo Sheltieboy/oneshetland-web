@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AddOnBehalf } from "@/components/admin/assisted/AddOnBehalf";
 import { AssistedRecords } from "@/components/admin/assisted/AssistedRecords";
 import { listAssisted } from "@/lib/assisted/client";
-import { createAssistedHubAction, forgetAssistedContactAction } from "@/app/admin/assisted/actions";
+import { createAssistedHubAction, forgetAssistedContactAction, editAssistedAction } from "@/app/admin/assisted/actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Hubs · Admin" };
@@ -28,7 +28,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
       <AdminHeader title="Hubs" sub="Add a Hub for an organisation that asked us to, and set the two switches on each active Hub." />
       <section className="mb-6 space-y-5" aria-label="Added on behalf of others">
         <AddOnBehalf kind="hub" submit={createAssistedHubAction} />
-        {assistedRows.length > 0 && <AssistedRecords rows={assistedRows} kind="hub" forget={forgetAssistedContactAction} />}
+        {assistedRows.length > 0 && <AssistedRecords rows={assistedRows} kind="hub" forget={forgetAssistedContactAction} edit={editAssistedAction} />}
       </section>
       <h2 className="mb-3 text-lg font-bold text-ink">Hub settings</h2>
       <form role="search" className="mb-5 flex flex-wrap gap-2" action="/admin/hubs" method="get">

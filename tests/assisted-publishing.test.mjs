@@ -138,6 +138,48 @@ describe("the duplicate step cannot be skipped by accident", () => {
   });
 });
 
+describe("an unclaimed Hub does not pretend an organisation is behind it", () => {
+  const HUBPAGE = read("app/hubs/[id]/page.tsx");
+  test("the join / membership panel is shown only once the Hub is claimed", () => {
+    assert.match(HUBPAGE, /\{!hub\.is_claimed \?/, "the Hub page no longer branches on is_claimed");
+    const gate = HUBPAGE.indexOf("!hub.is_claimed ?");
+    const panel = HUBPAGE.indexOf("<HubMembershipPanel");
+    assert.ok(gate > -1 && panel > gate, "HubMembershipPanel is not inside the claimed branch");
+  });
+  test("an unclaimed Hub says plainly who maintains it, and claims no verification", () => {
+    assert.match(HUBPAGE, /Maintained by OneShetland/);
+    assert.match(HUBPAGE, /Nobody from the organisation manages it yet/);
+    // The verified tick must still depend only on is_verified, which the database forces false while unclaimed.
+    assert.match(HUBPAGE, /hub\.is_verified && <span/);
+  });
+  test("is_claimed is actually read from the database, or the gate would be undefined", () => {
+    const DATA = read("lib/hubs-data.ts");
+    assert.match(DATA, /is_claimed: boolean;/, "the Hub type has no is_claimed");
+    assert.match(DATA, /is_verified, is_claimed, memberships_enabled/, "is_claimed is not in the public column list");
+  });
+});
+
+describe("an administrator can maintain an unclaimed record, and only an unclaimed one", () => {
+  test("the edit form is offered for unclaimed records and withheld once claimed", () => {
+    assert.match(RECORDS, /!r\.is_claimed && editing !== r\.subject_id/, "the Edit button is not gated on is_claimed");
+    assert.match(RECORDS, /Claimed — only its owner can edit it now/, "a claimed record does not say why it cannot be edited");
+  });
+  test("blank means keep, and the screen says so — it matches what the database does", () => {
+    assert.match(RECORDS, /Leave a field blank to keep what is already there/);
+    assert.ok(!/blank to clear/i.test(RECORDS), "the screen promises clearing, which the function does not do");
+    assert.match(MIGRATION, /case when p_description is null then description else/, "NULL no longer means leave-alone in the database");
+  });
+  test("the edit action cannot touch the owner, the claim or entitlement", () => {
+    for (const forbidden of ["owner_id", "is_claimed", "subscription_tier", "is_verified", "payout_enabled"]) {
+      assert.ok(!ACTIONS.includes(forbidden), `${forbidden} appears in the assisted actions`);
+    }
+  });
+  test("and the database refuses an administrator the moment it is claimed", () => {
+    assert.match(MIGRATION, /That listing has been claimed by its owner, so only they can edit it\./);
+    assert.match(MIGRATION, /That Hub has been claimed by its owner, so only they can edit it\./);
+  });
+});
+
 describe("the migration keeps the promises this screen makes", () => {
   test("it creates content with no owner", () => {
     assert.match(MIGRATION, /null, null, false, false, coalesce\(p_publish, true\), 'free', 'assisted'/, "the business insert no longer writes a NULL owner");
@@ -149,6 +191,12 @@ describe("the migration keeps the promises this screen makes", () => {
       assert.ok(MIGRATION.includes(col), `${col} is not covered by the unclaimed-Hub guard`);
     }
   });
+  test("hubs.is_claimed is derived, public and not client-writable", () => {
+    assert.match(MIGRATION, /new\.is_claimed := new\.owner_id is not null;/, "is_claimed is no longer derived from owner_id");
+    assert.match(MIGRATION, /grant select \(is_claimed\) on public\.hubs to anon, authenticated;/, "is_claimed is not public");
+    assert.ok(!/grant update \(is_claimed\)/.test(MIGRATION), "is_claimed was made client-writable");
+  });
+
   test("the request details table has RLS on and no policy", () => {
     assert.match(MIGRATION, /alter table public\.assisted_publications enable row level security/);
     assert.match(MIGRATION, /revoke all on public\.assisted_publications from anon, authenticated/);

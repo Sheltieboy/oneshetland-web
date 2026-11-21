@@ -10,7 +10,7 @@ import { launchPreviewOptions } from "@/lib/launch-preview/registry";
 import { AddOnBehalf } from "@/components/admin/assisted/AddOnBehalf";
 import { AssistedRecords } from "@/components/admin/assisted/AssistedRecords";
 import { listAssisted } from "@/lib/assisted/client";
-import { createAssistedBusinessAction, forgetAssistedContactAction } from "@/app/admin/assisted/actions";
+import { createAssistedBusinessAction, forgetAssistedContactAction, editAssistedAction } from "@/app/admin/assisted/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ s
       {assisted ? (
         <div className="space-y-5">
           <AddOnBehalf kind="business" submit={createAssistedBusinessAction} />
-          <AssistedRecords rows={assistedRows} kind="business" forget={forgetAssistedContactAction} />
+          <AssistedRecords rows={assistedRows} kind="business" forget={forgetAssistedContactAction} edit={editAssistedAction} />
         </div>
       ) : invites ? <LaunchInvites rows={inviteRows} previews={launchPreviewOptions()} /> : launch ? <LaunchPartnerAccess grants={grants} initial={picked} initialTier={tier === "premium" ? "premium" : undefined} /> : <ClaimsManager key={filter} rows={rows as never[]} />}
     </>

@@ -216,7 +216,22 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
 
         {/* Sidebar */}
         <aside className="space-y-6">
-          {/* Membership / join */}
+          {/* Membership / join — only once an organisation has claimed the Hub. An unclaimed Hub has no
+              owner and no committee, so there is nobody to approve a request or answer a member, and
+              offering to join would imply the organisation is here when it is not. */}
+          {!hub.is_claimed ? (
+            <section className="rounded-2xl border border-line-strong bg-sand/50 p-5" aria-label="About this page">
+              <h2 className="text-base font-bold text-ink">Maintained by OneShetland</h2>
+              <p className="mt-2 text-sm text-ink-soft">
+                We added this page so people can find {hub.name}. Nobody from the organisation manages it yet, so
+                there is nothing to join here and the details may be incomplete.
+              </p>
+              <p className="mt-2 text-sm text-ink-soft">
+                If you help run {hub.name} and would like to look after this page,{" "}
+                <a className="font-bold text-navy underline" href="/support">get in touch</a>.
+              </p>
+            </section>
+          ) : (
           <HubMembershipPanel
             hubId={hub.id}
             hubName={hub.name}
@@ -228,6 +243,7 @@ export default async function HubPage({ params }: { params: Promise<{ id: string
             signInHref={`/sign-in?next=/hubs/${hub.slug || hub.id}`}
             hasSavedCard={hasSavedCard}
           />
+          )}
 
           {/* Member directory — slide-over */}
           {hub.directory_enabled && isMember && (

@@ -7,12 +7,13 @@
  * owner) rather than from anything this feature stores, so it cannot drift out of step with reality.
  */
 import { useState } from "react";
-import { assistedState, publicPath, type AssistedKind, type AssistedRow } from "@/lib/assisted/shape";
+import { assistedState, BUSINESS_CATEGORIES, HUB_TYPES, publicPath, type AssistedKind, type AssistedRow } from "@/lib/assisted/shape";
 
 type Props = {
   rows: AssistedRow[];
   kind: AssistedKind;
   forget: (input: { kind: AssistedKind; id: string }) => Promise<{ ok: true } | { ok: false; error: string }>;
+  edit: (form: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 };
 
 const when = (iso: string) => {
@@ -20,9 +21,10 @@ const when = (iso: string) => {
   catch { return iso.slice(0, 10); }
 };
 
-export function AssistedRecords({ rows, kind, forget }: Props) {
+export function AssistedRecords({ rows, kind, forget, edit }: Props) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
   const noun = kind === "hub" ? "Hubs" : "listings";
 
   if (!rows.length) {
@@ -63,6 +65,82 @@ export function AssistedRecords({ rows, kind, forget }: Props) {
                 </div>
                 {r.request_note && <div className="sm:col-span-2"><dt className="inline font-semibold text-ink">Note </dt><dd className="inline text-ink-soft">{r.request_note}</dd></div>}
               </dl>
+              {editing === r.subject_id && !r.is_claimed && (
+                <form
+                  className="mt-4 space-y-3 rounded-xl border border-line bg-sand/40 p-4"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const form = new FormData(e.currentTarget);
+                    form.set("kind", r.subject_kind);
+                    form.set("id", r.subject_id);
+                    setBusy(r.subject_id); setError(null);
+                    const res = await edit(form);
+                    if (!res.ok) setError(res.error); else setEditing(null);
+                    setBusy(null);
+                  }}
+                >
+                  <p className="text-sm text-ink-soft">Leave a field blank to keep what is already there. Only an unclaimed record can be edited here — once somebody claims it, they are in charge.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-semibold text-ink" htmlFor={`e-name-${r.subject_id}`}>Name</label>
+                      <input id={`e-name-${r.subject_id}`} name="name" defaultValue={r.subject_name ?? ""} className="auth-input w-full" />
+                    </div>
+                    {r.subject_kind === "business" ? (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-ink" htmlFor={`e-cat-${r.subject_id}`}>Category</label>
+                          <select id={`e-cat-${r.subject_id}`} name="category" className="auth-input w-full" defaultValue="">
+                            <option value="">Leave as it is</option>
+                            {BUSINESS_CATEGORIES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-ink" htmlFor={`e-addr-${r.subject_id}`}>Address or place</label>
+                          <input id={`e-addr-${r.subject_id}`} name="address" className="auth-input w-full" placeholder="Leave blank to keep it" />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-ink" htmlFor={`e-type-${r.subject_id}`}>Kind of organisation</label>
+                          <select id={`e-type-${r.subject_id}`} name="type" className="auth-input w-full" defaultValue="">
+                            <option value="">Leave as it is</option>
+                            {HUB_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-ink" htmlFor={`e-area-${r.subject_id}`}>Area</label>
+                          <input id={`e-area-${r.subject_id}`} name="area" className="auth-input w-full" placeholder="Leave blank to keep it" />
+                        </div>
+                      </>
+                    )}
+                    <div className="sm:col-span-2">
+                      <label className="block text-sm font-semibold text-ink" htmlFor={`e-desc-${r.subject_id}`}>Description</label>
+                      <textarea id={`e-desc-${r.subject_id}`} name="description" rows={2} className="auth-input w-full" placeholder="Leave blank to keep it" />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-3 text-sm text-ink">
+                    <input type="checkbox" name="publish" defaultChecked={!!r.is_active} className="size-4" />
+                    <span>Visible to the public</span>
+                  </label>
+                  <div className="flex gap-3">
+                    <button type="submit" disabled={busy === r.subject_id} className="min-h-11 rounded-pill bg-navy px-5 text-sm font-bold text-white hover:bg-navy-dark disabled:opacity-60">
+                      {busy === r.subject_id ? "Saving…" : "Save changes"}
+                    </button>
+                    <button type="button" onClick={() => { setEditing(null); setError(null); }} className="text-sm font-bold text-navy hover:underline">Cancel</button>
+                  </div>
+                </form>
+              )}
+
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                {!r.is_claimed && editing !== r.subject_id && (
+                  <button type="button" onClick={() => { setEditing(r.subject_id); setError(null); }} className="text-sm font-bold text-navy hover:underline">
+                    Edit the details
+                  </button>
+                )}
+                {r.is_claimed && <p className="text-sm text-ink-muted">Claimed — only its owner can edit it now.</p>}
+              </div>
+
               {!r.contact_forgotten && (r.requested_by_email || r.requested_by_name) && (
                 <button
                   type="button"
@@ -73,7 +151,7 @@ export function AssistedRecords({ rows, kind, forget }: Props) {
                     if (!res.ok) setError(res.error);
                     setBusy(null);
                   }}
-                  className="mt-3 text-sm font-bold text-navy hover:underline disabled:opacity-60"
+                  className="text-sm font-bold text-navy hover:underline disabled:opacity-60"
                 >
                   {busy === r.subject_id ? "Removing…" : "Remove their contact details"}
                 </button>

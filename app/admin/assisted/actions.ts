@@ -9,7 +9,7 @@
  */
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin-data.server";
-import { createBusiness, createHub, forgetContact, setRequest } from "@/lib/assisted/client";
+import { createBusiness, createHub, forgetContact, setRequest, updateBusiness, updateHub } from "@/lib/assisted/client";
 import type { AssistedKind, CreateResult } from "@/lib/assisted/shape";
 
 const str = (v: FormDataEntryValue | null): string => (typeof v === "string" ? v.trim() : "");
@@ -49,6 +49,32 @@ export async function createAssistedHubAction(form: FormData): Promise<CreateRes
   });
   if (result.created) { revalidatePath("/admin/hubs"); revalidatePath("/hubs"); }
   return result;
+}
+
+/** Correct an unclaimed record. NULL/absent means "leave that field alone", which the database honours. */
+export async function editAssistedAction(form: FormData): Promise<{ ok: true } | { ok: false; error: string }> {
+  await requireAdmin();
+  const kind = str(form.get("kind")) === "hub" ? "hub" : "business";
+  const id = str(form.get("id"));
+  if (!id) return { ok: false, error: "Which record?" };
+  const publish = form.get("publish") === null ? undefined : bool(form.get("publish"));
+  const r = kind === "hub"
+    ? await updateHub(id, {
+        name: str(form.get("name")) || undefined, type: str(form.get("type")) || undefined,
+        description: nul(form.get("description")), area: nul(form.get("area")),
+        contactEmail: nul(form.get("contact_email")), contactPhone: nul(form.get("contact_phone")),
+        website: nul(form.get("website")), publish,
+      })
+    : await updateBusiness(id, {
+        name: str(form.get("name")) || undefined, category: str(form.get("category")) || undefined,
+        address: str(form.get("address")) || undefined, description: nul(form.get("description")),
+        phone: nul(form.get("phone")), email: nul(form.get("email")), website: nul(form.get("website")), publish,
+      });
+  if (r.ok) {
+    revalidatePath("/admin/hubs"); revalidatePath("/admin/claims");
+    revalidatePath(kind === "hub" ? "/hubs" : "/directory");
+  }
+  return r;
 }
 
 export async function setAssistedRequestAction(input: { kind: AssistedKind; id: string; name: string | null; email: string | null; note: string | null }) {
